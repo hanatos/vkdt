@@ -2,6 +2,7 @@
 #include "graph.h"
 #include "core/log.h"
 #include "modules/api.h"
+#include "geo.h"
 
 int dt_raytrace_present(dt_graph_t *graph)
 {
@@ -124,10 +125,10 @@ dt_raytrace_node_init(
       .triangles       = {
         .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
         .maxVertex     = 3*node->rt[f].tri_cnt-1,
-        .vertexStride  = 8 * sizeof(uint16_t),
+        .vertexStride  = sizeof(geo_vtx_t),
         .transformData = {0},
         .indexType     = VK_INDEX_TYPE_NONE_KHR,
-        .vertexFormat  = VK_FORMAT_R16G16B16_SFLOAT,
+        .vertexFormat  = VK_FORMAT_R32G32B32_SFLOAT,
       }},
   };
   node->rt[f].build_info = (VkAccelerationStructureBuildGeometryInfoKHR) {
@@ -395,10 +396,10 @@ dt_raytrace_record_command_buffer_accel_build(
     node->rt[f].geometry.geometry.triangles = (VkAccelerationStructureGeometryTrianglesDataKHR) {
       .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
       .maxVertex     = 3*node->rt[f].tri_cnt-1,
-      .vertexStride  = 8*sizeof(uint16_t),
+      .vertexStride  = sizeof(geo_vtx_t),
       .transformData = {0},
       .indexType     = VK_INDEX_TYPE_NONE_KHR,
-      .vertexFormat  = VK_FORMAT_R16G16B16_SFLOAT,
+      .vertexFormat  = VK_FORMAT_R32G32B32_SFLOAT,
       .vertexData    = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+1)},
       // .indexData     = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+2)},
     };

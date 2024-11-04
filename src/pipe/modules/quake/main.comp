@@ -65,8 +65,8 @@ layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 
 struct rtgeo_vtx_t
 {
-  float16_t x, y, z;
-  uint16_t tex;
+  float x, y, z;
+  uint tex;
   uint n;
   uint st;
 };

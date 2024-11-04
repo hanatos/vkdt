@@ -1,5 +1,6 @@
 #include "modules/api.h"
 #include "modules/localsize.h"
+#include "pipe/geo.h"
 #include "core/half.h"
 #include "../rt/quat.h"
 #include "../i-raw/mat3.h"
@@ -12,21 +13,6 @@
 #define MAX_GLTEXTURES 4096 // happens to be MAX_GLTEXTURES in quakespasm, a #define in gl_texmgr.c
 #define MAX_IDX_CNT 2000000 // global bounds for dynamic geometry, because lazy programmer
 #define MAX_VTX_CNT 2000000
-
-// TODO factor out into some geo.h
-typedef struct rtgeo_vtx_t
-{
-  uint16_t x, y, z;  // half float cartesian vertex coordinate
-  uint16_t tex;      // texture id
-  int16_t  n0, n1;   // encoded normal
-  uint16_t s, t;     // half float texture st coordinates
-}
-rtgeo_vtx_t;
-typedef struct rtgeo_tri_t
-{ // plain flat triangle. each vertex stores a different texture for the triangle: albedo, normals, extra.
-  rtgeo_vtx_t v0, v1, v2;
-}
-rtgeo_tri_t;
 
 static inline double
 xrand(uint32_t reset)
@@ -374,34 +360,12 @@ void QS_texture_free(gltexture_t *texture)
 }
 #endif
 
-static inline void
-encode_normal(
-    int16_t *enc,
-    float   *vec)
-{
-  const float invL1Norm = 1.0f / (fabsf(vec[0]) + fabsf(vec[1]) + fabsf(vec[2]));
-  // first find floating point values of octahedral map in [-1,1]:
-  float enc0, enc1;
-  if (vec[2] < 0.0f)
-  {
-    enc0 = (1.0f - fabsf(vec[1] * invL1Norm)) * ((vec[0] < 0.0f) ? -1.0f : 1.0f);
-    enc1 = (1.0f - fabsf(vec[0] * invL1Norm)) * ((vec[1] < 0.0f) ? -1.0f : 1.0f);
-  }
-  else
-  {
-    enc0 = vec[0] * invL1Norm;
-    enc1 = vec[1] * invL1Norm;
-  }
-  enc[0] = roundf(CLAMP(-32768.0f, enc0 * 32768.0f, 32767.0f));
-  enc[1] = roundf(CLAMP(-32768.0f, enc1 * 32768.0f, 32767.0f));
-}
-
 static void
 add_particles(
-    uint16_t *vtx,   // vertex data + extra
-    uint32_t *vtx_cnt)
+    geo_tri_t *tri,
+    uint32_t  *tri_cnt)
 {
-  uint32_t nvtx = 0;
+  uint32_t ntri = 0;
   xrand(1); // reset so we can do reference renders
   for(particle_t *p=active_particles;p;p=p->next)
   {
@@ -411,17 +375,16 @@ add_particles(
     // rocket trails are r=2*g=2*b a bit randomised
     uint32_t tex_col = c[1] == 0 && c[2] == 0 ? qs_data.tex_blood : qs_data.tex_explosion;
     uint32_t tex_lum = c[1] == 0 && c[2] == 0 ? 0 : qs_data.tex_explosion;
-    int numv = 3; // add single random triangle
-    if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT) return;
+    if(*tri_cnt + ntri + 1 >= MAX_VTX_CNT/3) return;
     const float voff[4][3] = {
       { 0.0,  1.0,  0.0},
       {-0.5, -0.5, -0.87},
       {-0.5, -0.5,  0.87},
       { 1.0, -0.5,  0.0}};
     float vert[4][3];
-    if(vtx)
+    if(tri)
     {
-      rtgeo_tri_t *tri = ((rtgeo_tri_t*)vtx) + nvtx/3;
+      geo_tri_t *cur = tri + ntri;
       for(int l=0;l<3;l++)
       {
         float off = 2*(xrand(0)-0.5) + 2*(xrand(0)-0.5);
@@ -429,41 +392,40 @@ add_particles(
           vert[k][l] = p->org[l] + off + 2*voff[k][l] + (xrand(0)-0.5) + (xrand(0)-0.5);
       }
       // vertex stride: 3v 2n 2uv 1texid = 8
-      tri->v0.x = float_to_half(vert[0][0]);
-      tri->v0.y = float_to_half(vert[0][1]);
-      tri->v0.z = float_to_half(vert[0][2]);
-      tri->v1.x = float_to_half(vert[1][0]);
-      tri->v1.y = float_to_half(vert[1][1]);
-      tri->v1.z = float_to_half(vert[1][2]);
-      tri->v2.x = float_to_half(vert[2][0]);
-      tri->v2.y = float_to_half(vert[2][1]);
-      tri->v2.z = float_to_half(vert[2][2]);
-      tri->v0.n0 = tri->v1.n0 = tri->v2.n0 = 0;
-      tri->v0.n1 = tri->v1.n1 = tri->v2.n1 = 0;
-      tri->v0.s = float_to_half(0);
-      tri->v0.t = float_to_half(1);
-      tri->v1.s = float_to_half(0);
-      tri->v1.t = float_to_half(0);
-      tri->v2.s = float_to_half(1);
-      tri->v2.t = float_to_half(0);
-      tri->v0.tex = tex_col;
-      tri->v1.tex = tex_lum;
-      tri->v2.tex = 0;
-      nvtx += 3;
+      cur->v0.x = vert[0][0];
+      cur->v0.y = vert[0][1];
+      cur->v0.z = vert[0][2];
+      cur->v1.x = vert[1][0];
+      cur->v1.y = vert[1][1];
+      cur->v1.z = vert[1][2];
+      cur->v2.x = vert[2][0];
+      cur->v2.y = vert[2][1];
+      cur->v2.z = vert[2][2];
+      cur->v0.n = tri->v1.n = tri->v2.n = 0;
+      cur->v0.s = float_to_half(0);
+      cur->v0.t = float_to_half(1);
+      cur->v1.s = float_to_half(0);
+      cur->v1.t = float_to_half(0);
+      cur->v2.s = float_to_half(1);
+      cur->v2.t = float_to_half(0);
+      cur->v0.tex = tex_col;
+      cur->v1.tex = tex_lum;
+      cur->v2.tex = 0;
+      ntri++;
     }
   } // end for all particles
-  *vtx_cnt += nvtx;
+  *tri_cnt += ntri;
 }
 
 static void
 add_geo(
-    entity_t *ent,
-    uint16_t *vtx,   // triangle data: 3v f16 + all the extra data, vertex stride is 8 uint16_t
-    uint32_t *vtx_cnt)
+    entity_t  *ent,
+    geo_tri_t *tri,
+    uint32_t  *tri_cnt)
 {
   if(!ent) return;
   // count all verts in all models
-  uint32_t nvtx = 0;
+  uint32_t ntri = 0;
   qmodel_t *m = ent->model;
   // fprintf(stderr, "[add_geo] %s\n", m->name);
   // if (!m || m->name[0] == '*') return; // '*' is the moving brush models such as doors
@@ -507,8 +469,8 @@ add_geo(
     // in fact, the shambler has crazy artifacts all over. maybe this is all wrong and
     // just by chance happened to produce something similar enough sometimes?
     // TODO: fuck this vbo bs and get the mdl itself
-    int16_t *tmpn = alloca(2*sizeof(int16_t)*hdr->numverts_vbo);
-    if(vtx) for(int v = 0; v < hdr->numverts_vbo; v++)
+    uint32_t *tmpn = alloca(sizeof(uint32_t)*hdr->numverts_vbo);
+    if(tri) for(int v = 0; v < hdr->numverts_vbo; v++)
     {
       int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
       int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
@@ -517,15 +479,15 @@ add_geo(
       memcpy(nm1, r_avertexnormals[trivertexes[i1].lightnormalindex], sizeof(float)*3);
       for(int k=0;k<3;k++) nm[k] = (1.0-lerpdata.blend) * nm0[k] + lerpdata.blend * nm1[k];
       for(int k=0;k<3;k++) nw[k] = nm[0] * Mi[3*0+k] + nm[1] * Mi[3*1+k] + nm[2] * Mi[3*2+k];
-      encode_normal(tmpn+2*v, nw);
+      tmpn[v] = geo_encode_normal(nw);
     }
 #endif
-    if(*vtx_cnt + nvtx + hdr->numindexes >= MAX_VTX_CNT) return;
-    if(vtx) for(int i = 0; i < hdr->numindexes/3; i++)
+    if(*tri_cnt + ntri + hdr->numindexes/3 >= MAX_VTX_CNT/3) return;
+    if(tri) for(int i = 0; i < hdr->numindexes/3; i++)
     {
-      rtgeo_tri_t *tri = ((rtgeo_tri_t *)vtx) + nvtx/3 + i;
-      *tri = (rtgeo_tri_t){0};
-      rtgeo_vtx_t *trivtx = &tri->v0;
+      geo_tri_t *cur = tri + ntri + i;
+      *cur = (geo_tri_t){0};
+      geo_vtx_t *trivtx = &cur->v0;
 
       for(int tv=0;tv<3;tv++)
       {
@@ -537,24 +499,22 @@ add_geo(
         for(int k=0;k<3;k++) pos_t1[k] = trivertexes[i1].v[k] * hdr->scale[k] + hdr->scale_origin[k];
 
         for(int k=0;k<3;k++) pos[k] = (1.0-lerpdata.blend) * pos_t0[k] + lerpdata.blend * pos_t1[k];
-        trivtx[tv].x = float_to_half(origin[0] + rgt[0] * pos[1] + top[0] * pos[2] + fwd[0] * pos[0]);
-        trivtx[tv].y = float_to_half(origin[1] + rgt[1] * pos[1] + top[1] * pos[2] + fwd[1] * pos[0]);
-        trivtx[tv].z = float_to_half(origin[2] + rgt[2] * pos[1] + top[2] * pos[2] + fwd[2] * pos[0]);
-        memcpy(&trivtx[tv].n0, tmpn+2*v, sizeof(int16_t)*2);
+        trivtx[tv].x = origin[0] + rgt[0] * pos[1] + top[0] * pos[2] + fwd[0] * pos[0];
+        trivtx[tv].y = origin[1] + rgt[1] * pos[1] + top[1] * pos[2] + fwd[1] * pos[0];
+        trivtx[tv].z = origin[2] + rgt[2] * pos[1] + top[2] * pos[2] + fwd[2] * pos[0];
+        trivtx[tv].n = tmpn[v];
         trivtx[tv].s = float_to_half((desc[v].st[0]+0.5)/(float)hdr->skinwidth);
         trivtx[tv].t = float_to_half((desc[v].st[1]+0.5)/(float)hdr->skinheight);
       }
       const int sk = CLAMP(0, ent->skinnum, hdr->numskins-1), fm = ((int)(cl.time*10))&3;
-      tri->v0.tex = MIN(qs_data.tex_cnt-1, hdr->gltextures[sk][fm]->texnum);
-      tri->v1.tex = MIN(qs_data.tex_cnt-1, hdr->fbtextures[sk][fm] ? hdr->fbtextures[sk][fm]->texnum : 0);
-      tri->v2.tex = 0;
+      cur->v0.tex = MIN(qs_data.tex_cnt-1, hdr->gltextures[sk][fm]->texnum);
+      cur->v1.tex = MIN(qs_data.tex_cnt-1, hdr->fbtextures[sk][fm] ? hdr->fbtextures[sk][fm]->texnum : 0);
+      cur->v2.tex = 0;
 #if 1 // XXX use normal map if we have it. FIXME this discards the vertex normals
       if(hdr->nmtextures[sk][fm])
       {
-        tri->v0.n0 = 0;
-        tri->v0.n1 = MIN(qs_data.tex_cnt-1, hdr->nmtextures[sk][fm]->texnum);
-        tri->v1.n0 = 0xffff; // mark as brush model // XXX ??? why aren't we using v2.tex?
-        tri->v1.n1 = 0xffff;
+        cur->v0.n = MIN(qs_data.tex_cnt-1, hdr->nmtextures[sk][fm]->texnum)<<16;
+        cur->v1.n = 0xffffffff; // mark as brush model // XXX ??? why aren't we using v2.tex?
       }
 #endif
 #if 0
@@ -572,7 +532,7 @@ add_geo(
       encode_normal(ext+14*i+4, nw);
 #endif
     }
-    nvtx += hdr->numindexes;
+    ntri += hdr->numindexes/3;
   }
   else if(m->type == mod_brush)
   { // brush model:
@@ -594,12 +554,12 @@ again:;
       glpoly_t *p = surf->polys;
       while(p)
       {
-        if(*vtx_cnt + nvtx + (p->numverts-2) >= MAX_VTX_CNT) break;
+        if(*tri_cnt + ntri + (p->numverts-2) >= MAX_VTX_CNT/3) break;
 #if WATER_MODE==WATER_MODE_FULL
-        if(vtx && wateroffset) for(int k=2;k<p->numverts;k++)
+        if(tri && wateroffset) for(int k=2;k<p->numverts;k++)
         {
-          rtgeo_tri_t *tri = ((rtgeo_tri_t*)vtx) + k-2;
-          rtgeo_vtx_t *vert = &tri->v0;
+          geo_tri_t *cur = tri + k-2;
+          geo_vtx_t *vert = &cur->v0;
           for(int tv=0;tv<3;tv++)
           { // dunno what's wrong with quake's coordinate systems and the bounds, but this works:
             const int i0 = (tv == 0 ? 0 : tv == 1 ? k-1 : k);
@@ -616,41 +576,39 @@ again:;
         // TODO: make somehow dynamic. don't want to re-upload the whole model just because the texture animates.
         // for now that means static brush models will not actually animate their textures
         texture_t *t = R_TextureAnimation(surf->texinfo->texture, ent->frame);
-        if(vtx) for(int k=2;k<p->numverts;k++)
+        if(tri) for(int k=2;k<p->numverts;k++)
         {
           const int i0 = 0;
           const int i1 = k-1;
           const int i2 = k;
-          rtgeo_tri_t *tri = ((rtgeo_tri_t*)vtx) + nvtx/3 + k-2;
-          *tri = (rtgeo_tri_t){0};
-          tri->v0.x = float_to_half(p->verts[i0][0] * fwd[0] - p->verts[i0][1] * rgt[0] + p->verts[i0][2] * top[0] + ent->origin[0]);
-          tri->v0.y = float_to_half(p->verts[i0][0] * fwd[1] - p->verts[i0][1] * rgt[1] + p->verts[i0][2] * top[1] + ent->origin[1]);
-          tri->v0.z = float_to_half(p->verts[i0][0] * fwd[2] - p->verts[i0][1] * rgt[2] + p->verts[i0][2] * top[2] + ent->origin[2]);
-          tri->v1.x = float_to_half(p->verts[i1][0] * fwd[0] - p->verts[i1][1] * rgt[0] + p->verts[i1][2] * top[0] + ent->origin[0]);
-          tri->v1.y = float_to_half(p->verts[i1][0] * fwd[1] - p->verts[i1][1] * rgt[1] + p->verts[i1][2] * top[1] + ent->origin[1]);
-          tri->v1.z = float_to_half(p->verts[i1][0] * fwd[2] - p->verts[i1][1] * rgt[2] + p->verts[i1][2] * top[2] + ent->origin[2]);
-          tri->v2.x = float_to_half(p->verts[i2][0] * fwd[0] - p->verts[i2][1] * rgt[0] + p->verts[i2][2] * top[0] + ent->origin[0]);
-          tri->v2.y = float_to_half(p->verts[i2][0] * fwd[1] - p->verts[i2][1] * rgt[1] + p->verts[i2][2] * top[1] + ent->origin[1]);
-          tri->v2.z = float_to_half(p->verts[i2][0] * fwd[2] - p->verts[i2][1] * rgt[2] + p->verts[i2][2] * top[2] + ent->origin[2]);
+          geo_tri_t *cur = tri + ntri + k-2;
+          *cur = (geo_tri_t){0};
+          cur->v0.x = p->verts[i0][0] * fwd[0] - p->verts[i0][1] * rgt[0] + p->verts[i0][2] * top[0] + ent->origin[0];
+          cur->v0.y = p->verts[i0][0] * fwd[1] - p->verts[i0][1] * rgt[1] + p->verts[i0][2] * top[1] + ent->origin[1];
+          cur->v0.z = p->verts[i0][0] * fwd[2] - p->verts[i0][1] * rgt[2] + p->verts[i0][2] * top[2] + ent->origin[2];
+          cur->v1.x = p->verts[i1][0] * fwd[0] - p->verts[i1][1] * rgt[0] + p->verts[i1][2] * top[0] + ent->origin[0];
+          cur->v1.y = p->verts[i1][0] * fwd[1] - p->verts[i1][1] * rgt[1] + p->verts[i1][2] * top[1] + ent->origin[1];
+          cur->v1.z = p->verts[i1][0] * fwd[2] - p->verts[i1][1] * rgt[2] + p->verts[i1][2] * top[2] + ent->origin[2];
+          cur->v2.x = p->verts[i2][0] * fwd[0] - p->verts[i2][1] * rgt[0] + p->verts[i2][2] * top[0] + ent->origin[0];
+          cur->v2.y = p->verts[i2][0] * fwd[1] - p->verts[i2][1] * rgt[1] + p->verts[i2][2] * top[1] + ent->origin[1];
+          cur->v2.z = p->verts[i2][0] * fwd[2] - p->verts[i2][1] * rgt[2] + p->verts[i2][2] * top[2] + ent->origin[2];
           // normals, brush models don't have normals
-          tri->v0.n0 = t->gloss ? MIN(qs_data.tex_cnt-1, t->gloss->texnum) : 0;
-          tri->v0.n1 = t->norm  ? MIN(qs_data.tex_cnt-1, t->norm->texnum ) : 0;
-          tri->v1.n0 = 0xffff; // mark as brush model
-          tri->v1.n1 = 0xffff;
-          tri->v2.n0 = 0xffff;
-          tri->v2.n1 = 0xffff;
+          cur->v0.n =   (t->gloss ? MIN(qs_data.tex_cnt-1, t->gloss->texnum) : 0) | 
+                       ((t->norm  ? MIN(qs_data.tex_cnt-1, t->norm->texnum ) : 0)<<16);
+          cur->v1.n = 0xffffffff; // mark as brush model
+          cur->v2.n = 0xffffffff;
           if(surf->texinfo->texture->gltexture)
           { // texture st coordinates
-            tri->v0.s = float_to_half(p->verts[i0][3]);
-            tri->v0.t = float_to_half(p->verts[i0][4]);
-            tri->v1.s = float_to_half(p->verts[i1][3]);
-            tri->v1.t = float_to_half(p->verts[i1][4]);
-            tri->v2.s = float_to_half(p->verts[i2][3]);
-            tri->v2.t = float_to_half(p->verts[i2][4]);
+            cur->v0.s = float_to_half(p->verts[i0][3]);
+            cur->v0.t = float_to_half(p->verts[i0][4]);
+            cur->v1.s = float_to_half(p->verts[i1][3]);
+            cur->v1.t = float_to_half(p->verts[i1][4]);
+            cur->v2.s = float_to_half(p->verts[i2][3]);
+            cur->v2.t = float_to_half(p->verts[i2][4]);
             // texture ids for albedo + fullbright
-            tri->v0.tex = MIN(qs_data.tex_cnt-1, t->gltexture->texnum);
-            tri->v1.tex = t->fullbright ? MIN(qs_data.tex_cnt-1, t->fullbright->texnum) : 0;
-            tri->v2.tex = 0;
+            cur->v0.tex = MIN(qs_data.tex_cnt-1, t->gltexture->texnum);
+            cur->v1.tex = t->fullbright ? MIN(qs_data.tex_cnt-1, t->fullbright->texnum) : 0;
+            cur->v2.tex = 0;
             // max textures is 4096 (12 bit) and we have 16. so we can put 4 bits worth of flags here:
             uint32_t flags = 0;
             if(surf->flags & SURF_DRAWLAVA)  flags = 1;
@@ -663,17 +621,17 @@ again:;
             if(wateroffset)                  flags = 5; // this is our procedural water lower mark
 #endif
             // if(surf->flags & SURF_DRAWSKY)   flags = 6; // could do this too
-            tri->v1.tex |= flags << 12;
+            cur->v1.tex |= flags << 12;
             uint32_t ai = CLAMP(0, (ent->alpha - 1.0)/254.0 * 15, 15); // alpha in 4 bits
             if(!ent->alpha) ai = 15;
             // TODO: 0 means default, 1 means invisible, 255 is opaque, 2--254 is really applicable
             // TODO: default means  map_lavaalpha > 0 ? map_lavaalpha : map_wateralpha
             // TODO: or "slime" or "tele" instead of "lava"
-            tri->v0.tex |= ai << 12;
+            cur->v0.tex |= ai << 12;
           }
-          if(surf->flags & SURF_DRAWSKY) tri->v0.tex = 0xfff;
+          if(surf->flags & SURF_DRAWSKY) cur->v0.tex = 0xfff;
         }
-        nvtx += 3*(p->numverts-2);
+        ntri += p->numverts-2;
 #if WATER_MODE==WATER_MODE_FULL
         if(!wateroffset && (surf->flags & SURF_DRAWWATER))
         { // TODO: and normal points the right way?
@@ -750,8 +708,8 @@ again:;
         return;
     }
 
-    int numv = 3*4; // add three quads
-    if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT) return;
+    int numt = 6; // add three quads
+    if(*tri_cnt + ntri + numt >= MAX_VTX_CNT/3) return;
     for(int k=0;k<3;k++)
     {
       float vert[4][3];
@@ -773,29 +731,29 @@ again:;
       VectorMA (point, frame->right * scale,      k == 2 ? front : s_right, point);
       for(int l=0;l<3;l++) vert[3][l] = point[l];
 
-      if(vtx)
+      if(tri)
       {
-        rtgeo_tri_t *tri = ((rtgeo_tri_t*)vtx)+nvtx/3;
-        tri[0] = (rtgeo_tri_t){0};
-        tri[1] = (rtgeo_tri_t){0};
-        tri[0].v0.x = float_to_half(vert[0][0]);
-        tri[0].v0.y = float_to_half(vert[0][1]);
-        tri[0].v0.z = float_to_half(vert[0][2]);
-        tri[0].v1.x = float_to_half(vert[1][0]);
-        tri[0].v1.y = float_to_half(vert[1][1]);
-        tri[0].v1.z = float_to_half(vert[1][2]);
-        tri[0].v2.x = float_to_half(vert[2][0]);
-        tri[0].v2.y = float_to_half(vert[2][1]);
-        tri[0].v2.z = float_to_half(vert[2][2]);
-        tri[1].v0.x = float_to_half(vert[2][0]);
-        tri[1].v0.y = float_to_half(vert[2][1]);
-        tri[1].v0.z = float_to_half(vert[2][2]);
-        tri[1].v1.x = float_to_half(vert[3][0]);
-        tri[1].v1.y = float_to_half(vert[3][1]);
-        tri[1].v1.z = float_to_half(vert[3][2]);
-        tri[1].v2.x = float_to_half(vert[0][0]);
-        tri[1].v2.y = float_to_half(vert[0][1]);
-        tri[1].v2.z = float_to_half(vert[0][2]);
+        geo_tri_t *cur = tri+ntri;
+        cur[0] = (geo_tri_t){0};
+        cur[1] = (geo_tri_t){0};
+        cur[0].v0.x = vert[0][0];
+        cur[0].v0.y = vert[0][1];
+        cur[0].v0.z = vert[0][2];
+        cur[0].v1.x = vert[1][0];
+        cur[0].v1.y = vert[1][1];
+        cur[0].v1.z = vert[1][2];
+        cur[0].v2.x = vert[2][0];
+        cur[0].v2.y = vert[2][1];
+        cur[0].v2.z = vert[2][2];
+        cur[1].v0.x = vert[2][0];
+        cur[1].v0.y = vert[2][1];
+        cur[1].v0.z = vert[2][2];
+        cur[1].v1.x = vert[3][0];
+        cur[1].v1.y = vert[3][1];
+        cur[1].v1.z = vert[3][2];
+        cur[1].v2.x = vert[0][0];
+        cur[1].v2.y = vert[0][1];
+        cur[1].v2.z = vert[0][2];
 
         float n[3], e0[] = {
           vert[2][0] - vert[0][0],
@@ -805,36 +763,36 @@ again:;
           vert[1][1] - vert[0][1],
           vert[1][2] - vert[0][2]};
         cross(e0, e1, n);
-        encode_normal(&tri[0].v0.n0, n);
-        encode_normal(&tri[0].v1.n0, n);
-        encode_normal(&tri[0].v2.n0, n);
-        encode_normal(&tri[1].v0.n0, n);
-        encode_normal(&tri[1].v1.n0, n);
-        encode_normal(&tri[1].v2.n0, n);
-        tri[0].v0.s = float_to_half(0);
-        tri[0].v0.t = float_to_half(1);
-        tri[0].v1.s = float_to_half(0);
-        tri[0].v1.t = float_to_half(0);
-        tri[0].v2.s = float_to_half(1);
-        tri[0].v2.t = float_to_half(0);
-        tri[1].v0.s = float_to_half(0);
-        tri[1].v0.t = float_to_half(1);
-        tri[1].v1.s = float_to_half(1);
-        tri[1].v1.t = float_to_half(0);
-        tri[1].v2.s = float_to_half(1);
-        tri[1].v2.t = float_to_half(1);
+        cur[0].v0.n = geo_encode_normal(n);
+        cur[0].v1.n = geo_encode_normal(n);
+        cur[0].v2.n = geo_encode_normal(n);
+        cur[1].v0.n = geo_encode_normal(n);
+        cur[1].v1.n = geo_encode_normal(n);
+        cur[1].v2.n = geo_encode_normal(n);
+        cur[0].v0.s = float_to_half(0);
+        cur[0].v0.t = float_to_half(1);
+        cur[0].v1.s = float_to_half(0);
+        cur[0].v1.t = float_to_half(0);
+        cur[0].v2.s = float_to_half(1);
+        cur[0].v2.t = float_to_half(0);
+        cur[1].v0.s = float_to_half(0);
+        cur[1].v0.t = float_to_half(1);
+        cur[1].v1.s = float_to_half(1);
+        cur[1].v1.t = float_to_half(0);
+        cur[1].v2.s = float_to_half(1);
+        cur[1].v2.t = float_to_half(1);
         if(frame->gltexture)
         {
-          tri[0].v0.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
-          tri[0].v1.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum); // sprites always emit
-          tri[1].v0.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
-          tri[1].v1.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          cur[0].v0.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          cur[0].v1.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum); // sprites always emit
+          cur[1].v0.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          cur[1].v1.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
         }
       }
-      nvtx += 6;
+      ntri += 2;
     } // end three axes
   } // end sprite model
-  *vtx_cnt += nvtx;
+  *tri_cnt += ntri;
 }
 
 void modify_roi_out(
@@ -996,17 +954,17 @@ int read_source(
     p->node->flags &= ~s_module_request_read_source; // done uploading textures
     d->tex_req[p->a] = 0;
   }
-  uint32_t vtx_cnt = 0;
-  uint16_t *m16 = mapped;
+  uint32_t tri_cnt = 0;
+  geo_tri_t *tri = mapped;
   if(p->node->kernel == dt_token("dyngeo"))
   {
     // add_geo(cl_entities+cl.viewentity, m16 + 8*3*vtx_cnt, &vtx_cnt); // player model
-    add_geo(&cl.viewent, m16 + 8*vtx_cnt, &vtx_cnt); // weapon
+    add_geo(&cl.viewent, tri + tri_cnt, &tri_cnt); // weapon
     for(int i=0;i<cl_numvisedicts;i++)
-      add_geo(cl_visedicts[i], m16 + 8*vtx_cnt, &vtx_cnt);
+      add_geo(cl_visedicts[i], tri + tri_cnt, &tri_cnt);
     for(int i=0; i<cl.num_statics; i++)
-      add_geo(cl_static_entities+i, m16 + 8*vtx_cnt, &vtx_cnt);
-    add_particles(m16 + 8*vtx_cnt, &vtx_cnt);
+      add_geo(cl_static_entities+i, tri + tri_cnt, &tri_cnt);
+    add_particles(tri + tri_cnt, &tri_cnt);
     p->node->flags |= s_module_request_read_source; // need to do this all the time
     mod->flags |= s_module_request_read_source; // need to do this all the time
     // XXX we are called on the source node, not the bvh sink node! need to somehow propagate these counts along!
@@ -1014,20 +972,20 @@ int read_source(
     // this could work via modify_roi_out for geo modules, but not internal nodes.
     for(int n=0;n<mod->graph->num_nodes;n++) if(mod->graph->node[n].name == dt_token("bvh") && mod->graph->node[n].kernel == dt_token("dyn"))
     {
-      mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = vtx_cnt/3;
+      mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = tri_cnt;
       break;
     }
     // fprintf(stderr, "uploading dyn geo for frame %d node %"PRItkn" with %d tris f %d\n", mod->graph->frame, dt_token_str(p->node->name), vtx_cnt/3, mod->graph->double_buffer);
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
-    add_geo(cl_entities+0, m16 + 8*vtx_cnt, &vtx_cnt);
+    add_geo(cl_entities+0, tri + tri_cnt, &tri_cnt);
     // if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
     if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_source; // done uploading static geo for now
 #if 0// TODO unset flag for bvh build or something
     for(int n=0;n<mod->graph->num_nodes;n++) if(mod->graph->node[n].name == dt_token("bvh") && mod->graph->node[n].kernel == dt_token("stc"))
     {
-      mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = vtx_cnt/3;
+      mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = tri_cnt;
       break;
     }
     p->node->flags |= s_module_request_read_source;
@@ -1110,33 +1068,33 @@ create_nodes(
   for(int i=0;i<d->tex_cnt;i++)
     if(d->tex[i]) d->tex_req[i] = 1;
 
-  uint32_t vtx_cnt = 0;
+  uint32_t tri_cnt = 0;
   // we'll statically assign a global buffer size here because we want to avoid a fresh
   // node creation/memory allocation pass. reallocation usually invalidates *all* buffers
   // requiring fresh data upload for everything.
   // i suppose the core allocator might need support for incremental additions otherwise.
-  vtx_cnt = MAX_VTX_CNT;
+  tri_cnt = MAX_VTX_CNT/3;
 
-  dt_roi_t roi_geo = { .scale = 1.0, .wd = vtx_cnt/3, .ht = 3*8, .full_wd = vtx_cnt/3, .full_ht = 3*8 };
+  dt_roi_t roi_geo = { .scale=1.0, .wd=tri_cnt, .ht=sizeof(geo_tri_t)/sizeof(float), .full_wd=tri_cnt, .full_ht=sizeof(geo_tri_t)/sizeof(float) };
   const uint32_t id_dyngeo = dt_node_add(graph, module, "quake", "dyngeo", 1, 1, 1, 0, 0, 1,
-    "dyngeo", "source", "ssbo", "f16", &roi_geo);
+    "dyngeo", "source", "ssbo", "f32", &roi_geo);
   graph->node[id_dyngeo].flags = s_module_request_read_geo | s_module_request_read_source;
 
   // the static geometry we count. this means that we'll need to re-create nodes on map change.
-  vtx_cnt = 0;
-  add_geo(cl_entities+0, 0, &vtx_cnt);
-  fprintf(stderr, "[create_nodes] static vertex count %u\n", vtx_cnt);
-  vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
+  tri_cnt = 0;
+  add_geo(cl_entities+0, 0, &tri_cnt);
+  fprintf(stderr, "[create_nodes] static tri count %u\n", tri_cnt);
+  tri_cnt = MAX(1, tri_cnt); // avoid crash for not initialised model
 
-  roi_geo = (dt_roi_t){ .scale = 1.0, .wd = vtx_cnt/3, .ht = 3*8, .full_wd = vtx_cnt/3, .full_ht = 3*8 };
+  roi_geo = (dt_roi_t){ .scale=1.0, .wd=tri_cnt, .ht=sizeof(geo_tri_t)/sizeof(float), .full_wd=tri_cnt, .full_ht=sizeof(geo_tri_t)/sizeof(float) };
   const uint32_t id_stcgeo = dt_node_add(graph, module, "quake", "stcgeo", 1, 1, 1, 0, 0, 1,
-    "stcgeo", "source", "ssbo", "f16", &roi_geo);
+    "stcgeo", "source", "ssbo", "f32", &roi_geo);
   graph->node[id_stcgeo].flags = s_module_request_read_geo | s_module_request_read_source;
 
   const uint32_t id_dynbvh = dt_node_add(graph, module, "bvh", "dyn", 1, 1, 1, 0, 0, 1,
-    "geo", "sink", "ssbo", "f16", dt_no_roi);
+    "geo", "sink", "ssbo", "f32", dt_no_roi);
   const uint32_t id_stcbvh = dt_node_add(graph, module, "bvh", "stc", 1, 1, 1, 0, 0, 1,
-    "geo", "sink", "ssbo", "f16", dt_no_roi);
+    "geo", "sink", "ssbo", "f32", dt_no_roi);
   CONN(dt_node_connect(graph, id_dyngeo, 0, id_dynbvh, 0));
   CONN(dt_node_connect(graph, id_stcgeo, 0, id_stcbvh, 0));
 
