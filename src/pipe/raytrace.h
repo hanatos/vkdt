@@ -43,7 +43,7 @@ typedef struct dt_raytrace_node_t
   off_t                                       buf_accel_offset;
   off_t                                       buf_scratch_offset;
   uint32_t                                    tri_cnt;        // number of triangles provided by this node, i.e. number of vertices / 3
-  int                                         force_read_geo; // override for static geo in odd frames
+  int                                         force_build_bvh;// override for static geo in odd frames
 }
 dt_raytrace_node_t;
 

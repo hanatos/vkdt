@@ -11,7 +11,7 @@ typedef enum dt_module_flags_t
   s_module_request_none        = 0,
   s_module_request_read_source = 1,
   s_module_request_write_sink  = 2,
-  s_module_request_read_geo    = 4,
+  s_module_request_build_bvh   = 4,
   s_module_request_dyn_array   = 8,
   s_module_request_all         = 16,
 }

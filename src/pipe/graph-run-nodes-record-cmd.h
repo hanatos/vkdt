@@ -385,7 +385,7 @@ dt_graph_run_nodes_record_cmd(
     vkCmdResetQueryPool(graph->command_buffer[buf_curr], graph->query[buf_curr].pool, 0, graph->query[buf_curr].max);
     double rt_beg = dt_time();
     int run_all = run & s_graph_run_upload_source;
-    int run_mod = module_flags & s_module_request_read_geo;
+    int run_mod = module_flags & s_module_request_build_bvh;
     if(run_all || run_mod) QVKR(dt_raytrace_record_command_buffer_accel_build(graph));
     double rt_end = dt_time();
     dt_log(s_log_perf, "create raytrace accel:\t%8.3f ms", 1000.0*(rt_end-rt_beg));

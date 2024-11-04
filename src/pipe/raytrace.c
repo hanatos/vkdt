@@ -344,7 +344,7 @@ dt_raytrace_record_command_buffer_accel_build(
     dt_graph_t *graph)
 {
   const int f  =  graph->double_buffer % 2;
-  // const int fp = (graph->double_buffer+1) % 2;
+  const int fp = (graph->double_buffer+1) % 2;
   if(!qvk.raytracing_supported || graph->rt[f].nid_cnt == 0) return VK_SUCCESS;
   QVK_LOAD(vkGetAccelerationStructureDeviceAddressKHR);
   QVK_LOAD(vkCmdBuildAccelerationStructuresKHR);
@@ -361,20 +361,25 @@ dt_raytrace_record_command_buffer_accel_build(
   for(int i=0;i<graph->rt[f].nid_cnt;i++)
   { // check all nodes for ray tracing geometry
     dt_node_t *node = graph->node + graph->rt[f].nid[i];
-    // XXX ???
-    // if(!node->rt[f].force_read_geo && !(node->flags & s_module_request_read_geo)) continue;
-    // flag has been cleared, node says it's done! need to make sure the other frame buffer knows the static geo too!
-    // if(!(node->flags & s_module_request_read_geo) && !node->rt[f].force_read_geo) node->rt[fp].force_read_geo = 1;
-    node->rt[f].force_read_geo = 0; // we are done now
-    if(node->rt[f].tri_cnt == 0) continue;
-    // fprintf(stderr, "ray tracing instance %d with %d tris\n", i, node->rt[f].tri_cnt);
+    int build_accel = 1;
+    // fprintf(stderr, "tracing flag instance %d/%d %d\n", i, f, node->flags & s_module_request_build_bvh);
+    if     (!node->rt[f].force_build_bvh && !(node->flags & s_module_request_build_bvh)) build_accel = 0;
+    else if(!node->rt[f].force_build_bvh &&  (node->flags & s_module_request_build_bvh))
+      node->rt[fp].force_build_bvh = 1;
+    if(node->rt[f].tri_cnt == 0) build_accel = 0;
+    
+    // FIXME: just enabling this all the fucking time works, so the upload seems fine.
+    // FIXME: setting it to 0 as it should, the stc geo build exactly the two times it's supposed to, but somehow is broken
+    // FIXME: the first time running without complete rebuild breaks it.
+    // FIXME: is the memory overwritten? but this should all be protected/staging mem and also we're not re-uploading (so the geo part stays)
 
     VkAccelerationStructureDeviceAddressInfoKHR address_request = {
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
       .accelerationStructure = node->rt[f].accel,
     };
-    int ii = rebuild_cnt++;
-    instance[ii] = (VkAccelerationStructureInstanceKHR) {
+    // FIXME: this needs to be set in the same slot all the time! now if we don't rebuild i=0 we'll overwrite the transform!
+    // FIXME: this is used later in the TLAS build!
+    instance[i] = (VkAccelerationStructureInstanceKHR) {
       .transform = { .matrix = {
         {1.0f, 0.0f, 0.0f, 0.0f},
         {0.0f, 1.0f, 0.0f, 0.0f},
@@ -404,9 +409,17 @@ dt_raytrace_record_command_buffer_accel_build(
       .vertexData    = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+1)},
       // .indexData     = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+2)},
     };
-    build_range  [ii] = (VkAccelerationStructureBuildRangeInfoKHR) { .primitiveCount = node->rt[f].tri_cnt };
-    p_build_range[ii] = build_range + ii;
-    build_info   [ii] = node->rt[f].build_info;
+    build_range  [i] = (VkAccelerationStructureBuildRangeInfoKHR) { .primitiveCount = node->rt[f].tri_cnt };
+    if(build_accel)
+    {
+      int ii = rebuild_cnt++;
+      build_info   [ii] = node->rt[f].build_info;
+      p_build_range[ii] = build_range + i;
+
+      node->rt[f].force_build_bvh = 0; // XXX // we are done now
+      fprintf(stderr, "ray tracing instance %d/%d with %d tris, build %d\n", i, f, node->rt[f].tri_cnt, build_accel);
+      node->flags &= ~s_module_request_build_bvh; // reset
+    }
   }
   vkUnmapMemory(qvk.device, graph->rt[f].vkmem_staging);
   if(!rebuild_cnt) return VK_SUCCESS; // nothing to do, yay
@@ -449,6 +462,7 @@ dt_raytrace_record_command_buffer_accel_build(
     .data            = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, &index_address) },
   };
   build_range[0] = (VkAccelerationStructureBuildRangeInfoKHR) { .primitiveCount = graph->rt[f].nid_cnt };
+  p_build_range[0] = build_range;
   qvkCmdBuildAccelerationStructuresKHR(graph->command_buffer[f], 1, &graph->rt[f].build_info, p_build_range);
 
   // push another barrier

@@ -28,15 +28,6 @@ typedef struct dt_write_sink_params_t
 }
 dt_write_sink_params_t;
 
-typedef struct dt_read_geo_params_t
-{
-  dt_node_t *node;    // the callback lives on the module and needs to identify the real source
-  uint32_t  *idx;     // mmapped index array
-  float     *vtx;     // mmapped vertex array
-  int16_t   *ext;     // mmapped extra data (normals, materials, texture ids, ..)
-}
-dt_read_geo_params_t;
-
 typedef struct dt_module_input_event_t
 { // glfw events for modules without linking glfw
   int type;       // activate 0 mouse button 1 mouse position 2 mouse scrolled 3 keyboard 4
@@ -55,7 +46,6 @@ typedef void (*dt_module_modify_roi_out_t)(dt_graph_t *graph, dt_module_t *modul
 typedef void (*dt_module_modify_roi_in_t )(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_write_sink_t) (dt_module_t *module, void *buf, dt_write_sink_params_t *p);
 typedef void (*dt_module_read_source_t)(dt_module_t *module, void *buf, dt_read_source_params_t *p);
-typedef void (*dt_module_read_geo_t)(dt_module_t *module, dt_read_geo_params_t *p);
 typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);
 typedef int  (*dt_module_bs_init_t) ();
@@ -102,9 +92,6 @@ typedef struct dt_module_so_t
 
   // enables input grabbing for modules
   dt_module_input_t input;
-
-  // read geo for constructing ray tracing acceleration structures (optional)
-  dt_module_read_geo_t read_geo;
 
   // for source nodes, will be called before processing starts
   dt_module_read_source_t read_source;

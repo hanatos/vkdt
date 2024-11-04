@@ -974,6 +974,7 @@ int read_source(
     for(int n=0;n<mod->graph->num_nodes;n++) if(mod->graph->node[n].name == dt_token("bvh") && mod->graph->node[n].kernel == dt_token("dyn"))
     {
       mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = tri_cnt;
+      mod->graph->node[n].flags |= s_module_request_build_bvh;
       break;
     }
     // fprintf(stderr, "uploading dyn geo for frame %d node %"PRItkn" with %d tris f %d\n", mod->graph->frame, dt_token_str(p->node->name), vtx_cnt/3, mod->graph->double_buffer);
@@ -983,16 +984,16 @@ int read_source(
     add_geo(cl_entities+0, tri + tri_cnt, &tri_cnt);
     // if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
     if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_source; // done uploading static geo for now
-#if 0// TODO unset flag for bvh build or something
+#if 1
     for(int n=0;n<mod->graph->num_nodes;n++) if(mod->graph->node[n].name == dt_token("bvh") && mod->graph->node[n].kernel == dt_token("stc"))
     {
       mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = tri_cnt;
+      mod->graph->node[n].flags |= s_module_request_build_bvh;
       break;
     }
-    p->node->flags |= s_module_request_read_source;
-    mod->flags |= s_module_request_read_source;
+    mod->flags |= s_module_request_build_bvh;
 #endif
-    // fprintf(stderr, "uploading stc geo for frame %d node %"PRItkn" with %d tris f %d\n", mod->graph->frame, dt_token_str(p->node->name), vtx_cnt/3, mod->graph->double_buffer);
+    fprintf(stderr, "uploading stc geo for frame %d node %"PRItkn" with %d tris f %d|%d\n", mod->graph->frame, dt_token_str(p->node->name), tri_cnt, mod->graph->double_buffer, p->node->connector[0].frames);
 #if 0 // debug: quake aabb are in +-4096
     float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
     for(int i=0;i<vtx_cnt;i++) 
@@ -1079,7 +1080,7 @@ create_nodes(
   dt_roi_t roi_geo = { .scale=1.0, .wd=tri_cnt, .ht=sizeof(geo_tri_t)/sizeof(float), .full_wd=tri_cnt, .full_ht=sizeof(geo_tri_t)/sizeof(float) };
   const uint32_t id_dyngeo = dt_node_add(graph, module, "quake", "dyngeo", 1, 1, 1, 0, 0, 1,
     "dyngeo", "source", "ssbo", "f32", &roi_geo);
-  graph->node[id_dyngeo].flags = s_module_request_read_geo | s_module_request_read_source;
+  graph->node[id_dyngeo].flags = s_module_request_read_source;
 
   // the static geometry we count. this means that we'll need to re-create nodes on map change.
   tri_cnt = 0;
@@ -1090,7 +1091,7 @@ create_nodes(
   roi_geo = (dt_roi_t){ .scale=1.0, .wd=tri_cnt, .ht=sizeof(geo_tri_t)/sizeof(float), .full_wd=tri_cnt, .full_ht=sizeof(geo_tri_t)/sizeof(float) };
   const uint32_t id_stcgeo = dt_node_add(graph, module, "quake", "stcgeo", 1, 1, 1, 0, 0, 1,
     "stcgeo", "source", "ssbo", "f32", &roi_geo);
-  graph->node[id_stcgeo].flags = s_module_request_read_geo | s_module_request_read_source;
+  graph->node[id_stcgeo].flags = s_module_request_read_source;
 
   const uint32_t id_dynbvh = dt_node_add(graph, module, "bvh", "dyn", 1, 1, 1, 0, 0, 1,
     "geo", "sink", "ssbo", "f32", dt_no_roi);
@@ -1098,13 +1099,15 @@ create_nodes(
     "geo", "sink", "ssbo", "f32", dt_no_roi);
   CONN(dt_node_connect(graph, id_dyngeo, 0, id_dynbvh, 0));
   CONN(dt_node_connect(graph, id_stcgeo, 0, id_stcbvh, 0));
+  graph->node[id_dynbvh].flags = s_module_request_build_bvh;
+  graph->node[id_stcbvh].flags = s_module_request_build_bvh;
 
   // XXX apparently this runs so in sync that it's not even needed:
   // graph->node[id_dyngeo].connector[0].flags |= s_conn_double_buffer;
   // graph->node[id_dyngeo].connector[0].frames = 2;
   // graph->node[id_dynbvh].connector[0].flags |= s_conn_double_buffer;
   // graph->node[id_dynbvh].connector[0].frames = 2;
-  // .. and this would need extra love to actually init both buffers at least once:
+  // // .. and this would need extra love to actually init both buffers at least once:
   // graph->node[id_stcgeo].connector[0].flags |= s_conn_double_buffer;
   // graph->node[id_stcgeo].connector[0].frames = 2;
   // graph->node[id_stcbvh].connector[0].flags |= s_conn_double_buffer;
@@ -1120,7 +1123,7 @@ create_nodes(
   dt_connector_copy(graph, module, 5, id_rt, 8); // wire debug output
 
   // propagate up so things will start to move at all at the node level:
-  module->flags = s_module_request_read_geo;
+  module->flags = s_module_request_build_bvh;
 }
 
 int audio(
