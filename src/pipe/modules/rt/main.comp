@@ -5,6 +5,7 @@
 #extension GL_EXT_ray_query               : enable
 
 #include "shared.glsl"
+#include "shared/render3d.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -20,31 +21,12 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int spp;
 } params;
 
-// TODO: would this be faster using a textureBuffer instead of an ssbo?
-layout(std430, set = 1, binding = 0) buffer ssbo_t
-{
-  uvec4 v[]; // variable-length list of bytes encoding vertices and indices
-} ssbo;
-
-layout( // output f16 buffer rgb
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
-
-layout(
-    set = 1, binding = 2
-) uniform sampler2D img_blue;
-
-layout(
-    set = 1, binding = 3
-) uniform sampler2D img_tex[];
-
-layout(
-    set = 1, binding = 4
-) uniform writeonly image2D img_aov;
-
-layout(
-    set = 2, binding = 0
-) uniform accelerationStructureEXT rt_accel;
+layout(set = 1, binding = 0) uniform writeonly image2D img_out;
+layout(set = 1, binding = 1) uniform sampler2D img_blue;
+layout(set = 1, binding = 2) uniform sampler2D img_tex[];
+layout(set = 1, binding = 3) uniform writeonly image2D img_aov;
+layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
+layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
 
 #if 1
 float rand3(vec3 v) {
@@ -87,104 +69,25 @@ float fbm3(in vec3 uvx) {
 }
 #endif
 
-#if 1 // TODO: put stuff like this in montecarlo.glsl or so
-#if 0
-// uniformly sample the unit sphere, p = 1/4pi
-static inline void sample_sphere(float *x, float *y, float *z, const float x1, const float x2)
-{
-  *z = 1.f - 2.f*x1;
-  const float r = sqrtf(1.f - *z**z);
-  const float phi = 2.f*M_PI*x2;
-  *x = r * cosf(phi);
-  *y = r * sinf(phi);
-}
-
-// sample hemisphere uniformly, p = 1/2pi
-static inline void sample_hemisphere(float *x, float *y, float *z, const float x1, const float x2)
-{
-  *z = 1.f - x1;
-  const float r = sqrtf(1.f - *z**z);
-  const float phi = 2.f*M_PI*x2;
-  *x = r * cosf(phi);
-  *y = r * sinf(phi);
-}
-
-// sample hemisphere, cos^k lobe, p = cos^k(theta) (k+1)/2pi
-static inline void sample_cos_k(float *x, float *y, float *z, const float k, const float x1, const float x2)
-{
-  const float r1 = x1 * 2.0f * M_PI;
-  const float cos_theta = powf(1.0f - x2, 1.0f/(k+1));
-  const float sin_theta = sqrtf(MAX(0.0f, 1.0f - cos_theta*cos_theta));
-  *x = cosf(r1) * sin_theta;
-  *y = sinf(r1) * sin_theta;
-  *z = cos_theta;
-}
-#endif
-
-// sample hemisphere, cos lobe, p = cos(theta)/pi
-vec3 sample_cos(vec2 x)
-{
-  float su = sqrt(x.x);
-  return vec3(su*cos(2.0*3.1415*x.y), su*sin(2.0*3.1415*x.y), sqrt(1.0 - x.x));
-}
-
-vec4 xrand(inout uint seed, ivec2 p)
-{
-  // cp shift based on seed
-  return mod(texelFetch(img_blue, p, 0) + vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed)), vec4(1.0));
-}
-
-#endif
-
-// 32-bit normal encoding from Journal of Computer Graphics Techniques Vol. 3, No. 2, 2014
-// A Survey of Efficient Representations for Independent Unit Vectors
-// almost like oct30, but our error is = 0.00077204 avg = 0.00010846 compared to oct32P 0.00246 0.00122
-// i'm thinking maybe because we use a fixed point quantization (only multiples of 2 are mul/divd here)
-// this also enables us to precisely encode (1 0 0) vectors.
-vec3 geo_decode_normal(const uint enc)
-{
-  // XXX FIXME: the unpack thing does already encode 1.0 as 0xffff and is thus different to the CPU version!
-  // vec2 projected = 2.0*unpackSnorm2x16(enc); // <= we want this!
-  vec2 projected = 2.0*vec2(
-      uintBitsToFloat(0x3f800000u | (( enc      & 0x7fff)<<8)),
-      uintBitsToFloat(0x3f800000u | (((enc>>16) & 0x7fff)<<8))
-      ) - 2.0; // XXX FIXME: do i mean -3.0 such that this will be -1..1?
-  if(((enc>>16)&0x8000u) != 0) projected.y = -projected.y;
-  if(( enc     &0x8000u) != 0) projected.x = -projected.x;
-  vec3 vec = vec3(projected, 1.0-abs(projected.x)-abs(projected.y));
-  if(vec.z < 0.0)
-    vec.xy = vec2(
-        (1.0 - abs(vec.y)) * (vec.x < 0.0 ? -1.0 : 1.0),
-        (1.0 - abs(vec.x)) * (vec.y < 0.0 ? -1.0 : 1.0));
-  return normalize(vec);
-}
-
 void prepare_intersection(
     rayQueryEXT rq,
     vec3 w,
     inout vec3 x,
     out vec3 n,
     out vec2 st,
-    out uint mat)
-{
-  // access and unpack geometry data
+    out uint mat,
+    out uint mfb)
+{ // access and unpack geometry data
   uint pi = 3*rayQueryGetIntersectionPrimitiveIndexEXT(rq, true);
-  uvec4 p0 = ssbo.v[pi+0];
-  uvec4 p1 = ssbo.v[pi+1];
-  uvec4 p2 = ssbo.v[pi+2];
-  mat = p0.y >> 24;
-  uint vi0 = p0.x;
-  uint vi1 = p1.x;
-  uint vi2 = p2.x;
-  uvec4 u0 = ssbo.v[vi0];
-  uvec4 u1 = ssbo.v[vi1];
-  uvec4 u2 = ssbo.v[vi2];
-  vec3 n0 = geo_decode_normal(u0.w);
-  vec3 n1 = geo_decode_normal(u1.w);
-  vec3 n2 = geo_decode_normal(u2.w);
-  vec3 v0 = uintBitsToFloat(u0.xyz);
-  vec3 v1 = uintBitsToFloat(u1.xyz);
-  vec3 v2 = uintBitsToFloat(u2.xyz);
+  uint it = rayQueryGetIntersectionInstanceIdEXT(rq, true);
+  mat = buf_vtx[it].v[pi+0].tex;
+  mfb = buf_vtx[it].v[pi+1].tex;
+  vec3 v0 = vec3(buf_vtx[it].v[pi+0].x, buf_vtx[it].v[pi+0].y, buf_vtx[it].v[pi+0].z);
+  vec3 v1 = vec3(buf_vtx[it].v[pi+1].x, buf_vtx[it].v[pi+1].y, buf_vtx[it].v[pi+1].z);
+  vec3 v2 = vec3(buf_vtx[it].v[pi+2].x, buf_vtx[it].v[pi+2].y, buf_vtx[it].v[pi+2].z);
+  vec3 n0 = geo_decode_normal(buf_vtx[it].v[pi+0].n);
+  vec3 n1 = geo_decode_normal(buf_vtx[it].v[pi+1].n);
+  vec3 n2 = geo_decode_normal(buf_vtx[it].v[pi+2].n);
   vec3 b;
   b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, true);
   b.x = 1.0-b.z-b.y;
@@ -197,9 +100,9 @@ void prepare_intersection(
   n = normalize(b.x * n0 + b.y * n1 + b.z * n2);
   // n = normalize(cross(v1-v0, v2-v0));
   // if(dot(w, n) < 0) n = -n;
-  vec2 st0 = unpackHalf2x16(p0.w);
-  vec2 st1 = unpackHalf2x16(p1.w);
-  vec2 st2 = unpackHalf2x16(p2.w);
+  vec2 st0 = unpackHalf2x16(buf_vtx[it].v[pi+0].st);
+  vec2 st1 = unpackHalf2x16(buf_vtx[it].v[pi+1].st);
+  vec2 st2 = unpackHalf2x16(buf_vtx[it].v[pi+2].st);
   st = b.x * st0 + b.y * st1 + b.z * st2;
 }
 
@@ -214,20 +117,21 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  // if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  uint seed = 19937 * global.frame;//133700000 * ipos.x + ipos.y * 70000 + global.frame * 19937;
-  const ivec2 rp = ivec2(mod(ipos, textureSize(img_blue, 0)));
+  uint seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70000;
+  // blue noise dither mask
+  // const ivec2 rp = ivec2(mod(ipos, textureSize(img_blue, 0)));
 
-  vec3 acc = vec3(0.0);
-  vec4 aov = vec4(1.0);
+  vec3 acc = vec3(0);
+  vec4 aov = vec4(1, 0, 1, 1.0);
 
-  for(int s=0;s<params.spp;s++)
+  // for(int s=0;s<params.spp;s++)
   {
-    vec4 rand = xrand(seed, rp);
+    // vec4 rand = xrand(seed, rp);
+    vec4 rand = vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed));
     seed = uint(70000 * rand.x);
     float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
-    vec3 L = vec3(0.0);
     vec3 rgb = vec3(1.0);
     vec3 x, w, n; // ray position, direction, hit normal
     vec2 st;      // texture coordinates
@@ -242,132 +146,55 @@ main()
       // vec2 uv = (ipos+0.5)/imageSize(img_out) - 0.5;
       w = normalize(0.45*f + r*uv.x + t*uv.y);
     }
-#if 1
-  {
-    rayQueryEXT rq;
-    rayQueryInitializeEXT(rq, rt_accel, gl_RayFlagsNoneEXT, 0xFF, x, 1e-3, w, 10000.0);
-    while(rayQueryProceedEXT(rq)) { }
-    if(rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
-    { // primary intersection
-      const float t = rayQueryGetIntersectionTEXT(rq, true);
-      uint mat = 0;
-      // prepare_intersection(rq, w, x, n, st, mat);
-      // vec3 ws = sample_cos(rand.xy);
-      // if(dot(n,w) > 0) n = -n;
-      x += t*w; // XXX
-      n = -w; // XXX
-      vec3 du, dv, up = vec3(1,0,0);
-      if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
-      du = normalize(cross(up, n));
-      dv = normalize(cross(du, n));
-      // w = ws.x * du + ws.y * dv + ws.z * n;
-      // x += 0.001 * (n + w);
-      x += 0.001 * n;
-      // vec3 diffcol = vec3(0.18);//texture(img_tex[nonuniformEXT(mat%7)], st).rgb;
-      st = x.xy/255.0;
-      mat = rayQueryGetIntersectionPrimitiveIndexEXT(rq, true);
-      vec3 diffcol = 0.1 + texture(img_tex[nonuniformEXT(mat%1000)], st).rgb;
-      float ao = 0.0;
-      const int samples = 3;
-      for(int i=0;i<samples;i++)
-      {
-        rand = xrand(seed, rp);
-        vec3 ws = sample_cos(rand.xy);
-        w = ws.x * du + ws.y * dv + ws.z * n;
-        // w = normalize(vec3(1, 0, 1));
-        // w.xy += rand.xy * 0.2;
-        rayQueryInitializeEXT(rq, rt_accel,
-            gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
-            0xFF, x, 1e-3, w, 10.0);
-        while(rayQueryProceedEXT(rq)) { }
-        if(rayQueryGetIntersectionTypeEXT(rq, true) != gl_RayQueryCommittedIntersectionNoneEXT) ao ++;
-      }
-      ao += 0.5*(rand.z + rand.w)-0.5; // dither
-      ao = clamp(ao/samples, 0.0, 1.0);
-      ao = mix(1.0, 1.0-ao, 0.9);
-      rgb = ao * (0.1 + abs(dot(w, n))) * diffcol * vec3(500.0); // fake ambient something
-      aov = vec4((1.0+n)/2.0 * diffcol, 1);
-      // aov = vec4((1.0+n)/2.0 * (t/(t+1.0)), 1);
-      const float T = exp(-t * .002);
-      L = mix(vec3(0.2, 0.4, 0.9), vec3(1.0), T);
-    }
-    else
-    { // envmap
-      rgb = vec3(1.0);
-      vec3 diffcol = texture(img_tex[0], w.xy).rgb;
-      L = diffcol * 1000.0 * vec3(0.2, 0.4, 0.9);
-      aov = vec4(diffcol, 1);
-    }
-  }
-#endif
 
-#if 0
-  for(int i=0;i<2;i++)
-  {
-    rayQueryEXT rq;
-    rayQueryInitializeEXT(rq, rt_accel,
-        gl_RayFlagsNoneEXT, //gl_RayFlagsTerminateOnFirstHitEXT,// | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
-        0xFF, x, 1e-3, w, 100.0);
-    while(rayQueryProceedEXT(rq)) {
-      // if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
-      // rayQueryConfirmIntersectionEXT(rq);
+    aov.rgb = (1.0+w)/2.0;
+
+    for(int i=0;i<4;i++)
+    { // for a number of bounces
+      rayQueryEXT rq;
+      rayQueryInitializeEXT(rq, rt_accel,
+         gl_RayFlagsNoneEXT,
+         // gl_RayFlagsTerminateOnFirstHitEXT,// | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
+          0xFF, x, 1e-3, w, 100000.0);
+      while(rayQueryProceedEXT(rq)) {
+        if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
+          rayQueryConfirmIntersectionEXT(rq);
+      }
+      if(rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
+      {
+        uint mat, mfb;
+        prepare_intersection(rq, w, x, n, st, mat, mfb);
+        vec3 ws = sample_cos(vec2(mrand(seed), mrand(seed)));
+        if(dot(n,w) > 0) n = -n;
+        vec3 du, dv, up = vec3(1,0,0);
+        if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
+        du = normalize(cross(up, n));
+        dv = normalize(cross(du, n));
+        w = ws.x * du + ws.y * dv + ws.z * n;
+        x += 0.001 * (n + w);
+        // rgb *= colourtex(st);//0.2;
+        float tx = fbm3(x);
+        // tx = sqrt(tx);
+        // rgb *= clamp(tx*0.4, 0.0, 1.0);
+        mat = 3;
+        vec3 diffcol = pow(texture(img_tex[nonuniformEXT(mat%7)], st).rgb, vec3(2.0));
+        rgb *= diffcol * tx;
+        if(i == 0) aov.rgb = vec3(st, 1.0);//tx*diffcol;
+        // aov.rgb = (1.0+n)/2.0;
+        // aov.rgb = x / (1.0 + x);
+        // aov.rgb = vec3(mat);
+        // if(mfb > 0) acc += rgb / float(params.spp); // found something emissive
+      }
+      else
+      {
+        vec3 L = pow(1.0+dot(vec3(0,0,1), w), 3.0) * 0.5 * vec3(0.1, 0.5, 1.0); // escaped to environment map
+        acc += rgb*L / float(params.spp);
+        // aov.rgb = (1.0+w)/2.0;
+        break;
+      }
     }
-    // if(rayQueryGetIntersectionTypeEXT(rq, true) != gl_RayQueryCommittedIntersectionNoneEXT)
-    if(rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
-    {
-      // float t = rayQueryGetIntersectionTEXT(rq, true);
-      // rayQueryGetIntersectionBarycentricsEXT
-      // rayQueryGetIntersectionPrimitiveIndexEXT
-      // rayQueryGetIntersectionGeometryIndexEXT
-      // rayQueryGetIntersectionInstanceIdEXT
-      // rayQueryGetIntersectionInstanceCustomIndexEXT
-#if 1
-      uint mat;
-      prepare_intersection(rq, w, x, n, st, mat);
-      vec3 ws = sample_cos(vec2(xrand(seed, rp), xrand(seed, rp)));
-      if(dot(n,w) > 0) n = -n;
-      vec3 du, dv, up = vec3(1,0,0);
-      if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
-      du = normalize(cross(up, n));
-      dv = normalize(cross(du, n));
-      w = ws.x * du + ws.y * dv + ws.z * n;
-      w = normalize(vec3(1, 0, 1));
-      x += 0.001 * (n + w);
-      // rgb *= colourtex(st);//0.2;
-      float tx = 1;//fbm3(1000.0+x);
-      // tx = sqrt(tx);
-      // rgb *= clamp(tx*0.4, 0.0, 1.0);
-      vec3 diffcol = texture(img_tex[nonuniformEXT(mat%7)], st).rgb;
-      rgb *= diffcol * tx;
-      // if(i == 0) aov = tx*diffcol;
-      aov = (1.0+n)/2.0;
-      // aov = x / (1.0 + x);
-      // aov = vec3(mat); // seems to work
-      if(i == 0)
-        acc += (0.1 + abs(dot(normalize(vec3(1)), n))) * diffcol * vec3(500.0) / float(params.spp); // noise free fake ambient something
-#else 
-      x += t*w;
-#endif
-#if 0
-      // rgb = diffcol;
-      // rgb = (n + 1.0)/2.0;
-      // L = vec3(1.0);
-      break;
-#endif
-    }
-    else
-    {
-      L = 1000.0 * vec3(0.2, 1.0, 2.0); // escaped to light source
-      break;
-    }
-  }
-#endif
-  rgb *= L;
-  acc += rgb / float(10.0*params.spp);
-  // acc = aov / float(params.spp); // XXX something noise free for debugging
-  }
+  } // end spp
 
   imageStore(img_out, ipos, vec4(acc, 1));
   imageStore(img_aov, ipos, aov);
 }
-

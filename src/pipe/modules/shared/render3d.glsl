@@ -2,6 +2,14 @@
 
 #define M_PI   3.14159265358979323846
 
+struct rtgeo_vtx_t
+{
+  float x, y, z;
+  uint tex;
+  uint n;
+  uint st;
+};
+
 // 32-bit normal encoding from Journal of Computer Graphics Techniques Vol. 3, No. 2, 2014
 // A Survey of Efficient Representations for Independent Unit Vectors,
 // almost like oct30

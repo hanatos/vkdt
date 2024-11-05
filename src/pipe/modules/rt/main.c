@@ -1,5 +1,5 @@
-#include "quat.h"
 #include "modules/api.h"
+#include "quat.h"
 #include <inttypes.h>
 
 typedef struct rt_t
@@ -12,8 +12,24 @@ void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-  module->connector[1].roi.full_wd = module->connector[4].roi.full_wd = 2048;
-  module->connector[1].roi.full_ht = module->connector[4].roi.full_ht = 1152;
+  const int wd = 2048, ht = 1152;
+  module->connector[0].roi.full_wd = module->connector[3].roi.full_wd = wd;
+  module->connector[0].roi.full_ht = module->connector[3].roi.full_ht = ht;
+  module->connector[0].roi.scale = module->connector[3].roi.scale = 1;
+  module->img_param = (dt_image_params_t) {
+    .black          = {0, 0, 0, 0},
+    .white          = {65535,65535,65535,65535},
+    .whitebalance   = {1.0, 1.0, 1.0, 1.0},
+    .filters        = 0, // anything not 0 or 9 will be bayer starting at R
+    .crop_aabb      = {0, 0, wd, ht},
+    .cam_to_rec2020 = {1, 0, 0, 0, 1, 0, 0, 0, 1},
+    .snd_samplerate = 44100,
+    .snd_format     = 2, // SND_PCM_FORMAT_S16_LE
+    .snd_channels   = 2, // stereo
+    .noise_a        = 1.0,
+    .noise_b        = 0.0,
+    .orientation    = 0,
+  };
 }
 
 void
@@ -87,6 +103,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *mod)
   if(rt->move & (1<<3)) for(int k=0;k<3;k++) p_cam[k] -= vel * rgt[k];
   if(rt->move & (1<<4)) for(int k=0;k<3;k++) p_cam[k] += vel * top[k];
   if(rt->move & (1<<5)) for(int k=0;k<3;k++) p_cam[k] -= vel * top[k];
+  fprintf(stderr, "cam %g %g %g dir %g %g %g\n", p_cam[0], p_cam[1], p_cam[2], p_cam[4], p_cam[5], p_cam[6]);
 }
 
 int init(dt_module_t *mod)
@@ -101,4 +118,21 @@ int cleanup(dt_module_t *mod)
   free(mod->data);
   mod->data = 0;
   return 0;
+}
+
+void
+create_nodes(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{
+  int id_rt = dt_node_add(graph, module, "rt", "main", 
+    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 4,
+      "output",   "write", "rgba", "f16",  &module->connector[0].roi, // 0
+      "blue",     "read",  "*",    "*",    dt_no_roi,                 // 1
+      "tex",      "read",  "*",    "*",    dt_no_roi,                 // 2
+      "aov",      "write", "rgba", "f16",  &module->connector[0].roi);// 3
+  dt_connector_copy(graph, module, 0, id_rt, 0);
+  dt_connector_copy(graph, module, 1, id_rt, 1);
+  dt_connector_copy(graph, module, 2, id_rt, 2);
+  dt_connector_copy(graph, module, 3, id_rt, 3);
 }
