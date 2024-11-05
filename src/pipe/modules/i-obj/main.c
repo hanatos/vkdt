@@ -100,6 +100,7 @@ int read_source(
   if(read_obj(mod, mod->graph->frame+id, filename)) return 1;
   objinput_buf_t *obj = mod->data;
   // XXX need to crop output triangles to allocation size! (animated obj)
+  fprintf(stderr, "[i-obj] uploading %d tris\n", obj->tri_cnt);
   memcpy(mapped, obj->tri, sizeof(geo_tri_t)*obj->tri_cnt);
   return 0;
 }
