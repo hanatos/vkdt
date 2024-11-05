@@ -368,17 +368,10 @@ dt_raytrace_record_command_buffer_accel_build(
       node->rt[fp].force_build_bvh = 1;
     if(node->rt[f].tri_cnt == 0) build_accel = 0;
     
-    // FIXME: just enabling this all the fucking time works, so the upload seems fine.
-    // FIXME: setting it to 0 as it should, the stc geo build exactly the two times it's supposed to, but somehow is broken
-    // FIXME: the first time running without complete rebuild breaks it.
-    // FIXME: is the memory overwritten? but this should all be protected/staging mem and also we're not re-uploading (so the geo part stays)
-
     VkAccelerationStructureDeviceAddressInfoKHR address_request = {
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
       .accelerationStructure = node->rt[f].accel,
     };
-    // FIXME: this needs to be set in the same slot all the time! now if we don't rebuild i=0 we'll overwrite the transform!
-    // FIXME: this is used later in the TLAS build!
     instance[i] = (VkAccelerationStructureInstanceKHR) {
       .transform = { .matrix = {
         {1.0f, 0.0f, 0.0f, 0.0f},
@@ -415,9 +408,8 @@ dt_raytrace_record_command_buffer_accel_build(
       int ii = rebuild_cnt++;
       build_info   [ii] = node->rt[f].build_info;
       p_build_range[ii] = build_range + i;
-
-      node->rt[f].force_build_bvh = 0; // XXX // we are done now
-      fprintf(stderr, "ray tracing instance %d/%d with %d tris, build %d\n", i, f, node->rt[f].tri_cnt, build_accel);
+      node->rt[f].force_build_bvh = 0; // we are done now
+      // fprintf(stderr, "ray tracing instance %d/%d with %d tris, build %d\n", i, f, node->rt[f].tri_cnt, build_accel);
       node->flags &= ~s_module_request_build_bvh; // reset
     }
   }
