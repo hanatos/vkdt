@@ -119,7 +119,7 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, imageSize(img_aov)))) return;
+  // if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   uint seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70000;
   // blue noise dither mask
