@@ -3,7 +3,7 @@ MCRAW_BRANCH=main
 # MCRAW_COMMIT=d0de7fa
 # MCRAW_REPO=https://github.com/mirsadm/motioncam-decoder.git 
 # repo with non-decoding api interface for gpu processing:
-MCRAW_COMMIT=1b037ea
+MCRAW_COMMIT=d4f1f7d
 MCRAW_REPO=https://github.com/hanatos/motioncam-decoder.git
 MCRAW_I=pipe/modules/i-mcraw/mcraw-$(MCRAW_COMMIT)
 MCRAW_L=$(MCRAW_I)/build
