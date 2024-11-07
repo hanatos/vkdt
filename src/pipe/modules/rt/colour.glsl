@@ -42,9 +42,27 @@ vec3 colour_to_rgb(
   return xyz_to_rec2020 * xyz;
 }
 
-vec4 colour_sample_lambda(vec4 xi)
+vec4 colour_sample_lambda(vec4 xi, inout vec4 X, inout vec4 hrp)
 {
-  return vec4(400.0) + vec4(300.0) * xi;
+  const float a = sin((380.0-550.0)/400.0*M_PI);
+  const float b = sin((720.0-550.0)/400.0*M_PI)-a;
+#if 0 // some cosine centered at 550 nm:
+  // pdf really b*M_PI/400.0 but the range is odd and we leave it out (we can cancel common terms)
+  vec4 x = asin(xi*b + a)/M_PI * 400.0 + 550.0; 
+  X /= cos((x-550.0)/400.0 * M_PI);
+  return x;
+#elif 1 // same cosine but sampling only the hero wavelength + stratified
+  vec4 x;
+  x.x = asin(xi.x*b + a)/M_PI * 400.0 + 550.0; 
+  x.yzw = mod(x.x - 380.0 + vec3(85, 170, 255), 720.0-380.0) + 380.0;
+  hrp = cos((x-550.0)/400.0 * M_PI);
+  X /= hrp;
+  return x;
+#else
+  // uniform:
+  // hrp *= vec4(1.0);
+  return vec4(380.0) + vec4(340.0) * xi;
+#endif
 }
 
 vec4 colour_blackbody(

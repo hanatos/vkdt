@@ -132,7 +132,8 @@ main()
   // blue noise dither mask
   const ivec2 rp = ivec2(mod(ipos, textureSize(img_blue, 0)));
 
-  vec4 acc = vec4(0);
+  vec4 acc = vec4(0); // value of our estimator, accumulate this
+  vec4 hrp = vec4(1); // hero wavelength p, only deviates from 1 if pdf is different per wavelength
   vec4 aov = vec4(1, 0, 1, 1.0);
 
   // for(int s=0;s<params.spp;s++)
@@ -142,8 +143,12 @@ main()
     seed = uint(70000 * rand.x);
     float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
     vec4 thr = vec4(1.0);
-    uint seed2 = 19937*global.frame;
-    vec4 lambda = colour_sample_lambda(dithermask(vec4(mrand(seed2)), rp));
+    // dithermask shows *no* difference for stratified hwl:
+    // uint seed2 = 19937*global.frame;
+    // vec4 lambda = colour_sample_lambda(dithermask(vec4(mrand(seed2)), rp), thr, hrp);
+    // mono wl:
+    // vec4 lambda = colour_sample_lambda(vec4(mrand(seed)), thr, hrp);
+    vec4 lambda = colour_sample_lambda(vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed)), thr, hrp);
     vec3 x, w, n; // ray position, direction, hit normal
     vec2 st;      // texture coordinates
     { // camera setup:
@@ -207,6 +212,6 @@ main()
     }
   // } // end spp
 
-  fb_set(ipos, imageSize(img_aov), colour_to_rgb(acc, lambda, vec4(1.0)));
+  fb_set(ipos, imageSize(img_aov), colour_to_rgb(acc, lambda, hrp));
   imageStore(img_aov, ipos, aov);
 }
