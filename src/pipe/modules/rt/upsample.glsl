@@ -1,5 +1,6 @@
 
 
+#if 0
 // An RGB to Spectrum Conversion for Reﬂectances
 // Brian Smits, 2000
 // eats linear srgb (typical texture data) and outputs hero wavelength-style 4 samples for 4 wavelengths
@@ -19,9 +20,10 @@ vec4 rgb_to_spectral_smits(vec3 srgb, vec4 lambda)
   float w = min(srgb.r, min(srgb.g, srgb.b));
   ret += w * white[bin];
 }
+#endif
 
 // only works within srgb. slightly steppy spectra, but good enough for quake, maybe.
-vec4 rgb_to_spectral_burns(vec3 srgb, vec4 lambda)
+vec4 rgb_to_spectrum(vec3 srgb, vec4 lambda)
 {
   // scot burns says these tables work well for *within srgb*
   // and turingbot says here's an analytic fit (to scott's 10nm bit spacing fitted with "mean error")
@@ -42,7 +44,7 @@ vec4 rgb_to_spectral_burns(vec3 srgb, vec4 lambda)
   // rho_B:
   // (0.964157+0.0074749*cos(sqrt(lambda)))*tanh(0.0174269+pow(1.10663,482.213-lambda)-cos((-0.647554)*lambda)/173.379)
 
-  vec4 rho_B = (0.963014+0.00480123*atanh(cos(0.0334188*lambda)))*tanh(0.017559+pow(1.10748,482.253-lambda)-cos((-0.647575)*lambda)/169.707);
+  vec4 rho_B = (0.963014+0.00480123*atanh(cos(0.0334188*lambda)))*tanh(0.017559+pow(vec4(1.10748),482.253-lambda)-cos((-0.647575)*lambda)/169.707);
 
   // (0.963003+0.00480235*atanh(cos(0.0334188*lambda)))*tanh(0.0178119+pow(1.10732,482.28-lambda)-cos((-0.64722)*(cos(sqrt(lambda))+lambda))/187.695)
 

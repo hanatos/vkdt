@@ -7,6 +7,8 @@
 
 #include "shared.glsl"
 #include "shared/render3d.glsl"
+#include "colour.glsl"
+#include "upsample.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -115,6 +117,11 @@ vec3 colourtex(vec2 st)
   return vec3(0.4);
 }
 
+vec4 dithermask(vec4 xi, ivec2 rp)
+{
+  return fract(xi + texelFetch(img_blue, rp, 0));
+}
+
 void
 main()
 {
@@ -123,18 +130,20 @@ main()
 
   uint seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70000;
   // blue noise dither mask
-  // const ivec2 rp = ivec2(mod(ipos, textureSize(img_blue, 0)));
+  const ivec2 rp = ivec2(mod(ipos, textureSize(img_blue, 0)));
 
-  vec3 acc = vec3(0);
+  vec4 acc = vec4(0);
   vec4 aov = vec4(1, 0, 1, 1.0);
 
   // for(int s=0;s<params.spp;s++)
-  {
+  // {
     // vec4 rand = xrand(seed, rp);
     vec4 rand = vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed));
     seed = uint(70000 * rand.x);
     float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
-    vec3 rgb = vec3(1.0);
+    vec4 thr = vec4(1.0);
+    uint seed2 = 19937*global.frame;
+    vec4 lambda = colour_sample_lambda(dithermask(vec4(mrand(seed2)), rp));
     vec3 x, w, n; // ray position, direction, hit normal
     vec2 st;      // texture coordinates
     { // camera setup:
@@ -179,8 +188,8 @@ main()
         // tx = sqrt(tx);
         // rgb *= clamp(tx*0.4, 0.0, 1.0);
         mat = 3;
-        vec3 diffcol = pow(texture(img_tex[nonuniformEXT(mat%7)], st).rgb, vec3(2.0));
-        rgb *= diffcol * tx;
+        vec4 diffcol = rgb_to_spectrum(pow(texture(img_tex[nonuniformEXT(mat%7)], st).rgb, vec3(2.0)), lambda);
+        thr *= diffcol * tx;
         if(i == 0) aov.rgb = vec3(st, 1.0);//tx*diffcol;
         // aov.rgb = (1.0+n)/2.0;
         // aov.rgb = x / (1.0 + x);
@@ -189,14 +198,15 @@ main()
       }
       else
       {
-        vec3 L = pow(1.0+dot(vec3(0,0,1), w), 3.0) * 0.5 * vec3(0.1, 0.5, 1.0); // escaped to environment map
-        acc += rgb*L / float(params.spp);
+        vec4 Lc = colour_blackbody(lambda, 6504.0); // not quite D65
+        vec4 L = pow(1.0+dot(vec3(0,0,1), w), 3.0) * 0.5 * Lc; // escaped to environment map
+        acc += thr*L / float(params.spp);
         // aov.rgb = (1.0+w)/2.0;
         break;
       }
     }
-  } // end spp
+  // } // end spp
 
-  fb_set(ipos, imageSize(img_aov), acc);
+  fb_set(ipos, imageSize(img_aov), colour_to_rgb(acc, lambda, vec4(1.0)));
   imageStore(img_aov, ipos, aov);
 }

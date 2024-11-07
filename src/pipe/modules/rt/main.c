@@ -105,7 +105,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *mod)
   if(rt->move & (1<<3)) for(int k=0;k<3;k++) p_cam[k] -= vel * rgt[k];
   if(rt->move & (1<<4)) for(int k=0;k<3;k++) p_cam[k] += vel * top[k];
   if(rt->move & (1<<5)) for(int k=0;k<3;k++) p_cam[k] -= vel * top[k];
-  fprintf(stderr, "cam %g %g %g dir %g %g %g\n", p_cam[0], p_cam[1], p_cam[2], p_cam[4], p_cam[5], p_cam[6]);
+  // fprintf(stderr, "cam %g %g %g dir %g %g %g\n", p_cam[0], p_cam[1], p_cam[2], p_cam[4], p_cam[5], p_cam[6]);
 }
 
 int init(dt_module_t *mod)
@@ -130,7 +130,7 @@ create_nodes(
   dt_roi_t roi_gbuf = { .wd = module->connector[0].roi.wd, .ht = module->connector[0].roi.ht * 4 };
   int id_rt = dt_node_add(graph, module, "rt", "main", 
     module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 4,
-      "output",   "write", "rgba", "f16",  &roi_gbuf,                 // 0
+      "output",   "write", "ssbo", "f32",  &roi_gbuf,                 // 0
       "blue",     "read",  "*",    "*",    dt_no_roi,                 // 1
       "tex",      "read",  "*",    "*",    dt_no_roi,                 // 2
       "aov",      "write", "rgba", "f16",  &module->connector[0].roi);// 3
@@ -138,10 +138,11 @@ create_nodes(
   dt_connector_copy(graph, module, 2, id_rt, 2);
   dt_connector_copy(graph, module, 3, id_rt, 3);
 
-  const int id_post = dt_node_add(graph, module, "rt", "post", 0, 0, 1, 0, 0, 2,
-      "input",  "read",  "ssbo", "f16", dt_no_roi,
+  const int id_post = dt_node_add(graph, module, "rt", "post",
+    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 2,
+      "input",  "read",  "ssbo", "f32", dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[0].roi);
-  graph->node[id_rt].connector[0].flags = s_conn_clear; // clear for light tracing
+  // graph->node[id_rt].connector[0].flags = s_conn_clear; // clear for light tracing
   CONN(dt_node_connect_named(graph, id_rt, "output", id_post, "input"));
   dt_connector_copy(graph, module, 0, id_post, 1);
 }
