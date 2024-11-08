@@ -32,6 +32,15 @@ layout(set = 1, binding = 3) uniform writeonly image2D img_aov;
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
 
+// importance sample the blackman harris pixel filter.
+// has 1.5px radius support
+vec2 filter_bh_sample(vec2 rand)
+{
+  vec2 res = vec2(cos(rand.y*M_PI*2.0), sin(rand.y*M_PI*2.0));
+  float r = 0.943404 * asin(0.636617 * asin(sqrt(rand.x))); // surprisingly good fit to inverse cdf
+  return res * r;
+}
+
 #if 1
 float rand3(vec3 v) {
     return fract(sin(dot(v + vec3(-8.5123, 23.2156, 0.0), vec3(12.9898, 6.233, 0.84261))) * 47583.5453123);
@@ -158,7 +167,7 @@ main()
       vec3 r = normalize(cross(f, up));
       vec3 t = normalize(cross(f, r)) * float(imageSize(img_aov).y)/float(imageSize(img_aov).x);
 
-      vec2 uv = (ipos+rand.yz)/imageSize(img_aov) - 0.5;
+      vec2 uv = (ipos+filter_bh_sample(rand.yz))/imageSize(img_aov) - 0.5;
       // vec2 uv = (ipos+0.5)/imageSize(img_aov) - 0.5;
       w = normalize(0.45*f + r*uv.x + t*uv.y);
     }
