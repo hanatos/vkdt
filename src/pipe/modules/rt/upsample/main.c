@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "../../../../tools/shared/lu.h" 
+#include "../../../../core/solve.h"
 #include "../../../../tools/shared/matrices.h"
 
 // discretisation of quadrature scheme
@@ -53,60 +53,12 @@ void init_tables()//Gamut gamut)
 
   const double *illuminant = 0;
 
-#if 0
-  switch (gamut) {
-    case SRGB:
-#endif
-      // TODO: is this what i want?
-      illuminant = cie_d65;
-      memcpy(xyz_to_rgb, xyz_to_srgb, sizeof(double) * 9);
-      memcpy(rgb_to_xyz, srgb_to_xyz, sizeof(double) * 9);
-#if 0
-      break;
-
-    case ERGB:
-      illuminant = cie_e;
-      memcpy(xyz_to_rgb, xyz_to_ergb, sizeof(double) * 9);
-      memcpy(rgb_to_xyz, ergb_to_xyz, sizeof(double) * 9);
-      break;
-
-    case XYZ:
-      // illuminant = cie_e;
-      // illuminant = cie_c; // for munsell data compatibility
-      illuminant = cie_d65; // for hue constancy table with d65 white
-      memcpy(xyz_to_rgb, xyz_to_xyz, sizeof(double) * 9);
-      memcpy(rgb_to_xyz, xyz_to_xyz, sizeof(double) * 9);
-      break;
-
-    case ProPhotoRGB:
-      illuminant = cie_d50;
-      memcpy(xyz_to_rgb, xyz_to_prophoto_rgb, sizeof(double) * 9);
-      memcpy(rgb_to_xyz, prophoto_rgb_to_xyz, sizeof(double) * 9);
-      break;
-
-    case ACES2065_1:
-      illuminant = cie_d60;
-      memcpy(xyz_to_rgb, xyz_to_aces2065_1, sizeof(double) * 9);
-      memcpy(rgb_to_xyz, aces2065_1_to_xyz, sizeof(double) * 9);
-      break;
-
-    case ACES_AP1:
-      illuminant = cie_d60;
-      memcpy(xyz_to_rgb, xyz_to_aces_ap1, sizeof(double) * 9);
-      memcpy(rgb_to_xyz, aces_ap1_to_xyz, sizeof(double) * 9);
-      break;
-
-    case REC2020:
-      illuminant = cie_d65;
-      memcpy(xyz_to_rgb, xyz_to_rec2020, sizeof(double) * 9);
-      memcpy(rgb_to_xyz, rec2020_to_xyz, sizeof(double) * 9);
-      break;
-  }
-#endif
-for (int i = 0; i < CIE_FINE_SAMPLES; ++i)
+  illuminant = cie_d65;
+  memcpy(xyz_to_rgb, xyz_to_srgb, sizeof(double) * 9);
+  memcpy(rgb_to_xyz, srgb_to_xyz, sizeof(double) * 9);
+  for (int i = 0; i < CIE_FINE_SAMPLES; ++i)
   {
     double h, lambda, weight;
-    // if(!use_bad_cmf) {
       h = (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN) / (CIE_FINE_SAMPLES - 1.0);
 
       lambda = CIE_LAMBDA_MIN + i * h;
@@ -117,28 +69,12 @@ for (int i = 0; i < CIE_FINE_SAMPLES; ++i)
         weight *= 2.f;
       else
         weight *= 3.f;
-#if 0
-    }
-    else
-    {
-      h = (CIE_LAMBDA_MAX - CIE_LAMBDA_MIN) / (double)CIE_FINE_SAMPLES;
-      lambda = CIE_LAMBDA_MIN + (i+0.5) * h;
-      weight = h;
-    }
-#endif
     double xyz[3] = {
       cie_interp(cie_x, lambda),
       cie_interp(cie_y, lambda),
       cie_interp(cie_z, lambda) };
     const double I = cie_interp(illuminant, lambda);
 
-#if 0 // output table for shader code
-    double out[3] = {0.0};
-    for (int k = 0; k < 3; ++k)
-      for (int j = 0; j < 3; ++j)
-        out[k] += xyz_to_rgb[k][j] * xyz[j];
-    fprintf(stderr, "vec3(%g, %g, %g), // %g nm\n", out[0], out[1], out[2], lambda);
-#endif
     lambda_tbl[i] = lambda;
     for (int k = 0; k < 3; ++k)
       for (int j = 0; j < 3; ++j)
@@ -149,135 +85,100 @@ for (int i = 0; i < CIE_FINE_SAMPLES; ++i)
   }
 }
 
-
 // loss function: the three primaries should be met, and their sum should be as white as illuminant E.
-void eval_residual(
-    const double *coeff,   // 3x 3 sigmoid spectrum coefficients
-    const double *rgb,     // 3x rgb target values for the primaries
-    double       *residual)// output 3x rgb residuals + 1 "deviation of sum from illuminant E" channel, i.e. 10 elements.
+void eval_f(
+    double *coeff,   // 3x 3 sigmoid spectrum coefficients
+    double *f,
+    int m,           // = 9 coefs
+    int n,           // = 1
+    void *data)
 {
-  double out[10] = { 0.0 };
-  residual[9] = 1.0/600.0;
+  // n = 1 so we evaluate the loss here only
+  double target[] = {
+    1, 0, 0,
+    0, 1, 0,
+    0, 0, 1,
+  };
+  f[0] = 0.0;
+  double rgb[9] = {0.0};
 
-  for(int c=0;c<3;c++) for (int i = 0; i < CIE_FINE_SAMPLES; ++i)
+  for (int i = 0; i < CIE_FINE_SAMPLES; ++i)
   {
+    double s[3];
     // the optimiser doesn't like nanometers.
     // we'll do the normalised lambda thing and later convert when we write out.
-    double lambda;
-    // if(use_bad_cmf) lambda = (i+.5)/(double)CIE_FINE_SAMPLES;
-    // else            
-    lambda = i/(double)CIE_FINE_SAMPLES;
-    double cf[3] = {coeff[3*c+0], coeff[3*c+1], coeff[3*c+2]};
+    double lambda = i/(double)CIE_FINE_SAMPLES;
+    for(int c=0;c<3;c++)
+    {
+      double cf[3] = {coeff[3*c+0], coeff[3*c+1], coeff[3*c+2]};
 
-    /* Polynomial */
-    double x = 0.0;
-    for (int i = 0; i < 3; ++i)
-      x = x * lambda + cf[i];
+      /* Polynomial */
+      double x = 0.0;
+      for (int i = 0; i < 3; ++i)
+        x = x * lambda + cf[i];
 
-    /* Sigmoid */
-    double s = coeff[9] * sigmoid(x);
+      /* Sigmoid */
+      s[c] = sigmoid(x);
 
-    /* Integrate against precomputed curves */
-    for (int j = 0; j < 3; ++j)
-      out[3*c+j] += rgb_tbl[j][i] * s;
+      /* Integrate against precomputed curves */
+      for (int j = 0; j < 3; ++j)
+        rgb[3*c+j] += rgb_tbl[j][i] * s[c];
+    }
     // sum of all our sigmoid spectra should be close to constant 1 (illuminant E)
-    residual[9] -= s/600.0;
+    f[0] += fabs(1.0-(s[0]+s[1]+s[2]))/100.0;
   }
-
-  for(int c=0;c<3;c++) for (int j=0;j<3;j++)
-    residual[3*c+j] = rgb[3*c+j] - out[3*c+j];
+  for(int c=0;c<3;c++)
+    for (int j = 0; j < 3; ++j)
+      f[0] += (rgb[3*c+j] - target[3*c+j])*(rgb[3*c+j] - target[3*c+j]);
 }
 
-void eval_jacobian(
-    const double *coeffs,  // [9]
-    const double *rgb,     // [9]
-    double **jac)          // [10][10]
+void eval_J(
+    double *coeffs,  // [9]
+    double *J,
+    int m,  // = 9
+    int n,  // = 1
+    void *data)
 {
-  double r0[10], r1[10], tmp[10];
+  double f0[1], f1[1], tmp[9];
 
-  for (int i = 0; i < 10; ++i)
+  for (int i = 0; i < 9; ++i)
   {
-    memcpy(tmp, coeffs, sizeof(double) * 10);
+    memcpy(tmp, coeffs, sizeof(double) * 9);
     tmp[i] -= RGB2SPEC_EPSILON;
-    eval_residual(tmp, rgb, r0);
+    eval_f(tmp, f0, m, n, data);
 
-    memcpy(tmp, coeffs, sizeof(double) * 10);
+    memcpy(tmp, coeffs, sizeof(double) * 9);
     tmp[i] += RGB2SPEC_EPSILON;
-    eval_residual(tmp, rgb, r1);
+    eval_f(tmp, f1, m, n, data);
 
-    for(int j=0;j<10;j++) assert(r1[j] == r1[j]);
-    for(int j=0;j<10;j++) assert(r0[j] == r0[j]);
-
-    for (int j = 0; j < 10; ++j)
-      jac[j][i] = (r1[j] - r0[j]) * 1.0 / (2 * RGB2SPEC_EPSILON);
+    J[i] = (f1[0] - f0[0]) * 1.0 / (2 * RGB2SPEC_EPSILON);
   }
-  // for (int j = 0; j < 10; ++j) jac[j][9] = 0.0;
-  // jac[9][9] = 1.0;//??
-}
-
-double gauss_newton(const double rgb[9], double coeffs[10])
-{
-  int it = 400;//15;
-  double r = 0;
-  for (int i = 0; i < it; ++i)
-  {
-    double J0[10*10], *J[10];
-    for(int k=0;k<10;k++) J[k] = J0+10*k;
-
-    double residual[10];
-
-    clamp_coeffs(coeffs);
-    eval_residual(coeffs, rgb, residual);
-    eval_jacobian(coeffs, rgb, J);
-
-    int P[11];
-    int rv = LUPDecompose(J, 10, 1e-15, P);
-    if (rv != 1) {
-      fprintf(stdout, "RGB %g %g %g -> %g %g %g\n", rgb[0], rgb[1], rgb[2], coeffs[0], coeffs[1], coeffs[2]);
-      fprintf(stdout, "row: coeffs vs. columns: 3x rgb + w\n");
-      for(int j=0;j<10;j++)
-      {
-        for(int k=0;k<10;k++) fprintf(stdout, "%g ", J0[j*10+k]);
-        fprintf(stdout, "\n");
-      }
-      return 666.0;
-    }
-
-    double x[10];
-    LUPSolve(J, P, residual, 10, x);
-
-    r = 0.0;
-    for (int j = 0; j < 10; ++j) {
-      coeffs[j] -= x[j];
-      r += residual[j] * residual[j];
-    }
-    fprintf(stdout, "residual %d %g\n", i, r);
-
-    if (r < 1e-6)
-      break;
-  }
-  return sqrt(r);
 }
 
 int main(int argc, char **argv)
 {
   init_tables();
-  double rgbm[] = {
-    1, 0, 0,
-    0, 1, 0,
-    0, 0, 1};
+  double target[] = { 0.0 };
   double coeffs[] = {
-    0, 1, 0,
-    0, 1, 0,
-    0, 1, 0,
-    1,
+    10,   5, 0,
+   -10,  10, 0,
+    10, -10, 0,
   };
-  double resid = gauss_newton(rgbm, coeffs);
+  double lb[] = {
+    -1000.0, -1000.0, -1000.0,
+    -1000.0, -1000.0, -1000.0,
+    -1000.0, -1000.0, -1000.0,
+  };
+  double ub[] = {
+    1000.0, 1000.0, 1000.0,
+    1000.0, 1000.0, 1000.0,
+    1000.0, 1000.0, 1000.0,
+  };
+  double resid = dt_adam(&eval_f, &eval_J, coeffs, target, 9, 1, lb, ub, 100000, 0, 1e-8, 0.9, 0.999, 0.2, 0);
   fprintf(stdout, "coeffs %g %g %g -- %g %g %g -- %g %g %g\n",
       coeffs[0], coeffs[1], coeffs[2],
       coeffs[3], coeffs[4], coeffs[5],
       coeffs[6], coeffs[7], coeffs[8]);
-  fprintf(stdout, "scale %g\n", coeffs[9]);
   for(int i=0;i<=300;i++)
   {
     double lambda = i / 300.0;
