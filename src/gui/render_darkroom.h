@@ -242,24 +242,29 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     {
       float r7[] = {0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], ratio[1] };
       nk_layout_row(ctx, NK_DYNAMIC, row_height, 7, r7);
-      struct nk_colorf *val = (struct nk_colorf *)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-      struct nk_colorf oldval = *val;
+      float *val = (float *)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
+      struct nk_colorf oldval = {val[0], val[1], val[2], 1.0};
       struct nk_command_buffer *cmd = &vkdt.global_cmd;
       // cache previous hsv so we can reconstruct hue and col for rgb=0
       static struct nk_colorf cc_hsv[9] = {{0}};
+      static int cc_id[9] = {0};
       const int hash = (7*modid + parid)%9;
+      if(cc_id[hash] != ((modid << 16) | parid))
+      {
+        cc_id[hash] = (modid<<16) | parid;
+        cc_hsv[hash] = (struct nk_colorf){0};
+      }
       const float dead_angle = 60.0f;
-      struct nk_colorf hsv = param->widget.type == dt_token("rgbknobs") ? rgb2hsv_prior(val->r, val->g, val->b, cc_hsv[hash]) : *val;
+      struct nk_colorf hsv = param->widget.type == dt_token("rgbknobs") ? rgb2hsv_prior(val[0], val[1], val[2], cc_hsv[hash]) : oldval;
 
 #ifdef ROTARY_ENCODER
 #define ROTARY_KNOB(VAL, M) do {\
-      if(nk_input_is_mouse_hovering_rect(&ctx->input, bounds))\
+      if(nk_input_is_mouse_hovering_rect(&ctx->input, bounds)) {\
         if(gui.pgupdn != 0) VAL = CLAMP(VAL + gui.pgupdn/100.0, 0.0, M);\
-      } while(0)
+      }} while(0)
 #else
 #define ROTARY_KNOB(A, B)
 #endif
-
 
       // if not mouse down and hovering over bounds, or mouse clicked pos is in bounds
 #define DECORATE(VAL, COL, SC) do {\
@@ -323,7 +328,14 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
 
       if(memcmp(&hsv_old, &hsv, sizeof(float)*3)) change = 1;
       if(change) // don't do this if resetblock triggers change
-        *val = param->widget.type == dt_token("rgbknobs") ? hsv2rgb(hsv.r, hsv.g, hsv.b) : hsv;
+      {
+        if(param->widget.type == dt_token("rgbknobs"))
+        {
+          struct nk_colorf rgb = hsv2rgb(hsv.r, hsv.g, hsv.b);
+          val[0] = rgb.r; val[1] = rgb.g; val[2] = rgb.b;
+        }
+        else memcpy(val, &hsv, sizeof(float)*3);
+      }
       dt_tooltip(param->tooltip);
       KEYFRAME
       RESETBLOCK
