@@ -1,3 +1,5 @@
+// the original code was written by Adrien Vannson, https://github.com/AdrienVannson/gpu-denoising.git
+// and is used with permission under MIT licence here.
 #extension GL_KHR_memory_scope_semantics: enable
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: enable
 #extension GL_EXT_control_flow_attributes: enable

@@ -1,3 +1,3 @@
-lift:hsvknobs
-gamma:hsvknobs
-gain:hsvknobs
+lift:rgbknobs
+gamma:rgbknobs
+gain:rgbknobs

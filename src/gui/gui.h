@@ -9,6 +9,7 @@
 
 #include <vulkan/vulkan.h>
 #include <math.h>
+#include <GLFW/glfw3.h>
 
 // max images in flight in vulkan pipeline/swap chain
 #define DT_GUI_MAX_IMAGES 8
@@ -184,6 +185,8 @@ typedef struct dt_gui_t
   // list of recently used tags
   int  tag_cnt;
   char tag[10][30];
+
+  int  is_x11; // running on xorg
 }
 dt_gui_t;
 
@@ -240,6 +243,17 @@ void dt_gui_win1_open();
 // close secondary window
 void dt_gui_win1_close();
 
+static inline void
+dt_gui_content_scale(GLFWwindow *w, float *x, float *y)
+{
+  if(vkdt.is_x11)
+  {
+    x[0] = y[0] = 1.0;
+    return;
+  }
+  glfwGetWindowContentScale(w, x, y);
+}
+
 // some gui colour things. we want perceptually uniform colour picking.
 // since hsv is a severely broken concept, we mean oklab LCh (or hCL really)
 static inline void rec2020_to_oklab(const float rgb[], float oklab[])
@@ -289,9 +303,18 @@ static inline void oklab_to_rec2020(const float oklab[], float rgb[])
 static inline struct nk_colorf
 rgb2hsv(float r, float g, float b)
 {
-  float oklab[3], rgb[] = {r,g,b, 0.0};
+  float oklab[3], rgb[] = {r, g, b, 0.0f};
   rec2020_to_oklab(rgb, oklab);
   return (struct nk_colorf){modff(1.0f + atan2f(oklab[2], oklab[1])/(2.0f*M_PI), rgb+3), sqrtf(oklab[1]*oklab[1]+oklab[2]*oklab[2]), oklab[0], 1.0};
+}
+
+static inline struct nk_colorf
+rgb2hsv_prior(float r, float g, float b, struct nk_colorf hsv_prior)
+{
+  if(r <= 0 && g <= 0 && b <= 0) return (struct nk_colorf){hsv_prior.r, hsv_prior.g, 0.0, 1.0};
+  struct nk_colorf res = rgb2hsv(r, g, b);
+  if(res.g <= 1e-5) res.r = hsv_prior.r;
+  return res;
 }
 
 static inline struct nk_colorf

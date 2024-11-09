@@ -54,7 +54,7 @@ dt_gui_win_init(dt_gui_win_t *win)
   int wd = 3*mode->width/4;
   int ht = 3*mode->height/4;
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  // glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
+  // glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
   // glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE);
   glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE); // this is for github's super ancient ubuntu glfw 3.3
   glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
@@ -128,6 +128,8 @@ int dt_gui_init()
 {
   memset(&vkdt, 0, sizeof(vkdt));
   vkdt.graph_res = -1;
+  const char *is_x11 = getenv("XDG_SESSION_TYPE");
+  if(!strcmp(is_x11, "x11")) vkdt.is_x11 = 1;
   if(!glfwInit())
   {
     const char* description;

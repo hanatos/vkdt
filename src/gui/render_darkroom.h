@@ -242,24 +242,35 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     {
       float r7[] = {0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], ratio[1] };
       nk_layout_row(ctx, NK_DYNAMIC, row_height, 7, r7);
-      struct nk_colorf *val = (struct nk_colorf *)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-      struct nk_colorf oldval = *val;
+      float *val = (float *)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
+      struct nk_colorf oldval = {val[0], val[1], val[2], 1.0};
       struct nk_command_buffer *cmd = &vkdt.global_cmd;
+      // cache previous hsv so we can reconstruct hue and col for rgb=0
+      static struct nk_colorf cc_hsv[9] = {{0}};
+      static int cc_id[9] = {0};
+      const int hash = (7*modid + parid)%9;
+      if(cc_id[hash] != ((modid << 16) | parid))
+      {
+        cc_id[hash] = (modid<<16) | parid;
+        cc_hsv[hash] = (struct nk_colorf){0};
+      }
       const float dead_angle = 60.0f;
-      struct nk_colorf hsv = param->widget.type == dt_token("rgbknobs") ? rgb2hsv(val->r, val->g, val->b) : *val;
+      struct nk_colorf hsv = param->widget.type == dt_token("rgbknobs") ? rgb2hsv_prior(val[0], val[1], val[2], cc_hsv[hash]) : oldval;
 
 #ifdef ROTARY_ENCODER
 #define ROTARY_KNOB(VAL, M) do {\
-      if(nk_input_is_mouse_hovering_rect(&ctx->input, bounds))\
+      if(nk_input_is_mouse_hovering_rect(&ctx->input, bounds)) {\
         if(gui.pgupdn != 0) VAL = CLAMP(VAL + gui.pgupdn/100.0, 0.0, M);\
-      } while(0)
+      }} while(0)
 #else
 #define ROTARY_KNOB(A, B)
 #endif
 
-#define DECORATE(VAL, COL) do {\
-      if((!ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && (nk_input_is_mouse_hovering_rect(&ctx->input, bounds)) || \
-         ( ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && (ctx->last_widget_state & NK_WIDGET_STATE_ACTIVED))))\
+      // if not mouse down and hovering over bounds, or mouse clicked pos is in bounds
+#define DECORATE(VAL, COL, SC) do {\
+      if((!ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && nk_input_is_mouse_hovering_rect(&ctx->input, bounds)) || \
+         ( ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && \
+         NK_INBOX(ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos.x,ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos.y,bounds.x,bounds.y,bounds.w,bounds.h)))\
       {\
         const float c[] = { bounds.x + bounds.w/2.0, bounds.y + bounds.h/2.0 };\
         int N = 40;\
@@ -278,48 +289,61 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
             c[0] + cosf(phi-delta_phi-0.013) * r1, c[1] - sinf(phi-delta_phi-0.013) * r1,\
             c[0] + cosf(phi-delta_phi-0.013) * r0, c[1] - sinf(phi-delta_phi-0.013) * r0,\
             c[0] + cosf(phi+0.013) * r0,           c[1] - sinf(phi+0.013) * r0};\
-          nk_fill_polygon(cmd, x, 4, k==N ? nk_rgba(100,100,100,200) : COL);\
+          struct nk_color c = nk_rgba_cf((struct nk_colorf){MAX(0.0f, SC*COL.r), MAX(0.0f, SC*COL.g), MAX(0.0f, SC*COL.b), 1.0f});\
+          nk_fill_polygon(cmd, x, 4, k==N ? nk_rgba(100,100,100,200) : c);\
           phi -= delta_phi;\
         }\
       }} while(0)
 
       dt_tooltip("oklab hue angle");
       nk_label(ctx, "hue", NK_TEXT_RIGHT);
-      nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
+      nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
       struct nk_rect bounds = nk_widget_bounds(ctx);
       nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/200.0, NK_DOWN, dead_angle); // H
       nk_style_pop_color(ctx);
-      DECORATE(hsv.r, nk_rgba_cf(hsv2rgb((k+0.5)/N, 0.45, 0.45)));
+      DECORATE(hsv.r, hsv2rgb((k+0.5)/N, 1.0, 1.0), 0.18f);
       ROTARY_KNOB(hsv.r, 1.0);
 
       dt_tooltip("oklab colourfulness");
       nk_label(ctx, "col", NK_TEXT_RIGHT);
-      nk_style_push_color(ctx, &ctx->style.knob.knob_active, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 1.0)));
+      nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 1.0)));
       bounds = nk_widget_bounds(ctx);
       nk_knob_float(ctx, 0.0, &hsv.g, 1.0, 1.0/200.0, NK_DOWN, 60.0f); // S
       nk_style_pop_color(ctx);
-      DECORATE(hsv.g, nk_rgba_cf(hsv2rgb(hsv.r, (k+0.5)/N, 0.45)));
+      DECORATE(hsv.g, hsv2rgb(hsv.r, (k+0.5)/N, 1.0), 1.0f);
       ROTARY_KNOB(hsv.g, 1.0);
 
       dt_tooltip("oklab lightness");
       nk_label(ctx, "lit", NK_TEXT_RIGHT);
+      // nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, hsv.b)));
       bounds = nk_widget_bounds(ctx);
       nk_knob_float(ctx, 0.0, &hsv.b, 2.0, 1.0/200.0, NK_DOWN, 60.0f); // V
-      DECORATE(hsv.b/2.0, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 2.0*(k+0.5)/N)));
+      // nk_style_pop_color(ctx);
+      DECORATE(hsv.b/2.0, hsv2rgb(hsv.r, hsv.g, 2.0*(k+0.5)/N), 1.0f);
       ROTARY_KNOB(hsv.b, 2.0);
 
 #undef DECORATE
 #undef ROTARY_KNOB
-      struct nk_colorf hsv_old = param->widget.type == dt_token("rgbknobs") ? rgb2hsv(oldval.r, oldval.g, oldval.b) : oldval;
+      struct nk_colorf hsv_old = param->widget.type == dt_token("rgbknobs") ? rgb2hsv_prior(oldval.r, oldval.g, oldval.b, cc_hsv[hash]) : oldval;
+
       if(memcmp(&hsv_old, &hsv, sizeof(float)*3)) change = 1;
       if(change) // don't do this if resetblock triggers change
-        *val = param->widget.type == dt_token("rgbknobs") ? hsv2rgb(hsv.r, hsv.g, hsv.b) : hsv;
+      {
+        if(param->widget.type == dt_token("rgbknobs"))
+        {
+          struct nk_colorf rgb = hsv2rgb(hsv.r, hsv.g, hsv.b);
+          val[0] = rgb.r; val[1] = rgb.g; val[2] = rgb.b;
+        }
+        else memcpy(val, &hsv, sizeof(float)*3);
+      }
       dt_tooltip(param->tooltip);
       KEYFRAME
       RESETBLOCK
       nk_label(ctx, str, NK_TEXT_LEFT);
       if(change)
       {
+        if(hsv.g > 0.0 && hsv.b > 0.0) cc_hsv[hash] = hsv;
+        else cc_hsv[hash] = (struct nk_colorf){cc_hsv[hash].r, hsv.g, hsv.b};
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
