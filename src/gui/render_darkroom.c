@@ -106,8 +106,10 @@ static struct gui_state_data_t
   int hotkey;
   dt_token_t active_module;   // remember last active module with instance name
   dt_token_t active_instance; // so we can expand it again when the next image loads
+  int pgupdn;                 // collect pg up and down key presses for rotary encoder knobs
 } gui;
 
+#define ROTARY_ENCODER
 // goes here because the keyframe code depends on the above defines/hotkeys
 // could probably pass a function pointer instead.
 #include "gui/render_darkroom.h"
@@ -115,6 +117,7 @@ static struct gui_state_data_t
 void
 darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+  gui.pgupdn = 0;
   if(vkdt.wstate.grabbed)
   {
     dt_module_input_event_t p = {
@@ -218,6 +221,8 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   {
     if(key == GLFW_KEY_ESCAPE)
       dt_view_switch(s_view_lighttable);
+    if(key == GLFW_KEY_PAGE_UP)   gui.pgupdn ++;
+    if(key == GLFW_KEY_PAGE_DOWN) gui.pgupdn --;
   }
 }
 
