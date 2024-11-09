@@ -34,6 +34,6 @@ geo_encode_normal(float *vec)
     enc1 = vec[1] * invL1Norm;
   }
   return 
-    ((int16_t)roundf(CLAMP(-32768.0f, enc1 * 32768.0f, 32767.0f))<<16) |
-     (int16_t)roundf(CLAMP(-32768.0f, enc0 * 32768.0f, 32767.0f));
+    ((uint16_t)roundf(CLAMP(-32768.0f, enc1 * 32768.0f, 32767.0f))<<16) |
+     (uint16_t)roundf(CLAMP(-32768.0f, enc0 * 32768.0f, 32767.0f));
 }

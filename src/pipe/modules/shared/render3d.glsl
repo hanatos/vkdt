@@ -63,13 +63,78 @@ float bsdf_diffuse_eval()
   return 1.0/M_PI;
 }
 
-vec3 bsdf_rough_sample(vec3 wi, vec3 du, vec3 dv, vec3 n, vec2 xi)
+// smith ggx shadowing/masking:
+float bsdf_rough_G1(vec3 wi, vec3 wo, vec3 n, float a2)
 {
-  // TODO:
-  return vec3(0);
+  float dotNL = dot(-wi, n);
+  float dotNV = dot( wo, n);
+  float denomC = sqrt(a2 + (1.0 - a2) * dotNV * dotNV) + dotNV;
+
+  return 2.0 * dotNV / denomC;
 }
-//==================================================
-// microfacet model by jonathan:
+
+float bsdf_rough_G2(vec3 wi, vec3 wo, vec3 n, float a2)
+{
+  float dotNL = dot(-wi, n);
+  float dotNV = dot( wo, n);
+  float denomA = dotNV * sqrt(a2 + (1.0 - a2) * dotNL * dotNL);
+  float denomB = dotNL * sqrt(a2 + (1.0 - a2) * dotNV * dotNV);
+  return 2.0 * dotNL * dotNV / (denomA + denomB);
+}
+
+vec3 bsdf_rough_sample(vec3 wi, vec3 du, vec3 dv, vec3 n, vec2 alpha, vec2 xi, out float X)
+{ // Eric Heitz' vndf sampling for ggx:
+  // vec3 sampleGGXVNDF(vec3 V_, float alpha_x, float alpha_y, float U1, float U2)
+  vec3 V_ = -vec3(dot(wi, du), dot(wi, dv), dot(wi, n));
+  // stretch view
+  vec3 V = normalize(vec3(alpha.x * V_.x, alpha.y * V_.y, V_.z));
+  // orthonormal basis around V
+  vec3 T1 = (V.z < 0.9999) ? normalize(cross(V, vec3(0,0,1))) : vec3(1,0,0);
+  vec3 T2 = cross(T1, V);
+  // sample point with polar coordinates (r, phi)
+  float a = 1.0 / (1.0 + V.z);
+  float r = sqrt(xi.x);
+  float phi = (xi.y<a) ? xi.y/a * M_PI : M_PI + (xi.y-a)/(1.0-a) * M_PI;
+  float P1 = r*cos(phi);
+  float P2 = r*sin(phi)*((xi.y<a) ? 1.0 : V.z);
+  // compute micronormal
+  vec3 h = P1*T1 + P2*T2 + sqrt(max(0.0, 1.0 - P1*P1 - P2*P2))*V;
+  // unstretch
+  h = normalize(vec3(alpha.x*h.x, alpha.y*h.y, max(0.0, h.z)));
+  vec3 L = reflect(-V_, h);
+  if(L.z <= 0.0)
+  {
+    X = 0.0;
+    return vec3(0.0);
+  }
+  vec3 wo = du * L.x + dv * L.y + n * L.z;
+  // compute value of estimator, we did not sample outgoing masking
+  float a2 = alpha.x * alpha.x + alpha.y * alpha.y;
+  X = bsdf_rough_G2(wi, wo, n, a2) / bsdf_rough_G1(wi, wo, n, a2);
+  return wo;
+}
+// GGX normal distribution function
+float bsdf_rough_D(float roughness, const vec3 n, const vec3 h)
+{
+  vec3 NxH = cross(n, h);
+  float a = dot(n, h) * roughness;
+  float k = roughness / (dot(NxH, NxH) + a * a);
+  return k * k / M_PI;
+}
+
+float bsdf_rough_eval(
+    vec3 V, vec3 Tx, vec3 Ty, vec3 n, vec3 L, vec2 a)
+{
+  float roughness = length(a);
+  vec3 h = normalize(L-V);
+  float D  = bsdf_rough_D(roughness, n, h);
+  float G2 = bsdf_rough_G2(V, L, n, roughness*roughness);
+  return D * G2 / (4.0 * dot(-V,n) * dot(L,n));
+}
+
+#if 0
+//====================================================
+// microfacet model by jonathan, anisotropic beckmann:
 float erfc(float x) {
   return 2.0 * exp(-x * x) / (2.319 * x + sqrt(4.0 + 1.52 * x * x));
 }
@@ -84,11 +149,11 @@ float Lambda(float cosTheta, float sigmaSq) {
   return max(0.0, (exp(-v * v) - v * sqrt(M_PI) * erfc(v)) / (2.0 * v * sqrt(M_PI)));
   //return (exp(-v * v)) / (2.0 * v * sqrt(M_PI)); // approximate, faster formula
 }
-// L, V, N, Tx, Ty in world space
+// L, V, N, Tx, Ty in world space, pointing in rt direction: V->x->L
 float bsdf_rough_eval(
     vec3 V, vec3 Tx, vec3 Ty, vec3 N, vec3 L, vec2 sigmaSq)
 {
-  V = -V; // all pointing away from surface intersection point
+  V = -V; // make V pointing away from surface intersection point
   vec3 H = normalize(L + V);
   float zetax = dot(H, Tx) / dot(H, N);
   float zetay = dot(H, Ty) / dot(H, N);
@@ -118,6 +183,7 @@ float bsdf_rough_eval(
   return mix(1.0/M_PI, p / ((1.0 + Lambda(zL, sigmaL2) + Lambda(zV, sigmaV2)) * zV * zH2 * zH2 * 4.0), fresnel);
 }
 //==================================================
+#endif
 
 
 // multiplexing:
