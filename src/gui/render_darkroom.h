@@ -195,6 +195,12 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           bounds.y + 0.15*bounds.h, 0.01*bounds.w, 0.7*bounds.h);
       nk_fill_rect(nk_window_get_canvas(ctx), bar, 0, col);
 
+#ifdef ROTARY_ENCODER
+      if(nk_widget_is_hovered(ctx))
+        if(gui.pgupdn != 0)
+          *val = *val + gui.pgupdn * (param->widget.max - param->widget.min)/100.0;
+#endif
+
       if(*val != oldval) change = 1;
       if(change)
       {
@@ -243,14 +249,16 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       static struct nk_colorf cc_hsv[9] = {{0}};
       const int hash = (7*modid + parid)%9;
       const float dead_angle = 60.0f;
-      dt_tooltip("oklab hue angle");
       struct nk_colorf hsv = param->widget.type == dt_token("rgbknobs") ? rgb2hsv_prior(val->r, val->g, val->b, cc_hsv[hash]) : *val;
 
-      nk_label(ctx, "hue", NK_TEXT_RIGHT);
-      nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
-      struct nk_rect bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/200.0, NK_DOWN, dead_angle); // H
-      nk_style_pop_color(ctx);
+#ifdef ROTARY_ENCODER
+#define ROTARY_KNOB(VAL, M) do {\
+      if(nk_input_is_mouse_hovering_rect(&ctx->input, bounds))\
+        if(gui.pgupdn != 0) VAL = CLAMP(VAL + gui.pgupdn/100.0, 0.0, M);\
+      } while(0)
+#else
+#define ROTARY_KNOB(A, B)
+#endif
 
 
       // if not mouse down and hovering over bounds, or mouse clicked pos is in bounds
@@ -282,7 +290,15 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         }\
       }} while(0)
 
+      dt_tooltip("oklab hue angle");
+      nk_label(ctx, "hue", NK_TEXT_RIGHT);
+      nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
+      struct nk_rect bounds = nk_widget_bounds(ctx);
+      nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/200.0, NK_DOWN, dead_angle); // H
+      nk_style_pop_color(ctx);
       DECORATE(hsv.r, hsv2rgb((k+0.5)/N, 1.0, 1.0), 0.18f);
+      ROTARY_KNOB(hsv.r, 1.0);
+
       dt_tooltip("oklab colourfulness");
       nk_label(ctx, "col", NK_TEXT_RIGHT);
       nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 1.0)));
@@ -290,6 +306,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_knob_float(ctx, 0.0, &hsv.g, 1.0, 1.0/200.0, NK_DOWN, 60.0f); // S
       nk_style_pop_color(ctx);
       DECORATE(hsv.g, hsv2rgb(hsv.r, (k+0.5)/N, 1.0), 1.0f);
+      ROTARY_KNOB(hsv.g, 1.0);
+
       dt_tooltip("oklab lightness");
       nk_label(ctx, "lit", NK_TEXT_RIGHT);
       // nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, hsv.b)));
@@ -297,9 +315,12 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_knob_float(ctx, 0.0, &hsv.b, 2.0, 1.0/200.0, NK_DOWN, 60.0f); // V
       // nk_style_pop_color(ctx);
       DECORATE(hsv.b/2.0, hsv2rgb(hsv.r, hsv.g, 2.0*(k+0.5)/N), 1.0f);
+      ROTARY_KNOB(hsv.b, 2.0);
 
 #undef DECORATE
+#undef ROTARY_KNOB
       struct nk_colorf hsv_old = param->widget.type == dt_token("rgbknobs") ? rgb2hsv_prior(oldval.r, oldval.g, oldval.b, cc_hsv[hash]) : oldval;
+
       if(memcmp(&hsv_old, &hsv, sizeof(float)*3)) change = 1;
       if(change) // don't do this if resetblock triggers change
         *val = param->widget.type == dt_token("rgbknobs") ? hsv2rgb(hsv.r, hsv.g, hsv.b) : hsv;
