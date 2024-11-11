@@ -51,12 +51,17 @@ vec4 colour_sample_lambda(vec4 xi, inout vec4 X, inout vec4 hrp)
   vec4 x = asin(xi*b + a)/M_PI * 400.0 + 550.0; 
   X /= cos((x-550.0)/400.0 * M_PI);
   return x;
-#elif 1 // same cosine but sampling only the hero wavelength + stratified
+#elif 0 // same cosine but sampling only the hero wavelength + stratified wavelength
   vec4 x;
   x.x = asin(xi.x*b + a)/M_PI * 400.0 + 550.0; 
   x.yzw = mod(x.x - 380.0 + vec3(85, 170, 255), 720.0-380.0) + 380.0;
   hrp = cos((x-550.0)/400.0 * M_PI);
   X /= hrp;
+  return x;
+#elif 1 // cosine and stratifying in primary sample space
+  xi = fract(vec4(xi.x, xi.x+0.25, xi.x+0.5, xi.x+0.75));
+  vec4 x = asin(xi*b + a)/M_PI * 400.0 + 550.0; 
+  X /= cos((x-550.0)/400.0 * M_PI);
   return x;
 #else
   // uniform:
