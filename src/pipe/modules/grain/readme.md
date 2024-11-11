@@ -12,10 +12,12 @@ the standard deviation of the noise is picked based on
 a slightly skewed distribution depending on the pixel luminance.
 mid-tones will receive more noise.
 
+[![example grain](grain.jpg)](grain.jpg)
+
 ## connectors
 
-* `input`
-* `output`
+* `input` display referred image normalised between zero and one
+* `output` the image with film grain applied
 
 ## parameters
 
