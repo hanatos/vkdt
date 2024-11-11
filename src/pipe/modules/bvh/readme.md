@@ -3,7 +3,7 @@
 a bvh (bounding volume hierarchy) is in acceleration structure for ray tracing.
 this sink here will append the triangle data that is handed in to a global ray tracing bvh
 by constructing a bottom level acceleration structure which will be combined globally with
-all other `bvh` modules you might have on a graph.
+all other `bvh` modules you might have on a graph. input might come from [a waveform obj file via the `i-obj` module](../i-obj/readme.md).
 
 note that it is not necessary to include an edge from here to any ray tracing nodes.
 
@@ -16,4 +16,4 @@ TODO:
 
 ## connectors
 
-* `input` wire triangulated geometry here
+* `input` wire triangulated geometry here, say from an `i-obj` module

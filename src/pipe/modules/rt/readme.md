@@ -1,10 +1,16 @@
 # rt: simple real-time ray tracing
 
-this uses the vulkan ray tracing extension to 
+this uses the vulkan ray tracing extension to path trace a scene. the geometry comes from
+one or more [`bvh` modules](../bvh/readme.md) which collect input for bottom level acceleration structures.
+
+the `rt` module uses hero wavelength spectral sampling for accurate colour reproduction.
+
+[![ray traced scene](rt.jpg)](rt.jpg)
+
+(scene: [nikita sky demo](https://cloud.blender.org/p/gallery/5f4d1791cc1d7c5e0e8832d4))
 
 ## connectors
 
-* `geo`    geometry input, binary representation, same as [corona-13](https://github.com/hanatos/corona-13)
 * `output` the rendered beauty image
 * `blue`   blue noise texture as input lut, as those provided by [christoph](http://momentsingraphics.de/BlueNoise.html)
 * `tex`    an array connector for input textures, connect to a [i-jpglst](../i-jpglst/readme.md) module
