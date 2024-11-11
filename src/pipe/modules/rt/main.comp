@@ -173,6 +173,7 @@ main()
     // dithermask shows *no* difference for stratified hwl:
     // uint seed2 = 19937*global.frame;
     // vec4 lambda = colour_sample_lambda(dithermask(vec4(mrand(seed2)), rp), thr, hrp);
+    // vec4 lambda = colour_sample_lambda(dithermask(vec4(mrand(seed2)), rp).xxxx, thr, hrp);
     // mono wl:
     // vec4 lambda = colour_sample_lambda(vec4(mrand(seed)), thr, hrp);
     vec4 lambda = colour_sample_lambda(vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed)), thr, hrp);
