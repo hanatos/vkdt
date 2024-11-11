@@ -17,10 +17,10 @@ layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 vec2 hash(in vec2 i)
 {
-  uint seed = uint(13370* i.x + i.y * 7 + 13 * global.frame);
-  seed = uint(4000000*mrand(seed));
-  seed = uint(4000000*mrand(seed));
-#if 0
+  uint seed = uint(133700 * i.x + i.y * 37 + 13 * global.frame);
+  seed = uint(4000300*mrand(seed));
+  seed = uint(4070000*mrand(seed));
+#if 1
   // approximate correction for std dev of uniform distribution
   float sigma = 1.7; // approximately correct for the uniform distribution [-1,1] instead of gaussian
   return sigma * (-1 + 2*vec2(mrand(seed), mrand(seed)));
@@ -52,13 +52,21 @@ void main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+
+  vec2 tc = 1.0/clamp(params.size, 0.6, 2.0) * 0.3 * vec2(ipos);
+  // just summing the noise looks weird (becomes solid black at times).
+  // let's say this changes the optical thickness of some film material instead:
+#if 1 // logistic answer to film density:
+  rgb = log(rgb / (1.0 - rgb));
+  rgb += params.magnitude * noise(tc);
+  rgb = exp(rgb) / (1.0 + exp(rgb));
+#else
   float lum = luminance_rec2020(rgb);
   float sigma = clamp(lum, 0, 1);
   sigma = pow(sigma, 0.8);
   sigma = sigma * (1.0-sigma);
-
-  vec2 tc = 1.0/clamp(params.size, 0.6, 2.0) * 0.3 * vec2(ipos);
   rgb += clamp(rgb + params.magnitude * sigma * noise(tc), vec3(0.0), vec3(1.0)) - rgb;
+#endif
 
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
