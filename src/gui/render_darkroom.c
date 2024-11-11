@@ -117,7 +117,6 @@ static struct gui_state_data_t
 void
 darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-  gui.pgupdn = 0;
   if(vkdt.wstate.grabbed)
   {
     dt_module_input_event_t p = {
@@ -221,8 +220,8 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   {
     if(key == GLFW_KEY_ESCAPE)
       dt_view_switch(s_view_lighttable);
-    if(key == GLFW_KEY_PAGE_UP)   gui.pgupdn ++;
-    if(key == GLFW_KEY_PAGE_DOWN) gui.pgupdn --;
+    if(key == GLFW_KEY_PAGE_UP)   gui.pgupdn++;
+    if(key == GLFW_KEY_PAGE_DOWN) gui.pgupdn--;
   }
 }
 
@@ -319,6 +318,7 @@ void render_darkroom()
   if(!dt_gui_input_blocked() && nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
   {
     dt_view_switch(s_view_lighttable);
+    gui.pgupdn = 0;
     return;
   }
 
@@ -710,6 +710,8 @@ void render_darkroom()
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
   }
+  // reset rotary encoder knob counter
+  gui.pgupdn = 0;
 }
 
 void render_darkroom_init()
