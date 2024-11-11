@@ -1,6 +1,8 @@
+// see http://scottburns.us/fast-rgb-to-spectrum-conversion-for-reflectances/
 // only works within srgb. slightly steppy spectra, but good enough for quake, maybe.
 // goes above 1.0 for white even within srgb. scott burns says this works and has nice
-// tables with fitted spectra. to make it extra cheap i just include sigmoid fits here:
+// tables with fitted spectra. to make it extra cheap i just include sigmoid fits here
+// which are generally worse than the tabulated data.
 vec4 rgb_to_spectrum(vec3 srgb, vec4 lambda)
 {
   const vec3 cr = vec3( 58.0425, -12.5469, -7.82178);
