@@ -47,7 +47,7 @@ main()
   vec2 p = opos - c;
   float dist = abs(sd_box(p, mix(0.5*ts_in, 0.5*ts_out, params.linepos)));
 
-  float wdpx = params.linewd * (ts_out.x - ts_in.x) * 0.5;
+  float wdpx = params.linewd * max(ts_out.y - ts_in.y, ts_out.x - ts_in.x) * 0.5;
   vec3 rgb = mix(params.bordercol.rgb, params.linecol.rgb, clamp(wdpx - dist, 0.0, 1.0));
 
   if(all(greaterThanEqual(opos, off)) && all(lessThan(opos - off, ts_in)))
