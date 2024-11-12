@@ -52,21 +52,22 @@ enum hotkey_names_t
   s_hotkey_prev_image      = 9,
   s_hotkey_fullscreen      = 10,
   s_hotkey_dopesheet       = 11,
-  s_hotkey_rate_0          = 12,
-  s_hotkey_rate_1          = 13,
-  s_hotkey_rate_2          = 14,
-  s_hotkey_rate_3          = 15,
-  s_hotkey_rate_4          = 16,
-  s_hotkey_rate_5          = 17,
-  s_hotkey_label_1         = 18,
-  s_hotkey_label_2         = 19,
-  s_hotkey_label_3         = 20,
-  s_hotkey_label_4         = 21,
-  s_hotkey_label_5         = 22,
-  s_hotkey_upvote          = 23,
-  s_hotkey_downvote        = 24,
-  s_hotkey_reload_shaders  = 25,
-  s_hotkey_count           = 26,
+  s_hotkey_keyframe_dup    = 12,
+  s_hotkey_rate_0          = 13,
+  s_hotkey_rate_1          = 14,
+  s_hotkey_rate_2          = 15,
+  s_hotkey_rate_3          = 16,
+  s_hotkey_rate_4          = 17,
+  s_hotkey_rate_5          = 18,
+  s_hotkey_label_1         = 19,
+  s_hotkey_label_2         = 20,
+  s_hotkey_label_3         = 21,
+  s_hotkey_label_4         = 22,
+  s_hotkey_label_5         = 23,
+  s_hotkey_upvote          = 24,
+  s_hotkey_downvote        = 25,
+  s_hotkey_reload_shaders  = 26,
+  s_hotkey_count           = 27,
 };
 
 static const int hk_darkroom_size = 128;
@@ -84,6 +85,7 @@ static hk_t hk_darkroom[128] = {
   {"prev image",      "switch to previous image in folder",         {GLFW_KEY_BACKSPACE}},
   {"fullscreen",      "show/hide side panels for fullscreen",       {GLFW_KEY_TAB}},
   {"dopesheet",       "show/hide keyframe overview",                {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_D}},
+  {"dup keyframe",    "duplicate hovered keyframe in dopesheet",    {GLFW_KEY_LEFT_SHIFT,   GLFW_KEY_D}},
   {"rate 0",          "assign zero stars",                          {GLFW_KEY_0}},
   {"rate 1",          "assign one star",                            {GLFW_KEY_1}},
   {"rate 2",          "assign two stars",                           {GLFW_KEY_2}},
@@ -383,7 +385,7 @@ void render_darkroom()
     const int disabled = vkdt.wstate.popup;
     nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
     if(nk_begin(&vkdt.ctx, "dopesheet", bounds, (disabled ? NK_WINDOW_NO_INPUT : 0)))
-      dt_dopesheet(filter_name, filter_inst, 0);
+      dt_dopesheet(filter_name, filter_inst, gui.hotkey == s_hotkey_keyframe_dup);
 
     NK_UPDATE_ACTIVE;
     nk_end(&vkdt.ctx);

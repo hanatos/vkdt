@@ -75,6 +75,14 @@ dt_draw_param_line(
       }
       nk_style_pop_vec2(ctx);
       nk_style_pop_vec2(ctx);
+      if(hotkey == 1)
+      {
+        dt_graph_t *g = mod->graph;
+        int modid = mod - g->module;
+        uint32_t ki = dt_gui_keyframe_add(modid, p);
+        if(ki != -1u) 
+          g->module[modid].keyframe[ki].frame = CLAMP(g->frame + 2, 0, g->frame_cnt-1);
+      }
     }
     if(nk_input_has_mouse_click_down_in_rect(&ctx->input, NK_BUTTON_LEFT, bbk, nk_true) && 
        drag_k == -1u)
