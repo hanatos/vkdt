@@ -86,12 +86,12 @@ dt_gui_dr_anim_seek_keyframe_bck()
 
 // grab the current state of the given parameter/module and insert a keyframe
 // at the current frame of the gui graph. will deduplicate if a keyframe already exists here.
-static inline void
+static inline uint32_t
 dt_gui_keyframe_add(int modid, int parid)
 {
   dt_graph_t *g = &vkdt.graph_dev;
   const dt_ui_param_t *param = g->module[modid].so->param[parid];
-  if(!param) return;
+  if(!param) return -1u;
   int count = 1;
   if(param->name == dt_token("draw"))
     count = 2*dt_module_param_int(g->module + modid, parid)[0]+1; // vertex count + list of 2d vertices
@@ -121,6 +121,7 @@ dt_gui_keyframe_add(int modid, int parid)
   dt_gui_notification("added keyframe for frame %u %" PRItkn ":%" PRItkn ":%" PRItkn, 
       g->frame, dt_token_str(g->module[modid].name), dt_token_str(g->module[modid].inst), dt_token_str(param->name));
   dt_graph_history_keyframe(g, modid, ki);
+  return ki;
 }
 
 static inline void
