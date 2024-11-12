@@ -114,6 +114,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     }\
     else if(nk_contextual_item_label(ctx, "add to favs", NK_TEXT_LEFT))\
       dt_gui_add_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name);\
+    if(vkdt.graph_dev.frame_cnt != 1 && param->type == dt_token("float") && nk_contextual_item_label(ctx, "add keyframe", NK_TEXT_LEFT))\
+      dt_gui_keyframe_add(modid, parid);\
     nk_contextual_end(ctx);\
   }}
 
