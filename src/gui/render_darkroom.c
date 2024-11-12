@@ -382,7 +382,7 @@ void render_darkroom()
     struct nk_rect bounds = { .x = win_x, .y = win_y, .w = win_w, .h = win_h };
     const int disabled = vkdt.wstate.popup;
     nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
-    if(nk_begin(&vkdt.ctx, "dopesheet", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
+    if(nk_begin(&vkdt.ctx, "dopesheet", bounds, (disabled ? NK_WINDOW_NO_INPUT : 0)))
       dt_dopesheet();
 
     NK_UPDATE_ACTIVE;
