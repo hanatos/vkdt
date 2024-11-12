@@ -21,3 +21,6 @@ bin/imgui.ini
 bin/display.*
 bin/data/*.lut
 bin/data/nprof/
+src/gui/shd.h
+src/gui/shd/gui.frag.spv
+src/gui/shd/gui.vert.spv
