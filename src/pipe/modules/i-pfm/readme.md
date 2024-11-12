@@ -10,4 +10,4 @@ point maps. does not flip y coordinate.
 
 ## connectors
 
-* `output` half floating point precision version of the f32 input file.
+* `output` 32-bit floating point precision version of the f32 input file.
