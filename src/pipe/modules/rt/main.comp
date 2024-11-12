@@ -31,6 +31,7 @@ layout(set = 1, binding = 0) buffer buf_fb_t { float v[]; } buf_fb;
 layout(set = 1, binding = 1) uniform sampler2D img_blue;
 layout(set = 1, binding = 2) uniform sampler2D img_tex[];
 layout(set = 1, binding = 3) uniform writeonly image2D img_aov;
+layout(set = 1, binding = 4) uniform sampler2D img_env;
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
 
@@ -244,9 +245,11 @@ main()
         w = wo;
       }
       else
-      {
-        vec4 Lc = colour_blackbody(lambda, 6504.0); // not quite D65
-        vec4 L = pow(1.0+dot(vec3(0,0,1), w), 3.0) * 0.5 * Lc; // escaped to environment map
+      { // escaped to environment map
+        vec2 tc = vec2((atan(w.y, w.x)+M_PI)/(2.0*M_PI), acos(clamp(w.z, -1, 1))/M_PI);
+        vec4 L = rgb_to_spectrum(texture(img_env, tc).rgb, lambda);
+        // vec4 Lc = colour_blackbody(lambda, 6504.0); // not quite D65
+        // vec4 L = pow(1.0+dot(vec3(0,0,1), w), 3.0) * 0.5 * Lc;
         acc += thr*L / float(params.spp);
         // aov.rgb = (1.0+w)/2.0;
         break;

@@ -129,14 +129,16 @@ create_nodes(
 {
   dt_roi_t roi_gbuf = { .wd = module->connector[0].roi.wd, .ht = module->connector[0].roi.ht * 4 };
   int id_rt = dt_node_add(graph, module, "rt", "main", 
-    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 4,
+    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 5,
       "output",   "write", "ssbo", "f32",  &roi_gbuf,                 // 0
       "blue",     "read",  "*",    "*",    dt_no_roi,                 // 1
       "tex",      "read",  "*",    "*",    dt_no_roi,                 // 2
-      "aov",      "write", "rgba", "f16",  &module->connector[0].roi);// 3
+      "aov",      "write", "rgba", "f16",  &module->connector[0].roi, // 3
+      "env",      "read",  "*",    "*",    dt_no_roi);                // 4
   dt_connector_copy(graph, module, 1, id_rt, 1);
   dt_connector_copy(graph, module, 2, id_rt, 2);
   dt_connector_copy(graph, module, 3, id_rt, 3);
+  dt_connector_copy(graph, module, 4, id_rt, 4);
 
   const int id_post = dt_node_add(graph, module, "rt", "post",
     module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 2,
