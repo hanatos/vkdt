@@ -269,10 +269,8 @@ void render_darkroom_favourite()
   }
 }
 
-void render_darkroom_full()
+void render_darkroom_full(char *filter_name, char *filter_inst)
 {
-  static char filter_name[10] = {0};
-  static char filter_inst[10] = {0};
   const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
   if(vkdt.graph_dev.active_module == -1)
   {
@@ -375,6 +373,8 @@ void render_darkroom()
   nk_end(&vkdt.ctx);
   nk_style_pop_style_item(&vkdt.ctx);
 
+  static char filter_name[10] = {0};
+  static char filter_inst[10] = {0};
   if(vkdt.wstate.dopesheet_view > 0.0f)
   { // draw dopesheet
     int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y + vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
@@ -383,7 +383,7 @@ void render_darkroom()
     const int disabled = vkdt.wstate.popup;
     nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
     if(nk_begin(&vkdt.ctx, "dopesheet", bounds, (disabled ? NK_WINDOW_NO_INPUT : 0)))
-      dt_dopesheet();
+      dt_dopesheet(filter_name, filter_inst, 0);
 
     NK_UPDATE_ACTIVE;
     nk_end(&vkdt.ctx);
@@ -613,7 +613,7 @@ void render_darkroom()
       nk_layout_row_dynamic(ctx, row_height, 1);
       if(nk_button_label(ctx, "open node editor"))
         dt_view_switch(s_view_nodes);
-      render_darkroom_full();
+      render_darkroom_full(filter_name, filter_inst);
     }
     else if(current_tab == 2)
     {

@@ -31,7 +31,8 @@ frame_to_screen(int f, dt_graph_t *g, struct nk_rect bb)
 static inline float
 dt_draw_param_line(
     dt_module_t *mod,
-    int          p)
+    int          p,
+    uint32_t     hotkey)
 {
   if(mod->param_keyframe[p] == 0xffff) return 0.0f; // module has some keyframes, but our parameter?
   struct nk_context *ctx = &vkdt.ctx;
@@ -118,18 +119,21 @@ dt_draw_param_line(
 }
 
 static inline float
-dt_dopesheet_module(dt_graph_t *g, uint32_t modid)
+dt_dopesheet_module(dt_graph_t *g, uint32_t modid, uint32_t hotkey)
 { // draw all parameters of a module
   dt_module_t *mod = g->module + modid;
   if(mod->keyframe_cnt == 0) return 0.0f; // no keyframes to draw
   float size = 0.0f;
   for(int p=0;p<mod->so->num_params;p++)
-    size += dt_draw_param_line(mod, p);
+    size += dt_draw_param_line(mod, p, hotkey);
   return size;
 }
 
 static inline void
-dt_dopesheet()
+dt_dopesheet(
+    const char *filter_name,
+    const char *filter_inst,
+    uint32_t hotkey)
 { // draw all modules connected on the graph in same order as right panel in darkroom mode
   dt_graph_t *graph = &vkdt.graph_dev;
   struct nk_context *ctx = &vkdt.ctx;
@@ -176,7 +180,21 @@ dt_dopesheet()
 #include "pipe/graph-traverse.inc"
   float size = 0.0;
   for(int m=cnt-1;m>=0;m--)
-    size += dt_dopesheet_module(graph, modid[m]);
+  {
+    if(filter_name && filter_name[0])
+    {
+      char name[10] = {0};
+      memcpy(name, dt_token_str(vkdt.graph_dev.module[modid[m]].name), 8);
+      if(!strstr(name, filter_name)) continue;
+    }
+    if(filter_inst && filter_inst[0])
+    {
+      char inst[10] = {0};
+      memcpy(inst, dt_token_str(vkdt.graph_dev.module[modid[m]].inst), 8);
+      if(!strstr(inst, filter_inst)) continue;
+    }
+    size += dt_dopesheet_module(graph, modid[m], hotkey);
+  }
 
   if(size == 0.0f)
   { // no keyframes yet, want to display something
