@@ -106,7 +106,7 @@ static inline void render_darkroom_widget(int modid, int parid)
     {\
       dt_graph_t *g = &vkdt.graph_dev;\
       uint32_t ki = -1u;\
-      for(uint32_t i=0;ki<0&&i<g->module[modid].keyframe_cnt;i++)\
+      for(uint32_t i=0;ki==-1u&&i<g->module[modid].keyframe_cnt;i++)\
         if(g->module[modid].keyframe[i].param == param->name && \
            g->module[modid].keyframe[i].frame == g->frame)\
           ki = i;\
