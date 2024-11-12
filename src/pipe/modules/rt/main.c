@@ -127,9 +127,29 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  // XXX in fact, implement some source callback and do the mip mapping on cpu and upload some larger buffer
+#if 0 // TODO: environment importance sampling:
+  dt_roi_t roi_mip = module->connector[4].roi;
+  for()
+  {
+    dt_roi_t roi_mip2 = {.wd = roi_mip.wd/2, .ht = roi_mip.ht/2 };
+    dt_roi_t roi_mip4 = {.wd = roi_mip.wd/4, .ht = roi_mip.ht/4 };
+    dt_roi_t roi_mip8 = {.wd = roi_mip.wd/8, .ht = roi_mip.ht/8 };
+    // TODO: mip sizes. environment maps only work for powers of two, that's fine.
+    int id_down = dt_node_add(graph, module, "rt", "envmip",
+        roi_mip.wd, roi_mip.ht, 1, 0, 0, 4,
+        "input", "read", "*", "*", dt_no_roi,
+        // TODO: write into the same image/buffer
+        "out2", "write", "rgba", "f16", &roi_mip2,
+        "out4", "write", "rgba", "f16", &roi_mip4,
+        "out8", "write", "rgba", "f16", &roi_mip8);
+    roi_mip = roi_mip8;
+  }
+#endif
+
   dt_roi_t roi_gbuf = { .wd = module->connector[0].roi.wd, .ht = module->connector[0].roi.ht * 4 };
   int id_rt = dt_node_add(graph, module, "rt", "main", 
-    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 5,
+      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 5,
       "output",   "write", "ssbo", "f32",  &roi_gbuf,                 // 0
       "blue",     "read",  "*",    "*",    dt_no_roi,                 // 1
       "tex",      "read",  "*",    "*",    dt_no_roi,                 // 2
