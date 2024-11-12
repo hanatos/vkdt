@@ -1,0 +1,4 @@
+filename:string:256:test.pfm
+startid:int:1:0
+noise a:float:1:0.0
+noise b:float:1:0.0
