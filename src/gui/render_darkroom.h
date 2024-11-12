@@ -124,29 +124,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   {\
     if(gui.hotkey == s_hotkey_insert_keyframe)\
     {\
-      dt_graph_t *g = &vkdt.graph_dev;\
-      uint32_t ki = -1u;\
-      for(uint32_t i=0;ki==-1u&&i<g->module[modid].keyframe_cnt;i++)\
-        if(g->module[modid].keyframe[i].param == param->name && \
-           g->module[modid].keyframe[i].frame == g->frame)\
-          ki = i;\
-      if(ki == -1u)\
-      {\
-        ki = g->module[modid].keyframe_cnt++;\
-        g->module[modid].keyframe = (dt_keyframe_t *)dt_realloc(g->module[modid].keyframe, &g->module[modid].keyframe_size, sizeof(dt_keyframe_t)*(ki+1));\
-        g->module[modid].keyframe[ki].beg   = 0;\
-        g->module[modid].keyframe[ki].end   = count;\
-        g->module[modid].keyframe[ki].frame = g->frame;\
-        g->module[modid].keyframe[ki].param = param->name;\
-        g->module[modid].keyframe[ki].data  = g->params_pool + g->params_end;\
-        g->params_end += dt_ui_param_size(param->type, count);\
-        assert(g->params_end <= g->params_max);\
-      }\
-      memcpy(g->module[modid].keyframe[ki].data, g->module[modid].param + param->offset, dt_ui_param_size(param->type, count));\
-      dt_module_keyframe_post_update(g->module+modid);\
-      dt_gui_notification("added keyframe for frame %u %" PRItkn ":%" PRItkn ":%" PRItkn, \
-          g->frame, dt_token_str(g->module[modid].name), dt_token_str(g->module[modid].inst), dt_token_str(param->name));\
-      dt_graph_history_keyframe(&vkdt.graph_dev, modid, ki);\
+      dt_gui_keyframe_add(modid, parid);\
       gui.hotkey = -1;\
     }\
   }
