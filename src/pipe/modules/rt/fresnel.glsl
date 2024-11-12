@@ -16,30 +16,30 @@ fresnel(
   n2 = vec2(ior_Au.x, -kappa_Au.x);
   ratio = complex_mul_mixed(n1, complex_rcp(n2));
   cost = complex_sqrt(vec2(1,0) - complex_mul_mixed(1.0 - cosr*cosr, complex_mul(ratio, ratio)));
-  Rs = sqrt(complex_abs_sqr(complex_div(vec2(n1*cosr,0) - complex_mul(n2,cost), vec2(n1*cosr,0) + complex_mul(n2,cost))));
-  Rp = sqrt(complex_abs_sqr(complex_div(complex_mul_mixed(n1,cost) - complex_mul_mixed(cosr,n2), complex_mul_mixed(n1,cost) + complex_mul_mixed(cosr,n2))));
-  ret.x = min(1.0, (Rs*Rs + Rp*Rp)*.5);
+  Rs = complex_abs_sqr(complex_div(vec2(n1*cosr,0) - complex_mul(n2,cost), vec2(n1*cosr,0) + complex_mul(n2,cost)));
+  Rp = complex_abs_sqr(complex_div(complex_mul_mixed(n1,cost) - complex_mul_mixed(cosr,n2), complex_mul_mixed(n1,cost) + complex_mul_mixed(cosr,n2)));
+  ret.x = min(1.0, (Rs + Rp)*.5);
 
   n2 = vec2(ior_Au.y, -kappa_Au.y);
   ratio = complex_mul_mixed(n1, complex_rcp(n2));
   cost = complex_sqrt(vec2(1,0) - complex_mul_mixed(1.0 - cosr*cosr, complex_mul(ratio, ratio)));
-  Rs = sqrt(complex_abs_sqr(complex_div(vec2(n1*cosr,0) - complex_mul(n2,cost), vec2(n1*cosr,0) + complex_mul(n2,cost))));
-  Rp = sqrt(complex_abs_sqr(complex_div(complex_mul_mixed(n1,cost) - complex_mul_mixed(cosr,n2), complex_mul_mixed(n1,cost) + complex_mul_mixed(cosr,n2))));
-  ret.y = min(1.0, (Rs*Rs + Rp*Rp)*.5);
+  Rs = complex_abs_sqr(complex_div(vec2(n1*cosr,0) - complex_mul(n2,cost), vec2(n1*cosr,0) + complex_mul(n2,cost)));
+  Rp = complex_abs_sqr(complex_div(complex_mul_mixed(n1,cost) - complex_mul_mixed(cosr,n2), complex_mul_mixed(n1,cost) + complex_mul_mixed(cosr,n2)));
+  ret.y = min(1.0, (Rs + Rp)*.5);
 
   n2 = vec2(ior_Au.z, -kappa_Au.z);
   ratio = complex_mul_mixed(n1, complex_rcp(n2));
   cost = complex_sqrt(vec2(1,0) - complex_mul_mixed(1.0 - cosr*cosr, complex_mul(ratio, ratio)));
-  Rs = sqrt(complex_abs_sqr(complex_div(vec2(n1*cosr,0) - complex_mul(n2,cost), vec2(n1*cosr,0) + complex_mul(n2,cost))));
-  Rp = sqrt(complex_abs_sqr(complex_div(complex_mul_mixed(n1,cost) - complex_mul_mixed(cosr,n2), complex_mul_mixed(n1,cost) + complex_mul_mixed(cosr,n2))));
-  ret.z = min(1.0, (Rs*Rs + Rp*Rp)*.5);
+  Rs = complex_abs_sqr(complex_div(vec2(n1*cosr,0) - complex_mul(n2,cost), vec2(n1*cosr,0) + complex_mul(n2,cost)));
+  Rp = complex_abs_sqr(complex_div(complex_mul_mixed(n1,cost) - complex_mul_mixed(cosr,n2), complex_mul_mixed(n1,cost) + complex_mul_mixed(cosr,n2)));
+  ret.z = min(1.0, (Rs + Rp)*.5);
 
   n2 = vec2(ior_Au.w, -kappa_Au.w);
   ratio = complex_mul_mixed(n1, complex_rcp(n2));
   cost = complex_sqrt(vec2(1,0) - complex_mul_mixed(1.0 - cosr*cosr, complex_mul(ratio, ratio)));
-  Rs = sqrt(complex_abs_sqr(complex_div(vec2(n1*cosr,0) - complex_mul(n2,cost), vec2(n1*cosr,0) + complex_mul(n2,cost))));
-  Rp = sqrt(complex_abs_sqr(complex_div(complex_mul_mixed(n1,cost) - complex_mul_mixed(cosr,n2), complex_mul_mixed(n1,cost) + complex_mul_mixed(cosr,n2))));
-  ret.w = min(1.0, (Rs*Rs + Rp*Rp)*.5);
+  Rs = complex_abs_sqr(complex_div(vec2(n1*cosr,0) - complex_mul(n2,cost), vec2(n1*cosr,0) + complex_mul(n2,cost)));
+  Rp = complex_abs_sqr(complex_div(complex_mul_mixed(n1,cost) - complex_mul_mixed(cosr,n2), complex_mul_mixed(n1,cost) + complex_mul_mixed(cosr,n2)));
+  ret.w = min(1.0, (Rs + Rp)*.5);
 
   return ret;
 }
