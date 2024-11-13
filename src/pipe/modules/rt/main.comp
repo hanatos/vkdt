@@ -209,7 +209,7 @@ main()
 
     for(int i=0;i<10;i++)
     { // for a number of bounces
-      const float dist = volume_sample_dist(x, w, rand64(seed));
+      const float dist = 100000.0;// volume_sample_dist(x, w, rand64(seed));
       rayQueryEXT rq;
       rayQueryInitializeEXT(rq, rt_accel,
          gl_RayFlagsNoneEXT,
@@ -245,7 +245,12 @@ main()
         float roughness = max(0.0, 0.2-diffcol.r);
 
         float X = 1.0;
+#if 0 // bsdf sampling
         vec3 wo = bsdf_rough_sample(w, du, dv, n, vec2(roughness), vec2(rand64(seed), rand64(seed)), X);
+#else // envmap sampling
+        vec3 wo = env_sample(vec2(rand64(seed), rand64(seed)), img_env, X);
+#endif
+        if(i == 0) aov.rgb = (1.0+wo)/2.0;
         if(dot(wo,n) <= 0.0) break; // sampled under surface
         // thr *= bsdf * M_PI / ws.z;
         vec3 h = normalize(wo - w);

@@ -233,16 +233,15 @@ int read_source(
 
   float *img = mapped;
   int wd = hdr->width/4, ht = hdr->height/4, m = 1;
-  int yoff = hdr->height, xoff = 0, yoff_prev = 0, xoff_prev = 0;
-  while(wd * ht >= hdr->width)
+  int off = hdr->width * hdr->height, off_prev = 0;
+  while(wd >= 1)
   { // while we can still fill at least one whole scanline with the mipmap:
-    int h = (wd * ht) / hdr->width;
-    fprintf(stderr, "mip %d is %d x %d, yoff %d + h %d\n", m, wd, ht, yoff, h);
-    for(int j=0;j<ht;j++) for(int i=0;i<wd;i++)
+    fprintf(stderr, "mip %d is %d x %d, off %d prev %d, line %d\n", m, wd, ht, off, off_prev, off / hdr->width);
+    for(int j=0;j<MAX(1,ht);j++) for(int i=0;i<wd;i++)
     { // for all pixels in current mip map level m
       // read 4 pixels at mip level-1 (2*i, 2*j, m-1) 
       int idx = wd*j + i;
-      for(int jj=0;jj<2;jj++) for(int ii=0;ii<2;ii++)
+      for(int jj=0;jj<(ht==0?1:2);jj++) for(int ii=0;ii<2;ii++)
       { // for all 4 channels of the current pixel in mip level m
         float val = 0.0f;
         if(m == 1)
@@ -250,41 +249,22 @@ int read_source(
           for(int jjj=0;jjj<2;jjj++) for(int iii=0;iii<2;iii++)
           {
             int x = 4*i + 2*ii + iii, y = 4*j + 2*jj + jjj;
-            float J = sinf(((y+0.5f) / (2.0f*ht) - 0.5f)*M_PI); // at pixel center so it won't be 0 on poles
+            float J = fabsf(sinf(((y+0.5f) / (hdr->height))*M_PI)); // at pixel center so it won't be 0 on poles
             int pxi = 4*(hdr->width*y + x);
+            // float lum = MAX(0.0, -2.0 + img[pxi] + img[pxi+1] + img[pxi+2]); // could use luminance
             float lum = img[pxi] + img[pxi+1] + img[pxi+2]; // could use luminance
-            val += lum * J;
+            val += lum * J * 0.25f;
           }
         }
         else for(int k=0;k<4;k++) // accumulate 2x2 block of previous mipmap
-          val += img[4*(hdr->width*yoff_prev + 4*idx+ii+2*wd*jj) + k];
-        img[4*(hdr->width*yoff + idx) + 2*jj+ii] = val; // write current channel of current pixel
+          // val += img[4*(off_prev + 4*idx+ii+2*wd*jj) + k] * 0.25f;
+          val += img[4*(off_prev + 2*i+ii + 2*wd*(2*j+jj)) + k] * 0.25f;
+        img[4*(off + idx) + 2*jj+ii] = val; // write current channel of current pixel
       }
+      if(ht == 0) img[4*(off + idx) + 2] = img[4*(off + idx) + 3] = 0.0f;
     }
-    yoff_prev = yoff;
-    yoff += h;
-    wd /= 2; ht /= 2; m++;
-  }
-  // TODO merge this loop into the above by using idxoff instead of yoff and xoff!
-  // TODO: fix last iteration where we only have one pixel with two zero entries (because it samples a 2x1 block, not a 2x2 block)
-  while(wd >= 1) // XXX == 1 means ht == 0 so last iteration doesn't work!
-  { // the rest will now fit into one last scanline of the image
-    int w = wd * ht;
-    fprintf(stderr, "mip %d is %d x %d, xoff %d + w %d\n", m, wd, ht, xoff, w);
-    for(int j=0;j<ht;j++) for(int i=0;i<wd;i++)
-    { // for all pixels in current mip map level m
-      int idx = wd*j + i;
-      for(int jj=0;jj<2;jj++) for(int ii=0;ii<2;ii++)
-      { // for all 4 channels of the current pixel in mip level m
-        float val = 0.0f;
-        for(int k=0;k<4;k++) // accumulate 2x2 block of previous mipmap
-          val += img[4*(hdr->width*yoff_prev + 4*idx+ii+2*wd*jj + xoff_prev) + k];
-        img[4*(hdr->width*yoff + xoff + idx) + 2*jj+ii] = val; // write current channel of current pixel
-      }
-      fprintf(stderr, "address: %d\n", hdr->width*(yoff-hdr->height) + xoff + idx);
-    }
-    xoff_prev = xoff; yoff_prev = yoff;
-    xoff += w;
+    off_prev = off;
+    off += wd * ht;
     wd /= 2; ht /= 2; m++;
   }
   return 0;
