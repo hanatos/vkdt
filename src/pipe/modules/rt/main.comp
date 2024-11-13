@@ -14,6 +14,7 @@
 #include "fresnel.glsl"
 #include "volume-fwd.glsl"
 #include "volume.glsl"
+#include "env.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -45,6 +46,15 @@ vec2 filter_bh_sample(vec2 rand)
   vec2 res = vec2(cos(rand.y*M_PI*2.0), sin(rand.y*M_PI*2.0));
   float r = 0.943404 * asin(0.636617 * asin(sqrt(rand.x))); // surprisingly good fit to inverse cdf
   return res * r;
+}
+
+// xorshift64star
+float rand64(inout uint64_t x)
+{
+  x ^= x >> 12;
+  x ^= x << 25;
+  x ^= x >> 27;
+  return float((x * 0x2545F4914F6CDD1Dul)>>32)/4294967296.0;
 }
 
 #if 1
@@ -250,8 +260,8 @@ main()
       }
       else if(dist > 1000.0)
       { // escaped to environment map
-        vec2 tc = vec2((atan(w.y, w.x)+M_PI)/(2.0*M_PI), acos(clamp(w.z, -1, 1))/M_PI);
-        vec4 L = rgb_to_spectrum(texture(img_env, tc).rgb, lambda);
+        vec3 env = env_lookup(w, img_env);
+        vec4 L = rgb_to_spectrum(env, lambda);
         // vec4 Lc = colour_blackbody(lambda, 6504.0); // not quite D65
         // vec4 L = pow(1.0+dot(vec3(0,0,1), w), 3.0) * 0.5 * Lc;
         acc += thr*L / float(params.spp);

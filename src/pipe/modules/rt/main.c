@@ -1,10 +1,19 @@
 #include "modules/api.h"
+#include "../i-hdr/rgbe.h"
+#include "../i-hdr/rgbe.c"
 #include "quat.h"
 #include <inttypes.h>
 
 typedef struct rt_t
 {
   uint32_t move;
+
+  // stuff for envmap
+  char filename[PATH_MAX];
+  uint32_t frame;
+  uint32_t width, height;
+  size_t data_begin;
+  FILE *f;
 }
 rt_t;
 
@@ -117,9 +126,55 @@ int init(dt_module_t *mod)
 
 int cleanup(dt_module_t *mod)
 {
+  rt_t *rt = mod->data;
+  if(rt->filename[0])
+  {
+    if(rt->f) fclose(rt->f);
+    rt->filename[0] = 0;
+  }
   free(mod->data);
   mod->data = 0;
   return 0;
+}
+
+static int 
+read_header(
+    dt_module_t *mod,
+    uint32_t    frame,
+    const char *filename)
+{
+  rt_t *hdr = mod->data;
+  if(hdr && !strcmp(hdr->filename, filename) && hdr->frame == frame)
+    return 0; // already loaded
+  assert(hdr); // this should be inited in init()
+
+  if(hdr->f) fclose(hdr->f);
+  hdr->f = dt_graph_open_resource(mod->graph, frame, filename, "rb");
+  if(!hdr->f) goto error;
+
+  int wd, ht;
+  rgbe_header_info info;
+  if(RGBE_ReadHeader(hdr->f, &wd, &ht, &info)) goto error;
+  hdr->width  = wd;
+  hdr->height = ht;
+  hdr->data_begin = ftell(hdr->f);
+
+  snprintf(hdr->filename, sizeof(hdr->filename), "%s", filename);
+  hdr->frame = frame;
+  return 0;
+error:
+  fprintf(stderr, "[rt] could not load envmap file `%s'!\n", filename);
+  hdr->filename[0] = 0;
+  hdr->frame = -1;
+  return 1;
+}
+
+static int
+read_plain(
+    rt_t *hdr, float *out)
+{
+  fseek(hdr->f, hdr->data_begin, SEEK_SET);
+  return RGBE_ReadPixels_RLE(hdr->f, out, hdr->width, hdr->height);
 }
 
 void
@@ -127,25 +182,16 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  // XXX in fact, implement some source callback and do the mip mapping on cpu and upload some larger buffer
-#if 0 // TODO: environment importance sampling:
-  dt_roi_t roi_mip = module->connector[4].roi;
-  for()
-  {
-    dt_roi_t roi_mip2 = {.wd = roi_mip.wd/2, .ht = roi_mip.ht/2 };
-    dt_roi_t roi_mip4 = {.wd = roi_mip.wd/4, .ht = roi_mip.ht/4 };
-    dt_roi_t roi_mip8 = {.wd = roi_mip.wd/8, .ht = roi_mip.ht/8 };
-    // TODO: mip sizes. environment maps only work for powers of two, that's fine.
-    int id_down = dt_node_add(graph, module, "rt", "envmip",
-        roi_mip.wd, roi_mip.ht, 1, 0, 0, 4,
-        "input", "read", "*", "*", dt_no_roi,
-        // TODO: write into the same image/buffer
-        "out2", "write", "rgba", "f16", &roi_mip2,
-        "out4", "write", "rgba", "f16", &roi_mip4,
-        "out8", "write", "rgba", "f16", &roi_mip8);
-    roi_mip = roi_mip8;
-  }
-#endif
+  rt_t *rt = module->data;
+  // environment importance sampling:
+  const int   id       = dt_module_param_int(module, 3)[0];
+  const char *filename = dt_module_param_string(module, 2);
+  if(read_header(module, graph->frame+id, filename)) {} // XXX ???
+  dt_roi_t roi_mip = { .wd = rt->width, .ht = rt->height };
+  roi_mip.ht = roi_mip.ht + roi_mip.ht / 12 + 1; // true for 8k
+  int id_env = dt_node_add(graph, module, "rt", "env",
+      1, 1, 1, 0, 0, 1,
+      "output", "source", "rgba", "f32", &roi_mip);
 
   dt_roi_t roi_gbuf = { .wd = module->connector[0].roi.wd, .ht = module->connector[0].roi.ht * 4 };
   int id_rt = dt_node_add(graph, module, "rt", "main", 
@@ -158,7 +204,7 @@ create_nodes(
   dt_connector_copy(graph, module, 1, id_rt, 1);
   dt_connector_copy(graph, module, 2, id_rt, 2);
   dt_connector_copy(graph, module, 3, id_rt, 3);
-  dt_connector_copy(graph, module, 4, id_rt, 4);
+  CONN(dt_node_connect_named(graph, id_env, "output", id_rt, "env"));
 
   const int id_post = dt_node_add(graph, module, "rt", "post",
     module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 2,
@@ -167,4 +213,79 @@ create_nodes(
   // graph->node[id_rt].connector[0].flags = s_conn_clear; // clear for light tracing
   CONN(dt_node_connect_named(graph, id_rt, "output", id_post, "input"));
   dt_connector_copy(graph, module, 0, id_post, 1);
+}
+
+int read_source(
+    dt_module_t             *mod,
+    void                    *mapped,
+    dt_read_source_params_t *p)
+{
+  if(p->node->kernel != dt_token("env")) return 0;
+  const int   id       = dt_module_param_int(mod, 3)[0];
+  const char *filename = dt_module_param_string(mod, 2);
+  if(read_header(mod, mod->graph->frame+id, filename)) return 1;
+  rt_t *hdr = mod->data;
+  int ret = read_plain(hdr, mapped);
+  if(ret) return ret;
+
+  // XXX this only works for powers of two, and w = 2h kinda lat/lon maps:
+  // now create importance sampling mipmap in the lower 30% of the image
+
+  float *img = mapped;
+  int wd = hdr->width/4, ht = hdr->height/4, m = 1;
+  int yoff = hdr->height, xoff = 0, yoff_prev = 0, xoff_prev = 0;
+  while(wd * ht >= hdr->width)
+  { // while we can still fill at least one whole scanline with the mipmap:
+    int h = (wd * ht) / hdr->width;
+    fprintf(stderr, "mip %d is %d x %d, yoff %d + h %d\n", m, wd, ht, yoff, h);
+    for(int j=0;j<ht;j++) for(int i=0;i<wd;i++)
+    { // for all pixels in current mip map level m
+      // read 4 pixels at mip level-1 (2*i, 2*j, m-1) 
+      int idx = wd*j + i;
+      for(int jj=0;jj<2;jj++) for(int ii=0;ii<2;ii++)
+      { // for all 4 channels of the current pixel in mip level m
+        float val = 0.0f;
+        if(m == 1)
+        { // read original image, need jacobian + luminance
+          for(int jjj=0;jjj<2;jjj++) for(int iii=0;iii<2;iii++)
+          {
+            int x = 4*i + 2*ii + iii, y = 4*j + 2*jj + jjj;
+            float J = sinf(((y+0.5f) / (2.0f*ht) - 0.5f)*M_PI); // at pixel center so it won't be 0 on poles
+            int pxi = 4*(hdr->width*y + x);
+            float lum = img[pxi] + img[pxi+1] + img[pxi+2]; // could use luminance
+            val += lum * J;
+          }
+        }
+        else for(int k=0;k<4;k++) // accumulate 2x2 block of previous mipmap
+          val += img[4*(hdr->width*yoff_prev + 4*idx+ii+2*wd*jj) + k];
+        img[4*(hdr->width*yoff + idx) + 2*jj+ii] = val; // write current channel of current pixel
+      }
+    }
+    yoff_prev = yoff;
+    yoff += h;
+    wd /= 2; ht /= 2; m++;
+  }
+  // TODO merge this loop into the above by using idxoff instead of yoff and xoff!
+  // TODO: fix last iteration where we only have one pixel with two zero entries (because it samples a 2x1 block, not a 2x2 block)
+  while(wd >= 1) // XXX == 1 means ht == 0 so last iteration doesn't work!
+  { // the rest will now fit into one last scanline of the image
+    int w = wd * ht;
+    fprintf(stderr, "mip %d is %d x %d, xoff %d + w %d\n", m, wd, ht, xoff, w);
+    for(int j=0;j<ht;j++) for(int i=0;i<wd;i++)
+    { // for all pixels in current mip map level m
+      int idx = wd*j + i;
+      for(int jj=0;jj<2;jj++) for(int ii=0;ii<2;ii++)
+      { // for all 4 channels of the current pixel in mip level m
+        float val = 0.0f;
+        for(int k=0;k<4;k++) // accumulate 2x2 block of previous mipmap
+          val += img[4*(hdr->width*yoff_prev + 4*idx+ii+2*wd*jj + xoff_prev) + k];
+        img[4*(hdr->width*yoff + xoff + idx) + 2*jj+ii] = val; // write current channel of current pixel
+      }
+      fprintf(stderr, "address: %d\n", hdr->width*(yoff-hdr->height) + xoff + idx);
+    }
+    xoff_prev = xoff; yoff_prev = yoff;
+    xoff += w;
+    wd /= 2; ht /= 2; m++;
+  }
+  return 0;
 }

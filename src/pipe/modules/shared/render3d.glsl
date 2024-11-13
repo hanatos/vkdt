@@ -226,12 +226,3 @@ float vmf_get_kappa(float x)
       (-1.12718*x*x+29.1433*x+1.0));
 }
 
-// xorshift64star
-float rand64(inout uint64_t x)
-{
-  x ^= x >> 12;
-  x ^= x << 25;
-  x ^= x >> 27;
-  return float((x * 0x2545F4914F6CDD1Dul)>>32)/4294967296.0;
-}
-

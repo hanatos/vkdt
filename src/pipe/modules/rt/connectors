@@ -2,4 +2,3 @@ output:write:rgba:f16
 blue:read:*:*
 tex:read:*:*
 aov:write:rgba:f16
-env:read:*:*
