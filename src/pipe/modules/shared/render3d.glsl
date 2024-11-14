@@ -133,6 +133,16 @@ float bsdf_rough_eval(
   return D * G2 / (4.0 * dot(-V,n) * dot(L,n));
 }
 
+float bsdf_rough_pdf(
+    vec3 wi, vec3 Tx, vec3 Ty, vec3 n, vec3 wo, vec2 a)
+{
+  float roughness = a.x;
+  vec3 h = normalize(wo-wi);
+  float D  = bsdf_rough_D(roughness, n, h);
+  float G1 = bsdf_rough_G1(wi, wo, n, roughness*roughness);
+  return abs(G1 * dot(wi, h) * D / dot(wi, n));
+}
+
 #if 0
 //====================================================
 // microfacet model by jonathan, anisotropic beckmann:

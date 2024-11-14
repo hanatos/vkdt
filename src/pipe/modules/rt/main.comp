@@ -242,20 +242,51 @@ main()
                 // st
                 x.xz/100.0
                 ).rgb, vec3(2.0)), lambda);
-        float roughness = 0.2;//max(0.0, 0.2-diffcol.r);
+        float roughness = max(0.01, 0.2*(1.0-diffcol.r));
 
-        float X = 1.0;
-#if 0 // bsdf sampling
-        vec3 wo = bsdf_rough_sample(w, du, dv, n, vec2(roughness), vec2(rand64(seed), rand64(seed)), X);
-#else // envmap sampling
-        vec3 wo = env_sample(vec2(rand64(seed), rand64(seed)), img_env, X);
-        X *= bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)) * dot(wo,n);
-#endif
-        if(i == 0) aov.rgb = (1.0+wo)/2.0;
+        vec3 wo;
+        { // do both and resample!
+          // p_hat = env * brdf * cos
+          // p0 = bsdf_pdf, p1 = env_pdf
+          // w0 = p_hat / p0, w1 = p_ht / p1
+          // thr = f / p_hat * 1/2 (w0 + w1)
+          // bsdf: w = X * env
+          // env : w = X * bsdf * cos
+          float w0 = 1.0, w1 = 1.0;
+
+          // bsdf sampling
+          vec3 wo0 = bsdf_rough_sample(w, du, dv, n, vec2(roughness), vec2(rand64(seed), rand64(seed)), w0);
+          float p0 = bsdf_rough_pdf(w, du, dv, n, wo0, vec2(roughness));
+          vec3 h0 = normalize(wo0 - w);
+          // XXX with cosine wo0,n or not?
+          float ph0 = p0 * env_pdf(wo0, img_env) * (dot(wo0,n) > 0 ? 1 : 0) * dot(vec4(1), fresnel(0, lambda, 1.0, dot(wo0, h0)));
+          w0 = ph0 / p0;
+
+          // envmap sampling
+          vec3 wo1 = env_sample(vec2(rand64(seed), rand64(seed)), img_env, w1);
+          float p1 = 1.0/w1;
+          vec3 h1 = normalize(wo1 - w);
+          float ph1 = p1 * bsdf_rough_pdf(w, du, dv, n, wo1, vec2(roughness)) * (dot(wo1,n) > 0 ? 1 : 0) * dot(vec4(1), fresnel(0, lambda, 1.0, dot(wo1, h1)));
+          w1 = ph1 / p1;
+
+          if(rand64(seed) < w0/(w0+w1))
+          {
+            wo = wo0;
+            vec4 f = bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)) * max(0, dot(wo, n)) * fresnel(0, lambda, 1.0, dot(wo, h0));
+            thr *= f / ph0 * 0.5 * (w0 + w1);
+          }
+          else
+          {
+            wo = wo1;
+            vec4 f = bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)) * max(0, dot(wo, n)) * fresnel(0, lambda, 1.0, dot(wo, h1));
+            thr *= f / ph1 * 0.5 * (w0 + w1);
+          }
+        }
+        // if(i == 0) aov.rgb = (1.0+wo)/2.0;
         if(dot(wo,n) <= 0.0) break; // sampled under surface
         // thr *= bsdf * M_PI / ws.z;
-        vec3 h = normalize(wo - w);
-        thr *= X * fresnel(0, lambda, 1.0, dot(wo, h));
+        // vec3 h = normalize(wo - w);
+        // thr *= X * fresnel(0, lambda, 1.0, dot(wo, h));
         // thr *= diffcol;// * tx;
         // aov.rgb = (1.0+n)/2.0;
         // aov.rgb = x / (1.0 + x);
