@@ -186,7 +186,7 @@ create_nodes(
   // environment importance sampling:
   const int   id       = dt_module_param_int(module, 3)[0];
   const char *filename = dt_module_param_string(module, 2);
-  if(read_header(module, graph->frame+id, filename)) {} // XXX ???
+  if(read_header(module, graph->frame+id, filename)) {} // XXX error handling ???
   dt_roi_t roi_mip = { .wd = rt->width, .ht = rt->height };
   roi_mip.ht = roi_mip.ht + roi_mip.ht / 12 + 1; // true for 8k
   int id_env = dt_node_add(graph, module, "rt", "env",
@@ -228,7 +228,7 @@ int read_source(
   int ret = read_plain(hdr, mapped);
   if(ret) return ret;
 
-  // XXX this only works for powers of two, and w = 2h kinda lat/lon maps:
+  // this only works for powers of two, and w = 2h kinda lat/lon maps:
   // create importance sampling mipmap in the lower part of the image
 
   int off = hdr->width * hdr->height;
@@ -245,32 +245,34 @@ int read_source(
   while(wd >= 1)
   { // while we can still fill at least one whole scanline with the mipmap:
     off -= wd * MAX(1,ht);
-    fprintf(stderr, "mip is %d x %d, off %d prev %d, line %d\n", wd, ht, off-hdr->width*hdr->height, off_prev, off / hdr->width);
-    // man this is slow. would like me something like:
-// #pragma omp parallel for collapse(2) if(m==1)
-    for(int j=0;j<MAX(1,ht);j++) for(int i=0;i<wd;i++)
-    { // for all pixels in current mip map level m
-      // read 4 pixels at mip level-1 (2*i, 2*j, m-1) 
-      int idx = wd*j + i;
-      for(int jj=0;jj<(ht==0?1:2);jj++) for(int ii=0;ii<2;ii++)
-      { // for all 4 channels of the current pixel in mip level m
-        float val = 0.0f;
-        if(m == 1)
-        { // read original image, need jacobian + luminance
-          for(int jjj=0;jjj<2;jjj++) for(int iii=0;iii<2;iii++)
-          {
-            int x = 4*i + 2*ii + iii, y = 4*j + 2*jj + jjj;
-            float J = fabsf(sinf(((y+0.5f) / (hdr->height))*M_PI)); // at pixel center so it won't be 0 on poles
-            int pxi = 4*(hdr->width*y + x);
-            float lum = img[pxi] + img[pxi+1] + img[pxi+2]; // could use luminance
-            val += lum * J * 0.25f;
+    // man this is slow.
+    for(int j=0;j<MAX(1,ht);j++)
+    { // haul out of loop:
+      float sin4[] = { sinf(((4*j+0+0.5f) / (hdr->height))*M_PI), sinf(((4*j+1+0.5f) / (hdr->height))*M_PI),
+        sinf(((4*j+2+0.5f) / (hdr->height))*M_PI), sinf(((4*j+3+0.5f) / (hdr->height))*M_PI)};
+      for(int i=0;i<wd;i++)
+      { // for all pixels in current mip map level m
+        int idx = wd*j + i;
+        for(int jj=0;jj<(ht==0?1:2);jj++) for(int ii=0;ii<2;ii++)
+        { // for all 4 channels of the current pixel in mip level m
+          float val = 0.0f;
+          if(m == 1)
+          { // read original image, need jacobian + luminance
+            for(int jjj=0;jjj<2;jjj++) for(int iii=0;iii<2;iii++)
+            {
+              int x = 4*i + 2*ii + iii, y = 4*j + 2*jj + jjj;
+              float J = sin4[2*jj+jjj];
+              int pxi = 4*(hdr->width*y + x);
+              float lum = img[pxi] + img[pxi+1] + img[pxi+2]; // could use luminance
+              val += lum * J * 0.25f;
+            }
           }
+          else for(int k=0;k<4;k++) // accumulate 2x2 block of previous mipmap
+            val += img[4*(off_prev + 2*i+ii + 2*wd*(2*j+jj)) + k] * 0.25f;
+          img[4*(off + idx) + 2*jj+ii] = val; // write current channel of current pixel
         }
-        else for(int k=0;k<4;k++) // accumulate 2x2 block of previous mipmap
-          val += img[4*(off_prev + 2*i+ii + 2*wd*(2*j+jj)) + k] * 0.25f;
-        img[4*(off + idx) + 2*jj+ii] = val; // write current channel of current pixel
+        if(ht == 0) img[4*(off + idx) + 2] = img[4*(off + idx) + 3] = 0.0f;
       }
-      if(ht == 0) img[4*(off + idx) + 2] = img[4*(off + idx) + 3] = 0.0f;
     }
     off_prev = off;
     wd /= 2; ht /= 2; m++;

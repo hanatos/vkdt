@@ -99,3 +99,16 @@ vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
 
   return vec3(cos((angles.x-0.5)*2.0*M_PI), sin((angles.x-0.5)*2.0*M_PI), cos(angles.y*M_PI));
 }
+
+float env_pdf(vec3 w, sampler2D img_env)
+{
+  vec2 tc = vec2((atan(w.y, w.x)+M_PI)/(2.0*M_PI), acos(clamp(w.z, -1, 1))/M_PI);
+  ivec2 size = ivec2(textureSize(img_env, 0).x, 0);
+  size.y = size.x/2;
+  ivec2 tci = clamp(ivec2(tc * size + 0.5), ivec2(0), size-1);
+  float l = dot(vec3(1), texelFetch(img_env, tci, 0).rgb) * sin((tci.y+0.5)/float(size.y) * M_PI);
+  vec4 v = texelFetch(img_env, ivec2(0, size.y), 0);
+  float sum = v.r+v.g;//+v.b+v.a;
+  float pdf = l / sum;
+  return pdf / (2.0*M_PI*M_PI); // convert to solid angle
+}
