@@ -242,13 +242,14 @@ main()
                 // st
                 x.xz/100.0
                 ).rgb, vec3(2.0)), lambda);
-        float roughness = max(0.0, 0.2-diffcol.r);
+        float roughness = 0.2;//max(0.0, 0.2-diffcol.r);
 
         float X = 1.0;
 #if 0 // bsdf sampling
         vec3 wo = bsdf_rough_sample(w, du, dv, n, vec2(roughness), vec2(rand64(seed), rand64(seed)), X);
 #else // envmap sampling
         vec3 wo = env_sample(vec2(rand64(seed), rand64(seed)), img_env, X);
+        X *= bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)) * dot(wo,n);
 #endif
         if(i == 0) aov.rgb = (1.0+wo)/2.0;
         if(dot(wo,n) <= 0.0) break; // sampled under surface

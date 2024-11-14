@@ -34,6 +34,7 @@ vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
 
   int off = 0;
   int wd = 1;
+  float sum = -1.0;
   while(2*wd < size.x)
   {
     int idx = off + x.x + wd * x.y;
@@ -43,6 +44,7 @@ vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
     x *= 2;
     vec4 v = texelFetch(img_env, tc, 0);
     float thrx = (v.r + v.b) / (v.r+v.g+v.b+v.a), thry;
+    if(sum < 0.0) sum = v.r+v.g;//+v.b+v.a;
     if(xi.x > thrx)
     {
       x.x++;
@@ -68,10 +70,11 @@ vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
 
   // now last step, resample on full envmap blocks directly:
   x *= 2;
-  float l00 = dot(vec3(1), texelFetch(img_env, x+ivec2(0,0), 0).rgb) * sin(((x.y+  0.5)/float(size.y) - 0.5) * M_PI);
-  float l01 = dot(vec3(1), texelFetch(img_env, x+ivec2(0,1), 0).rgb) * sin(((x.y+1+0.5)/float(size.y) - 0.5) * M_PI);
-  float l10 = dot(vec3(1), texelFetch(img_env, x+ivec2(1,0), 0).rgb) * sin(((x.y+  0.5)/float(size.y) - 0.5) * M_PI);
-  float l11 = dot(vec3(1), texelFetch(img_env, x+ivec2(1,1), 0).rgb) * sin(((x.y+1+0.5)/float(size.y) - 0.5) * M_PI);
+  float l;
+  float l00 = dot(vec3(1), texelFetch(img_env, x+ivec2(0,0), 0).rgb) * sin((x.y+  0.5)/float(size.y) * M_PI);
+  float l01 = dot(vec3(1), texelFetch(img_env, x+ivec2(0,1), 0).rgb) * sin((x.y+1+0.5)/float(size.y) * M_PI);
+  float l10 = dot(vec3(1), texelFetch(img_env, x+ivec2(1,0), 0).rgb) * sin((x.y+  0.5)/float(size.y) * M_PI);
+  float l11 = dot(vec3(1), texelFetch(img_env, x+ivec2(1,1), 0).rgb) * sin((x.y+1+0.5)/float(size.y) * M_PI);
 
   float thry;
   float thrx = (l00 + l10) / (l00+l01+l10+l11);
@@ -82,11 +85,20 @@ vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
   }
   else thry = l10 / (l10 + l00);
   if(xi.y > thry) x.y++;
+  if(xi.x <= thrx && xi.y <= thry) l = l00;
+  if(xi.x >  thrx && xi.y <= thry) l = l01;
+  if(xi.x <= thrx && xi.y >  thry) l = l10;
+  if(xi.x >  thrx && xi.y >  thry) l = l11;
 
   // TODO: keep pdf alive through all the stuff above
   // TODO: return colour of sampled pixel divided by pdf, should evaluate to not much
   // TODO: transform pdf from lat lon to solid angle
+  float pdf = l / sum;
+  vec2 angles = (x + xi) / vec2(size);
 
-  vec2 angles = x / vec2(size);
+  // TODO: ratio of quantised vs unquantised sin(theta_pixel_center)/sin(theta)
+  pdf *= 1.0 / (2.0*M_PI*M_PI); // convert to solid angle
+  X /= pdf;
+
   return vec3(cos((angles.x-0.5)*2.0*M_PI), sin((angles.x-0.5)*2.0*M_PI), cos(angles.y*M_PI));
 }

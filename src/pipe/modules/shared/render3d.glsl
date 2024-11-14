@@ -116,16 +116,17 @@ vec3 bsdf_rough_sample(vec3 wi, vec3 du, vec3 dv, vec3 n, vec2 alpha, vec2 xi, o
 // GGX normal distribution function
 float bsdf_rough_D(float roughness, const vec3 n, const vec3 h)
 {
-  vec3 NxH = cross(n, h);
-  float a = dot(n, h) * roughness;
-  float k = roughness / (dot(NxH, NxH) + a * a);
+  float cos2 = dot(n, h)*dot(n, h);  // cos2 theta
+  float sin2 = max(0.0, 1.0-cos2);
+  float a = sin2/cos2 + roughness*roughness;
+  float k = roughness / (cos2 * a);
   return k * k / M_PI;
 }
 
 float bsdf_rough_eval(
     vec3 V, vec3 Tx, vec3 Ty, vec3 n, vec3 L, vec2 a)
 {
-  float roughness = length(a);
+  float roughness = a.x;
   vec3 h = normalize(L-V);
   float D  = bsdf_rough_D(roughness, n, h);
   float G2 = bsdf_rough_G2(V, L, n, roughness*roughness);
