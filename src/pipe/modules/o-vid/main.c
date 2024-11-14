@@ -116,10 +116,21 @@ add_stream(
   switch ((*codec)->type)
   {
     case AVMEDIA_TYPE_AUDIO:
-      c->sample_fmt  = (*codec)->sample_fmts ? (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_S16;
+      AVSampleFormat *sample_fmts;
+      int ret = avcodec_get_supported_config(
+          c,
+          codec,
+          AV_CODEC_CONFIG_SAMPLE_FORMAT,
+          0,
+          &sample_fmts,
+          0);
+      c->sample_fmt = sample_fmts[0] != AV_SAMPLE_FMT_NONE ? sample_fmts[0] : AV_SAMPLE_FMT_S16;
+      // direct access now deprecated in ffmpeg 7
+      // c->sample_fmt  = (*codec)->sample_fmts ? (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_S16;
       // c->sample_fmt  = AV_SAMPLE_FMT_S16;
       c->bit_rate    = 64000;
       c->sample_rate = 48000;
+      // TODO: see dance above, get zero terminated list of supported samplerates, int
       if ((*codec)->supported_samplerates)
       {
         c->sample_rate = (*codec)->supported_samplerates[0];
@@ -128,6 +139,7 @@ add_stream(
           if ((*codec)->supported_samplerates[i] == 48000) c->sample_rate = 48000;
         }
       }
+      // TODO: ch_layout also has a callback, AVChannelLayout, zero terminated
       av_channel_layout_copy(&c->ch_layout, &(AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO);
       ost->st->time_base = (AVRational){ 1, c->sample_rate };
       break;
