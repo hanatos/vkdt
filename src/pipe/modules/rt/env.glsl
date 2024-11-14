@@ -90,9 +90,6 @@ vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
   if(xi.x <= thrx && xi.y >  thry) l = l10;
   if(xi.x >  thrx && xi.y >  thry) l = l11;
 
-  // TODO: keep pdf alive through all the stuff above
-  // TODO: return colour of sampled pixel divided by pdf, should evaluate to not much
-  // TODO: transform pdf from lat lon to solid angle
   float pdf = l / sum;
   vec2 angles = (x + xi) / vec2(size);
 
