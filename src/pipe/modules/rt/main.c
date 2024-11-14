@@ -229,14 +229,25 @@ int read_source(
   if(ret) return ret;
 
   // XXX this only works for powers of two, and w = 2h kinda lat/lon maps:
-  // now create importance sampling mipmap in the lower 30% of the image
+  // create importance sampling mipmap in the lower part of the image
+
+  int off = hdr->width * hdr->height;
+  int wd = hdr->width / 4, ht = hdr->height / 4, m = 1;
+  while(wd >= 1)
+  {
+    off += wd * MAX(1,wd/2);
+    wd /= 2;
+  }
 
   float *img = mapped;
-  int wd = hdr->width/4, ht = hdr->height/4, m = 1;
-  int off = hdr->width * hdr->height, off_prev = 0;
+  wd = hdr->width/4;
+  int off_prev = off;
   while(wd >= 1)
   { // while we can still fill at least one whole scanline with the mipmap:
-    fprintf(stderr, "mip %d is %d x %d, off %d prev %d, line %d\n", m, wd, ht, off, off_prev, off / hdr->width);
+    off -= wd * MAX(1,ht);
+    fprintf(stderr, "mip is %d x %d, off %d prev %d, line %d\n", wd, ht, off-hdr->width*hdr->height, off_prev, off / hdr->width);
+    // man this is slow. would like me something like:
+// #pragma omp parallel for collapse(2) if(m==1)
     for(int j=0;j<MAX(1,ht);j++) for(int i=0;i<wd;i++)
     { // for all pixels in current mip map level m
       // read 4 pixels at mip level-1 (2*i, 2*j, m-1) 
@@ -251,20 +262,17 @@ int read_source(
             int x = 4*i + 2*ii + iii, y = 4*j + 2*jj + jjj;
             float J = fabsf(sinf(((y+0.5f) / (hdr->height))*M_PI)); // at pixel center so it won't be 0 on poles
             int pxi = 4*(hdr->width*y + x);
-            // float lum = MAX(0.0, -2.0 + img[pxi] + img[pxi+1] + img[pxi+2]); // could use luminance
             float lum = img[pxi] + img[pxi+1] + img[pxi+2]; // could use luminance
             val += lum * J * 0.25f;
           }
         }
         else for(int k=0;k<4;k++) // accumulate 2x2 block of previous mipmap
-          // val += img[4*(off_prev + 4*idx+ii+2*wd*jj) + k] * 0.25f;
           val += img[4*(off_prev + 2*i+ii + 2*wd*(2*j+jj)) + k] * 0.25f;
         img[4*(off + idx) + 2*jj+ii] = val; // write current channel of current pixel
       }
       if(ht == 0) img[4*(off + idx) + 2] = img[4*(off + idx) + 3] = 0.0f;
     }
     off_prev = off;
-    off += wd * ht;
     wd /= 2; ht /= 2; m++;
   }
   return 0;

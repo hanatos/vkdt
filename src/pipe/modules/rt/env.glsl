@@ -6,13 +6,13 @@ vec3 env_lookup(vec3 w, sampler2D img_env)
   ivec2 size = ivec2(textureSize(img_env, 0).x, 0);
   size.y = size.x/2;
 #if 0 // XXX DEBUG visualise mip maps
-  int m = 1;
-  size /= 4;
-  int off = 0;
+  int m = 10;
+  size = ivec2(2,1);
+  int off = 1;
   while(--m > 0)
   {
     off += size.x * size.y;
-    size /= 2;
+    size *= 2;
   }
   ivec2 tci = ivec2(tc * size);
   int idx = off + tci.y * size.x + tci.x;
@@ -20,9 +20,10 @@ vec3 env_lookup(vec3 w, sampler2D img_env)
   tci = ivec2(idx % wd, wd/2 + idx / wd);
 
   return texelFetch(img_env, tci, 0).rgb;
-#endif
-  ivec2 tci = ivec2(tc * size + 0.5);
+#else
+  ivec2 tci = clamp(ivec2(tc * size + 0.5), ivec2(0), size-1);
   return texelFetch(img_env, tci, 0).rgb;
+#endif
 }
 
 vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
@@ -31,15 +32,15 @@ vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
   size.y = size.x / 2;
   ivec2 x = ivec2(0);
 
-  int off = 36350634; // XXX for 8k!
+  int off = 0;
   int wd = 1;
   while(2*wd < size.x)
   {
     int idx = off + x.x + wd * x.y;
     int iy = idx / size.x;
     int ix = idx % size.x;
-    ivec2 tc = ivec2(ix, iy);
-    x *= 2; wd *= 2;
+    ivec2 tc = ivec2(ix, size.y + iy);
+    x *= 2;
     vec4 v = texelFetch(img_env, tc, 0);
     float thrx = (v.r + v.b) / (v.r+v.g+v.b+v.a), thry;
     if(xi.x > thrx)
@@ -59,7 +60,8 @@ vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
       xi.y = (xi.y-thry) / (1.0-thry);
     }
     else xi.y /= thry;
-    off -= wd * wd / 2;
+    off += wd * max(1, wd / 2);
+    wd *= 2;
   }
   // 2*wd == size.x now, x < wd.
   // max mip accessed so far is wd/2
