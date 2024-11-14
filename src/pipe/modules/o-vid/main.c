@@ -116,6 +116,7 @@ add_stream(
   switch ((*codec)->type)
   {
     case AVMEDIA_TYPE_AUDIO:
+#if 0 // ffmpeg7:
       AVSampleFormat *sample_fmts;
       int ret = avcodec_get_supported_config(
           c,
@@ -125,8 +126,10 @@ add_stream(
           &sample_fmts,
           0);
       c->sample_fmt = sample_fmts[0] != AV_SAMPLE_FMT_NONE ? sample_fmts[0] : AV_SAMPLE_FMT_S16;
+#else
       // direct access now deprecated in ffmpeg 7
-      // c->sample_fmt  = (*codec)->sample_fmts ? (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_S16;
+      c->sample_fmt  = (*codec)->sample_fmts ? (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_S16;
+#endif
       // c->sample_fmt  = AV_SAMPLE_FMT_S16;
       c->bit_rate    = 64000;
       c->sample_rate = 48000;
