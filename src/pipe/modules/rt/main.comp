@@ -185,12 +185,12 @@ main()
     float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
     vec4 thr = vec4(1.0);
     // dithermask shows *no* difference for stratified hwl:
-    // uint seed2 = 19937*global.frame;
-    // vec4 lambda = colour_sample_lambda(dithermask(vec4(rand64(seed2)), rp), thr, hrp);
+    uint64_t seed2 = 19937*global.frame;
+    vec4 lambda = colour_sample_lambda(dithermask(vec4(rand64(seed2)), rp), thr, hrp);
     // vec4 lambda = colour_sample_lambda(dithermask(vec4(rand64(seed2)), rp).xxxx, thr, hrp);
     // mono wl:
     // vec4 lambda = colour_sample_lambda(vec4(rand64(seed)), thr, hrp);
-    vec4 lambda = colour_sample_lambda(vec4(rand64(seed), rand64(seed), rand64(seed), rand64(seed)), thr, hrp);
+    // vec4 lambda = colour_sample_lambda(vec4(rand64(seed), rand64(seed), rand64(seed), rand64(seed)), thr, hrp);
     vec3 x, w, n; // ray position, direction, hit normal
     vec2 st;      // texture coordinates
     { // camera setup:
