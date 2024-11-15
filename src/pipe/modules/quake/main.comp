@@ -335,13 +335,13 @@ prepare_material_info(
   if(dot(w, m.c.ng) > 0) m.c.ng = -m.c.ng; // never happens except when it does (transparent surfaces/sky)
 
   m.c.bsdf = 1; // slight rough lobe too
-  m.c.bsdf_param = vec3(0.01);
+  m.c.bsdf_param = vec3(0.15);
   if(matgl > 0)
   { // apply glossiness texture
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(matgl)], 0)*mod(st, vec2(1.0)));
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(matgl)], 0)-1);
     float gloss = texelFetch(img_tex[nonuniformEXT(matgl)], tc, 0).r;
-    m.c.bsdf_param = vec3(mix(0.2, 0.01, gloss));
+    m.c.bsdf_param = vec3(mix(0.3, 0.1, gloss));
   }
 
 #if WATER_MODE==WATER_MODE_FULL
