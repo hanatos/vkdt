@@ -61,6 +61,7 @@ clean: Makefile
 	rm -f ../bin/vkdt ../bin/vkdt-cli ../bin/vkdt-fit
 	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(SND_O) $(CLI_O) $(FIT_O) $(QVK_O) $(DB_O)
 	rm -f gui/shd.h
+	rm -f gui/shd/*.spv
 	# we delete *all* modules, not just the one in MOD_DSOS* because they may be from another branch.
 	# such stale libraries can still cause segfaults because they would be loaded.
 	# at some point we probably need to harden the api such that this still works. maybe.
