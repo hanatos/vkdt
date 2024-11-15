@@ -19,17 +19,6 @@
 #include <inttypes.h>
 
 static void
-window_size_callback(GLFWwindow* w, int width, int height)
-{ // window resized, need to rebuild our swapchain:
-  dt_gui_win_t *win = &vkdt.win;
-  if(w == vkdt.win1.window) win = &vkdt.win1;
-  glfwGetFramebufferSize(win->window, &win->width, &win->height);
-  dt_gui_recreate_swapchain(win);
-  nk_glfw3_resize(w, win->width, win->height);
-  if(w == vkdt.win.window) dt_gui_init_fonts();
-}
-
-static void
 style_to_state()
 {
   const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * vkdt.win.height;
@@ -76,9 +65,9 @@ dt_gui_win_init(dt_gui_win_t *win)
   win->window = glfwCreateWindow(wd, ht, "vkdt", NULL, NULL);
   glfwSetWindowPos(win->window, wd/8, ht/8);
   glfwGetFramebufferSize(win->window, &win->width, &win->height);
-  glfwSetWindowSizeCallback(win->window, window_size_callback);
   glfwSetWindowContentScaleCallback(win->window, window_content_scale_callback);
   glfwGetWindowContentScale(win->window, win->content_scale, win->content_scale+1);
+  glfwSetWindowSizeLimits(win->window, 512, 128, GLFW_DONT_CARE, GLFW_DONT_CARE);
 }
 
 static inline int
@@ -611,9 +600,23 @@ dt_gui_win_render(struct nk_context *ctx, dt_gui_win_t *win)
 VkResult dt_gui_render()
 {
   dt_gui_render_frame_nk(); // potentially set off commands for both ctx/win
-  VkResult res = 0;
-  if(vkdt.win1.window) res = dt_gui_win_render(&vkdt.ctx1, &vkdt.win1);
-  return res | dt_gui_win_render(&vkdt.ctx, &vkdt.win);
+  VkResult r1 = VK_SUCCESS, r0 = VK_SUCCESS;
+  if(vkdt.win1.window) r1 = dt_gui_win_render(&vkdt.ctx1, &vkdt.win1);
+  if(r1 != VK_SUCCESS)
+  {
+    glfwGetFramebufferSize(vkdt.win1.window, &vkdt.win1.width, &vkdt.win1.height);
+    dt_gui_recreate_swapchain(&vkdt.win1);
+    nk_glfw3_resize(vkdt.win1.window, vkdt.win1.width, vkdt.win1.height);
+  }
+  r0 = dt_gui_win_render(&vkdt.ctx, &vkdt.win);
+  if(r0 != VK_SUCCESS)
+  {
+    glfwGetFramebufferSize(vkdt.win.window, &vkdt.win.width, &vkdt.win.height);
+    dt_gui_recreate_swapchain(&vkdt.win);
+    nk_glfw3_resize(vkdt.win.window, vkdt.win.width, vkdt.win.height);
+    dt_gui_init_fonts();
+  }
+  return r1|r0;
 }
 
 static inline VkResult
