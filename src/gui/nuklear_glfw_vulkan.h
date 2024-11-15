@@ -33,7 +33,7 @@ NK_API void nk_glfw3_shutdown(void);
 NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas);
 NK_API void nk_glfw3_font_stash_end(struct nk_context *ctx, VkCommandBuffer cmd, VkQueue graphics_queue);
 NK_API void nk_glfw3_font_cleanup();
-NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *win);
+NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *win, const int enable_grab);
 NK_API void nk_glfw3_create_cmd(
     struct nk_context *ctx,
     GLFWwindow *win,
@@ -877,7 +877,7 @@ NK_API void nk_glfw3_font_stash_end(
     nk_style_set_font(ctx, &glfw.atlas.default_font->handle);
 }
 
-NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *window)
+NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *window, const int enable_grab)
 {
     int i;
     double x, y;
@@ -888,13 +888,13 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *window)
     for (i = 0; i < win->text_len; ++i)
         nk_input_unicode(ctx, win->text[i]);
 
-#ifdef NK_GLFW_GL4_MOUSE_GRABBING
-    /* optional grabbing behavior */
-    if (ctx->input.mouse.grab)
+    if(enable_grab)
+    { /* optional grabbing behavior */
+      if (ctx->input.mouse.grab)
         glfwSetInputMode(win->win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    else if (ctx->input.mouse.ungrab)
+      else if (ctx->input.mouse.ungrab)
         glfwSetInputMode(win->win, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-#endif
+    }
 
     if(win->key_repeat[0])
     {
@@ -986,14 +986,15 @@ NK_API void nk_glfw3_new_frame(struct nk_context *ctx, GLFWwindow *window)
     dt_gui_content_scale(win->win, &xscale, &yscale);
     x *= xscale; y *= yscale;
     nk_input_motion(ctx, (int)x, (int)y);
-#ifdef NK_GLFW_GL4_MOUSE_GRABBING
-    if (ctx->input.mouse.grabbed)
-    { // wayland does not support this, but CURSOR_DISABLED handles it transparently. so we leave this in for xorg:
-      glfwSetCursorPos(win->win, ctx->input.mouse.prev.x/xscale, ctx->input.mouse.prev.y/yscale);
-      ctx->input.mouse.pos.x = ctx->input.mouse.prev.x;
-      ctx->input.mouse.pos.y = ctx->input.mouse.prev.y;
+    if(enable_grab)
+    {
+      if (ctx->input.mouse.grabbed)
+      { // wayland does not support this, but CURSOR_DISABLED handles it transparently. so we leave this in for xorg:
+        glfwSetCursorPos(win->win, ctx->input.mouse.prev.x/xscale, ctx->input.mouse.prev.y/yscale);
+        ctx->input.mouse.pos.x = ctx->input.mouse.prev.x;
+        ctx->input.mouse.pos.y = ctx->input.mouse.prev.y;
+      }
     }
-#endif
     nk_input_button(ctx, NK_BUTTON_LEFT, (int)x, (int)y,
 #ifdef __APPLE__
                     glfwGetKey(win->win, GLFW_KEY_LEFT_CONTROL) != GLFW_PRESS &&
