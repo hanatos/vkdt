@@ -21,13 +21,14 @@
 static void
 style_to_state()
 {
+  float bf = MIN(0.48f, MAX(20.0f/vkdt.win.height, vkdt.style.border_frac));
   const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * vkdt.win.height;
   vkdt.state = (dt_gui_state_t) {
-    .center_x   = vkdt.style.border_frac * vkdt.win.height,
-    .center_y   = vkdt.style.border_frac * vkdt.win.height,
+    .center_x   = bf * vkdt.win.height,
+    .center_y   = bf * vkdt.win.height,
     .panel_wd   = pwd,
     .center_wd  = vkdt.win.width  - 2.0f*vkdt.style.border_frac * vkdt.win.height - pwd,
-    .center_ht  = vkdt.win.height * (1.0f-2.0f*vkdt.style.border_frac),
+    .center_ht  = vkdt.win.height * (1.0f-2.0f*bf),
     .panel_ht   = vkdt.win.height,
     .anim_frame = vkdt.state.anim_frame,
     .anim_max_frame = vkdt.state.anim_max_frame,
@@ -73,6 +74,7 @@ dt_gui_win_init(dt_gui_win_t *win)
   glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE); // this is for github's super ancient ubuntu glfw 3.3
   glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
   glfwWindowHintString(GLFW_X11_CLASS_NAME, "vkdt");
+  glfwWindowHintString(GLFW_WAYLAND_APP_ID, "vkdt");
   win->window = glfwCreateWindow(wd, ht, "vkdt", NULL, NULL);
   glfwSetWindowPos(win->window, wd/8, ht/8);
   glfwGetFramebufferSize(win->window, &win->width, &win->height);
@@ -178,7 +180,7 @@ int dt_gui_init()
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
   float rel_fontsize = 2.0f / 55.0f * dpi_scale;
   vkdt.style.panel_width_frac = 0.2f;
-  vkdt.style.border_frac = rel_fontsize * 1.05f; // large enough to fit 2x fontsize heading
+  vkdt.style.border_frac = rel_fontsize * 1.10f; // large enough to fit 2x fontsize heading
   dt_gui_win_init(&vkdt.win);
 
   // be verbose about monitor names so we can colour manage them:
