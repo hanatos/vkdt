@@ -236,10 +236,12 @@ int dt_gui_init_nk()
 // call from main loop:
 void dt_gui_render_frame_nk()
 {
-  // collect input from windows for our contexts
-  nk_glfw3_new_frame(&vkdt.ctx, vkdt.win.window);
+  // collect input from windows for our contexts.
+  // enable mouse grab only on wayland (is buggy on x11 and windows for wacom, see https://github.com/hanatos/vkdt/issues/144)
+  nk_glfw3_new_frame(&vkdt.ctx, vkdt.win.window, vkdt.session_type == 1);
   if(vkdt.win1.window)
-    nk_glfw3_new_frame(&vkdt.ctx1, vkdt.win1.window);
+    nk_glfw3_new_frame(&vkdt.ctx1, vkdt.win1.window, vkdt.session_type == 1);
+  nk_buffer_clear(&vkdt.global_buf);
   double now = glfwGetTime();
 
   switch(vkdt.view_mode)
