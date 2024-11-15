@@ -119,6 +119,7 @@ typedef struct dt_gui_win_t
   GLFWwindow        *window;
   int                width;
   int                height;
+  float              content_scale[2]; // cached content scale factor
 
   VkSurfaceKHR       surface;
   VkSwapchainKHR     swap_chain;
@@ -178,7 +179,7 @@ typedef struct dt_gui_t
   int  tag_cnt;
   char tag[10][30];
 
-  int  is_x11; // running on xorg
+  int  session_type;     // 0: running on xorg, 1: wayland, maybe extend for macos and windows too, -1 unknown
 }
 dt_gui_t;
 
@@ -235,12 +236,20 @@ void dt_gui_win1_close();
 static inline void
 dt_gui_content_scale(GLFWwindow *w, float *x, float *y)
 {
-  if(vkdt.is_x11)
-  {
+  if(vkdt.session_type == 0)
+  { // x11 doesn't do this dance
     x[0] = y[0] = 1.0;
-    return;
   }
-  glfwGetWindowContentScale(w, x, y);
+  else if(w == vkdt.win.window)
+  {
+    x[0] = vkdt.win.content_scale[0];
+    y[0] = vkdt.win.content_scale[1];
+  }
+  else
+  {
+    x[0] = vkdt.win1.content_scale[0];
+    y[0] = vkdt.win1.content_scale[1];
+  }
 }
 
 // some gui colour things. we want perceptually uniform colour picking.

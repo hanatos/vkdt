@@ -45,6 +45,20 @@ style_to_state()
   };
 }
 
+void window_content_scale_callback(GLFWwindow* w, float xscale, float yscale)
+{
+  if(w == vkdt.win.window)
+  {
+    vkdt.win.content_scale[0] = xscale;
+    vkdt.win.content_scale[1] = yscale;
+  }
+  else
+  {
+    vkdt.win1.content_scale[0] = xscale;
+    vkdt.win1.content_scale[1] = yscale;
+  }
+}
+
 static inline void
 dt_gui_win_init(dt_gui_win_t *win)
 {
@@ -63,6 +77,8 @@ dt_gui_win_init(dt_gui_win_t *win)
   glfwSetWindowPos(win->window, wd/8, ht/8);
   glfwGetFramebufferSize(win->window, &win->width, &win->height);
   glfwSetWindowSizeCallback(win->window, window_size_callback);
+  glfwSetWindowContentScaleCallback(win->window, window_content_scale_callback);
+  glfwGetWindowContentScale(win->window, win->content_scale, win->content_scale+1);
 }
 
 static inline int
@@ -128,8 +144,11 @@ int dt_gui_init()
 {
   memset(&vkdt, 0, sizeof(vkdt));
   vkdt.graph_res = -1;
-  const char *is_x11 = getenv("XDG_SESSION_TYPE");
-  if(!strcmp(is_x11, "x11")) vkdt.is_x11 = 1;
+  const char *session_type = getenv("XDG_SESSION_TYPE");
+  if     (!strcmp(session_type, "x11"))     vkdt.session_type = 0;
+  else if(!strcmp(session_type, "wayland")) vkdt.session_type = 1;
+  else vkdt.session_type = -1; // what's this? windows or macos maybe?
+
   if(!glfwInit())
   {
     const char* description;
