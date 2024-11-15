@@ -24,7 +24,8 @@ read_obj(
     const char *filename)
 {
   objinput_buf_t *obj = mod->data;
-  if(obj && !strcmp(obj->filename, filename) && obj->frame == frame)
+  if(obj && !strcmp(obj->filename, filename) &&
+    (!strstr(filename, "%") || obj->frame == frame))
     return 0; // already loaded
   assert(obj); // this should be inited in init()
 
