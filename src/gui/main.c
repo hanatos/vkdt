@@ -121,8 +121,6 @@ toggle_fullscreen()
     glfwSetWindowMonitor(vkdt.win.window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
     g_fullscreen = 1;
   }
-  dt_gui_recreate_swapchain(&vkdt.win);
-  dt_gui_init_fonts();
 }
 
 static void
@@ -255,6 +253,9 @@ int main(int argc, char *argv[])
   // we created the window in dt_gui_init(). maybe should be a config option:
   g_fullscreen = 1;
   toggle_fullscreen();
+  dt_gui_recreate_swapchain(&vkdt.win);
+  nk_glfw3_resize(vkdt.win.window, vkdt.win.width, vkdt.win.height);
+  dt_gui_init_fonts();
 
   glfwSetKeyCallback(vkdt.win.window, key_callback);
   glfwSetMouseButtonCallback(vkdt.win.window, mouse_button_callback);
@@ -368,8 +369,6 @@ int main(int argc, char *argv[])
 
     if(dt_gui_render() == VK_SUCCESS)
       dt_gui_present();
-    else
-      dt_gui_recreate_swapchain(&vkdt.win);
   }
   if(joystick_present) pthread_join(joystick_thread, 0);
 
