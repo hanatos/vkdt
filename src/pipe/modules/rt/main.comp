@@ -173,12 +173,12 @@ main()
   // blue noise dither mask
   const ivec2 rp = ivec2(ipos % ivec2(textureSize(img_blue, 0)));
 
-  vec4 acc = vec4(0); // value of our estimator, accumulate this
-  vec4 hrp = vec4(1); // hero wavelength p, only deviates from 1 if pdf is different per wavelength
+  vec3 acc_col = vec3(0.0);
   vec4 aov = vec4(1, 0, 1, 1.0);
-
-  // for(int s=0;s<params.spp;s++)
-  // {
+  for(int s=0;s<params.spp;s++)
+  {
+    vec4 acc = vec4(0); // value of our estimator, accumulate this
+    vec4 hrp = vec4(1); // hero wavelength p, only deviates from 1 if pdf is different per wavelength
     // vec4 rand = xrand(seed, rp);
     vec4 rand = vec4(rand64(seed), rand64(seed), rand64(seed), rand64(seed));
     seed = uint64_t(70000 * rand.x);
@@ -317,8 +317,9 @@ main()
         w = cosu * w + sqrt(1.0-cosu*cosu) * (sin(phi) * du + cos(phi) * dv);
       }
     }
-  // } // end spp
+    acc_col += colour_to_rgb(acc, lambda, hrp);
+  } // end spp
 
-  fb_set(ipos, imageSize(img_aov), colour_to_rgb(acc, lambda, hrp));
+  fb_set(ipos, imageSize(img_aov), acc_col);
   imageStore(img_aov, ipos, aov);
 }
