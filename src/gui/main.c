@@ -128,7 +128,7 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
   dt_view_keyboard(window, key, scancode, action, mods);
   if(!vkdt.wstate.grabbed)
-    nk_glfw3_keyboard_callback(&vkdt.ctx, window, key, scancode, action, mods);
+    nk_glfw3_keyboard_callback(window, key, scancode, action, mods);
 
   if(key == GLFW_KEY_ESCAPE) // TODO: or gamepad equivalent
   {
@@ -158,6 +158,8 @@ mouse_position_callback(GLFWwindow* window, double x, double y)
   float xscale, yscale;
   dt_gui_content_scale(window, &xscale, &yscale);
   dt_view_mouse_position(window, x*xscale, y*yscale);
+  if(!vkdt.wstate.grabbed)
+    nk_glfw3_mouse_position_callback(window, x*xscale, y*yscale);
 }
 
 static void
@@ -339,7 +341,17 @@ int main(int argc, char *argv[])
     if(vkdt.wstate.busy > 0) glfwPostEmptyEvent();
     else vkdt.wstate.busy = 3;
 
+    // collect input from windows for our contexts.
+    // enable mouse grab only on wayland (is buggy on x11 and windows for wacom, see https://github.com/hanatos/vkdt/issues/144)
+    nk_glfw3_input_begin(&vkdt.ctx, vkdt.win.window, vkdt.session_type == 1);
+    if(vkdt.win1.window)
+      nk_glfw3_input_begin(&vkdt.ctx1, vkdt.win1.window, vkdt.session_type == 1);
+
     glfwWaitEvents();
+
+    nk_glfw3_input_end(&vkdt.ctx, vkdt.win.window, vkdt.session_type == 1);
+    if(vkdt.win1.window)
+      nk_glfw3_input_end(&vkdt.ctx1, vkdt.win1.window, vkdt.session_type == 1);
 
     if(vkdt.wstate.have_joystick)
     {
