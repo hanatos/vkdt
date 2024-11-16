@@ -341,6 +341,18 @@ int main(int argc, char *argv[])
     if(vkdt.wstate.busy > 0) glfwPostEmptyEvent();
     else vkdt.wstate.busy = 3;
 
+    if(frame_limiter || (dt_log_global.mask & s_log_perf))
+    { // artificially limit frames rate to frame_limiter milliseconds/frame as minimum.
+      double end_rf = dt_time();
+      if(frame_limiter && end_rf - beg_rf < frame_limiter / 1000.0)
+      {
+        usleep(frame_limiter * 1000);
+        continue;
+      }
+      dt_log(s_log_perf, "fps %.2g", 1.0/(end_rf - beg_rf));
+      beg_rf = end_rf;
+    }
+
     // collect input from windows for our contexts.
     // enable mouse grab only on wayland (is buggy on x11 and windows for wacom, see https://github.com/hanatos/vkdt/issues/144)
     nk_glfw3_input_begin(&vkdt.ctx, vkdt.win.window, vkdt.session_type == 1);
@@ -362,18 +374,6 @@ int main(int argc, char *argv[])
         dt_view_gamepad(vkdt.win.window, &gamepad_last, &gamepad_curr);
         gamepad_last = gamepad_curr;
       }
-    }
-
-    if(frame_limiter || (dt_log_global.mask & s_log_perf))
-    { // artificially limit frames rate to frame_limiter milliseconds/frame as minimum.
-      double end_rf = dt_time();
-      if(frame_limiter && end_rf - beg_rf < frame_limiter / 1000.0)
-      {
-        usleep(frame_limiter * 1000);
-        continue;
-      }
-      dt_log(s_log_perf, "fps %.2g", 1.0/(end_rf - beg_rf));
-      beg_rf = end_rf;
     }
 
     dt_view_process(); // process before render/preset because this might swap the output image backbuffers
