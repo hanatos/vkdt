@@ -1215,7 +1215,6 @@ NK_API void nk_glfw3_char_callback(GLFWwindow *w, unsigned int codepoint)
   struct nk_context   *ctx = glfw.w0.ctx;
   if(w == glfw.w1.win) ctx = glfw.w1.ctx;
   nk_input_unicode(ctx, codepoint);
-
 }
 
 NK_API void nk_glfw3_scroll_callback(
