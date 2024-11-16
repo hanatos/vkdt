@@ -1,2 +1,4 @@
 cam:float:8:0:0:0:0:1:0:0:0
 spp:int:1:1
+filename:string:256:env.hdr
+startid:int:1:0

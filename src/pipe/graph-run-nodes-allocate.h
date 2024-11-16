@@ -541,8 +541,9 @@ allocate_buffer_array_element(
       .size        = size,
       .usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                      VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-                     VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
-                  // VK_BUFFER_USAGE_VERTEX_BUFFER_BIT for draw nodes maybe?
+                     VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | // to build ray tracing accels on geo from here
+                     VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
       .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
     QVKR(vkCreateBuffer(qvk.device, &create_info, 0, &img->buffer));
@@ -1300,12 +1301,17 @@ dt_graph_run_nodes_allocate(
       vkFreeMemory(qvk.device, graph->vkmem_ssbo, 0);
       graph->vkmem_ssbo = 0;
     }
-    // image data to pass between nodes
+    VkMemoryAllocateFlagsInfo allocation_flags = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
+      .flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
+    };
+    // ssbo data to pass between nodes
     VkMemoryAllocateInfo mem_alloc_info = {
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .pNext           = &allocation_flags,
       .allocationSize  = graph->heap_ssbo.vmsize,
       .memoryTypeIndex = qvk_get_memory_type(graph->memory_type_bits_ssbo,
-          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT)
     };
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem_ssbo));
     graph->vkmem_ssbo_size = graph->heap_ssbo.vmsize;
@@ -1320,12 +1326,17 @@ dt_graph_run_nodes_allocate(
       graph->vkmem_staging = 0;
     }
     // staging memory to copy to and from device
+    VkMemoryAllocateFlagsInfo allocation_flags = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
+      .flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
+    };
     VkMemoryAllocateInfo mem_alloc_info_staging = {
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .pNext           = &allocation_flags,
       .allocationSize  = graph->heap_staging.vmsize,
       .memoryTypeIndex = qvk_get_memory_type(graph->memory_type_bits_staging,
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-          VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
+          VK_MEMORY_PROPERTY_HOST_CACHED_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT)
     };
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_staging, 0, &graph->vkmem_staging));
     graph->vkmem_staging_size = graph->heap_staging.vmsize;
@@ -1428,8 +1439,6 @@ dt_graph_run_nodes_allocate(
       graph->dset_cnt_buffer_alloc = graph->dset_cnt_buffer;
       graph->dset_cnt_uniform_alloc = graph->dset_cnt_uniform;
     }
-    // allocate memory and create descriptor sets for ray tracing
-    QVKR(dt_raytrace_graph_alloc(graph));
   }
 
   // ==============================================
@@ -1442,6 +1451,10 @@ dt_graph_run_nodes_allocate(
   if(*run & s_graph_run_alloc)
     for(int i=0;i<cnt;i++)
       QVKR(alloc_outputs3(graph, graph->node+nodeid[i]));
+
+  // allocate memory and create descriptor sets for ray tracing
+  if(*run & s_graph_run_alloc)
+    QVKR(dt_raytrace_graph_alloc(graph));
 
   // find dynamically allocated connector in node that has array requests set:
   for(int i=0;i<cnt;i++)

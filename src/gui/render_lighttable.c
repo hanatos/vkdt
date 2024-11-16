@@ -422,7 +422,7 @@ render_lighttable_header()
         nk_rect(0, 0, vkdt.state.center_wd, vkdt.state.center_y),
         NK_WINDOW_NO_SCROLLBAR))
   { // draw current collection description
-    nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_y, 1);
+    nk_layout_row_dynamic(&vkdt.ctx, 0.93*vkdt.state.center_y, 1);
     struct nk_rect bounds = nk_widget_bounds(&vkdt.ctx);
     nk_label(&vkdt.ctx, "", 0);
     nk_style_push_font(&vkdt.ctx, &dt_gui_get_font(2)->handle);

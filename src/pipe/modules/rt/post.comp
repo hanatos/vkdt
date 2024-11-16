@@ -1,0 +1,24 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_shader_atomic_float     : enable
+#extension GL_EXT_control_flow_attributes : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int64   : enable
+#extension GL_EXT_shader_16bit_storage    : enable
+#extension GL_EXT_shader_subgroup_extended_types_int16   : enable
+#extension GL_EXT_shader_subgroup_extended_types_float16 : enable
+
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(set = 1, binding = 0) readonly buffer buf_t { float v[]; } buf;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  ivec2 sz = imageSize(img_out);
+  uint idx = 4*(sz.x * ipos.y + ipos.x);
+  vec4 rgba = vec4(buf.v[idx], buf.v[idx+1], buf.v[idx+2], 1.0);
+  imageStore(img_out, ipos, rgba);
+}

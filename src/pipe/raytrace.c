@@ -2,6 +2,7 @@
 #include "graph.h"
 #include "core/log.h"
 #include "modules/api.h"
+#include "geo.h"
 
 int dt_raytrace_present(dt_graph_t *graph)
 {
@@ -33,9 +34,6 @@ dt_raytrace_node_cleanup(
     }
     if(node->rt[f].buf_accel)   vkDestroyBuffer(qvk.device, node->rt[f].buf_accel,   VK_NULL_HANDLE);
     if(node->rt[f].buf_scratch) vkDestroyBuffer(qvk.device, node->rt[f].buf_scratch, VK_NULL_HANDLE);
-    if(node->rt[f].buf_vtx)     vkDestroyBuffer(qvk.device, node->rt[f].buf_vtx,     VK_NULL_HANDLE);
-    if(node->rt[f].buf_idx)     vkDestroyBuffer(qvk.device, node->rt[f].buf_idx,     VK_NULL_HANDLE);
-    if(node->rt[f].buf_ext)     vkDestroyBuffer(qvk.device, node->rt[f].buf_ext,     VK_NULL_HANDLE);
     memset(&node->rt[f], 0, sizeof(node->rt[f]));
   }
 }
@@ -87,7 +85,6 @@ dt_raytrace_graph_cleanup(
     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
 #define CREATE_ACCEL_BUF_R(SZ, BUF) CREATE_BUF_R(accel, SZ, BUF,\
     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR)
-    // VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR)
 
 #define ALLOC_MEM_R(TYPE, BITS, memory_allocate_flags) do { \
   if(graph->rt[f].TYPE##_end > graph->rt[f].TYPE##_max) { \
@@ -116,34 +113,23 @@ dt_raytrace_node_init(
     const int f)
 {
   if(!qvk.raytracing_supported) return VK_SUCCESS;
-  node->rt[f].vtx_cnt = 3, node->rt[f].idx_cnt = 3;
-  for(int c=0;c<node->num_connectors;c++) if(node->connector[c].format == dt_token("geo"))
-  { // find connector with geo:
-    node->rt[f].vtx_cnt = node->connector[c].roi.full_wd;
-    node->rt[f].idx_cnt = node->connector[c].roi.full_ht;
-    break;
-  }
-  node->rt[f].tri_cnt = node->rt[f].idx_cnt/3;
-  if(node->rt[f].tri_cnt == 0) return VK_SUCCESS;
-  CREATE_STAGING_BUF_R(node->rt[f].vtx_cnt * sizeof(float) * 3,    node->rt[f].buf_vtx);
-  CREATE_STAGING_BUF_R(node->rt[f].idx_cnt * sizeof(uint32_t),     node->rt[f].buf_idx);
-  CREATE_STAGING_BUF_R(node->rt[f].tri_cnt * sizeof(int16_t) * 14, node->rt[f].buf_ext);
+  if(node->name != dt_token("bvh")) return VK_SUCCESS;
 
   VkAccelerationStructureBuildSizesInfoKHR accel_size = {
     .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
+  node->rt[f].tri_cnt = node->connector[0].roi.wd;
   node->rt[f].geometry = (VkAccelerationStructureGeometryKHR) {
     .sType             = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
     .geometryType      = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
     .geometry          = {
       .triangles       = {
         .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
-        .maxVertex     = node->rt[f].vtx_cnt-1,
-        .vertexStride  = 3 * sizeof(float),
+        .maxVertex     = 3*node->rt[f].tri_cnt-1,
+        .vertexStride  = sizeof(geo_vtx_t),
         .transformData = {0},
-        .indexType     = VK_INDEX_TYPE_UINT32,
+        .indexType     = VK_INDEX_TYPE_NONE_KHR,
         .vertexFormat  = VK_FORMAT_R32G32B32_SFLOAT,
       }},
-    // .flags             = VK_GEOMETRY_OPAQUE_BIT_KHR,
   };
   node->rt[f].build_info = (VkAccelerationStructureBuildGeometryInfoKHR) {
     .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
@@ -190,10 +176,8 @@ dt_raytrace_graph_init(
     for(int i=0;i<nid_cnt;i++)
     {
       dt_node_t *node = graph->node + nid[i];
-      if(node->module->so->read_geo &&
-         node->connector[0].format == dt_token("geo") &&
-         dt_connector_output(node->connector))
-      { // geometry for ray tracing requires an output connector "geo" and the read_geo() callback
+      if(node->name == dt_token("bvh"))
+      { // bvh sink node found
         node->type |= s_node_geometry;
         graph->rt[f].nid_cnt++;
       }
@@ -223,20 +207,10 @@ dt_raytrace_graph_init(
       .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
       .descriptorCount = graph->rt[f].nid_cnt,
       .stageFlags      = VK_SHADER_STAGE_ALL,
-    },{
-      .binding         = 2,
-      .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-      .descriptorCount = graph->rt[f].nid_cnt,
-      .stageFlags      = VK_SHADER_STAGE_ALL,
-    },{
-      .binding         = 3,
-      .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-      .descriptorCount = graph->rt[f].nid_cnt,
-      .stageFlags      = VK_SHADER_STAGE_ALL,
     }};
     VkDescriptorSetLayoutCreateInfo dset_layout_info = {
       .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-      .bindingCount = 4,
+      .bindingCount = 2,
       .pBindings    = bindings,
     };
     if(graph->rt[f].dset_layout) vkDestroyDescriptorSetLayout(qvk.device, graph->rt[f].dset_layout, 0);
@@ -261,12 +235,6 @@ dt_raytrace_graph_alloc(
 
   // bind staging buffers to the allocation
   QVKR(vkBindBufferMemory(qvk.device, graph->rt[f].buf_staging, graph->rt[f].vkmem_staging, graph->rt[f].buf_staging_offset));
-  for(int i=0;i<graph->rt[f].nid_cnt;i++)
-  {
-    QVKR(vkBindBufferMemory(qvk.device, graph->node[graph->rt[f].nid[i]].rt[f].buf_vtx, graph->rt[f].vkmem_staging, graph->node[graph->rt[f].nid[i]].rt[f].buf_vtx_offset));
-    QVKR(vkBindBufferMemory(qvk.device, graph->node[graph->rt[f].nid[i]].rt[f].buf_idx, graph->rt[f].vkmem_staging, graph->node[graph->rt[f].nid[i]].rt[f].buf_idx_offset));
-    QVKR(vkBindBufferMemory(qvk.device, graph->node[graph->rt[f].nid[i]].rt[f].buf_ext, graph->rt[f].vkmem_staging, graph->node[graph->rt[f].nid[i]].rt[f].buf_ext_offset));
-  }
 
   // get top-level acceleration structure size + scratch mem requirements.
   VkAccelerationStructureBuildSizesInfoKHR accel_size = {
@@ -338,23 +306,11 @@ dt_raytrace_graph_alloc(
     .pAccelerationStructures    = &graph->rt[f].accel,
   };
   VkDescriptorBufferInfo *bvtx = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt[f].nid_cnt);
-  VkDescriptorBufferInfo *bidx = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt[f].nid_cnt);
-  VkDescriptorBufferInfo *bext = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt[f].nid_cnt);
   for(int i=0;i<graph->rt[f].nid_cnt;i++)
   {
     bvtx[i] = (VkDescriptorBufferInfo){
       .offset = 0,
-      .buffer = graph->node[graph->rt[f].nid[i]].rt[f].buf_vtx,
-      .range  = VK_WHOLE_SIZE,
-    };
-    bidx[i] = (VkDescriptorBufferInfo){
-      .offset = 0,
-      .buffer = graph->node[graph->rt[f].nid[i]].rt[f].buf_idx,
-      .range  = VK_WHOLE_SIZE,
-    };
-    bext[i] = (VkDescriptorBufferInfo){
-      .offset = 0,
-      .buffer = graph->node[graph->rt[f].nid[i]].rt[f].buf_ext,
+      .buffer = dt_graph_connector_image(graph, graph->rt[f].nid[i], 0, 0, f)->buffer,
       .range  = VK_WHOLE_SIZE,
     };
   }
@@ -372,22 +328,8 @@ dt_raytrace_graph_alloc(
     .dstSet          = graph->rt[f].dset,
     .dstBinding      = 1,
     .pBufferInfo     = bvtx,
-  },{
-    .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-    .descriptorCount = graph->rt[f].nid_cnt,
-    .dstSet          = graph->rt[f].dset,
-    .dstBinding      = 2,
-    .pBufferInfo     = bidx,
-  },{
-    .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-    .descriptorCount = graph->rt[f].nid_cnt,
-    .dstSet          = graph->rt[f].dset,
-    .dstBinding      = 3,
-    .pBufferInfo     = bext,
   }};
-  vkUpdateDescriptorSets(qvk.device, 4, dset_write, 0, NULL);
+  vkUpdateDescriptorSets(qvk.device, 2, dset_write, 0, NULL);
   }
   return VK_SUCCESS;
 }
@@ -419,25 +361,18 @@ dt_raytrace_record_command_buffer_accel_build(
   for(int i=0;i<graph->rt[f].nid_cnt;i++)
   { // check all nodes for ray tracing geometry
     dt_node_t *node = graph->node + graph->rt[f].nid[i];
-    if(!node->rt[f].force_read_geo && !(node->flags & s_module_request_read_geo)) continue;
-    dt_read_geo_params_t p = (dt_read_geo_params_t) {
-      .node   = node,
-      .vtx    = (float    *)(mapped_staging + node->rt[f].buf_vtx_offset),
-      .idx    = (uint32_t *)(mapped_staging + node->rt[f].buf_idx_offset),
-      .ext    = (int16_t  *)(mapped_staging + node->rt[f].buf_ext_offset),
-    };
-    if(node->module->so->read_geo) node->module->so->read_geo(node->module, &p);
-    // flag has been cleared, node says it's done! need to make sure the other frame buffer knows the static geo too!
-    if(!(node->flags & s_module_request_read_geo) && !node->rt[f].force_read_geo) node->rt[fp].force_read_geo = 1;
-    node->rt[f].force_read_geo = 0; // we are done now
-    if(node->rt[f].vtx_cnt == 0) continue;
-
+    int build_accel = 1;
+    // fprintf(stderr, "tracing flag instance %d/%d %d\n", i, f, node->flags & s_module_request_build_bvh);
+    if     (!node->rt[f].force_build_bvh && !(node->flags & s_module_request_build_bvh)) build_accel = 0;
+    else if(!node->rt[f].force_build_bvh &&  (node->flags & s_module_request_build_bvh))
+      node->rt[fp].force_build_bvh = 1;
+    if(node->rt[f].tri_cnt == 0) build_accel = 0;
+    
     VkAccelerationStructureDeviceAddressInfoKHR address_request = {
       .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
       .accelerationStructure = node->rt[f].accel,
     };
-    int ii = rebuild_cnt++;
-    instance[ii] = (VkAccelerationStructureInstanceKHR) {
+    instance[i] = (VkAccelerationStructureInstanceKHR) {
       .transform = { .matrix = {
         {1.0f, 0.0f, 0.0f, 0.0f},
         {0.0f, 1.0f, 0.0f, 0.0f},
@@ -453,26 +388,30 @@ dt_raytrace_record_command_buffer_accel_build(
       .buffer = node->rt[f].buf_scratch,
     },{
       .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-      .buffer = node->rt[f].buf_vtx,
-    },{
-      .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-      .buffer = node->rt[f].buf_idx,
+      .buffer = dt_graph_connector_image(graph, graph->rt[f].nid[i], 0, 0, f)->buffer,
     }};
     node->rt[f].build_info.dstAccelerationStructure  = node->rt[f].accel;
     node->rt[f].build_info.scratchData.deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+0);
     node->rt[f].geometry.geometry.triangles = (VkAccelerationStructureGeometryTrianglesDataKHR) {
       .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
-      .maxVertex     = node->rt[f].vtx_cnt-1,
-      .vertexStride  = 3*sizeof(float),
+      .maxVertex     = 3*node->rt[f].tri_cnt-1,
+      .vertexStride  = sizeof(geo_vtx_t),
       .transformData = {0},
-      .indexType     = VK_INDEX_TYPE_UINT32,
+      .indexType     = VK_INDEX_TYPE_NONE_KHR,
       .vertexFormat  = VK_FORMAT_R32G32B32_SFLOAT,
       .vertexData    = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+1)},
-      .indexData     = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+2)},
+      // .indexData     = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+2)},
     };
-    build_range  [ii] = (VkAccelerationStructureBuildRangeInfoKHR) { .primitiveCount = node->rt[f].tri_cnt };
-    p_build_range[ii] = build_range + ii;
-    build_info   [ii] = node->rt[f].build_info;
+    build_range  [i] = (VkAccelerationStructureBuildRangeInfoKHR) { .primitiveCount = node->rt[f].tri_cnt };
+    if(build_accel)
+    {
+      int ii = rebuild_cnt++;
+      build_info   [ii] = node->rt[f].build_info;
+      p_build_range[ii] = build_range + i;
+      node->rt[f].force_build_bvh = 0; // we are done now
+      // fprintf(stderr, "ray tracing instance %d/%d with %d tris, build %d\n", i, f, node->rt[f].tri_cnt, build_accel);
+      node->flags &= ~s_module_request_build_bvh; // reset
+    }
   }
   vkUnmapMemory(qvk.device, graph->rt[f].vkmem_staging);
   if(!rebuild_cnt) return VK_SUCCESS; // nothing to do, yay
@@ -515,6 +454,7 @@ dt_raytrace_record_command_buffer_accel_build(
     .data            = { .deviceAddress = vkGetBufferDeviceAddress(qvk.device, &index_address) },
   };
   build_range[0] = (VkAccelerationStructureBuildRangeInfoKHR) { .primitiveCount = graph->rt[f].nid_cnt };
+  p_build_range[0] = build_range;
   qvkCmdBuildAccelerationStructuresKHR(graph->command_buffer[f], 1, &graph->rt[f].build_info, p_build_range);
 
   // push another barrier

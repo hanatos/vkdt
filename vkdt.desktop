@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=vkdt
+Comment=gpu based photography workflow toolbox
+Exec=vkdt
+Icon=vkdt
+Terminal=false
+Type=Application
+Categories=Graphics
+StartupNotify=false

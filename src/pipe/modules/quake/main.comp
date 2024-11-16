@@ -47,39 +47,22 @@ layout(std140, set = 0, binding = 1) uniform params_t
 // { } push;
 
 layout(set = 1, binding = 0) uniform writeonly image2D img_irradiance;
-layout(set = 1, binding = 1) buffer buf_inst0_t { float dum; } buf_inst0; // geo connector for instance 0
-layout(set = 1, binding = 2) buffer buf_inst1_t { float dum; } buf_inst1;
 
-layout(set = 1, binding = 3) uniform sampler2D img_tex[];
-layout(set = 1, binding = 4) uniform sampler2D img_blue;
+layout(set = 1, binding = 1) uniform sampler2D img_tex[];
 
-layout(set = 1, binding = 5) uniform writeonly image2D img_albedo;
+layout(set = 1, binding = 2) uniform writeonly image2D img_albedo;
 
-layout(set = 1, binding = 6) uniform usampler2D img_nee_in;
-layout(set = 1, binding = 7) uniform writeonly uimage2D img_nee_out;
-layout(set = 1, binding = 8) uniform sampler2D img_mv;
+layout(set = 1, binding = 3) uniform usampler2D img_nee_in;
+layout(set = 1, binding = 4) uniform writeonly uimage2D img_nee_out;
+layout(set = 1, binding = 5) uniform sampler2D img_mv;
 
-layout(set = 1, binding =  9) uniform sampler2D img_gbuf_in;
-layout(set = 1, binding = 10) uniform writeonly image2D img_gbuf_out;
-layout(set = 1, binding = 11) uniform writeonly image2D img_debug;
+layout(set = 1, binding = 6) uniform sampler2D img_gbuf_in;
+layout(set = 1, binding = 7) uniform writeonly image2D img_gbuf_out;
+layout(set = 1, binding = 8) uniform writeonly image2D img_debug;
 // layout(set = 1, binding = 12) uniform sampler2D img_oldout;
 
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
-
-layout(set = 2, binding = 1) buffer buf_vtx_t
-{ // 3x float vertex data for every instance
-  float v[];
-} buf_vtx[];
-
-layout(set = 2, binding = 2) buffer buf_idx_t
-{ // index data for every instance
-  uint i[];
-} buf_idx[];
-
-layout(set = 2, binding = 3) buffer buf_ext_t
-{ // extra geometry data for every instance
-  uint v[];
-} buf_ext[];
+layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
 
 // importance sample the blackman harris pixel filter.
 // has 1.5px radius support
@@ -220,48 +203,45 @@ prepare_material_info(
   vec3 b;
   b.yz = unpackHalf2x16(inter.opaque.uv);
   b.x = 1.0-b.z-b.y;
-  nonuniformEXT int i = 7*inter.opaque.primid;
   vec3 n0, n1, n2;
   vec2 st0, st1, st2;
   bool brush_model = false;
   nonuniformEXT int inst = inter.opaque.instid;
-  m.mat =   buf_ext[inst].v[i+6] & 0xfff;
-  alpha =  (buf_ext[inst].v[i+6]>>12)/15.0;
-  matfb =  (buf_ext[inst].v[i+6]>>16) & 0xfff;
-  m.flags = buf_ext[inst].v[i+6]>>28;
+  nonuniformEXT int tri  = 3*inter.opaque.primid;
+  m.mat =   buf_vtx[inst].v[tri+0].tex & 0xfff;
+  alpha =  (buf_vtx[inst].v[tri+0].tex>>12)/15.0;
+  matfb =   buf_vtx[inst].v[tri+1].tex & 0xfff;
+  m.flags = buf_vtx[inst].v[tri+1].tex>>12;
   matgl = matnd = 0;
-  brush_model = (buf_ext[inst].v[i+1] == 0xffffffff);
+  brush_model = (buf_vtx[inst].v[tri+1].n == 0xffffffff);
   if(brush_model)
   {
-    matgl = buf_ext[inst].v[i+0]&0xffff;
-    matnd = buf_ext[inst].v[i+0]>>16;
+    matgl = buf_vtx[inst].v[tri+0].n&0xffff;
+    matnd = buf_vtx[inst].v[tri+0].n>>16;
   }
   else
   {
-    n0 = geo_decode_normal(buf_ext[inst].v[i+0]);
-    n1 = geo_decode_normal(buf_ext[inst].v[i+1]);
-    n2 = geo_decode_normal(buf_ext[inst].v[i+2]);
+    n0 = geo_decode_normal(buf_vtx[inst].v[tri+0].n);
+    n1 = geo_decode_normal(buf_vtx[inst].v[tri+1].n);
+    n2 = geo_decode_normal(buf_vtx[inst].v[tri+2].n);
   }
-  st0 = unpackHalf2x16(buf_ext[inst].v[i+3]);
-  st1 = unpackHalf2x16(buf_ext[inst].v[i+4]);
-  st2 = unpackHalf2x16(buf_ext[inst].v[i+5]);
+  st0 = unpackHalf2x16(buf_vtx[inst].v[tri+0].st);
+  st1 = unpackHalf2x16(buf_vtx[inst].v[tri+1].st);
+  st2 = unpackHalf2x16(buf_vtx[inst].v[tri+2].st);
   st = mat3x2(st0, st1, st2) * b;
   // more precise intersection point by using vertices + barycentrics
-  uint i0 = buf_idx[nonuniformEXT(inter.opaque.instid)].i[nonuniformEXT(3*inter.opaque.primid+0)];
-  uint i1 = buf_idx[nonuniformEXT(inter.opaque.instid)].i[nonuniformEXT(3*inter.opaque.primid+1)];
-  uint i2 = buf_idx[nonuniformEXT(inter.opaque.instid)].i[nonuniformEXT(3*inter.opaque.primid+2)];
   vec3 v0 = vec3(
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i0+0],
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i0+1],
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i0+2]);
+      buf_vtx[inst].v[tri].x,
+      buf_vtx[inst].v[tri].y,
+      buf_vtx[inst].v[tri].z);
   vec3 v1 = vec3(
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i1+0],
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i1+1],
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i1+2]);
+      buf_vtx[inst].v[tri+1].x,
+      buf_vtx[inst].v[tri+1].y,
+      buf_vtx[inst].v[tri+1].z);
   vec3 v2 = vec3(
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i2+0],
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i2+1],
-      buf_vtx[nonuniformEXT(inter.opaque.instid)].v[3*i2+2]);
+      buf_vtx[inst].v[tri+2].x,
+      buf_vtx[inst].v[tri+2].y,
+      buf_vtx[inst].v[tri+2].z);
   m.c.x = mat3(v0, v1, v2) * b;
   m.t = m.mat == 0xfff ? T_MAX-1.0 : inter.opaque.t;
   m.c.ng = normalize(cross(v2-v0,v1-v0));
@@ -355,13 +335,13 @@ prepare_material_info(
   if(dot(w, m.c.ng) > 0) m.c.ng = -m.c.ng; // never happens except when it does (transparent surfaces/sky)
 
   m.c.bsdf = 1; // slight rough lobe too
-  m.c.bsdf_param = vec3(0.01);
+  m.c.bsdf_param = vec3(0.15);
   if(matgl > 0)
   { // apply glossiness texture
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(matgl)], 0)*mod(st, vec2(1.0)));
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(matgl)], 0)-1);
     float gloss = texelFetch(img_tex[nonuniformEXT(matgl)], tc, 0).r;
-    m.c.bsdf_param = vec3(mix(0.2, 0.01, gloss));
+    m.c.bsdf_param = vec3(mix(0.3, 0.1, gloss));
   }
 
 #if WATER_MODE==WATER_MODE_FULL
@@ -388,7 +368,7 @@ prepare_material_info(
 #if 1
       m.mat   =  buf_ext[inter.water.instid].v[i+6]&0xfff;
       alpha   = (buf_ext[inter.water.instid].v[i+6]>>12)/15.0;
-      matfb   = (buf_ext[inter.water.instid].v[i+6]>>16) & 0xfff;
+      matfb   =  buf_ext[inter.water.instid].v[i+6]&0xfff;
       matgl   =  buf_ext[inter.water.instid].v[i+0]&0xffff;
       matnd   =  buf_ext[inter.water.instid].v[i+0]>>16;
       st      = m.c.x.xy*0.01;
@@ -500,13 +480,13 @@ raycast_res_t cast_ray(rayQueryEXT rq, vec3 x, vec3 w, const float t_max)
       vec3 b;
       b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
       b.x = 1.0-b.z-b.y;
-      int i = 7*pi;
-      uint mat = buf_ext[inst].v[i+6]&0xfff;
-      // uint alpha = buf_ext[inst].v[i+6]>>12;
-      uint flags = buf_ext[inst].v[i+6]>>28;
-      vec2 st0 = unpackHalf2x16(buf_ext[inst].v[i+3]);
-      vec2 st1 = unpackHalf2x16(buf_ext[inst].v[i+4]);
-      vec2 st2 = unpackHalf2x16(buf_ext[inst].v[i+5]);
+      int i = 3*pi;
+      uint mat = buf_vtx[inst].v[i].tex&0xfff;
+      // uint alpha = buf_vtx[inst].v[i].tex>>12;
+      uint flags = buf_vtx[inst].v[i+1].tex>>28;
+      vec2 st0 = unpackHalf2x16(buf_vtx[inst].v[i+0].st);
+      vec2 st1 = unpackHalf2x16(buf_vtx[inst].v[i+1].st);
+      vec2 st2 = unpackHalf2x16(buf_vtx[inst].v[i+2].st);
       vec2 st = mat3x2(st0, st1, st2) * b;
       if(flags > 0) st = vec2(
           st.x + 0.2*sin(st.y*2.0 + params.cl_time * 1.0),
@@ -1043,6 +1023,7 @@ main()
     float off = (ipos.x/float(imageSize(img_irradiance).x) - 0.8)/0.1;
     if(off*100 < val) irr = col;
   }
+  // irr = vec3(1.0);// DEBUG
 
   imageStore(img_nee_out,    ipos, mc_state_encode(curr));
   imageStore(img_irradiance, ipos, vec4(irr, 1));

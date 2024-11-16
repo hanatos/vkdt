@@ -1,5 +1,6 @@
 #include "modules/api.h"
 #include "modules/localsize.h"
+#include "pipe/geo.h"
 #include "core/half.h"
 #include "../rt/quat.h"
 #include "../i-raw/mat3.h"
@@ -359,37 +360,12 @@ void QS_texture_free(gltexture_t *texture)
 }
 #endif
 
-static inline void
-encode_normal(
-    int16_t *enc,
-    float   *vec)
-{
-  const float invL1Norm = 1.0f / (fabsf(vec[0]) + fabsf(vec[1]) + fabsf(vec[2]));
-  // first find floating point values of octahedral map in [-1,1]:
-  float enc0, enc1;
-  if (vec[2] < 0.0f)
-  {
-    enc0 = (1.0f - fabsf(vec[1] * invL1Norm)) * ((vec[0] < 0.0f) ? -1.0f : 1.0f);
-    enc1 = (1.0f - fabsf(vec[0] * invL1Norm)) * ((vec[1] < 0.0f) ? -1.0f : 1.0f);
-  }
-  else
-  {
-    enc0 = vec[0] * invL1Norm;
-    enc1 = vec[1] * invL1Norm;
-  }
-  enc[0] = roundf(CLAMP(-32768.0f, enc0 * 32768.0f, 32767.0f));
-  enc[1] = roundf(CLAMP(-32768.0f, enc1 * 32768.0f, 32767.0f));
-}
-
 static void
 add_particles(
-    float    *vtx,   // vertex data, 3f
-    uint32_t *idx,   // triangle indices, 3 per tri
-    int16_t  *ext,
-    uint32_t *vtx_cnt,
-    uint32_t *idx_cnt)
+    geo_tri_t *tri,
+    uint32_t  *tri_cnt)
 {
-  uint32_t nvtx = 0, nidx = 0;
+  uint32_t ntri = 0;
   xrand(1); // reset so we can do reference renders
   for(particle_t *p=active_particles;p;p=p->next)
   {
@@ -399,104 +375,57 @@ add_particles(
     // rocket trails are r=2*g=2*b a bit randomised
     uint32_t tex_col = c[1] == 0 && c[2] == 0 ? qs_data.tex_blood : qs_data.tex_explosion;
     uint32_t tex_lum = c[1] == 0 && c[2] == 0 ? 0 : qs_data.tex_explosion;
-    int numv = 4; // add tet
-    if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT ||
-       *idx_cnt + nidx + 3*(numv-2) >= MAX_IDX_CNT)
-          return;
+    if(*tri_cnt + ntri + 1 >= MAX_VTX_CNT/3) return;
     const float voff[4][3] = {
       { 0.0,  1.0,  0.0},
       {-0.5, -0.5, -0.87},
       {-0.5, -0.5,  0.87},
       { 1.0, -0.5,  0.0}};
     float vert[4][3];
-    if(vtx || ext)
+    if(tri)
     {
+      geo_tri_t *cur = tri + ntri;
       for(int l=0;l<3;l++)
       {
         float off = 2*(xrand(0)-0.5) + 2*(xrand(0)-0.5);
         for(int k=0;k<4;k++)
           vert[k][l] = p->org[l] + off + 2*voff[k][l] + (xrand(0)-0.5) + (xrand(0)-0.5);
       }
+      // vertex stride: 3v 2n 2uv 1texid = 8
+      cur->v0.x = vert[0][0];
+      cur->v0.y = vert[0][1];
+      cur->v0.z = vert[0][2];
+      cur->v1.x = vert[1][0];
+      cur->v1.y = vert[1][1];
+      cur->v1.z = vert[1][2];
+      cur->v2.x = vert[2][0];
+      cur->v2.y = vert[2][1];
+      cur->v2.z = vert[2][2];
+      cur->v0.n = tri->v1.n = tri->v2.n = 0;
+      cur->v0.s = float_to_half(0);
+      cur->v0.t = float_to_half(1);
+      cur->v1.s = float_to_half(0);
+      cur->v1.t = float_to_half(0);
+      cur->v2.s = float_to_half(1);
+      cur->v2.t = float_to_half(0);
+      cur->v0.tex = tex_col;
+      cur->v1.tex = tex_lum;
+      cur->v2.tex = 0;
+      ntri++;
     }
-    if(vtx)
-    {
-      for(int l=0;l<3;l++) vtx[3*(nvtx+0)+l] = vert[0][l];
-      for(int l=0;l<3;l++) vtx[3*(nvtx+1)+l] = vert[1][l];
-      for(int l=0;l<3;l++) vtx[3*(nvtx+2)+l] = vert[2][l];
-      for(int l=0;l<3;l++) vtx[3*(nvtx+3)+l] = vert[3][l];
-    }
-    if(idx)
-    {
-      idx[nidx+3*0+0] = *vtx_cnt + nvtx;
-      idx[nidx+3*0+1] = *vtx_cnt + nvtx+1;
-      idx[nidx+3*0+2] = *vtx_cnt + nvtx+2;
-
-      idx[nidx+3*1+0] = *vtx_cnt + nvtx;
-      idx[nidx+3*1+1] = *vtx_cnt + nvtx+2;
-      idx[nidx+3*1+2] = *vtx_cnt + nvtx+3;
-
-      idx[nidx+3*2+0] = *vtx_cnt + nvtx;
-      idx[nidx+3*2+1] = *vtx_cnt + nvtx+3;
-      idx[nidx+3*2+2] = *vtx_cnt + nvtx+1;
-
-      idx[nidx+3*3+0] = *vtx_cnt + nvtx+1;
-      idx[nidx+3*3+1] = *vtx_cnt + nvtx+2;
-      idx[nidx+3*3+2] = *vtx_cnt + nvtx+3;
-    }
-    if(ext)
-    {
-      for(int k=0;k<4;k++)
-      {
-        int pi = nidx/3 + k; // start of the tet + tri index
-        // float n[3], e0[] = {
-        //   vert[2][0] - vert[0][0],
-        //   vert[2][1] - vert[0][1],
-        //   vert[2][2] - vert[0][2]}, e1[] = {
-        //   vert[1][0] - vert[0][0],
-        //   vert[1][1] - vert[0][1],
-        //   vert[1][2] - vert[0][2]};
-        // cross(e0, e1, n);
-        // encode_normal(ext+14*pi+0, n);
-        // encode_normal(ext+14*pi+2, n);
-        // encode_normal(ext+14*pi+4, n);
-        // encode_normal(ext+14*(pi+1)+0, n);
-        // encode_normal(ext+14*(pi+1)+2, n);
-        // encode_normal(ext+14*(pi+1)+4, n);
-        ext[14*pi+ 0] = 0;
-        ext[14*pi+ 1] = 0;
-        ext[14*pi+ 2] = 0;
-        ext[14*pi+ 3] = 0;
-        ext[14*pi+ 6] = float_to_half(0);
-        ext[14*pi+ 7] = float_to_half(1);
-        ext[14*pi+ 8] = float_to_half(0);
-        ext[14*pi+ 9] = float_to_half(0);
-        ext[14*pi+10] = float_to_half(1);
-        ext[14*pi+11] = float_to_half(0);
-        ext[14*pi+12] = tex_col;
-        ext[14*pi+13] = tex_lum;
-      }
-    }
-    nvtx += 4;
-    nidx += 3*4;
   } // end for all particles
-  *vtx_cnt += nvtx;
-  *idx_cnt += nidx;
+  *tri_cnt += ntri;
 }
 
 static void
 add_geo(
-    entity_t *ent,
-    float    *vtx,   // vertex data, 3f
-    uint32_t *idx,   // triangle indices, 3 per tri
-    // oh fuckit. we just store all the following rubbish once per primitive:
-    // 1x mat, 3x n, 3x st = 1+3*2+3*2 = 13 int16 + 1 pad
-    int16_t  *ext,
-    uint32_t *vtx_cnt,
-    uint32_t *idx_cnt)
+    entity_t  *ent,
+    geo_tri_t *tri,
+    uint32_t  *tri_cnt)
 {
   if(!ent) return;
   // count all verts in all models
-  uint32_t nvtx = 0, nidx = 0;
+  uint32_t ntri = 0;
   qmodel_t *m = ent->model;
   // fprintf(stderr, "[add_geo] %s\n", m->name);
   // if (!m || m->name[0] == '*') return; // '*' is the moving brush models such as doors
@@ -514,11 +443,6 @@ add_geo(
     // the plural here really hurts but it's from quakespasm code:
     int16_t *indexes = (int16_t *) ((uint8_t *) hdr + hdr->indexes);
     trivertx_t *trivertexes = (trivertx_t *) ((uint8_t *)hdr + hdr->vertexes);
-
-    if(*vtx_cnt + nvtx + hdr->numverts_vbo >= MAX_VTX_CNT) return;
-    if(*idx_cnt + nidx + hdr->numindexes >= MAX_IDX_CNT) return;
-    nvtx += hdr->numverts_vbo;
-    nidx += hdr->numindexes;
 
     lerpdata_t  lerpdata;
     R_SetupAliasFrame(ent, hdr, ent->frame, &lerpdata);
@@ -541,23 +465,12 @@ add_geo(
     // TODO: upload all vertices so we can just alter the indices on gpu
     int f = ent->frame;
     if(f < 0 || f >= hdr->numposes) return;
-    if(vtx) for(int v = 0; v < hdr->numverts_vbo; v++)
-    {
-      int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
-      int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
-      for(int k=0;k<3;k++) pos_t0[k] = trivertexes[i0].v[k] * hdr->scale[k] + hdr->scale_origin[k];
-      for(int k=0;k<3;k++) pos_t1[k] = trivertexes[i1].v[k] * hdr->scale[k] + hdr->scale_origin[k];
-
-      for(int k=0;k<3;k++) pos[k] = (1.0-lerpdata.blend) * pos_t0[k] + lerpdata.blend * pos_t1[k];
-      for(int k=0;k<3;k++)
-        vtx[3*v+k] = origin[k] + rgt[k] * pos[1] + top[k] * pos[2] + fwd[k] * pos[0];
-    }
 #if 1 // both options fail to extract correct creases/vertex normals for health/shells
     // in fact, the shambler has crazy artifacts all over. maybe this is all wrong and
     // just by chance happened to produce something similar enough sometimes?
     // TODO: fuck this vbo bs and get the mdl itself
-    int16_t *tmpn = alloca(2*sizeof(int16_t)*hdr->numverts_vbo);
-    if(ext) for(int v = 0; v < hdr->numverts_vbo; v++)
+    uint32_t *tmpn = alloca(sizeof(uint32_t)*hdr->numverts_vbo);
+    if(tri) for(int v = 0; v < hdr->numverts_vbo; v++)
     {
       int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
       int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
@@ -566,14 +479,44 @@ add_geo(
       memcpy(nm1, r_avertexnormals[trivertexes[i1].lightnormalindex], sizeof(float)*3);
       for(int k=0;k<3;k++) nm[k] = (1.0-lerpdata.blend) * nm0[k] + lerpdata.blend * nm1[k];
       for(int k=0;k<3;k++) nw[k] = nm[0] * Mi[3*0+k] + nm[1] * Mi[3*1+k] + nm[2] * Mi[3*2+k];
-      encode_normal(tmpn+2*v, nw);
+      tmpn[v] = geo_encode_normal(nw);
     }
 #endif
-    if(idx) for(int i = 0; i < hdr->numindexes; i++)
-      idx[i] = *vtx_cnt + indexes[i];
-
-    if(ext) for(int i = 0; i < hdr->numindexes/3; i++)
+    if(*tri_cnt + ntri + hdr->numindexes/3 >= MAX_VTX_CNT/3) return;
+    if(tri) for(int i = 0; i < hdr->numindexes/3; i++)
     {
+      geo_tri_t *cur = tri + ntri + i;
+      *cur = (geo_tri_t){0};
+      geo_vtx_t *trivtx = &cur->v0;
+
+      for(int tv=0;tv<3;tv++)
+      {
+        int v = indexes[3*i+tv];
+        int i0 = hdr->numverts * lerpdata.pose1 + desc[v].vertindex;
+        int i1 = hdr->numverts * lerpdata.pose2 + desc[v].vertindex;
+
+        for(int k=0;k<3;k++) pos_t0[k] = trivertexes[i0].v[k] * hdr->scale[k] + hdr->scale_origin[k];
+        for(int k=0;k<3;k++) pos_t1[k] = trivertexes[i1].v[k] * hdr->scale[k] + hdr->scale_origin[k];
+
+        for(int k=0;k<3;k++) pos[k] = (1.0-lerpdata.blend) * pos_t0[k] + lerpdata.blend * pos_t1[k];
+        trivtx[tv].x = origin[0] + rgt[0] * pos[1] + top[0] * pos[2] + fwd[0] * pos[0];
+        trivtx[tv].y = origin[1] + rgt[1] * pos[1] + top[1] * pos[2] + fwd[1] * pos[0];
+        trivtx[tv].z = origin[2] + rgt[2] * pos[1] + top[2] * pos[2] + fwd[2] * pos[0];
+        trivtx[tv].n = tmpn[v];
+        trivtx[tv].s = float_to_half((desc[v].st[0]+0.5)/(float)hdr->skinwidth);
+        trivtx[tv].t = float_to_half((desc[v].st[1]+0.5)/(float)hdr->skinheight);
+      }
+      const int sk = CLAMP(0, ent->skinnum, hdr->numskins-1), fm = ((int)(cl.time*10))&3;
+      cur->v0.tex = MIN(qs_data.tex_cnt-1, hdr->gltextures[sk][fm]->texnum);
+      cur->v1.tex = MIN(qs_data.tex_cnt-1, hdr->fbtextures[sk][fm] ? hdr->fbtextures[sk][fm]->texnum : 0);
+      cur->v2.tex = 0;
+#if 1 // XXX use normal map if we have it. FIXME this discards the vertex normals
+      if(hdr->nmtextures[sk][fm])
+      {
+        cur->v0.n = MIN(qs_data.tex_cnt-1, hdr->nmtextures[sk][fm]->texnum)<<16;
+        cur->v1.n = 0xffffffff; // mark as brush model // XXX ??? why aren't we using v2.tex?
+      }
+#endif
 #if 0
       float nm[3], nw[3];
       int off = hdr->numverts * f;
@@ -587,30 +530,9 @@ add_geo(
       memcpy(nm, r_avertexnormals[trivertexes[off+desc[indexes[3*i+2]].vertindex].lightnormalindex], sizeof(float)*3);
       for(int k=0;k<3;k++) nw[k] = nm[0] * fwd[k] + nm[1] * rgt[k] + nm[2] * top[k];
       encode_normal(ext+14*i+4, nw);
-#else
-      memcpy(ext+14*i+0, tmpn+2*indexes[3*i+0], sizeof(int16_t)*2);
-      memcpy(ext+14*i+2, tmpn+2*indexes[3*i+1], sizeof(int16_t)*2);
-      memcpy(ext+14*i+4, tmpn+2*indexes[3*i+2], sizeof(int16_t)*2);
-#endif
-      ext[14*i+ 6] = float_to_half((desc[indexes[3*i+0]].st[0]+0.5)/(float)hdr->skinwidth);
-      ext[14*i+ 7] = float_to_half((desc[indexes[3*i+0]].st[1]+0.5)/(float)hdr->skinheight);
-      ext[14*i+ 8] = float_to_half((desc[indexes[3*i+1]].st[0]+0.5)/(float)hdr->skinwidth);
-      ext[14*i+ 9] = float_to_half((desc[indexes[3*i+1]].st[1]+0.5)/(float)hdr->skinheight);
-      ext[14*i+10] = float_to_half((desc[indexes[3*i+2]].st[0]+0.5)/(float)hdr->skinwidth);
-      ext[14*i+11] = float_to_half((desc[indexes[3*i+2]].st[1]+0.5)/(float)hdr->skinheight);
-      const int sk = CLAMP(0, ent->skinnum, hdr->numskins-1), fm = ((int)(cl.time*10))&3;
-      ext[14*i+12] = MIN(qs_data.tex_cnt-1, hdr->gltextures[sk][fm]->texnum);
-      ext[14*i+13] = MIN(qs_data.tex_cnt-1, hdr->fbtextures[sk][fm] ? hdr->fbtextures[sk][fm]->texnum : 0);
-#if 1 // XXX use normal map if we have it. FIXME this discards the vertex normals
-      if(hdr->nmtextures[sk][fm])
-      {
-        ext[14*i+0] = 0;
-        ext[14*i+1] = MIN(qs_data.tex_cnt-1, hdr->nmtextures[sk][fm]->texnum);
-        ext[14*i+2] = 0xffff; // mark as brush model
-        ext[14*i+3] = 0xffff;
-      }
 #endif
     }
+    ntri += hdr->numindexes/3;
   }
   else if(m->type == mod_brush)
   { // brush model:
@@ -632,53 +554,61 @@ again:;
       glpoly_t *p = surf->polys;
       while(p)
       {
-        if(*vtx_cnt + nvtx + p->numverts >= MAX_VTX_CNT ||
-           *idx_cnt + nidx + 3*(p->numverts-2) >= MAX_IDX_CNT)
-          break;
-        if(vtx) for(int k=0;k<p->numverts;k++)
-          for(int l=0;l<3;l++)
-            vtx[3*(nvtx+k)+l] =
-              p->verts[k][0] * fwd[l] -
-              p->verts[k][1] * rgt[l] +
-              p->verts[k][2] * top[l]
-              + ent->origin[l];
+        if(*tri_cnt + ntri + (p->numverts-2) >= MAX_VTX_CNT/3) break;
 #if WATER_MODE==WATER_MODE_FULL
-        if(vtx && wateroffset) for(int k=0;k<p->numverts;k++)
+        if(tri && wateroffset) for(int k=2;k<p->numverts;k++)
         {
-          for(int l=0;l<3;l++)
+          geo_tri_t *cur = tri + k-2;
+          geo_vtx_t *vert = &cur->v0;
+          for(int tv=0;tv<3;tv++)
           { // dunno what's wrong with quake's coordinate systems and the bounds, but this works:
-            vtx[3*(nvtx+k)+l] += fwd[l] * (p->verts[k][0] > (surf->mins[0] + surf->maxs[0])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
-            vtx[3*(nvtx+k)+l] -= rgt[l] * (p->verts[k][1] > (surf->mins[1] + surf->maxs[1])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            const int i0 = (tv == 0 ? 0 : tv == 1 ? k-1 : k);
+            vert[tv].x += fwd[0] * (p->verts[i0][0] > (surf->mins[0] + surf->maxs[0])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vert[tv].x -= rgt[0] * (p->verts[i0][1] > (surf->mins[1] + surf->maxs[1])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vert[tv].y += fwd[1] * (p->verts[i0][0] > (surf->mins[0] + surf->maxs[0])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vert[tv].y -= rgt[1] * (p->verts[i0][1] > (surf->mins[1] + surf->maxs[1])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vert[tv].z += fwd[2] * (p->verts[i0][0] > (surf->mins[0] + surf->maxs[0])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vert[tv].z -= rgt[2] * (p->verts[i0][1] > (surf->mins[1] + surf->maxs[1])/2.0 ? WATER_DEPTH : - WATER_DEPTH);
+            vert[tv].z -= WATER_DEPTH;
           }
-          vtx[3*(nvtx+k)+2] -= WATER_DEPTH;
         }
 #endif
-        if(idx) for(int k=2;k<p->numverts;k++)
-        {
-          idx[nidx+3*(k-2)+0] = *vtx_cnt + nvtx;
-          idx[nidx+3*(k-2)+1] = *vtx_cnt + nvtx+k-1;
-          idx[nidx+3*(k-2)+2] = *vtx_cnt + nvtx+k;
-        }
         // TODO: make somehow dynamic. don't want to re-upload the whole model just because the texture animates.
         // for now that means static brush models will not actually animate their textures
         texture_t *t = R_TextureAnimation(surf->texinfo->texture, ent->frame);
-        if(ext) for(int k=2;k<p->numverts;k++)
+        if(tri) for(int k=2;k<p->numverts;k++)
         {
-          int pi = (nidx+3*(k-2))/3;
-          ext[14*pi+0] = t->gloss ? MIN(qs_data.tex_cnt-1, t->gloss->texnum) : 0;
-          ext[14*pi+1] = t->norm  ? MIN(qs_data.tex_cnt-1, t->norm->texnum ) : 0;
-          ext[14*pi+2] = 0xffff; // mark as brush model
-          ext[14*pi+3] = 0xffff;
+          const int i0 = 0;
+          const int i1 = k-1;
+          const int i2 = k;
+          geo_tri_t *cur = tri + ntri + k-2;
+          *cur = (geo_tri_t){0};
+          cur->v0.x = p->verts[i0][0] * fwd[0] - p->verts[i0][1] * rgt[0] + p->verts[i0][2] * top[0] + ent->origin[0];
+          cur->v0.y = p->verts[i0][0] * fwd[1] - p->verts[i0][1] * rgt[1] + p->verts[i0][2] * top[1] + ent->origin[1];
+          cur->v0.z = p->verts[i0][0] * fwd[2] - p->verts[i0][1] * rgt[2] + p->verts[i0][2] * top[2] + ent->origin[2];
+          cur->v1.x = p->verts[i1][0] * fwd[0] - p->verts[i1][1] * rgt[0] + p->verts[i1][2] * top[0] + ent->origin[0];
+          cur->v1.y = p->verts[i1][0] * fwd[1] - p->verts[i1][1] * rgt[1] + p->verts[i1][2] * top[1] + ent->origin[1];
+          cur->v1.z = p->verts[i1][0] * fwd[2] - p->verts[i1][1] * rgt[2] + p->verts[i1][2] * top[2] + ent->origin[2];
+          cur->v2.x = p->verts[i2][0] * fwd[0] - p->verts[i2][1] * rgt[0] + p->verts[i2][2] * top[0] + ent->origin[0];
+          cur->v2.y = p->verts[i2][0] * fwd[1] - p->verts[i2][1] * rgt[1] + p->verts[i2][2] * top[1] + ent->origin[1];
+          cur->v2.z = p->verts[i2][0] * fwd[2] - p->verts[i2][1] * rgt[2] + p->verts[i2][2] * top[2] + ent->origin[2];
+          // normals, brush models don't have normals
+          cur->v0.n =   (t->gloss ? MIN(qs_data.tex_cnt-1, t->gloss->texnum) : 0) | 
+                       ((t->norm  ? MIN(qs_data.tex_cnt-1, t->norm->texnum ) : 0)<<16);
+          cur->v1.n = 0xffffffff; // mark as brush model
+          cur->v2.n = 0xffffffff;
           if(surf->texinfo->texture->gltexture)
-          {
-            ext[14*pi+ 6] = float_to_half(p->verts[0  ][3]);
-            ext[14*pi+ 7] = float_to_half(p->verts[0  ][4]);
-            ext[14*pi+ 8] = float_to_half(p->verts[k-1][3]);
-            ext[14*pi+ 9] = float_to_half(p->verts[k-1][4]);
-            ext[14*pi+10] = float_to_half(p->verts[k-0][3]);
-            ext[14*pi+11] = float_to_half(p->verts[k-0][4]);
-            ext[14*pi+12] = MIN(qs_data.tex_cnt-1, t->gltexture->texnum);
-            ext[14*pi+13] = t->fullbright ? MIN(qs_data.tex_cnt-1, t->fullbright->texnum) : 0;
+          { // texture st coordinates
+            cur->v0.s = float_to_half(p->verts[i0][3]);
+            cur->v0.t = float_to_half(p->verts[i0][4]);
+            cur->v1.s = float_to_half(p->verts[i1][3]);
+            cur->v1.t = float_to_half(p->verts[i1][4]);
+            cur->v2.s = float_to_half(p->verts[i2][3]);
+            cur->v2.t = float_to_half(p->verts[i2][4]);
+            // texture ids for albedo + fullbright
+            cur->v0.tex = MIN(qs_data.tex_cnt-1, t->gltexture->texnum);
+            cur->v1.tex = t->fullbright ? MIN(qs_data.tex_cnt-1, t->fullbright->texnum) : 0;
+            cur->v2.tex = 0;
             // max textures is 4096 (12 bit) and we have 16. so we can put 4 bits worth of flags here:
             uint32_t flags = 0;
             if(surf->flags & SURF_DRAWLAVA)  flags = 1;
@@ -691,18 +621,17 @@ again:;
             if(wateroffset)                  flags = 5; // this is our procedural water lower mark
 #endif
             // if(surf->flags & SURF_DRAWSKY)   flags = 6; // could do this too
-            ext[14*pi+13] |= flags << 12;
+            cur->v1.tex |= flags << 12;
             uint32_t ai = CLAMP(0, (ent->alpha - 1.0)/254.0 * 15, 15); // alpha in 4 bits
             if(!ent->alpha) ai = 15;
             // TODO: 0 means default, 1 means invisible, 255 is opaque, 2--254 is really applicable
             // TODO: default means  map_lavaalpha > 0 ? map_lavaalpha : map_wateralpha
             // TODO: or "slime" or "tele" instead of "lava"
-            ext[14*pi+12] |= ai << 12;
+            cur->v0.tex |= ai << 12;
           }
-          if(surf->flags & SURF_DRAWSKY) ext[14*pi+12] = 0xfff;
+          if(surf->flags & SURF_DRAWSKY) cur->v0.tex = 0xfff;
         }
-        nvtx += p->numverts;
-        nidx += 3*(p->numverts-2);
+        ntri += p->numverts-2;
 #if WATER_MODE==WATER_MODE_FULL
         if(!wateroffset && (surf->flags & SURF_DRAWWATER))
         { // TODO: and normal points the right way?
@@ -779,53 +708,53 @@ again:;
         return;
     }
 
-    int numv = 3* 4; // add three quads
-    if(*vtx_cnt + nvtx + numv >= MAX_VTX_CNT ||
-       *idx_cnt + nidx + 3*(numv-2) >= MAX_IDX_CNT)
-          return;
+    int numt = 6; // add three quads
+    if(*tri_cnt + ntri + numt >= MAX_VTX_CNT/3) return;
     for(int k=0;k<3;k++)
     {
       float vert[4][3];
-      if(vtx || ext)
-      {
-        vec3_t front;
-        CrossProduct(s_up, s_right, front);
-        VectorMA (ent->origin, frame->down * scale, k == 1 ? front : s_up,    point);
-        VectorMA (point, frame->left * scale,       k == 2 ? front : s_right, point);
-        for(int l=0;l<3;l++) vert[0][l] = point[l];
+      vec3_t front;
+      CrossProduct(s_up, s_right, front);
+      VectorMA (ent->origin, frame->down * scale, k == 1 ? front : s_up,    point);
+      VectorMA (point, frame->left * scale,       k == 2 ? front : s_right, point);
+      for(int l=0;l<3;l++) vert[0][l] = point[l];
 
-        VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up, point);
-        VectorMA (point, frame->left * scale,     k == 2 ? front : s_right, point);
-        for(int l=0;l<3;l++) vert[1][l] = point[l];
+      VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up, point);
+      VectorMA (point, frame->left * scale,     k == 2 ? front : s_right, point);
+      for(int l=0;l<3;l++) vert[1][l] = point[l];
 
-        VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up,    point);
-        VectorMA (point, frame->right * scale,    k == 2 ? front : s_right, point);
-        for(int l=0;l<3;l++) vert[2][l] = point[l];
+      VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up,    point);
+      VectorMA (point, frame->right * scale,    k == 2 ? front : s_right, point);
+      for(int l=0;l<3;l++) vert[2][l] = point[l];
 
-        VectorMA (ent->origin, frame->down * scale, k == 1 ? front : s_up,    point);
-        VectorMA (point, frame->right * scale,      k == 2 ? front : s_right, point);
-        for(int l=0;l<3;l++) vert[3][l] = point[l];
-      }
-      if(vtx)
-      {
-        for(int l=0;l<3;l++) vtx[3*(nvtx+0)+l] = vert[0][l];
-        for(int l=0;l<3;l++) vtx[3*(nvtx+1)+l] = vert[1][l];
-        for(int l=0;l<3;l++) vtx[3*(nvtx+2)+l] = vert[2][l];
-        for(int l=0;l<3;l++) vtx[3*(nvtx+3)+l] = vert[3][l];
-      }
-      if(idx)
-      {
-        idx[nidx+3*0+0] = *vtx_cnt + nvtx;
-        idx[nidx+3*0+1] = *vtx_cnt + nvtx+2-1;
-        idx[nidx+3*0+2] = *vtx_cnt + nvtx+2;
+      VectorMA (ent->origin, frame->down * scale, k == 1 ? front : s_up,    point);
+      VectorMA (point, frame->right * scale,      k == 2 ? front : s_right, point);
+      for(int l=0;l<3;l++) vert[3][l] = point[l];
 
-        idx[nidx+3*1+0] = *vtx_cnt + nvtx;
-        idx[nidx+3*1+1] = *vtx_cnt + nvtx+3-1;
-        idx[nidx+3*1+2] = *vtx_cnt + nvtx+3;
-      }
-      if(ext)
+      if(tri)
       {
-        int pi = nidx/3; // start of the two triangles
+        geo_tri_t *cur = tri+ntri;
+        cur[0] = (geo_tri_t){0};
+        cur[1] = (geo_tri_t){0};
+        cur[0].v0.x = vert[0][0];
+        cur[0].v0.y = vert[0][1];
+        cur[0].v0.z = vert[0][2];
+        cur[0].v1.x = vert[1][0];
+        cur[0].v1.y = vert[1][1];
+        cur[0].v1.z = vert[1][2];
+        cur[0].v2.x = vert[2][0];
+        cur[0].v2.y = vert[2][1];
+        cur[0].v2.z = vert[2][2];
+        cur[1].v0.x = vert[2][0];
+        cur[1].v0.y = vert[2][1];
+        cur[1].v0.z = vert[2][2];
+        cur[1].v1.x = vert[3][0];
+        cur[1].v1.y = vert[3][1];
+        cur[1].v1.z = vert[3][2];
+        cur[1].v2.x = vert[0][0];
+        cur[1].v2.y = vert[0][1];
+        cur[1].v2.z = vert[0][2];
+
         float n[3], e0[] = {
           vert[2][0] - vert[0][0],
           vert[2][1] - vert[0][1],
@@ -834,40 +763,36 @@ again:;
           vert[1][1] - vert[0][1],
           vert[1][2] - vert[0][2]};
         cross(e0, e1, n);
-        encode_normal(ext+14*pi+0, n);
-        encode_normal(ext+14*pi+2, n);
-        encode_normal(ext+14*pi+4, n);
-        encode_normal(ext+14*(pi+1)+0, n);
-        encode_normal(ext+14*(pi+1)+2, n);
-        encode_normal(ext+14*(pi+1)+4, n);
+        cur[0].v0.n = geo_encode_normal(n);
+        cur[0].v1.n = geo_encode_normal(n);
+        cur[0].v2.n = geo_encode_normal(n);
+        cur[1].v0.n = geo_encode_normal(n);
+        cur[1].v1.n = geo_encode_normal(n);
+        cur[1].v2.n = geo_encode_normal(n);
+        cur[0].v0.s = float_to_half(0);
+        cur[0].v0.t = float_to_half(1);
+        cur[0].v1.s = float_to_half(0);
+        cur[0].v1.t = float_to_half(0);
+        cur[0].v2.s = float_to_half(1);
+        cur[0].v2.t = float_to_half(0);
+        cur[1].v0.s = float_to_half(0);
+        cur[1].v0.t = float_to_half(1);
+        cur[1].v1.s = float_to_half(1);
+        cur[1].v1.t = float_to_half(0);
+        cur[1].v2.s = float_to_half(1);
+        cur[1].v2.t = float_to_half(1);
         if(frame->gltexture)
         {
-          ext[14*pi+ 6] = float_to_half(0);
-          ext[14*pi+ 7] = float_to_half(1);
-          ext[14*pi+ 8] = float_to_half(0);
-          ext[14*pi+ 9] = float_to_half(0);
-          ext[14*pi+10] = float_to_half(1);
-          ext[14*pi+11] = float_to_half(0);
-
-          ext[14*(pi+1)+ 6] = float_to_half(0);
-          ext[14*(pi+1)+ 7] = float_to_half(1);
-          ext[14*(pi+1)+ 8] = float_to_half(1);
-          ext[14*(pi+1)+ 9] = float_to_half(0);
-          ext[14*(pi+1)+10] = float_to_half(1);
-          ext[14*(pi+1)+11] = float_to_half(1);
-
-          ext[14*pi+12]     = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
-          ext[14*pi+13]     = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum); // sprites always emit
-          ext[14*(pi+1)+12] = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
-          ext[14*(pi+1)+13] = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          cur[0].v0.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          cur[0].v1.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum); // sprites always emit
+          cur[1].v0.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          cur[1].v1.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
         }
       }
-      nvtx += 4;
-      nidx += 6;
+      ntri += 2;
     } // end three axes
   } // end sprite model
-  *vtx_cnt += nvtx;
-  *idx_cnt += nidx;
+  *tri_cnt += ntri;
 }
 
 void modify_roi_out(
@@ -1013,6 +938,7 @@ void commit_params(
   for(int k=0;k<3;k++) p_cam[k]   = r_refdef.vieworg[k];
   for(int k=0;k<3;k++) p_cam[4+k] = fwd[k];
   for(int k=0;k<3;k++) p_cam[8+k] = top[k];
+  // fprintf(stderr, "camera pos %g %g %g\n", p_cam[0], p_cam[1], p_cam[2]);
 #endif
 }
 
@@ -1029,38 +955,45 @@ int read_source(
     p->node->flags &= ~s_module_request_read_source; // done uploading textures
     d->tex_req[p->a] = 0;
   }
-  return 0;
-}
-
-int read_geo(
-    dt_module_t *mod,
-    dt_read_geo_params_t *p)
-{
-  // this is only called for our "geo" node because it has an output connector with format "geo".
-  uint32_t vtx_cnt = 0, idx_cnt = 0;
-  const int f = mod->graph->double_buffer;
+  uint32_t tri_cnt = 0;
+  geo_tri_t *tri = mapped;
   if(p->node->kernel == dt_token("dyngeo"))
   {
-    // add_geo(cl_entities+cl.viewentity, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 7*(idx_cnt/3), &vtx_cnt, &idx_cnt); // player model
-    add_geo(&cl.viewent, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt); // weapon
+    // add_geo(cl_entities+cl.viewentity, m16 + 8*3*vtx_cnt, &vtx_cnt); // player model
+    add_geo(&cl.viewent, tri + tri_cnt, &tri_cnt); // weapon
     for(int i=0;i<cl_numvisedicts;i++)
-      add_geo(cl_visedicts[i], p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    for (int i=0; i<cl.num_statics; i++)
-      add_geo(cl_static_entities+i, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    add_particles(p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    // vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
-    // idx_cnt = MAX(3, idx_cnt);
-    p->node->rt[f].vtx_cnt = vtx_cnt;
-    p->node->rt[f].tri_cnt = idx_cnt / 3;
+      add_geo(cl_visedicts[i], tri + tri_cnt, &tri_cnt);
+    for(int i=0; i<cl.num_statics; i++)
+      add_geo(cl_static_entities+i, tri + tri_cnt, &tri_cnt);
+    add_particles(tri + tri_cnt, &tri_cnt);
+    p->node->flags |= s_module_request_read_source; // need to do this all the time
+    mod->flags |= s_module_request_read_source; // need to do this all the time
+    // XXX we are called on the source node, not the bvh sink node! need to somehow propagate these counts along!
+    // TODO: need facility to propagate updated roi along with geometry cpu-side!
+    // this could work via modify_roi_out for geo modules, but not internal nodes.
+    for(int n=0;n<mod->graph->num_nodes;n++) if(mod->graph->node[n].name == dt_token("bvh") && mod->graph->node[n].kernel == dt_token("dyn"))
+    {
+      mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = tri_cnt;
+      mod->graph->node[n].flags |= s_module_request_build_bvh;
+      break;
+    }
+    // fprintf(stderr, "uploading dyn geo for frame %d node %"PRItkn" with %d tris f %d\n", mod->graph->frame, dt_token_str(p->node->name), vtx_cnt/3, mod->graph->double_buffer);
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
-    add_geo(cl_entities+0, p->vtx + 3*vtx_cnt, p->idx + idx_cnt, p->ext + 14*(idx_cnt/3), &vtx_cnt, &idx_cnt);
-    vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
-    idx_cnt = MAX(3, idx_cnt);
-    p->node->rt[f].vtx_cnt = vtx_cnt;
-    p->node->rt[f].tri_cnt = idx_cnt / 3;
-    if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
+    add_geo(cl_entities+0, tri + tri_cnt, &tri_cnt);
+    // if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
+    if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_source; // done uploading static geo for now
+#if 1
+    for(int n=0;n<mod->graph->num_nodes;n++) if(mod->graph->node[n].name == dt_token("bvh") && mod->graph->node[n].kernel == dt_token("stc"))
+    {
+      mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = tri_cnt;
+      mod->graph->node[n].flags |= s_module_request_build_bvh;
+      break;
+    }
+    mod->flags |= s_module_request_build_bvh;
+#endif
+    fprintf(stderr, "uploading stc geo for frame %d node %"PRItkn" with %d tris f %d|%d\n", mod->graph->frame, dt_token_str(p->node->name), tri_cnt, mod->graph->double_buffer, p->node->connector[0].frames);
 #if 0 // debug: quake aabb are in +-4096
     float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
     for(int i=0;i<vtx_cnt;i++) 
@@ -1076,7 +1009,6 @@ int read_geo(
         aabb[0], aabb[1], aabb[2], aabb[3], aabb[4], aabb[5]);
 #endif
   }
-  // fprintf(stderr, "[read_geo '%"PRItkn"']: vertex count %u index count %u\n", dt_token_str(p->node->kernel), vtx_cnt, idx_cnt);
   return 0;
 }
 
@@ -1089,22 +1021,19 @@ create_nodes(
 
   // ray tracing kernel:
   int id_rt = dt_node_add(graph, module, "quake", "main", 
-    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 12,
+    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 9,
       "output",   "write", "rgba", "f32",  &module->connector[0].roi, // 0
-      "stcgeo",   "read",  "ssbo", "geo",  dt_no_roi,                 // 1
-      "dyngeo",   "read",  "ssbo", "geo",  dt_no_roi,                 // 2
-      "tex",      "read",  "*",    "*",    dt_no_roi,                 // 3
-      "blue",     "read",  "*",    "*",    dt_no_roi,                 // 4
-      "aov",      "write", "rgba", "f16",  &module->connector[0].roi, // 5
-      "nee_in",   "read",  "rgba", "ui32", dt_no_roi,                 // 6
-      "nee_out",  "write", "rgba", "ui32", &module->connector[0].roi, // 7
-      "mv",       "read",  "rg",   "f16",  dt_no_roi,                 // 8
-      "gbuf_in",  "read",  "rgba", "f32",  dt_no_roi,                 // 9
-      "gbuf_out", "write", "rgba", "f32",  &module->connector[0].roi, // 10
-      "debug",    "write", "rgba", "f16",  &module->connector[0].roi);// 11
-      // "oldout",   "read",  "*",    "*",    &module->connector[0].roi);// 12
-  graph->module[id_rt].connector[ 7].flags |= s_conn_clear;
-  graph->module[id_rt].connector[10].flags |= s_conn_clear;
+      "tex",      "read",  "*",    "*",    dt_no_roi,                 // 1
+      "aov",      "write", "rgba", "f16",  &module->connector[0].roi, // 2
+      "nee_in",   "read",  "rgba", "ui32", dt_no_roi,                 // 3
+      "nee_out",  "write", "rgba", "ui32", &module->connector[0].roi, // 4
+      "mv",       "read",  "rg",   "f16",  dt_no_roi,                 // 5
+      "gbuf_in",  "read",  "rgba", "f32",  dt_no_roi,                 // 6
+      "gbuf_out", "write", "rgba", "f32",  &module->connector[0].roi, // 7
+      "debug",    "write", "rgba", "f16",  &module->connector[0].roi);// 8
+      // "oldout",   "read",  "*",    "*",    &module->connector[0].roi);// 9
+  graph->module[id_rt].connector[4].flags |= s_conn_clear;
+  graph->module[id_rt].connector[7].flags |= s_conn_clear;
 
   assert(graph->num_nodes < graph->max_nodes);
   const uint32_t id_tex = graph->num_nodes++;
@@ -1141,94 +1070,60 @@ create_nodes(
   for(int i=0;i<d->tex_cnt;i++)
     if(d->tex[i]) d->tex_req[i] = 1;
 
-  uint32_t vtx_cnt = 0, idx_cnt = 0;
-#if 0
-  // add_geo(cl_entities+cl.viewentity, 0, 0, 0, &vtx_cnt, &idx_cnt);
-  add_geo(&cl.viewent, 0, 0, 0, &vtx_cnt, &idx_cnt);
-  for(int i=0;i<cl_numvisedicts;i++)
-    add_geo(cl_visedicts[i], 0, 0, 0, &vtx_cnt, &idx_cnt);
-  fprintf(stderr, "[create_nodes] dynamic vertex count %u index count %u\n", vtx_cnt, idx_cnt);
-#endif
+  uint32_t tri_cnt = 0;
   // we'll statically assign a global buffer size here because we want to avoid a fresh
   // node creation/memory allocation pass. reallocation usually invalidates *all* buffers
   // requiring fresh data upload for everything.
   // i suppose the core allocator might need support for incremental additions otherwise.
-  vtx_cnt = MAX_VTX_CNT;
-  idx_cnt = MAX_IDX_CNT;
+  tri_cnt = MAX_VTX_CNT/3;
 
-  assert(graph->num_nodes < graph->max_nodes);
-  const uint32_t id_dyngeo = graph->num_nodes++;
-  graph->node[id_dyngeo] = (dt_node_t) {
-    .name   = dt_token("quake"),
-    .kernel = dt_token("dyngeo"),
-    .module = module,
-    .wd     = 1,
-    .ht     = 1,
-    .dp     = 1,
-    .flags  = s_module_request_read_geo,
-    .num_connectors = 1,
-    .connector = {{
-      .name   = dt_token("dyngeo"),
-      .type   = dt_token("source"),
-      .chan   = dt_token("ssbo"),
-      .format = dt_token("geo"),
-      .roi    = {
-        .scale   = 1.0,
-        .wd      = vtx_cnt,
-        .ht      = idx_cnt,
-        .full_wd = vtx_cnt,
-        .full_ht = idx_cnt,
-      },
-    }},
-  };
+  dt_roi_t roi_geo = { .scale=1.0, .wd=tri_cnt, .ht=sizeof(geo_tri_t)/sizeof(float), .full_wd=tri_cnt, .full_ht=sizeof(geo_tri_t)/sizeof(float) };
+  const uint32_t id_dyngeo = dt_node_add(graph, module, "quake", "dyngeo", 1, 1, 1, 0, 0, 1,
+    "dyngeo", "source", "ssbo", "f32", &roi_geo);
+  graph->node[id_dyngeo].flags = s_module_request_read_source;
 
   // the static geometry we count. this means that we'll need to re-create nodes on map change.
-  vtx_cnt = idx_cnt = 0;
-  add_geo(cl_entities+0, 0, 0, 0, &vtx_cnt, &idx_cnt);
-  fprintf(stderr, "[create_nodes] static vertex count %u index count %u\n", vtx_cnt, idx_cnt);
-  vtx_cnt = MAX(3, vtx_cnt); // avoid crash for not initialised model
-  idx_cnt = MAX(3, idx_cnt);
+  tri_cnt = 0;
+  add_geo(cl_entities+0, 0, &tri_cnt);
+  fprintf(stderr, "[create_nodes] static tri count %u\n", tri_cnt);
+  tri_cnt = MAX(1, tri_cnt); // avoid crash for not initialised model
 
-  assert(graph->num_nodes < graph->max_nodes);
-  const uint32_t id_stcgeo = graph->num_nodes++;
-  graph->node[id_stcgeo] = (dt_node_t) {
-    .name   = dt_token("quake"),
-    .kernel = dt_token("stcgeo"),
-    .module = module,
-    .wd     = 1,
-    .ht     = 1,
-    .dp     = 1,
-    .flags  = s_module_request_read_geo,
-    .num_connectors = 1,
-    .connector = {{
-      .name   = dt_token("stcgeo"),
-      .type   = dt_token("source"),
-      .chan   = dt_token("ssbo"),
-      .format = dt_token("geo"),
-      .roi    = {
-        .scale   = 1.0,
-        .wd      = vtx_cnt,
-        .ht      = idx_cnt,
-        .full_wd = vtx_cnt,
-        .full_ht = idx_cnt,
-      },
-    }},
-  };
+  roi_geo = (dt_roi_t){ .scale=1.0, .wd=tri_cnt, .ht=sizeof(geo_tri_t)/sizeof(float), .full_wd=tri_cnt, .full_ht=sizeof(geo_tri_t)/sizeof(float) };
+  const uint32_t id_stcgeo = dt_node_add(graph, module, "quake", "stcgeo", 1, 1, 1, 0, 0, 1,
+    "stcgeo", "source", "ssbo", "f32", &roi_geo);
+  graph->node[id_stcgeo].flags = s_module_request_read_source;
 
-  CONN(dt_node_connect(graph, id_tex, 0, id_rt, 3));
-  CONN(dt_node_connect(graph, id_stcgeo, 0, id_rt, 1));
-  CONN(dt_node_connect(graph, id_dyngeo, 0, id_rt, 2));
-  CONN(dt_node_feedback(graph, id_rt,  7, id_rt, 6)); // nee cache
-  CONN(dt_node_feedback(graph, id_rt, 10, id_rt, 9)); // gbuf
-  dt_connector_copy(graph, module, 0, id_rt,  0); // wire output buffer
-  dt_connector_copy(graph, module, 1, id_rt,  4); // wire blue noise input
-  dt_connector_copy(graph, module, 2, id_rt,  5); // output aov image
-  dt_connector_copy(graph, module, 3, id_rt,  8); // motion vectors from outside
-  dt_connector_copy(graph, module, 4, id_rt, 10); // gbuf output (n, d, mu_1, mu_2)
-  dt_connector_copy(graph, module, 5, id_rt, 11); // wire debug output
+  const uint32_t id_dynbvh = dt_node_add(graph, module, "bvh", "dyn", 1, 1, 1, 0, 0, 1,
+    "geo", "sink", "ssbo", "f32", dt_no_roi);
+  const uint32_t id_stcbvh = dt_node_add(graph, module, "bvh", "stc", 1, 1, 1, 0, 0, 1,
+    "geo", "sink", "ssbo", "f32", dt_no_roi);
+  CONN(dt_node_connect(graph, id_dyngeo, 0, id_dynbvh, 0));
+  CONN(dt_node_connect(graph, id_stcgeo, 0, id_stcbvh, 0));
+  graph->node[id_dynbvh].flags = s_module_request_build_bvh;
+  graph->node[id_stcbvh].flags = s_module_request_build_bvh;
+
+  // XXX apparently this runs so in sync that it's not even needed:
+  // graph->node[id_dyngeo].connector[0].flags |= s_conn_double_buffer;
+  // graph->node[id_dyngeo].connector[0].frames = 2;
+  // graph->node[id_dynbvh].connector[0].flags |= s_conn_double_buffer;
+  // graph->node[id_dynbvh].connector[0].frames = 2;
+  // // .. and this would need extra love to actually init both buffers at least once:
+  // graph->node[id_stcgeo].connector[0].flags |= s_conn_double_buffer;
+  // graph->node[id_stcgeo].connector[0].frames = 2;
+  // graph->node[id_stcbvh].connector[0].flags |= s_conn_double_buffer;
+  // graph->node[id_stcbvh].connector[0].frames = 2;
+
+  CONN(dt_node_connect(graph, id_tex, 0, id_rt, 1));
+  CONN(dt_node_feedback(graph, id_rt, 4, id_rt, 3)); // nee cache
+  CONN(dt_node_feedback(graph, id_rt, 7, id_rt, 6)); // gbuf
+  dt_connector_copy(graph, module, 0, id_rt, 0); // wire output buffer
+  dt_connector_copy(graph, module, 2, id_rt, 2); // output aov image
+  dt_connector_copy(graph, module, 3, id_rt, 5); // motion vectors from outside
+  dt_connector_copy(graph, module, 4, id_rt, 7); // gbuf output (n, d, mu_1, mu_2)
+  dt_connector_copy(graph, module, 5, id_rt, 8); // wire debug output
 
   // propagate up so things will start to move at all at the node level:
-  module->flags = s_module_request_read_geo;
+  module->flags = s_module_request_build_bvh;
 }
 
 int audio(

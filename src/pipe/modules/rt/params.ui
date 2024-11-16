@@ -1,2 +1,4 @@
 cam:grab
 spp:slider:1:100
+filename:filename
+startid:hidden

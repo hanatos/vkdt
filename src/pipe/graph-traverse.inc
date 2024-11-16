@@ -58,6 +58,12 @@
     stack[++sp] = i;
     done[sp] = 0;
   }
+  for(int i=0;i<arr_cnt;i++) if(arr[i].name == dt_token("bvh"))
+  { // bvh need to be constructed first
+    mark[i] = 1;
+    stack[++sp] = i;
+    done[sp] = 0;
+  }
 
   while(1) {
   while(sp >= 0)
