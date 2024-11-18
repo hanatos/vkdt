@@ -28802,12 +28802,12 @@ nk_do_property(nk_flags *ws,
 }
 NK_API void
 nk_property_focus(struct nk_context *ctx)
-{ // XXX do this *before* calling property, put focus_next flag on input
+{ // do this *before* calling property, put focus_next flag on input
   ctx->input.focus_next = 1;
 }
 NK_API int
 nk_property_int_unfocus(struct nk_context *ctx, const char *name, int min, int *val, int max, int step, int keypress)
-{ // XXX do this *after* calling property
+{ // do this *after* calling property
   struct nk_property_variant variant = nk_property_variant_int(*val, min, max, step);
   if(keypress)
   {
