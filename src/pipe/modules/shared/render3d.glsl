@@ -83,7 +83,8 @@ float bsdf_rough_G2(vec3 wi, vec3 wo, vec3 n, float a2)
 }
 
 vec3 bsdf_rough_sample(vec3 wi, vec3 du, vec3 dv, vec3 n, vec2 alpha, vec2 xi, out float X)
-{ // Eric Heitz' vndf sampling for ggx:
+{
+#if 0 // Eric Heitz' vndf sampling for ggx:
   // vec3 sampleGGXVNDF(vec3 V_, float alpha_x, float alpha_y, float U1, float U2)
   vec3 V_ = -vec3(dot(wi, du), dot(wi, dv), dot(wi, n));
   // stretch view
@@ -112,6 +113,29 @@ vec3 bsdf_rough_sample(vec3 wi, vec3 du, vec3 dv, vec3 n, vec2 alpha, vec2 xi, o
   float a2 = alpha.x * alpha.x + alpha.y * alpha.y;
   X = bsdf_rough_G2(wi, wo, n, a2) / bsdf_rough_G1(wi, wo, n, a2);
   return wo;
+#else // Bounded VNDF Sampling for the Smith-GGX BRDF, Tokuyoshi and Eto 2024
+  vec3 i = -vec3(dot(wi,du),dot(wi,dv),dot(wi,n));
+  vec3 i_std = normalize(vec3(i.xy * alpha, i.z));
+  // Sample a spherical cap
+  float phi = 2.0 * M_PI * xi.x;
+  float a = clamp(min(alpha.x, alpha.y), 0.0, 1.0); // Eq. 7
+  float s = 1.0 + length(i.xy); // Omit sgn for a <=1
+  float a2 = a * a; float s2 = s * s;
+  float k = (1.0 - a2) * s2 / (s2 + a2 * i.z * i.z); // Eq . 6
+  float lower_bound = i.z > 0.0 ? -k * i_std.z : - i_std.z;
+  float z = fma(lower_bound, xi.y, 1.0 - xi.y);
+  float sin_theta = sqrt(clamp(1.0 - z * z, 0.0, 1.0));
+  vec3 o_std = vec3(sin_theta * cos(phi), sin_theta * sin(phi), z);
+  // Compute the microfacet normal m
+  vec3 m_std = i_std + o_std;
+  vec3 m = normalize(vec3(m_std.xy * alpha, m_std.z));
+  // Return the reflection vector o
+  vec3 o = 2.0 * dot(i, m) * m - i;
+  float t = sqrt(dot(i_std.xy*alpha,i_std.xy*alpha) + i.z*i.z);
+  vec3 wo = du * o.x + dv * o.y + n * o.z;
+  X = bsdf_rough_G2(wi, wo, n, a2) / (4.0 * i.z * o.z) * (2.0 * (t + k * i.z));
+  return wo;
+#endif
 }
 // GGX normal distribution function
 float bsdf_rough_D(float roughness, const vec3 n, const vec3 h)
@@ -124,7 +148,7 @@ float bsdf_rough_D(float roughness, const vec3 n, const vec3 h)
 }
 
 float bsdf_rough_eval(
-    vec3 V, vec3 Tx, vec3 Ty, vec3 n, vec3 L, vec2 a)
+    vec3 V, vec3 du, vec3 dv, vec3 n, vec3 L, vec2 a)
 {
   float roughness = a.x;
   vec3 h = normalize(L-V);
@@ -134,13 +158,35 @@ float bsdf_rough_eval(
 }
 
 float bsdf_rough_pdf(
-    vec3 wi, vec3 Tx, vec3 Ty, vec3 n, vec3 wo, vec2 a)
+    vec3 wi, vec3 du, vec3 dv, vec3 n, vec3 wo, vec2 a)
 {
-  float roughness = a.x;
+#if 0
   vec3 h = normalize(wo-wi);
   float D  = bsdf_rough_D(roughness, n, h);
   float G1 = bsdf_rough_G1(wi, wo, n, roughness*roughness);
   return abs(G1 * dot(wi, h) * D / dot(wi, n));
+#else // Bounded VNDF Sampling for the Smith-GGX BRDF, Tokuyoshi and Eto 2024
+  float roughness = a.x;
+  // XXX i and o point away from surface and are in local tangent space!
+  vec3 h = normalize(wo-wi);
+  float D = bsdf_rough_D(roughness, n, h);
+  vec2 ai = a * vec2(-dot(du, wi), -dot(dv, wi));
+  float len2 = dot(ai, ai);
+  float iz = dot(n,wi);
+  float t = sqrt(len2 + iz*iz);
+  if(iz < 0.0)
+  { // incident from upper hemisphere
+    float a = clamp(min(a.x , a.y), 0, 1); // Eq . 7
+    float s = 1.0 + length(vec2(-dot(du, wi), -dot(dv, wi)));
+    float a2 = a * a; float s2 = s * s;
+    float k = (1.0 - a2) * s2 / (s2 + a2 * iz * iz); // Eq . 6
+    return D / (2.0 * (t - k * iz)); // Eq . 10 * || dm / do ||
+  }
+  return 0.0;
+  // incident from under the surface. wtf?
+  // Numerically stable form of the previous PDF for i.z < 0
+  // return ndf * (t - i.z) / (2.0 * len2 ); // = Eq . 8 * || dm / do ||
+#endif
 }
 
 #if 0
