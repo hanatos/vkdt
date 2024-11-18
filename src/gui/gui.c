@@ -72,7 +72,8 @@ dt_gui_win_init(dt_gui_win_t *win)
   // glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
   glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
   glfwWindowHintString(GLFW_X11_CLASS_NAME, "vkdt");
-#if ((GLFW_VERSION_MAJOR == 3) && (GLFW_VERSION_MINOR < 4))
+#if (((GLFW_VERSION_MAJOR == 3) && (GLFW_VERSION_MINOR < 4)) || defined(VKDT_USE_PENTABLET))
+  // need to rebase the pentablet support custom glfw to newer upstream, too.
   glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE); // this is for github's super ancient ubuntu glfw 3.3 (SCALE_FRAMEBUFFER alias)
 #else
   glfwWindowHintString(GLFW_WAYLAND_APP_ID, "vkdt");
