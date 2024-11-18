@@ -183,6 +183,13 @@ dt_export(
 #endif
 
   resi = w->wd;
+#define focus_group_property_internal(TYPE, CTX, NAME, m, V, M, I1, I2, N)\
+  do {\
+    if(focus_id_curr++ == focus_id_next) { nk_property_focus(CTX); focus_id_next = -1; }\
+    nk_property_ ## TYPE(CTX, NAME, m, V, M, I1, I2);\
+    int adv = nk_property_## TYPE ##_unfocus(CTX, NAME, m, V, M, I1, tab_keypress);\
+    if(adv) { tab_keypress = adv = 0; focus_id_next = N; }\
+  } while(0)
 #define focus_group_property_first(TYPE, CTX, NAME, m, V, M, I1, I2)\
   static int focus_id_next = -1;\
   int focus_id_curr = 0; \
@@ -194,26 +201,11 @@ dt_export(
     time_tab = time_now; \
     tab_keypress = 1; \
   } \
-  do {\
-    if(focus_id_curr++ == focus_id_next) { nk_property_focus(CTX); focus_id_next = -1; }\
-    nk_property_ ## TYPE(CTX, NAME, m, V, M, I1, I2);\
-    int adv = nk_property_## TYPE ##_unfocus(CTX, NAME, m, V, M, I1, tab_keypress);\
-    if(adv) { tab_keypress = adv = 0; focus_id_next = focus_id_curr; }\
-  } while(0)
+  focus_group_property_internal(TYPE, CTX, NAME, m, V, M, I1, I2, focus_id_curr);
 #define focus_group_property(TYPE, CTX, NAME, m, V, M, I1, I2)\
-  do {\
-    if(focus_id_curr++ == focus_id_next) { nk_property_focus(CTX); focus_id_next = -1; }\
-    nk_property_ ## TYPE(CTX, NAME, m, V, M, I1, I2);\
-    int adv = nk_property_## TYPE ##_unfocus(CTX, NAME, m, V, M, I1, tab_keypress);\
-    if(adv) { tab_keypress = adv = 0; focus_id_next = focus_id_curr; }\
-  } while(0)
+  focus_group_property_internal(TYPE, CTX, NAME, m, V, M, I1, I2, focus_id_curr);
 #define focus_group_property_last(TYPE, CTX, NAME, m, V, M, I1, I2)\
-  do {\
-    if(focus_id_curr++ == focus_id_next) { nk_property_focus(CTX); focus_id_next = -1; }\
-    nk_property_ ## TYPE(CTX, NAME, m, V, M, I1, I2);\
-    int adv = nk_property_## TYPE ##_unfocus(CTX, NAME, m, V, M, I1, tab_keypress);\
-    if(adv) { tab_keypress = adv = 0; focus_id_next = 0; }\
-  } while(0)
+  focus_group_property_internal(TYPE, CTX, NAME, m, V, M, I1, I2, 0);
 
 #if 0
   if(focus_id_curr++ == focus_id_next) { nk_property_focus(ctx); focus_id_next = -1; }
