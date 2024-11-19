@@ -366,6 +366,14 @@ dt_graph_run_modules(
   modid[cnt++] = curr;
 #include "graph-traverse.inc"
 
+  // run animation callbacks, if any. these come first, so that commit_params
+  // can upload the current state that is actually uploaded/processed through
+  // the graph. also animations might trigger module flags to upload new
+  // things/rebuild all (quake level change)
+  for(int i=0;i<cnt;i++)
+    if(graph->module[modid[i]].so->animate)
+      graph->module[modid[i]].so->animate(graph, graph->module+modid[i]);
+
   int main_input_module = -1;
   // find extra module flags
   for(int i=0;i<cnt;i++)

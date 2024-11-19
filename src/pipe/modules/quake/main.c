@@ -842,26 +842,23 @@ check_params(
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
 
-void commit_params(
+void animate(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  // print these interesting messages from the map:
-  graph->gui_msg = con_lastcenterstring;
-  qs_data_t *d = module->data;
-  int sv_player_set = 0;
-  // float *f = (float *)module->committed_param;
-  const int p_pause = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("pause")))[0];
-  if(!p_pause || graph->frame < p_pause)
+  qs_data_t *dat = module->data;
+  if(dat->worldspawn)
   {
-    double newtime = Sys_DoubleTime();
-    double time = ((d->oldtime == 0) || p_pause) ? 1.0/60.0 : newtime - d->oldtime;
-    Host_Frame(time);
-    R_SetupView(); // init some left/right vectors also used for sound
-    d->oldtime = newtime;
-    // sv_player_set = 1; // we'll always set ourselves, Host_Frame is unreliable it seems.
+    module->graph->gui_msg = 0;
+    module->flags = s_module_request_all;
+    key_dest = key_game;
+    m_state = m_none;
+    IN_Activate();
+    for(int k=0;k<10;k++) Host_Frame(1.0/60.0); // prewarm/avoid multi-frame init problems
+    dat->worldspawn = 0;
   }
 
+  int sv_player_set = 0;
   if(graph->frame == 0)
   { // careful to only do this at == 0 so sv_player (among others) will not crash
     const char *p_exec = dt_module_param_string(module, dt_module_get_param(module->so, dt_token("exec")));
@@ -881,9 +878,19 @@ void commit_params(
     }
   }
 
-  // hijacked for performance counter rendering
-  float *p_duration = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("spp")));
-  p_duration[0] = graph->query[graph->double_buffer^1].last_frame_duration;
+  // print these interesting messages from the map:
+  graph->gui_msg = con_lastcenterstring;
+  // float *f = (float *)module->committed_param;
+  const int p_pause = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("pause")))[0];
+  if(!p_pause || graph->frame < p_pause)
+  {
+    double newtime = Sys_DoubleTime();
+    double time = ((dat->oldtime == 0) || p_pause) ? 1.0/60.0 : newtime - dat->oldtime;
+    Host_Frame(time);
+    R_SetupView(); // init some left/right vectors also used for sound
+    dat->oldtime = newtime;
+    // sv_player_set = 1; // we'll always set ourselves, Host_Frame is unreliable it seems.
+  }
 
   // set sv_player. this has to be done if we're not calling Host_Frame after a map reload
   client_t *host_client = svs.clients;
@@ -893,8 +900,14 @@ void commit_params(
     sv_player = host_client->edict;
     sv_player_set = 1;
   }
+
+  // hijacked for performance counter rendering
+  float *p_duration = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("spp")));
+  p_duration[0] = graph->query[graph->double_buffer^1].last_frame_duration;
+
   if(sv_player_set)
   {
+
     if(sv_player->v.weapon == 1) // shotgun has torch built in:
       ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 1;
     else
@@ -909,7 +922,12 @@ void commit_params(
     p_armor[0] = sv_player->v.armorvalue;
     if((graph->frame % 20) == 0) p_duration[0] = VectorLength(sv_player->v.velocity);
   }
+}
 
+void commit_params(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{
   int *sky = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("skybox")));
   for(int i=0;i<6;i++) sky[i] = qs_data.skybox[i];
 
@@ -1132,17 +1150,6 @@ int audio(
     uint32_t      unused_sample_cnt,
     uint8_t     **samples)
 {
-  qs_data_t *dat = mod->data;
-  if(dat->worldspawn)
-  {
-    mod->graph->gui_msg = 0;
-    mod->flags = s_module_request_all; // TODO: move somewhere else so we can run without audio (from cmdline!). needs to be picked up though!
-    key_dest = key_game;
-    m_state = m_none;
-    IN_Activate();
-    for(int k=0;k<10;k++) Host_Frame(1.0/60.0); // prewarm/avoid multi-frame init problems
-    dat->worldspawn = 0;
-  }
   int buffersize = shm->samples * (shm->samplebits / 8);
   int pos = (shm->samplepos * (shm->samplebits / 8));
   int tobufend = buffersize - pos; // bytes to buffer end

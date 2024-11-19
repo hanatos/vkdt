@@ -110,6 +110,7 @@ dt_module_so_load(
     mod->bs_init        = dlsym(mod->dlhandle, "bs_init");
     mod->write_sink     = dlsym(mod->dlhandle, "write_sink");
     mod->read_source    = dlsym(mod->dlhandle, "read_source");
+    mod->animate        = dlsym(mod->dlhandle, "animate");
     mod->commit_params  = dlsym(mod->dlhandle, "commit_params");
     mod->ui_callback    = dlsym(mod->dlhandle, "ui_callback");
     mod->check_params   = dlsym(mod->dlhandle, "check_params");

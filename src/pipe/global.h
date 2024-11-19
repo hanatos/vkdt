@@ -49,6 +49,7 @@ typedef void (*dt_module_read_source_t)(dt_module_t *module, void *buf, dt_read_
 typedef int  (*dt_module_init_t)    (dt_module_t *module);
 typedef void (*dt_module_cleanup_t )(dt_module_t *module);
 typedef int  (*dt_module_bs_init_t) ();
+typedef void (*dt_module_animate_t)(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_commit_params_t)(dt_graph_t *graph, dt_module_t *module);
 typedef void (*dt_module_ui_callback_t)(dt_module_t *module, dt_token_t param);
 typedef int  (*dt_module_audio_t)(dt_module_t *module, uint64_t sample_beg, uint32_t sample_cnt, uint16_t **samples);
@@ -77,6 +78,9 @@ typedef struct dt_module_so_t
 
   // creates the nodes for this module after roi negotiations
   dt_module_create_nodes_t create_nodes;
+
+  // animate (optional)
+  dt_module_animate_t animate;
 
   // commit new parameters from module's gui params to binary float blob
   dt_module_commit_params_t commit_params;
