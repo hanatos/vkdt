@@ -82,12 +82,12 @@ void modify_roi_out(
   if(read_obj(mod, id+graph->frame, filename))
   { // XXX connect dummy data
     mod->connector[0].roi.full_wd = 1;
-    mod->connector[0].roi.full_ht = sizeof(geo_tri_t)/sizeof(float);
+    mod->connector[0].roi.full_ht = 1;
     return;
   }
   objinput_buf_t *obj = mod->data;
   mod->connector[0].roi.full_wd = obj->tri_cnt;
-  mod->connector[0].roi.full_ht = sizeof(geo_tri_t)/sizeof(float);
+  mod->connector[0].roi.full_ht = 1;
   // XXX TODO: something static allocation with enough triangle count?
 }
 

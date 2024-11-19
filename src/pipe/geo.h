@@ -1,5 +1,8 @@
 #pragma once
 // simplistic raw triangle data, suitable for streaming as single array (no indices)
+#include "core/core.h"
+#include <math.h>
+#include <stdint.h>
 
 // size = 6*sizeof(float)
 typedef struct geo_vtx_t
@@ -33,7 +36,7 @@ geo_encode_normal(float *vec)
     enc0 = vec[0] * invL1Norm;
     enc1 = vec[1] * invL1Norm;
   }
-  return 
-    ((uint16_t)roundf(CLAMP(-32768.0f, enc1 * 32768.0f, 32767.0f))<<16) |
-     (uint16_t)roundf(CLAMP(-32768.0f, enc0 * 32768.0f, 32767.0f));
+  return  // don't use CLAMP because quake re-defines it with different argument order
+    ((uint16_t)roundf(MIN(MAX(-32768.0f, enc1 * 32768.0f), 32767.0f))<<16) |
+     (uint16_t)roundf(MIN(MAX(-32768.0f, enc0 * 32768.0f), 32767.0f));
 }

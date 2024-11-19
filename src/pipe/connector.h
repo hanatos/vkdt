@@ -2,6 +2,7 @@
 
 #include "token.h"
 #include "alloc.h"
+#include "geo.h"
 
 #include <stdint.h>
 #include <vulkan/vulkan.h>
@@ -182,6 +183,7 @@ dt_connector_bytes_per_channel(const dt_connector_t *c)
   if(c->format == dt_token("f16"))  return 2;
   if(c->format == dt_token("ui8"))  return 1;
   if(c->format == dt_token("u8"))   return 1;
+  if(c->format == dt_token("tri"))  return sizeof(geo_tri_t);
   return 0;
 }
 
@@ -202,7 +204,6 @@ dt_connector_bufsize(const dt_connector_t *c, uint32_t wd, uint32_t ht)
 {
   if(c->format == dt_token("bc1")) return wd/4*(uint64_t)ht/4 * (uint64_t)8;
   if(c->format == dt_token("yuv")) return wd*(uint64_t)ht * (uint64_t)2;
-  if(c->format == dt_token("geo")) return 4*sizeof(float); // just a dummy for extra data, ray tracing geo will take care of itself
   const int numc = dt_connector_channels(c);
   const size_t bpp = dt_connector_bytes_per_channel(c);
   return numc * bpp * wd * ht > 0 ? numc * bpp * wd * ht : 16;
