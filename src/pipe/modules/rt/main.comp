@@ -207,7 +207,7 @@ main()
 
     aov.rgb = (1.0+w)/2.0;
 
-    for(int i=0;i<10;i++)
+    for(int i=0;i<2;i++)
     { // for a number of bounces
       const float dist = 100000.0;// volume_sample_dist(x, w, rand64(seed));
       rayQueryEXT rq;
