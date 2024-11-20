@@ -152,8 +152,9 @@ int dt_gui_init()
   memset(&vkdt, 0, sizeof(vkdt));
   vkdt.graph_res = -1;
   const char *session_type = getenv("XDG_SESSION_TYPE");
-  if     (!strcmp(session_type, "x11"))     vkdt.session_type = 0;
-  else if(!strcmp(session_type, "wayland")) vkdt.session_type = 1;
+  if     (!session_type)                    vkdt.session_type = -1;
+  else if(!strcmp(session_type, "x11"))     vkdt.session_type =  0;
+  else if(!strcmp(session_type, "wayland")) vkdt.session_type =  1;
   else vkdt.session_type = -1; // what's this? windows or macos maybe?
 
   if(!glfwInit())
