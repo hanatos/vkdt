@@ -77,7 +77,8 @@ dt_gui_win_init(dt_gui_win_t *win)
   glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE); // this is for github's super ancient ubuntu glfw 3.3 (SCALE_FRAMEBUFFER alias)
 #else
   glfwWindowHintString(GLFW_WAYLAND_APP_ID, "vkdt");
-  glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE);
+  // glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_FALSE); // correct events, blurry appearance
+  glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE); // broken events, sharp render
 #endif
   win->window = glfwCreateWindow(wd, ht, "vkdt", NULL, NULL);
   glfwSetWindowPos(win->window, wd/8, ht/8);
