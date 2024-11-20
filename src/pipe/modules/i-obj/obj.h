@@ -1,5 +1,6 @@
 #pragma once
 #include <float.h>
+#include <inttypes.h>
 // simple header to parse a wavefront obj file into raw geo triangles
 
 typedef struct geo_obj_face_t
@@ -38,7 +39,7 @@ geo_obj_load_lists(
   {
     if(!strncmp(line, "vn ", 3))
     {
-      if(ni >= num_normals) fprintf(stderr, "obj has fewer normals than expected (%lu)\n", num_normals);
+      if(ni >= num_normals) fprintf(stderr, "obj has fewer normals than expected (%" PRIu64 ")\n", num_normals);
       assert(ni < num_normals);
       const int cnt = sscanf(line, "vn %f %f %f", n + 3*ni, n+3*ni+1, n+3*ni+2);
       if(cnt == 3) ni++;
@@ -46,7 +47,7 @@ geo_obj_load_lists(
     }
     else if(vt && !strncmp(line, "vt ", 3))
     {
-      if(ti >= num_vts) fprintf(stderr, "obj has fewer texture coordinates than expected (%lu)\n", num_vts);
+      if(ti >= num_vts) fprintf(stderr, "obj has fewer texture coordinates than expected (%" PRIu64 ")\n", num_vts);
       assert(ti < num_vts);
       const int cnt = sscanf(line, "vt %f %f", vt + 2*ti, vt+2*ti+1);
       if(cnt == 2) ti++;
@@ -54,7 +55,7 @@ geo_obj_load_lists(
     }
     else if(!strncmp(line, "v ", 2))
     {
-      if(vi >= num_verts) fprintf(stderr, "obj has fewer vertices than expected (%lu)\n", num_verts);
+      if(vi >= num_verts) fprintf(stderr, "obj has fewer vertices than expected (%" PRIu64 ")\n", num_verts);
       assert(vi < num_verts);
       const int cnt = sscanf(line, "v %f %f %f", v + 3*vi, v+3*vi+1, v+3*vi+2);
       for(int i=0;i<3;i++) aabb[i+0] = MIN(aabb[i+0], v[3*vi+i]);

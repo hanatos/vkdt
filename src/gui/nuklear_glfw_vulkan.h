@@ -251,6 +251,7 @@ NK_INTERN VkResult nk_glfw3_create_font_descriptor_pool()
     .descriptorCount = 1,
   };
   VkDescriptorPoolCreateInfo pool_info = {
+    .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
     .poolSizeCount = 1,
     .pPoolSizes = &pool_sizes,
@@ -268,6 +269,7 @@ NK_INTERN VkResult nk_glfw3_create_descriptor_pool(struct nk_glfw_device *dev)
     .descriptorCount = 1,
   };
   VkDescriptorPoolCreateInfo pool_info = {
+    .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
     .poolSizeCount = 1,
     .pPoolSizes = &pool_sizes,
@@ -287,6 +289,7 @@ nk_glfw3_create_uniform_descriptor_set_layout(struct nk_glfw_device *dev)
     .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
   };
   VkDescriptorSetLayoutCreateInfo descriptor_set_info = {
+    .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
     .bindingCount = 1,
     .pBindings = &binding,
@@ -340,6 +343,7 @@ nk_glfw3_create_font_dset()
     .stageFlags = VK_SHADER_STAGE_ALL,
   };
   VkDescriptorSetLayoutCreateInfo descriptor_set_info = {
+    .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
     .bindingCount = 1,
     .pBindings = &binding,
@@ -749,8 +753,8 @@ nk_glfw3_device_upload_atlas(
 
     vkDestroyFence(glfw.logical_device, fence, NULL);
 
-    vkFreeMemory(glfw.logical_device, staging_buffer.memory, NULL);
     vkDestroyBuffer(glfw.logical_device, staging_buffer.buffer, NULL);
+    vkFreeMemory(glfw.logical_device, staging_buffer.memory, NULL);
 
     memset(&image_view_info, 0, sizeof(VkImageViewCreateInfo));
     image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -809,13 +813,13 @@ NK_API void nk_glfw3_device_destroy(struct nk_glfw_device *dev)
   vkUnmapMemory(glfw.logical_device, dev->index_memory);
   vkUnmapMemory(glfw.logical_device, dev->uniform_memory);
 
-  vkFreeMemory(glfw.logical_device, dev->vertex_memory, NULL);
-  vkFreeMemory(glfw.logical_device, dev->index_memory, NULL);
-  vkFreeMemory(glfw.logical_device, dev->uniform_memory, NULL);
-
   vkDestroyBuffer(glfw.logical_device, dev->vertex_buffer, NULL);
   vkDestroyBuffer(glfw.logical_device, dev->index_buffer, NULL);
   vkDestroyBuffer(glfw.logical_device, dev->uniform_buffer, NULL);
+
+  vkFreeMemory(glfw.logical_device, dev->vertex_memory, NULL);
+  vkFreeMemory(glfw.logical_device, dev->index_memory, NULL);
+  vkFreeMemory(glfw.logical_device, dev->uniform_memory, NULL);
 
   nk_buffer_free(&dev->cmds);
 }
@@ -1261,13 +1265,13 @@ nk_glfw3_mouse_button_callback(
   }
 
 #ifdef __APPLE__
-  if (button == GLFW_MOUSE_BUTTON_LEFT && ((mods & GLFW_MODS_CONTROL) == 0))
+  if (button == GLFW_MOUSE_BUTTON_LEFT && ((mods & GLFW_MOD_CONTROL) == 0))
 #else
   if (button == GLFW_MOUSE_BUTTON_LEFT)
 #endif
     nk_input_button(ctx, NK_BUTTON_LEFT, (int)x, (int)y, action == GLFW_PRESS);
 #ifdef __APPLE__
-  if (button == GLFW_MOUSE_BUTTON_LEFT && (mods & GLFW_MODS_CONTROL)
+  if (button == GLFW_MOUSE_BUTTON_LEFT && ((mods & GLFW_MOD_CONTROL) == 0))
 #else
   if (button == GLFW_MOUSE_BUTTON_MIDDLE)
 #endif

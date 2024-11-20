@@ -418,6 +418,7 @@ dt_graph_run_modules(
         .stageFlags = VK_SHADER_STAGE_ALL,
       }};
       VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+        .flags        = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
         .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
         .bindingCount = 2,
         .pBindings    = bindings,

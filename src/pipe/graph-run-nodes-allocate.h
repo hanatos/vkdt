@@ -836,6 +836,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   {
     // create a descriptor set layout
     VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+      .flags        = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
       .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
       .bindingCount = node->num_connectors,
       .pBindings    = bindings,
@@ -1423,6 +1424,7 @@ dt_graph_run_nodes_allocate(
       }};
 
       VkDescriptorPoolCreateInfo pool_info = {
+        .flags         = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
         .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .poolSizeCount = LENGTH(pool_sizes),
         .pPoolSizes    = pool_sizes,
