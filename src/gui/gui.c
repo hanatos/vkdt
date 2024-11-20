@@ -36,14 +36,32 @@ style_to_state()
 }
 
 static void
+framebuffer_size_callback(GLFWwindow* w, int width, int height)
+{ // maybe in fact we don't need the window size callback below
+  dt_gui_win_t *win = &vkdt.win;
+  if(w == vkdt.win1.window) win = &vkdt.win1;
+  if(width != win->width || height != win->height)
+  {
+    win->width = width; win->height = height;
+    dt_gui_recreate_swapchain(win);
+    nk_glfw3_resize(w, win->width, win->height);
+    if(w == vkdt.win.window) dt_gui_init_fonts();
+  }
+}
+
+static void
 window_size_callback(GLFWwindow* w, int width, int height)
 { // window resized, need to rebuild our swapchain:
   dt_gui_win_t *win = &vkdt.win;
   if(w == vkdt.win1.window) win = &vkdt.win1;
-  glfwGetFramebufferSize(win->window, &win->width, &win->height);
-  dt_gui_recreate_swapchain(win);
-  nk_glfw3_resize(w, win->width, win->height);
-  if(w == vkdt.win.window) dt_gui_init_fonts();
+  glfwGetFramebufferSize(win->window, &width, &height);
+  if(width != win->width || height != win->height)
+  {
+    win->width = width; win->height = height;
+    dt_gui_recreate_swapchain(win);
+    nk_glfw3_resize(w, win->width, win->height);
+    if(w == vkdt.win.window) dt_gui_init_fonts();
+  }
 }
 
 void window_content_scale_callback(GLFWwindow* w, float xscale, float yscale)
@@ -84,6 +102,7 @@ dt_gui_win_init(dt_gui_win_t *win)
   glfwSetWindowPos(win->window, wd/8, ht/8);
   glfwGetFramebufferSize(win->window, &win->width, &win->height);
   glfwSetWindowSizeCallback(win->window, window_size_callback);
+  glfwSetFramebufferSizeCallback(win->window, framebuffer_size_callback);
   glfwSetWindowContentScaleCallback(win->window, window_content_scale_callback);
   glfwGetWindowContentScale(win->window, win->content_scale, win->content_scale+1);
   glfwSetWindowSizeLimits(win->window, 512, 128, GLFW_DONT_CARE, GLFW_DONT_CARE);
