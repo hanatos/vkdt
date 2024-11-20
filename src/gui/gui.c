@@ -226,7 +226,7 @@ int dt_gui_init()
     return 1;
   }
 
-  dt_gui_win_init_vk(&vkdt.win);
+  if(dt_gui_win_init_vk(&vkdt.win)) return 1;
 
   // joystick detection:
   vkdt.wstate.have_joystick = glfwJoystickPresent(GLFW_JOYSTICK_1);
@@ -844,7 +844,7 @@ void dt_gui_win1_open()
 {
   if(vkdt.win1.window) dt_gui_win1_close();
   dt_gui_win_init(&vkdt.win1);
-  dt_gui_win_init_vk(&vkdt.win1);
+  if(dt_gui_win_init_vk(&vkdt.win1)) { dt_gui_win1_close(); return; }
   nk_init_default(&vkdt.ctx1, 0);
   nk_style_default(&vkdt.ctx1);
   nk_style_from_table(&vkdt.ctx1, vkdt.style.colour);
