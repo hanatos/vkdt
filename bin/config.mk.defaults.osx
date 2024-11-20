@@ -68,8 +68,8 @@ export VKDT_USE_MCRAW
 FFMPEG_VERSION=$(shell ffmpeg -version | head -1 | cut -f 3 -d' ' | cut -d. -f1)
 VKDT_USE_FFMPEG=$(eval VKDT_USE_FFMPEG := $$(shell [ $(FFMPEG_VERSION) -gt 5 ] && echo 1 || echo 0))
 export VKDT_USE_FFMPEG
-VKDT_AV_CFLAGS=$(eval VKDT_AV_CFLAGS := $$(shell pkg-config --cflags libavformat --cflags libavcodec --cflags libswresample))$(VKDT_AV_CFLAGS)
-VKDT_AV_LDFLAGS=$(eval VKDT_AV_LDFLAGS := $$(shell pkg-config --libs libavformat --libs libavcodec --libs libswresample))$(VKDT_AV_LDFLAGS)
+VKDT_AV_CFLAGS=$(eval VKDT_AV_CFLAGS := $$(shell pkg-config --cflags libavformat --cflags libavcodec --cflags libavutil --cflags libswresample))$(VKDT_AV_CFLAGS)
+VKDT_AV_LDFLAGS=$(eval VKDT_AV_LDFLAGS := $$(shell pkg-config --libs libavformat --libs libavcodec --libs libavutil --libs libswresample))$(VKDT_AV_LDFLAGS)
 export VKDT_AV_CFLAGS VKDT_AV_LDFLAGS
 
 # where to find glfw for the gui:
@@ -108,7 +108,7 @@ GLSLC_FLAGS=--target-env vulkan1.2
 # GLSLC_FLAGS=--target-env=vulkan1.2
 
 # optimised flags, you may want to use -march=x86-64 for distro builds:
-OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG
+OPT_CFLAGS=-Werror -Wall -pipe -O3 -march=$(shell arch) -DNDEBUG
 OPT_LDFLAGS=
 AR=ar
 DYNAMIC=-rdynamic -fvisibility=hidden

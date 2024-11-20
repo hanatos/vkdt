@@ -3,6 +3,7 @@
 *.a
 *ctooltips
 *ptooltips
+*.dSYM/
 cscope.out
 built/
 src/core/version.h

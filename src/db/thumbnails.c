@@ -136,6 +136,7 @@ dt_thumbnails_init(
   }};
 
   VkDescriptorPoolCreateInfo pool_info = {
+    .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
     .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
     .poolSizeCount = LENGTH(pool_sizes),
     .pPoolSizes    = pool_sizes,
@@ -151,6 +152,7 @@ dt_thumbnails_init(
     .pImmutableSamplers = 0,
   };
   VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+    .flags        = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
     .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
     .bindingCount = 1,
     .pBindings    = &binding,
