@@ -1103,7 +1103,7 @@ create_nodes(
   // the static geometry we count. this means that we'll need to re-create nodes on map change.
   tri_cnt = 0;
   add_geo(cl_entities+0, 0, &tri_cnt);
-  fprintf(stderr, "[create_nodes] static tri count %u\n", tri_cnt);
+  // fprintf(stderr, "[create_nodes] static tri count %u\n", tri_cnt);
   tri_cnt = MAX(1, tri_cnt); // avoid crash for not initialised model
 
   roi_geo = (dt_roi_t){ .scale=1.0, .wd=tri_cnt, .ht=sizeof(geo_tri_t)/sizeof(float), .full_wd=tri_cnt, .full_ht=sizeof(geo_tri_t)/sizeof(float) };
