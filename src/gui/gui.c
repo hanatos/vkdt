@@ -21,14 +21,20 @@
 static void
 style_to_state()
 {
-  float bf = MIN(0.48f, MAX(20.0f/vkdt.win.height, vkdt.style.border_frac));
+  vkdt.style.panel_width_frac = 0.2f;
   const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * vkdt.win.height;
+  const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
+  const float fontsize = 2.0f * vkdt.win.content_scale[1] * 19 * dpi_scale; // 2x fontsize: heading
+  float border = MAX(fontsize * 1.1, 4);
+  border = MIN(border, (vkdt.win.width  - pwd)/2);
+  border = MIN(border,  vkdt.win.height/2);
+  // TODO clamp to sane values, in case our min size request is ignored
   vkdt.state = (dt_gui_state_t) {
-    .center_x   = bf * vkdt.win.height,
-    .center_y   = bf * vkdt.win.height,
+    .center_x   = border,
+    .center_y   = border,
     .panel_wd   = pwd,
-    .center_wd  = vkdt.win.width  - 2.0f*vkdt.style.border_frac * vkdt.win.height - pwd,
-    .center_ht  = vkdt.win.height * (1.0f-2.0f*bf),
+    .center_wd  = vkdt.win.width  - 2.0f*border - pwd,
+    .center_ht  = vkdt.win.height - 2.0f*border,
     .panel_ht   = vkdt.win.height,
     .anim_frame = vkdt.state.anim_frame,
     .anim_max_frame = vkdt.state.anim_max_frame,
@@ -45,7 +51,7 @@ framebuffer_size_callback(GLFWwindow* w, int width, int height)
     win->width = width; win->height = height;
     dt_gui_recreate_swapchain(win);
     nk_glfw3_resize(w, win->width, win->height);
-    if(w == vkdt.win.window) dt_gui_init_fonts();
+    dt_gui_init_fonts(); // actually we don't wan this here, but we assume content scale changes also changes framebuffer.
   }
 }
 
@@ -60,7 +66,6 @@ window_size_callback(GLFWwindow* w, int width, int height)
     win->width = width; win->height = height;
     dt_gui_recreate_swapchain(win);
     nk_glfw3_resize(w, win->width, win->height);
-    if(w == vkdt.win.window) dt_gui_init_fonts();
   }
 }
 
@@ -70,6 +75,7 @@ void window_content_scale_callback(GLFWwindow* w, float xscale, float yscale)
   {
     vkdt.win.content_scale[0] = xscale;
     vkdt.win.content_scale[1] = yscale;
+    // would like to trigger a font re-render, unfortunately this here doesn't happen in sync with swapchain creation.
   }
   else
   {
@@ -202,10 +208,6 @@ int dt_gui_init()
   vkdt.wstate.copied_imgid = -1u; // none copied at startup
   threads_mutex_init(&vkdt.wstate.notification_mutex, 0);
 
-  const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-  float rel_fontsize = 2.0f / 55.0f * dpi_scale;
-  vkdt.style.panel_width_frac = 0.2f;
-  vkdt.style.border_frac = rel_fontsize * 1.10f; // large enough to fit 2x fontsize heading
   dt_gui_win_init(&vkdt.win);
 
   // be verbose about monitor names so we can colour manage them:
