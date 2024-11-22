@@ -96,8 +96,10 @@ struct nk_font *dt_gui_get_font(int which)
 void dt_gui_init_fonts()
 {
   char tmp[PATH_MAX+100] = {0};
+  float scalex, scaley;
+  dt_gui_content_scale(vkdt.win.window, &scalex, &scaley); // win1 has to go along
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-  float fontsize = MAX(5, floorf(vkdt.win.height / 55.0f * dpi_scale));
+  float fontsize = MAX(5, floorf(19 * dpi_scale * scaley));
   const char *fontfile = dt_rc_get(&vkdt.rc, "gui/font", "Roboto-Regular.ttf");
   if(fontfile[0] != '/')
     snprintf(tmp, sizeof(tmp), "%s/data/%s", dt_pipe.basedir, fontfile);
