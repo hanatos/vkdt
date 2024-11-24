@@ -565,10 +565,26 @@ void render_lighttable_right_panel()
   if(nk_tree_push(ctx, NK_TREE_TAB, "settings", NK_MINIMIZED))
   {
     nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
+    nk_label(&vkdt.ctx, "vkdt version "VKDT_VERSION, NK_TEXT_LEFT);
+
+    const float ratio[] = {0.7f, 0.3f};
+    nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+
     if(nk_button_label(ctx, "hotkeys"))
       dt_gui_edit_hotkeys();
+    nk_label(ctx, "", 0);
 
-    nk_label(&vkdt.ctx, "vkdt version "VKDT_VERSION, NK_TEXT_LEFT);
+    float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
+    float old_dpi_scale = dpi_scale;
+    nk_property_float(ctx, "#", 0.1, &dpi_scale, 10.0, 0.1, 0.05);
+    dt_tooltip("scale the font size, and with it the whole gui");
+    nk_label(ctx, "gui scale", NK_TEXT_LEFT);
+    if(old_dpi_scale != dpi_scale)
+    {
+      dt_rc_set_float(&vkdt.rc, "gui/dpiscale", dpi_scale);
+      dt_gui_recreate_swapchain(&vkdt.win);
+      dt_gui_init_fonts();
+    }
     nk_tree_pop(ctx);
   }
 
