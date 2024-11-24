@@ -381,8 +381,6 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
 #endif
   if(window) requested_device_extensions[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 
-  requested_device_extensions[len++] = VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME;
-
   VkDeviceCreateInfo dev_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
     .pNext                   = &device_features,
