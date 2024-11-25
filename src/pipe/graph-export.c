@@ -290,6 +290,7 @@ dt_graph_export(
             filename);
       }
       dt_graph_apply_keyframes(graph);
+      graph->double_buffer = 1-graph->double_buffer;
       res = dt_graph_run(graph,
           s_graph_run_record_cmd_buf | 
           ((!param->last_frame_only || (f == graph->frame_cnt-1)) ?

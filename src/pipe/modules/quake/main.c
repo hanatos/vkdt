@@ -847,17 +847,6 @@ void animate(
     dt_module_t *module)
 {
   qs_data_t *dat = module->data;
-  if(dat->worldspawn)
-  {
-    module->graph->gui_msg = 0;
-    module->flags = s_module_request_all;
-    key_dest = key_game;
-    m_state = m_none;
-    IN_Activate();
-    for(int k=0;k<10;k++) Host_Frame(1.0/60.0); // prewarm/avoid multi-frame init problems
-    dat->worldspawn = 0;
-  }
-
   int sv_player_set = 0;
   if(graph->frame == 0)
   { // careful to only do this at == 0 so sv_player (among others) will not crash
@@ -876,6 +865,17 @@ void animate(
       if(q[0]) Cmd_ExecuteString(q, src_command);
       sv_player_set = 0; // just in case we loaded a map (demo, savegame)
     }
+  }
+
+  if(dat->worldspawn)
+  {
+    module->graph->gui_msg = 0;
+    module->flags = s_module_request_all;
+    key_dest = key_game;
+    m_state = m_none;
+    IN_Activate();
+    for(int k=0;k<10;k++) Host_Frame(1.0/60.0); // prewarm/avoid multi-frame init problems
+    dat->worldspawn = 0;
   }
 
   // print these interesting messages from the map:

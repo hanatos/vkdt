@@ -184,6 +184,8 @@ dt_thumbnails_cleanup(
   {
     if(tn->thumb[i].image)      vkDestroyImage    (qvk.device, tn->thumb[i].image,      0);
     if(tn->thumb[i].image_view) vkDestroyImageView(qvk.device, tn->thumb[i].image_view, 0);
+    tn->thumb[i].image      = 0;
+    tn->thumb[i].image_view = 0;
   }
   free(tn->thumb);
   tn->thumb = 0;

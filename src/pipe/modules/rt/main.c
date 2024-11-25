@@ -33,7 +33,7 @@ void modify_roi_out(
     .crop_aabb        = {0, 0, wd, ht},
     .colour_trc       = s_colour_trc_linear,
     .colour_primaries = s_colour_primaries_2020,
-    .cam_to_rec2020   = {1, 0, 0, 0, 1, 0, 0, 0, 1},
+    .cam_to_rec2020   = {0.0f/0.0f, 0, 0, 0, 1, 0, 0, 0, 1},
     .snd_samplerate   = 44100,
     .snd_format       = 2, // SND_PCM_FORMAT_S16_LE
     .snd_channels     = 2, // stereo

@@ -61,6 +61,16 @@ dt_raytrace_graph_cleanup(
   }
 }
 
+#if 0 // for debugging mem leaks, insert this into the buffer creation call:
+    VkDebugMarkerObjectNameInfoEXT name_info = {\
+      .sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,\
+      .object      = (uint64_t)BUF,\
+      .objectType  = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT,\
+      .pObjectName = "ray tracing " # TYPE,\
+    };\
+    qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
+#endif
+
 #define CREATE_BUF_R(TYPE, SZ, BUF, BITS) do { \
   if(BUF) vkDestroyBuffer(qvk.device, BUF, 0);\
   assert(SZ > 0);\

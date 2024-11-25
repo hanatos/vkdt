@@ -151,13 +151,13 @@ dt_graph_cleanup(dt_graph_t *g)
     {
       dt_connector_t *c = g->node[i].connector+j;
       if(c->flags & s_conn_dynamic_array)
-      { // free potential double images for multi-frame dsets
+      { // clear potential double images for multi-frame dsets
         for(int k=0;k<MAX(1,c->array_length);k++)
         { // avoid error message in case image does not exist:
           dt_connector_image_t *img0 = (g->node[i].conn_image[j] != -1) ? dt_graph_connector_image(g, i, j, k, 0) : 0;
           dt_connector_image_t *img1 = (g->node[i].conn_image[j] != -1) ? dt_graph_connector_image(g, i, j, k, 1) : 0;
           if(!img0 || !img1) continue;
-          if(img0->buffer == img1->buffer)
+          if(img0->image == img1->image)
           { // it's enough to clean up one replicant, the rest will shut down cleanly later:
             // if(img0->image) fprintf(stderr, "discarding img %lx -- %lx\n", img0->image, img1 ? img1->image : 0);
             *img0 = (dt_connector_image_t){0};
@@ -541,6 +541,11 @@ dt_graph_connector_image(
 
 void dt_graph_reset(dt_graph_t *g)
 {
+  qvk_queue_name_t qname = g->queue_name;
+  dt_graph_cleanup(g);
+  dt_graph_init(g, qname);
+
+#if 0 // just too hard to maintain:
 #ifdef DEBUG_MARKERS
   dt_stringpool_reset(&g->debug_markers);
 #endif
@@ -554,6 +559,7 @@ void dt_graph_reset(dt_graph_t *g)
   g->thumbnail_image = 0;
   g->query[0].cnt = g->query[1].cnt = 0;
   g->params_end = 0;
+  g->double_buffer = 0;
   for(int i=0;i<g->num_modules;i++)
     if(g->module[i].name && g->module[i].so->cleanup)
       g->module[i].so->cleanup(g->module+i);
@@ -593,10 +599,12 @@ void dt_graph_reset(dt_graph_t *g)
     g->node[i].dset_layout = 0;
     g->node[i].draw_framebuffer = 0;
     g->node[i].draw_render_pass = 0;
+    dt_raytrace_node_cleanup(g->node + i);
   }
   g->conn_image_end = 0;
   g->num_nodes = 0;
   g->num_modules = 0;
+#endif
 }
 
 void
