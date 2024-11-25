@@ -349,7 +349,7 @@ int main(int argc, char *argv[])
         usleep(frame_limiter * 1000);
         continue;
       }
-      dt_log(s_log_perf, "fps %.2g", 1.0/(end_rf - beg_rf));
+      // dt_log(s_log_perf, "fps %.2g", 1.0/(end_rf - beg_rf));
       beg_rf = end_rf;
     }
 

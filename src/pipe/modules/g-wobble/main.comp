@@ -22,8 +22,8 @@ layout(set = 1, binding = 1) writeonly buffer buf_ovtx_t { rtgeo_vtx_t v[]; } bu
 // perform (non-linear) transformation of a point p in world space
 vec3 xform(vec3 p)
 {
-  float rad = 0.3;
-  float angle = (p.y + 0.01*global.frame);
+  float rad = 3;
+  float angle = 0.4*p.y + .1*global.frame;
   vec2 off = vec2(rad, 0);
   mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
   off = rot * off;

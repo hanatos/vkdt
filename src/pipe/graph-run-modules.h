@@ -242,7 +242,7 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   }
   if(module->name == dt_token("bvh")) module->flags |= s_module_request_build_bvh;
   // XXX FIXME this does not work if the *node* has a bvh name
-  if(module->name == dt_token("display"))// || module->name == dt_token("bvh"))
+  if(module->name == dt_token("display") || module->name == dt_token("bvh"))
   { // if this is a display module, walk our input connector and make the connection a feedback thing for double buffering
     if(input >= 0)
     {

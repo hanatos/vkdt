@@ -1011,7 +1011,7 @@ int read_source(
     }
     mod->flags |= s_module_request_build_bvh;
 #endif
-    fprintf(stderr, "uploading stc geo for frame %d node %"PRItkn" with %d tris f %d|%d\n", mod->graph->frame, dt_token_str(p->node->name), tri_cnt, mod->graph->double_buffer, p->node->connector[0].frames);
+    // fprintf(stderr, "uploading stc geo for frame %d node %"PRItkn" with %d tris f %d|%d\n", mod->graph->frame, dt_token_str(p->node->name), tri_cnt, mod->graph->double_buffer, p->node->connector[0].frames);
 #if 0 // debug: quake aabb are in +-4096
     float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
     for(int i=0;i<vtx_cnt;i++) 

@@ -311,7 +311,7 @@ dt_raytrace_graph_alloc(
   {
     bvtx[i] = (VkDescriptorBufferInfo){
       .offset = 0,
-      .buffer = dt_graph_connector_image(graph, graph->rt[f].nid[i], 0, 0, f)->buffer,
+      .buffer = dt_graph_connector_image(graph, graph->rt[f].nid[i], 0, 0, 1-f)->buffer,
       .range  = VK_WHOLE_SIZE,
     };
   }
@@ -389,7 +389,7 @@ dt_raytrace_record_command_buffer_accel_build(
       .buffer = node->rt[f].buf_scratch,
     },{
       .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-      .buffer = dt_graph_connector_image(graph, graph->rt[f].nid[i], 0, 0, f)->buffer,
+      .buffer = dt_graph_connector_image(graph, graph->rt[f].nid[i], 0, 0, fp)->buffer,
     }};
     node->rt[f].build_info.dstAccelerationStructure  = node->rt[f].accel;
     node->rt[f].build_info.scratchData.deviceAddress = vkGetBufferDeviceAddress(qvk.device, address_info+0);

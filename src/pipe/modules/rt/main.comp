@@ -124,7 +124,8 @@ void prepare_intersection(
   float t = rayQueryGetIntersectionTEXT(rq, true);
   x += t*w;
 #else
-  x = b.x * v0 + b.y * v1 + b.z * v2;
+  // x = b.x * v0 + b.y * v1 + b.z * v2;
+  x = mat3(v0, v1, v2) * b;
 #endif
   // n = normalize(b.x * n0 + b.y * n1 + b.z * n2);
   // n = n2;
@@ -133,7 +134,7 @@ void prepare_intersection(
   vec2 st0 = unpackHalf2x16(buf_vtx[it].v[pi+0].st);
   vec2 st1 = unpackHalf2x16(buf_vtx[it].v[pi+1].st);
   vec2 st2 = unpackHalf2x16(buf_vtx[it].v[pi+2].st);
-  st = b.x * st0 + b.y * st1 + b.z * st2;
+  st = mat3x2(st0, st1, st2) * b;
   // if(false)
   { // now fix shading normals below horizon and terminator problem:
     if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
@@ -282,7 +283,8 @@ main()
             thr *= f / ph1 * 0.5 * (w0 + w1);
           }
         }
-        // if(i == 0) aov.rgb = (1.0+wo)/2.0;
+        // if(i == 0) aov.rgb = (1.0+n)/2.0;
+        if(i == 0) aov.rgb = fract(.04+x);
         if(dot(wo,n) <= 0.0) break; // sampled under surface
         // thr *= bsdf * M_PI / ws.z;
         // vec3 h = normalize(wo - w);
@@ -292,7 +294,7 @@ main()
         // aov.rgb = x / (1.0 + x);
         // aov.rgb = vec3(mat);
         // if(mfb > 0) acc += rgb / float(params.spp); // found something emissive
-        // x += 0.001 * (n + wo);
+        x += 0.001 * n;
         w = wo;
       }
       else if(dist > 1000.0)
