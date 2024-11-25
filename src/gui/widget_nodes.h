@@ -305,7 +305,8 @@ dt_node_editor(
     if(mid2 < graph->num_modules && module == nedit->selected) continue; // skip 1st time we iterate over this module
     const int mid = module - graph->module; // fix index
 
-    struct nk_rect module_bounds = nk_rect(module->gui_x, module->gui_y, vkdt.state.center_ht * 0.1, 0);
+    const float mod_wd = 7*dt_gui_get_font(0)->handle.height;
+    struct nk_rect module_bounds = nk_rect(module->gui_x, module->gui_y, mod_wd, 0);
     struct nk_vec2 lbb_min = dt_node_world_to_view(nedit, nk_vec2(module->gui_x, module->gui_y));
     struct nk_vec2 lbb_max = dt_node_world_to_view(nedit, nk_vec2(module->gui_x + module_bounds.w, module->gui_y));
     struct nk_rect lbb = nk_rect(lbb_min.x, lbb_min.y, lbb_max.x-lbb_min.x, row_height * (module->num_connectors + 3));
@@ -404,7 +405,8 @@ dt_node_editor(
         if(mido >= 0)
         { // draw link to output if we are connected
           dt_module_t *mo = graph->module + mido;
-          struct nk_rect mo_bounds = nk_rect(mo->gui_x, mo->gui_y, vkdt.state.center_ht * 0.1, row_height * (mo->num_connectors + 3));
+          const float mod_wd = 7*dt_gui_get_font(0)->handle.height;
+          struct nk_rect mo_bounds = nk_rect(mo->gui_x, mo->gui_y, mod_wd, row_height * (mo->num_connectors + 3));
           struct nk_vec2 l0 = nk_layout_space_to_screen(ctx,
               dt_node_world_to_view(nedit,
                 nk_vec2(
