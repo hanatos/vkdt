@@ -241,8 +241,9 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     }
   }
   if(module->name == dt_token("bvh")) module->flags |= s_module_request_build_bvh;
-  // XXX FIXME this does not work if the *node* has a bvh name
-  if(module->name == dt_token("display") || module->name == dt_token("bvh"))
+  // this does not work if the *node* has a bvh name. in this case create_nodes has to take care of the correct flags manually.
+  if(module->name == dt_token("display") ||
+    (module->name == dt_token("bvh") && dt_module_param_int(module, dt_module_get_param(module->so, dt_token("animate")))[0]))
   { // if this is a display module, walk our input connector and make the connection a feedback thing for double buffering
     if(input >= 0)
     {
