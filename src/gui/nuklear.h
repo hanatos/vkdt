@@ -9602,7 +9602,7 @@ nk_draw_text(struct nk_command_buffer *b, struct nk_rect r,
         length = nk_text_clamp(font, string, length, r.w, &glyphs, &txt_width, 0,0);
     }
 
-    if (!length) return;
+    if (length <= 0) return;
     cmd = (struct nk_command_text*)
         nk_command_buffer_push(b, NK_COMMAND_TEXT, sizeof(*cmd) + (nk_size)(length + 1));
     if (!cmd) return;
