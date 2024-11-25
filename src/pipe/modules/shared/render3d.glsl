@@ -149,13 +149,13 @@ float bsdf_rough_D(float roughness, const vec3 n, const vec3 h)
 }
 
 float bsdf_rough_eval(
-    vec3 V, vec3 du, vec3 dv, vec3 n, vec3 L, vec2 a)
+    vec3 wi, vec3 du, vec3 dv, vec3 n, vec3 wo, vec2 a)
 {
   float roughness = a.x;
-  vec3 h = normalize(L-V);
+  vec3 h = normalize(wo-wi);
   float D  = bsdf_rough_D(roughness, n, h);
-  float G2 = bsdf_rough_G2(V, L, n, roughness*roughness);
-  return D * G2 / (4.0 * dot(-V,n) * dot(L,n));
+  float G2 = bsdf_rough_G2(wi, wo, n, roughness*roughness);
+  return D * G2 / (4.0 * dot(-wi,n) * dot(wo,n));
 }
 
 float bsdf_rough_pdf(
@@ -163,12 +163,12 @@ float bsdf_rough_pdf(
 {
 #if 0
   vec3 h = normalize(wo-wi);
-  float D  = bsdf_rough_D(roughness, n, h);
-  float G1 = bsdf_rough_G1(wi, wo, n, roughness*roughness);
+  float D  = bsdf_rough_D(a.x, n, h);
+  float G1 = bsdf_rough_G1(wi, wo, n, a.x*a.x);
   return abs(G1 * dot(wi, h) * D / dot(wi, n));
 #else // Bounded VNDF Sampling for the Smith-GGX BRDF, Tokuyoshi and Eto 2024
   float roughness = a.x;
-  // XXX i and o point away from surface and are in local tangent space!
+  // i and o point away from surface and are in local tangent space!
   vec3 h = normalize(wo-wi);
   float D = bsdf_rough_D(roughness, n, h);
   vec2 ai = a * vec2(-dot(du, wi), -dot(dv, wi));
@@ -183,10 +183,10 @@ float bsdf_rough_pdf(
     float k = (1.0 - a2) * s2 / (s2 + a2 * iz * iz); // Eq . 6
     return D / (2.0 * (t - k * iz)); // Eq . 10 * || dm / do ||
   }
-  return 0.0;
+  // return 0.0;
   // incident from under the surface. wtf?
   // Numerically stable form of the previous PDF for i.z < 0
-  // return ndf * (t - i.z) / (2.0 * len2 ); // = Eq . 8 * || dm / do ||
+  return D * (t + iz) / (2.0 * len2 ); // = Eq . 8 * || dm / do ||
 #endif
 }
 

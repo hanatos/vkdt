@@ -251,24 +251,26 @@ main()
         float roughness = 0.4;//max(0.01, 0.2*(1.0-diffcol.r));
 
         vec3 wo;
-#if 1 // default cosine
+#if 0 // default cosine
         {
           vec3 ws = sample_cos(vec2(rand64(seed), rand64(seed)));
           // uint s2 = uint(seed);
           // vec3 ws = sample_cos(vec2(mrand(s2), mrand(s2)));
           wo = mat3(du, dv, n) * ws;
+          float pdf = ws.z / M_PI;
           // vec3 h = normalize(wo - w);
-          vec4 f = vec4(bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)));// * fresnel(0, lambda, 1.0, dot(wo, h));
-          thr *= f / M_PI;
+          vec4 f = vec4(ws.z * bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)));// * fresnel(0, lambda, 1.0, dot(wo, h));
+          thr *= f/pdf;
         }
 #endif
-#if 0 // importance sampling the bsdf
+#if 1 // importance sampling the bsdf
         {
           float weight = 1.0;
           wo = bsdf_rough_sample(w, du, dv, n, vec2(roughness), vec2(rand64(seed), rand64(seed)), weight);
           // vec3 h = normalize(wo - w);
           // fresnel(0, lambda, 1.0, dot(wo, h));
-          // weight = max(0.0, dot(n, wo))*bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)) / bsdf_rough_pdf(w, du, dv, n, wo, vec2(roughness));
+          weight = max(0.0, dot(n, wo))*bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)) / bsdf_rough_pdf(w, du, dv, n, wo, vec2(roughness));
+          // weight = max(0.0, dot(n, wo)) / bsdf_rough_pdf(w, du, dv, n, wo, vec2(roughness));
           thr *= weight;
         }
 #endif
