@@ -30,6 +30,12 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int spp;
 } params;
 
+layout(push_constant, std140) uniform push_t
+{
+  int wd;
+  int ht;
+} push;
+
 layout(set = 1, binding = 0) buffer buf_fb_t { float v[]; } buf_fb;
 #include "shared/fb.glsl"
 layout(set = 1, binding = 1) uniform sampler2D img_blue;
@@ -167,7 +173,7 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, imageSize(img_aov)))) return;
+  if(any(greaterThanEqual(ipos, ivec2(push.wd, push.ht)))) return;
 
   uint64_t seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
   // blue noise dither mask
@@ -198,10 +204,10 @@ main()
       vec3 f = params.cam_w.xyz;
       vec3 up = vec3(0, 0, 1);
       vec3 r = normalize(cross(f, up));
-      vec3 t = normalize(cross(f, r)) * float(imageSize(img_aov).y)/float(imageSize(img_aov).x);
+      vec3 t = normalize(cross(f, r)) * float(push.ht)/float(push.wd);
 
-      vec2 uv = (ipos+filter_bh_sample(rand.yz))/imageSize(img_aov) - 0.5;
-      // vec2 uv = (ipos+0.5)/imageSize(img_aov) - 0.5;
+      vec2 uv = (ipos+filter_bh_sample(rand.yz))/vec2(push.wd, push.ht) - 0.5;
+      // vec2 uv = (ipos+0.5)/vec2(push.wd, pus.ht) - 0.5;
       w = normalize(0.45*f + r*uv.x + t*uv.y);
     }
 
@@ -344,6 +350,6 @@ main()
     acc_col += colour_to_rgb(acc, lambda, hrp);
   } // end spp
 
-  fb_set(ipos, imageSize(img_aov), acc_col);
+  fb_set(ipos, ivec2(push.wd, push.ht), acc_col);
   imageStore(img_aov, ipos, aov);
 }
