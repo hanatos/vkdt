@@ -6,12 +6,12 @@ fresnel(
     float n1,    // the ior of the medium we're currently in
     float cosr)  // the cosine of the incoming/mirror reflected ray
 {
-#if 0 // Au
+#if 1 // Au
   // turingbot says this is a good fit in 380--720 (diverges a bit away around 800 nm)
   vec4 ior = 1.16308-sin(1.14531*(0.457845+cos(0.00894816*(20.1947*cos(0.0334696*(24.8434+lambda))+lambda))));
   vec4 kappa = 0.00738787*((2.33998-cos(0.0344368*(lambda-20.7609)))*(30.9339*cos(5.48433*log(lambda))-10.4363-1.58234*cos(lambda*(-7.3151e-05)*lambda))+lambda-124.02);
 #endif
-#if 1 // Cu
+#if 0 // Cu
   // is a bit off below 400nm
   vec4 ior = 1.21333+cos(0.00395433*(lambda+cos(0.0394955*lambda)/0.052127+log((-356.328)+lambda)*cos(0.0188123*lambda)/0.0518843));
   vec4 kappa = 0.00693785*(56.1866*cos((-0.0164339)*(lambda-24.9456*cos(max(vec4(-18.8496),(-0.0244734)*lambda))))+lambda-33.6468-97.3276);

@@ -248,7 +248,7 @@ main()
                 // st
                 x.xz/100.0
                 ).rgb, vec3(2.0)), lambda);
-        float roughness = 0.4;//max(0.01, 0.2*(1.0-diffcol.r));
+        float roughness = 0.15;//max(0.01, 0.2*(1.0-diffcol.r));
 
         vec3 wo;
 #if 0 // default cosine
@@ -273,7 +273,7 @@ main()
           thr *= weight;
         }
 #endif
-#if 1 // envmap sampling
+#if 0 // envmap sampling
         {
           float weight = 1.0;
           wo = env_sample(vec2(rand64(seed), rand64(seed)), img_env, weight);
@@ -281,7 +281,7 @@ main()
           thr *= weight;
         }
 #endif
-#if 0 // resampling thing:
+#if 1 // resampling thing:
         { // do both and resample!
           // p_hat = env * brdf * cos
           // p0 = bsdf_pdf, p1 = env_pdf
@@ -295,7 +295,6 @@ main()
           vec3 wo0 = bsdf_rough_sample(w, du, dv, n, vec2(roughness), vec2(rand64(seed), rand64(seed)), w0);
           float p0 = bsdf_rough_pdf(w, du, dv, n, wo0, vec2(roughness));
           vec3 h0 = normalize(wo0 - w);
-          // XXX with cosine wo0,n or not?
           float ph0 = p0 * env_pdf(wo0, img_env) * (dot(wo0,n) > 0 ? 1 : 0) * dot(vec4(1), fresnel(0, lambda, 1.0, dot(wo0, h0)));
           w0 = ph0 / p0;
 
