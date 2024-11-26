@@ -103,7 +103,8 @@ dt_draw_param_line(
       drag_k = drag_mod = -1u;
       modified = 1;
     }
-    if (nk_input_has_mouse_click_in_rect(&ctx->input, NK_BUTTON_RIGHT, bbk))
+    if (nk_input_has_mouse_click(&ctx->input, NK_BUTTON_RIGHT) &&
+        nk_input_has_mouse_click_in_rect(&ctx->input, NK_BUTTON_RIGHT, bbk))
     { // right click: delete this keyframe by copying the last one over it and decreasing keyframe_cnt
       mod->keyframe[k--] = mod->keyframe[--mod->keyframe_cnt];
       modified = 1;

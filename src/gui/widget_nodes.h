@@ -379,7 +379,9 @@ dt_node_editor(
         };
         const int hovering_circle = nk_input_is_mouse_hovering_rect(in, circle);
         if (!disabled && hovering_circle) mouse_over_something = 2;
-        if (!disabled && nk_input_has_mouse_click_in_rect(in, NK_BUTTON_RIGHT, circle))
+        if (!disabled &&
+            nk_input_has_mouse_click(in, NK_BUTTON_RIGHT) &&
+            nk_input_has_mouse_click_in_rect(in, NK_BUTTON_RIGHT, circle))
         { // if right clicked on the connector disconnect
           clicked_circle = 1;
           dt_module_connect_with_history(graph, -1, -1, mid, c);
