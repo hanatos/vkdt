@@ -40,8 +40,8 @@ targets, such as the main view and histograms.
 
 there are [nightly packages built by the github ci](https://github.com/hanatos/vkdt/releases/tag/nightly).
 
-also there are [nixos packages](https://search.nixos.org/packages?channel=unstable&show=vkdt) `vkdt`
-and `vkdt-wayland` which you can use to try out/run on any linux distro, for instance:
+also there is a [nixos package](https://search.nixos.org/packages?channel=unstable&show=vkdt) `vkdt`
+which you can use to try out/run on any linux distro, for instance:
 ```
   nix-shell -p vkdt
 ```
@@ -94,7 +94,7 @@ and we may link to some others, too.
 
 ## dependencies
 * vulkan, glslangValidator (libvulkan-dev, glslang-tools, or use the sdk)
-* glfw (libglfw3-dev and libglfw3, only use libglfw3-wayland if you're on wayland)
+* glfw (libglfw3-dev and libglfw3, use >=3.4 if you can for best wayland support)
 * for raw input support:
   * either rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp, build-depends on cmake, libomp-dev, optionally libexiv2)
   * or rawler (depends on rust toolchain which will manage their own dependencies)
@@ -108,7 +108,7 @@ the full list of packages used to build the nightly appimages can be found in th
 optional (configure in `bin/config.mk`):
 
 * exiv2 (libexiv2-dev) for raw metadata loading to assign noise profiles, only needed for rawspeed builds
-* asound (libasound2) for audio support in mlv raw video
+* asound (libasound2) for audio support in video and quake
 * ffmpeg (libavformat-dev libavcodec-dev) for the video io modules `i-vid` and `o-vid`
 
 you can also build without rawspeed or rawler if that is useful for you.
@@ -119,7 +119,11 @@ you can also build without rawspeed or rawler if that is useful for you.
 yes. use the rawler backend.
 
 * **does it work with wayland?**  
-`vkdt` has been confirmed to run on wayland, using amd and nvidia hardware.
+`vkdt` officially runs natively on wayland and *better* than on x11. use
+glfw>=3.4 for this. details vary a lot with compositor, hyprland is excellent.
+caveat and pain point is colour management, the builtin mechanism in `vkdt`
+works, but only on a single screen. creating the display profile depends on
+argyll/displaycal of course and still requires x11.
 
 * **can i run my super long running kernel without timeout?**  
 if you're using your only gpu in the system, you'll need to run without xorg,
