@@ -263,7 +263,7 @@ main()
           thr *= f/pdf;
         }
 #endif
-#if 1 // importance sampling the bsdf
+#if 0 // importance sampling the bsdf
         {
           float weight = 1.0;
           wo = bsdf_rough_sample(w, du, dv, n, vec2(roughness), vec2(rand64(seed), rand64(seed)), weight);
@@ -273,10 +273,11 @@ main()
           thr *= weight;
         }
 #endif
-#if 0 // envmap sampling
+#if 1 // envmap sampling
         {
           float weight = 1.0;
           wo = env_sample(vec2(rand64(seed), rand64(seed)), img_env, weight);
+          thr *= max(0.0, dot(n, wo))*bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness));
           thr *= weight;
         }
 #endif

@@ -26,7 +26,7 @@ vec3 env_lookup(vec3 w, sampler2D img_env)
 #endif
 }
 
-vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
+vec3 env_sample(vec2 xi, sampler2D img_env, out float X)
 {
   ivec2 size = textureSize(img_env, 0);
   size.y = size.x / 2;
@@ -44,7 +44,7 @@ vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
     x *= 2;
     vec4 v = texelFetch(img_env, tc, 0);
     float thrx = (v.r + v.b) / (v.r+v.g+v.b+v.a), thry;
-    if(sum < 0.0) sum = v.r+v.g;//+v.b+v.a;
+    if(sum < 0.0) sum = (v.r+v.g)/2.0; // single last pixel only has two children, left and right
     if(xi.x > thrx)
     {
       x.x++;
@@ -75,7 +75,7 @@ vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
   float l01 = dot(vec3(1), texelFetch(img_env, x+ivec2(0,1), 0).rgb) * sin((x.y+1+0.5)/float(size.y) * M_PI);
   float l10 = dot(vec3(1), texelFetch(img_env, x+ivec2(1,0), 0).rgb) * sin((x.y+  0.5)/float(size.y) * M_PI);
   float l11 = dot(vec3(1), texelFetch(img_env, x+ivec2(1,1), 0).rgb) * sin((x.y+1+0.5)/float(size.y) * M_PI);
-
+  
   float thry;
   float thrx = (l00 + l10) / (l00+l01+l10+l11);
   if(xi.x > thrx)
@@ -90,14 +90,22 @@ vec3 env_sample(vec2 xi, sampler2D img_env, inout float X)
   if(xi.x <= thrx && xi.y >  thry) l = l10;
   if(xi.x >  thrx && xi.y >  thry) l = l11;
 
-  float pdf = l / sum;
+  if(xi.x > thrx) xi.x = (xi.x-thrx)/(1.0-thrx);
+  else            xi.x /= thrx;
+  if(xi.y > thry) xi.y = (xi.y-thry)/(1.0-thry);
+  else            xi.y /= thry;
+
+  float pdf = l / sum; // probability to select this texel
   vec2 angles = (x + xi) / vec2(size);
 
-  // TODO: ratio of quantised vs unquantised sin(theta_pixel_center)/sin(theta)
-  pdf *= 1.0 / (2.0*M_PI*M_PI); // convert to solid angle
-  X /= pdf;
+  pdf /= sin(angles.y*M_PI); // unquantised sin(theta)
+  pdf /= 2.0*M_PI*M_PI; // convert to continuous
+  X = 1.0/pdf;
 
-  return vec3(cos((angles.x-0.5)*2.0*M_PI), sin((angles.x-0.5)*2.0*M_PI), cos(angles.y*M_PI));
+  return vec3(
+      sin(angles.y*M_PI)*cos((angles.x-0.5)*2.0*M_PI),
+      sin(angles.y*M_PI)*sin((angles.x-0.5)*2.0*M_PI),
+      cos(angles.y*M_PI));
 }
 
 float env_pdf(vec3 w, sampler2D img_env)

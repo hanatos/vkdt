@@ -233,6 +233,7 @@ int read_source(
   // this only works for powers of two, and w = 2h kinda lat/lon maps:
   // create importance sampling mipmap in the lower part of the image
 
+  float *img = mapped;
   int off = hdr->width * hdr->height;
   int wd = hdr->width / 4, ht = hdr->height / 4, m = 1;
   while(wd >= 1)
@@ -241,7 +242,6 @@ int read_source(
     wd /= 2;
   }
 
-  float *img = mapped;
   wd = hdr->width/4;
   int off_prev = off;
   while(wd >= 1)
@@ -250,8 +250,11 @@ int read_source(
     // man this is slow.
     for(int j=0;j<MAX(1,ht);j++)
     { // haul out of loop:
-      float sin4[] = { sinf(((4*j+0+0.5f) / (hdr->height))*M_PI), sinf(((4*j+1+0.5f) / (hdr->height))*M_PI),
-        sinf(((4*j+2+0.5f) / (hdr->height))*M_PI), sinf(((4*j+3+0.5f) / (hdr->height))*M_PI)};
+      float sin4[] = {
+        m==1?sinf(((4*j+0+0.5f) / (hdr->height))*M_PI):0,
+        m==1?sinf(((4*j+1+0.5f) / (hdr->height))*M_PI):0,
+        m==1?sinf(((4*j+2+0.5f) / (hdr->height))*M_PI):0,
+        m==1?sinf(((4*j+3+0.5f) / (hdr->height))*M_PI):0};
       for(int i=0;i<wd;i++)
       { // for all pixels in current mip map level m
         int idx = wd*j + i;
