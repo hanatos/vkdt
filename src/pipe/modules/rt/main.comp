@@ -213,9 +213,9 @@ main()
 
     aov.rgb = (1.0+w)/2.0;
 
-    for(int i=0;i<2;i++)
+    for(int i=0;i<5;i++)
     { // for a number of bounces
-      const float dist = 100000.0;// volume_sample_dist(x, w, rand64(seed));
+      const float dist = volume_sample_dist(x, w, rand64(seed));
       rayQueryEXT rq;
       rayQueryInitializeEXT(rq, rt_accel,
          gl_RayFlagsNoneEXT,
@@ -246,9 +246,9 @@ main()
         // float roughness = pow(fbm3(x), 2);
         vec4 diffcol = rgb_to_spectrum(pow(texture(img_tex[nonuniformEXT(mat%7)],
                 // st
-                x.xz/100.0
+                x.xy*0.1
                 ).rgb, vec3(2.0)), lambda);
-        float roughness = 0.15;//max(0.01, 0.2*(1.0-diffcol.r));
+        float roughness = max(0.01, 0.15*(1.0-diffcol.r));
 
         vec3 wo;
 #if 0 // default cosine
@@ -258,17 +258,17 @@ main()
           // vec3 ws = sample_cos(vec2(mrand(s2), mrand(s2)));
           wo = mat3(du, dv, n) * ws;
           float pdf = ws.z / M_PI;
-          // vec3 h = normalize(wo - w);
-          vec4 f = vec4(ws.z * bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)));// * fresnel(0, lambda, 1.0, dot(wo, h));
+          vec3 h = normalize(wo - w);
+          vec4 f = ws.z * bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)) * fresnel(0, lambda, 1.0, dot(wo, h));
           thr *= f/pdf;
         }
 #endif
-#if 0 // importance sampling the bsdf
+#if 1 // importance sampling the bsdf
         {
           float weight = 1.0;
           wo = bsdf_rough_sample(w, du, dv, n, vec2(roughness), vec2(rand64(seed), rand64(seed)), weight);
-          // vec3 h = normalize(wo - w);
-          // fresnel(0, lambda, 1.0, dot(wo, h));
+          vec3 h = normalize(wo - w);
+          thr *= fresnel(0, lambda, 1.0, dot(wo, h));
           // weight = max(0.0, dot(n, wo))*bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)) / bsdf_rough_pdf(w, du, dv, n, wo, vec2(roughness));
           thr *= weight;
         }
@@ -281,7 +281,7 @@ main()
           thr *= weight;
         }
 #endif
-#if 1 // resampling thing:
+#if 0 // resampling thing:
         { // do both and resample!
           // p_hat = env * brdf * cos
           // p0 = bsdf_pdf, p1 = env_pdf

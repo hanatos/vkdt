@@ -195,7 +195,6 @@ create_nodes(
 
   dt_roi_t roi_gbuf = { .wd = module->connector[0].roi.wd, .ht = module->connector[0].roi.ht * 4 };
   int pc[] = { module->connector[0].roi.wd, module->connector[0].roi.ht };
-  fprintf(stderr, "got wd ht %d %d \n", pc[0], pc[1]);
   int id_rt = dt_node_add(graph, module, "rt", "main", 
       module->connector[0].roi.wd, module->connector[0].roi.ht, 1, sizeof(pc), pc, 5,
       "output",   "write", "ssbo", "f32",  &roi_gbuf,                 // 0
