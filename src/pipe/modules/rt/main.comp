@@ -269,8 +269,14 @@ main()
           wo = bsdf_rough_sample(w, du, dv, n, vec2(roughness), vec2(rand64(seed), rand64(seed)), weight);
           // vec3 h = normalize(wo - w);
           // fresnel(0, lambda, 1.0, dot(wo, h));
-          weight = max(0.0, dot(n, wo))*bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)) / bsdf_rough_pdf(w, du, dv, n, wo, vec2(roughness));
-          // weight = max(0.0, dot(n, wo)) / bsdf_rough_pdf(w, du, dv, n, wo, vec2(roughness));
+          // weight = max(0.0, dot(n, wo))*bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)) / bsdf_rough_pdf(w, du, dv, n, wo, vec2(roughness));
+          thr *= weight;
+        }
+#endif
+#if 0 // envmap sampling
+        {
+          float weight = 1.0;
+          wo = env_sample(vec2(rand64(seed), rand64(seed)), img_env, weight);
           thr *= weight;
         }
 #endif
@@ -329,10 +335,10 @@ main()
       }
       else if(dist > 1000.0)
       { // escaped to environment map
-        // vec3 env = env_lookup(w, img_env);
-        // vec4 L = rgb_to_spectrum(env, lambda);
-        vec4 Lc = colour_blackbody(lambda, 6504.0); // not quite D65
-        vec4 L = pow(1.0+dot(vec3(0,0,1), w), 3.0) * 0.5 * Lc;
+        vec3 env = env_lookup(w, img_env);
+        vec4 L = rgb_to_spectrum(env, lambda);
+        // vec4 Lc = colour_blackbody(lambda, 6504.0); // not quite D65
+        // vec4 L = pow(1.0+dot(vec3(0,0,1), w), 3.0) * 0.5 * Lc;
         acc += thr*L / float(params.spp);
         // aov.rgb = (1.0+w)/2.0;
         break;

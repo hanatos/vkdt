@@ -6,6 +6,8 @@
 #define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
 #define NK_INCLUDE_FONT_BAKING
 // #define NK_BUTTON_TRIGGER_ON_RELEASE
+// unfortunately the builtin-nk function triggers infinite loops at times:
+#define NK_DTOA(S, D) sprintf(S, "%g", D)
 #include "nuklear.h"
 #include "nuklear_glfw_vulkan.h"
 

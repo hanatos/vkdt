@@ -131,7 +131,7 @@ vec3 bsdf_rough_sample(vec3 wi, vec3 du, vec3 dv, vec3 n, vec2 alpha, vec2 xi, o
   vec3 m = normalize(vec3(m_std.xy * alpha, m_std.z));
   // Return the reflection vector o
   vec3 o = 2.0 * dot(i, m) * m - i;
-  float t = sqrt(dot(i_std.xy*alpha,i_std.xy*alpha) + i.z*i.z);
+  float t = sqrt(dot(i.xy*alpha,i.xy*alpha) + i.z*i.z);
   vec3 wo = du * o.x + dv * o.y + n * o.z;
   // return f_r * cos / pdf, i.e. don't cancel the extra o.z
   X = bsdf_rough_G2(wi, wo, n, a2) / (4.0 * i.z) * (2.0 * (t + k * i.z));
