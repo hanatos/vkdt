@@ -263,7 +263,7 @@ main()
           thr *= f/pdf;
         }
 #endif
-#if 1 // importance sampling the bsdf
+#if 0 // importance sampling the bsdf
         {
           float weight = 1.0;
           wo = bsdf_rough_sample(w, du, dv, n, vec2(roughness), vec2(rand64(seed), rand64(seed)), weight);
@@ -281,7 +281,7 @@ main()
           thr *= weight;
         }
 #endif
-#if 0 // resampling thing:
+#if 1 // resampling thing:
         { // do both and resample!
           // p_hat = env * brdf * cos
           // p0 = bsdf_pdf, p1 = env_pdf
@@ -345,7 +345,9 @@ main()
       }
       else
       { // scattering in medium
+        thr *= rgb_to_spectrum(vec3(1.0, 0.97, 0.6), lambda); // scattering albedo
         x += dist * w;
+#if 0 // sample phase function
         const float cosu = volume_sample_phase_function_cos(vec2(rand64(seed),rand64(seed)));
         vec3 du, dv, up = vec3(1,0,0);
         if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
@@ -353,6 +355,41 @@ main()
         dv = normalize(cross(du, w));
         const float phi = 2.0*M_PI*rand64(seed);
         w = cosu * w + sqrt(1.0-cosu*cosu) * (sin(phi) * du + cos(phi) * dv);
+#endif
+#if 1 // resample env + phase function
+        float w0 = 1.0, w1 = 1.0;
+
+        // phase sampling
+        const float cosu = volume_sample_phase_function_cos(vec2(rand64(seed),rand64(seed)));
+        float p0 = volume_phase_function(cosu);
+        vec3 du, dv, up = vec3(1,0,0);
+        if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
+        du = normalize(cross(up, w));
+        dv = normalize(cross(du, w));
+        const float phi = 2.0*M_PI*rand64(seed);
+        vec3 wo0 = cosu * w + sqrt(1.0-cosu*cosu) * (sin(phi) * du + cos(phi) * dv);
+        float ph0 = p0 * env_pdf(wo0, img_env);
+        w0 = ph0 / p0;
+
+        // envmap sampling
+        vec3 wo1 = env_sample(vec2(rand64(seed), rand64(seed)), img_env, w1);
+        float p1 = 1.0/w1;
+        float ph1 = p1 * volume_phase_function(dot(wo1, w));
+        w1 = ph1 / p1;
+
+        if(rand64(seed) < w0/(w0+w1))
+        {
+          w = wo0;
+          vec4 f = vec4(p0);
+          thr *= f / ph0 * 0.5 * (w0 + w1);
+        }
+        else
+        {
+          w = wo1;
+          vec4 f = vec4(w1);
+          thr *= f / ph1 * 0.5 * (w0 + w1);
+        }
+#endif
       }
     }
     acc_col += colour_to_rgb(acc, lambda, hrp);
