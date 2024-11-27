@@ -712,8 +712,8 @@ void render_darkroom()
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
   }
-  // reset rotary encoder knob counter
-  gui.pgupdn = 0;
+  gui.pgupdn = 0;  // reset rotary encoder knob counter
+  gui.hotkey = -1; // reset hotkey, we worked on all we could
 }
 
 void render_darkroom_init()
