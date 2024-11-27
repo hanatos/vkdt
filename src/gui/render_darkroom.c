@@ -613,8 +613,21 @@ void render_darkroom()
     else if(current_tab == 1)
     {
       nk_layout_row_dynamic(ctx, row_height, 1);
+      if(nk_widget_is_hovered(ctx))
+      {
+        char hk[64];
+        hk_get_hotkey_lib(hk_darkroom + s_hotkey_nodes_enter, hk, sizeof(hk));
+        dt_tooltip("show node graph editor\n%s", hk);
+      }
       if(nk_button_label(ctx, "open node editor"))
         dt_view_switch(s_view_nodes);
+      if(nk_widget_is_hovered(ctx))
+      {
+        char hk0[64], hk1[64];
+        hk_get_hotkey_lib(hk_darkroom + s_hotkey_undo, hk0, sizeof(hk0));
+        hk_get_hotkey_lib(hk_darkroom + s_hotkey_redo, hk1, sizeof(hk1));
+        dt_tooltip("show edit history in left panel\n%s\n%s", hk0, hk1);
+      }
       if(nk_button_label(ctx, "toggle history panel"))
         dt_gui_dr_toggle_history();
       render_darkroom_full(filter_name, filter_inst);
@@ -664,6 +677,12 @@ void render_darkroom()
         nk_label(ctx, "frame rate", NK_TEXT_LEFT);
         if(vkdt.graph_dev.frame_cnt != 1)
         {
+          if(nk_widget_is_hovered(ctx))
+          {
+            char hk[64];
+            hk_get_hotkey_lib(hk_darkroom + s_hotkey_dopesheet, hk, sizeof(hk));
+            dt_tooltip("toggle keyframe editor\n%s", hk);
+          }
           if(vkdt.wstate.dopesheet_view <= 0.0f && nk_button_label(ctx, "show dopesheet"))
           {
             dt_gui_dr_show_dopesheet();
@@ -689,8 +708,20 @@ void render_darkroom()
       if(nk_tree_push(ctx, NK_TREE_TAB, "presets", NK_MINIMIZED))
       {
         nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
+        if(nk_widget_is_hovered(ctx))
+        {
+          char hk[64];
+          hk_get_hotkey_lib(hk_darkroom + s_hotkey_create_preset, hk, sizeof(hk));
+          dt_tooltip("form a new preset from items in the current history\n%s", hk);
+        }
         if(nk_button_label(ctx, "create preset"))
           dt_gui_dr_preset_create();
+        if(nk_widget_is_hovered(ctx))
+        {
+          char hk[64];
+          hk_get_hotkey_lib(hk_darkroom + s_hotkey_apply_preset, hk, sizeof(hk));
+          dt_tooltip("select preset from the list\n%s", hk);
+        }
         if(nk_button_label(ctx, "apply preset"))
           dt_gui_dr_preset_apply();
         nk_tree_pop(ctx);
