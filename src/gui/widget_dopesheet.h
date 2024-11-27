@@ -71,6 +71,7 @@ dt_draw_param_line(
         nk_labelf(ctx, NK_TEXT_LEFT, "%"PRItkn " %f", dt_token_str(mod->so->param[p]->name), *((float*)mod->keyframe[k].data));
         nk_label(ctx, "right click to delete", NK_TEXT_LEFT);
         nk_label(ctx, "left click and drag to move", NK_TEXT_LEFT);
+        nk_label(ctx, "see hotkeys to duplicate (default shift-d)", NK_TEXT_LEFT);
         nk_tooltip_end(ctx);
       }
       nk_style_pop_vec2(ctx);
