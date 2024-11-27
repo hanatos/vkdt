@@ -557,11 +557,16 @@ void render_darkroom()
       else if(nk_button_label(ctx, "\ue037"))
         dt_gui_dr_anim_start();
       nk_style_pop_font(ctx);
-      dt_tooltip("timeline navigation: set current frame.\n"
-          "press space to play/pause and\n"
-          "backspace to reset to beginning.\n"
-          "hint: you can hover over many controls\n"
-          "and press the keyframe hotkey (default ctrl-k)");
+      if(nk_widget_is_hovered(ctx))
+      {
+        char hk[64];
+        hk_get_hotkey_lib(hk_darkroom + s_hotkey_insert_keyframe, hk, sizeof(hk));
+        dt_tooltip("timeline navigation: set current frame.\n"
+            "press space to play/pause and\n"
+            "backspace to reset to beginning.\n"
+            "hint: you can add keyframes for many controls "
+            "in the context menu or hover and press the hotkey\n%s", hk);
+      }
       nk_size anim_frame = vkdt.state.anim_frame;
       struct nk_rect bb = nk_widget_bounds(ctx);
       if(nk_progress(ctx, &anim_frame, vkdt.state.anim_max_frame, nk_true))
@@ -623,10 +628,11 @@ void render_darkroom()
         dt_view_switch(s_view_nodes);
       if(nk_widget_is_hovered(ctx))
       {
-        char hk0[64], hk1[64];
-        hk_get_hotkey_lib(hk_darkroom + s_hotkey_undo, hk0, sizeof(hk0));
-        hk_get_hotkey_lib(hk_darkroom + s_hotkey_redo, hk1, sizeof(hk1));
-        dt_tooltip("show edit history in left panel\n%s\n%s", hk0, hk1);
+        char hk0[64], hk1[64], hk2[64];
+        hk_get_hotkey_lib(hk_darkroom + s_hotkey_show_history, hk0, sizeof(hk0));
+        hk_get_hotkey_lib(hk_darkroom + s_hotkey_undo, hk1, sizeof(hk1));
+        hk_get_hotkey_lib(hk_darkroom + s_hotkey_redo, hk2, sizeof(hk2));
+        dt_tooltip("show edit history in left panel\n%s\n%s\n%s", hk0, hk1, hk2);
       }
       if(nk_button_label(ctx, "toggle history panel"))
         dt_gui_dr_toggle_history();
