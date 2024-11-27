@@ -615,6 +615,8 @@ void render_darkroom()
       nk_layout_row_dynamic(ctx, row_height, 1);
       if(nk_button_label(ctx, "open node editor"))
         dt_view_switch(s_view_nodes);
+      if(nk_button_label(ctx, "toggle history panel"))
+        dt_gui_dr_toggle_history();
       render_darkroom_full(filter_name, filter_inst);
     }
     else if(current_tab == 2)
