@@ -653,7 +653,6 @@ dt_graph_apply_keyframes(
       { // interpolate drawn list of vertices
         uint32_t *dst = (uint32_t *)pdat, *src0 = (uint32_t *)fdat, *src1 = (uint32_t *)kf[kiM].data;
         int vcnt = MIN(src0[0], src1[0]); // can only interpolate what we have on both ends
-        dst[0] = vcnt;
         dt_draw_vert_t *vd = (dt_draw_vert_t *)(dst +1);
         dt_draw_vert_t *v0 = (dt_draw_vert_t *)(src0+1);
         dt_draw_vert_t *v1 = (dt_draw_vert_t *)(src1+1);
@@ -672,6 +671,10 @@ dt_graph_apply_keyframes(
             vd[i] = dt_draw_mix(v0[i], v1[i], t);
           }
         }
+        dst[0] = (int)(src0[0] * (1.0f-t) + src1[0] * t + 0.5f); // interpolate vertex count, round
+        if(src0[0] < src1[0]) for(int i=vcnt;i<dst[0];i++) vd[i] = v1[i];
+        if(src1[0] < src0[0]) for(int i=vcnt;i<dst[0];i++) vd[i] = v0[i];
+        vd[dst[0]-1] = dt_draw_endmarker();
         g->module[m].flags = s_module_request_read_source; // make sure the draw list is updated
       }
       else
