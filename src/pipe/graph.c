@@ -607,10 +607,11 @@ void dt_graph_reset(dt_graph_t *g)
 #endif
 }
 
-void
+dt_graph_run_t
 dt_graph_apply_keyframes(
     dt_graph_t *g)
 {
+  dt_graph_run_t ret = s_graph_run_record_cmd_buf;
   for(int m=0;m<g->num_modules;m++)
   {
     if(g->module[m].name == 0) continue; // skip deleted modules
@@ -676,6 +677,7 @@ dt_graph_apply_keyframes(
         if(src1[0] < src0[0]) for(int i=vcnt;i<dst[0];i++) vd[i] = v0[i];
         vd[dst[0]-1] = dt_draw_endmarker();
         g->module[m].flags = s_module_request_read_source; // make sure the draw list is updated
+        ret |= s_graph_run_upload_source;
       }
       else
       { // apply directly
@@ -683,4 +685,5 @@ dt_graph_apply_keyframes(
       }
     }
   }
+  return ret;
 }
