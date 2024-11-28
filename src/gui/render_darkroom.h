@@ -920,6 +920,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   {
     nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
     float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
+    KEYFRAME
     if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
       snprintf(string, sizeof(string), "done");
@@ -960,7 +961,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         vkdt.wstate.mapped_size = dt_ui_param_size(param->type, param->cnt);
         vkdt.wstate.mapped = v; // map state
       }
-      KEYFRAME
     }
     if(vkdt.wstate.mapped)
     {
