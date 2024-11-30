@@ -5,7 +5,7 @@
 // widget for window-size image with zoom/pan interaction
 
 static inline void
-dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int main)
+dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int main, struct nk_rect bounds)
 {
   const struct nk_color nk_white = {255,255,255,255};
   struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
@@ -279,7 +279,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
       w->old_look_x = w->look_at_x;
       w->old_look_y = w->look_at_y;
     }
-    else if(!vkdt.wstate.pentablet_enabled && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_MIDDLE))
+    else if(!vkdt.wstate.pentablet_enabled && nk_input_mouse_clicked(&ctx->input, NK_BUTTON_MIDDLE, bounds))
     { // middle click to 1:1
       dt_image_zoom(w, mpos.x, mpos.y);
     }
@@ -370,5 +370,5 @@ dt_image(
         scaletext, strlen(scaletext), &dt_gui_get_font(0)->handle, (struct nk_color){0}, (struct nk_color){0xff,0xff,0xff,0xff});
   }
   // now the controls:
-  if(events) dt_image_events(ctx, w, hover, main);
+  if(events) dt_image_events(ctx, w, hover, main, disp);
 }
