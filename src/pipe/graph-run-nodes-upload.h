@@ -121,7 +121,7 @@ dt_graph_run_nodes_upload(
                   .pValues        = &graph->process_dbuffer[graph->double_buffer],
                 };
                 // wait inline on our semaphore because we share the staging buf
-                QVKR(vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30));
+                QVKR(vkWaitSemaphores(qvk.device, &wait_info, UINT64_MAX));
                 QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
               }
             }

@@ -431,8 +431,8 @@ VkResult dt_graph_run(
       .pSemaphores    = &graph->semaphore_process,
       .pValues        = &graph->process_dbuffer[buf_curr],
     };
-    if(run & s_graph_run_wait_done) // timeout in nanoseconds, 30 is about 1s
-      QVKR(vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30));
+    if(run & s_graph_run_wait_done) // no timeout
+      QVKR(vkWaitSemaphores(qvk.device, &wait_info, UINT64_MAX));
   }
   
   // download sink data from GPU to CPU
@@ -450,7 +450,7 @@ VkResult dt_graph_run(
         .pSemaphores    = &graph->semaphore_process,
         .pValues        = &graph->process_dbuffer[buf_prev],
       };
-      QVKR(vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30));
+      QVKR(vkWaitSemaphores(qvk.device, &wait_info, UINT64_MAX));
     }
     if(graph->query[q].cnt) // could store the results just once, but for separation of concerns they are part of the struct:
       QVKR(vkGetQueryPoolResults(qvk.device, graph->query[q].pool,
