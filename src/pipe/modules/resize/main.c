@@ -8,7 +8,12 @@ void modify_roi_in(
 { // request the full thing, we'll rescale
   module->connector[0].roi.wd = module->connector[0].roi.full_wd;
   module->connector[0].roi.ht = module->connector[0].roi.full_ht;
-  module->connector[0].roi.scale = 1.0f;
+  // we *don't* set the scale factor. this is used internally as
+  // proof that the roi is initialised, but the only use is disambiguation
+  // when one output is connected to several chains. by *not* setting the scale
+  // here, we suggest a new resolution but if any other chain is more opinionated
+  // than us, we let them override our numbers.
+  // module->connector[0].roi.scale = 1.0f;
 }
 
 void create_nodes(
