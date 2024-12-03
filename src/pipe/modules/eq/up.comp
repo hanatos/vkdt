@@ -11,6 +11,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float d3;
   float d4;
   float d5;
+  float edges;
 } params;
 layout(push_constant, std140) uniform push_t
 {
@@ -40,6 +41,6 @@ main()
   else if(push.level == 5) s = params.d0;
   float l = max(c0.r, max(c0.g, c0.b));
   float sigma = sqrt(max(0, c0.w - l*l));
-  vec3 rgb = max(vec3(0.0), mix(c1.rgb + s*det, org, sigma/(0.005+sigma)));
+  vec3 rgb = mix(c1.rgb, max(vec3(0.0), mix(c1.rgb + s*det, org, sigma/(0.005+sigma))), params.edges*params.edges);
   imageStore(img_out, opos, vec4(rgb, 1));
 }
