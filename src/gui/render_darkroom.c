@@ -350,7 +350,7 @@ void render_darkroom()
         dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out_main, events, out_main != 0);
       }
     }
-    float wd = 0.5*vkdt.style.border_frac * vkdt.win.width;
+    float wd = 0.8*win_y;
     const uint32_t ci = dt_db_current_imgid(&vkdt.db);
     if(ci != -1u)
     { // this should *always* be the case
