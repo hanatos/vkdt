@@ -131,6 +131,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     }\
   }
 #endif
+  nk_focus_group_head();
 
   const double throttle = 2.0; // min delay for same param in history, in seconds
   // distinguish by count:
@@ -154,15 +155,16 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   if(param->widget.type == dt_token("slider"))
   {
     nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+    int id_focus_curr = is_fav_menu ? 0 : parid, id_focus_next = is_fav_menu ? 0 : param->widget.tab_next;
     if(param->type == dt_token("float"))
     {
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       float oldval = *val;
       RESETBLOCK
       struct nk_rect bounds = nk_widget_bounds(ctx);
-      nk_property_float(ctx, "#", param->widget.min, val, param->widget.max,
+      nk_focus_group_property_id(float, ctx, "#", param->widget.min, val, param->widget.max,
           (param->widget.max - param->widget.min)/100.0,
-          (param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd));
+          (param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd), id_focus_curr, id_focus_next);
       // draw fill level
       struct nk_color col = nk_rgba(255,255,255,30);
       struct nk_rect bar = nk_rect(bounds.x + 0.1*bounds.w, bounds.y + 0.15*bounds.h,
@@ -197,9 +199,9 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       int32_t oldval = *val;
       RESETBLOCK
-      nk_property_int(ctx, "#", param->widget.min, val, param->widget.max,
+      nk_focus_group_property_id(int, ctx, "#", param->widget.min, val, param->widget.max,
           (int)(1.0+(param->widget.max - param->widget.min)/100.0),
-          ((param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd)));
+          ((param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd)), id_focus_curr, id_focus_next);
       if(*val != oldval) change = 1;
       if(change)
       {

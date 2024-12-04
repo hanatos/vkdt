@@ -3495,6 +3495,7 @@ NK_API float nk_propertyf(struct nk_context*, const char *name, float min, float
 NK_API double nk_propertyd(struct nk_context*, const char *name, double min, double val, double max, double step, float inc_per_pixel);
 NK_API void nk_property_focus(struct nk_context *ctx);
 NK_API int nk_property_int_unfocus(struct nk_context *ctx, const char *name, int min, int *val, int max, int step, int keypress);
+NK_API int nk_property_float_unfocus(struct nk_context *ctx, const char *name, float min, float *val, float max, float step, int keypress);
 /* =============================================================================
  *
  *                                  TEXT EDIT
@@ -28810,6 +28811,31 @@ NK_API void
 nk_property_focus(struct nk_context *ctx)
 { // do this *before* calling property, put focus_next flag on input
   ctx->input.focus_next = 1;
+}
+NK_API int
+nk_property_float_unfocus(struct nk_context *ctx, const char *name, float min, float *val, float max, float step, int keypress)
+{ // do this *after* calling property
+  struct nk_property_variant variant = nk_property_variant_float(*val, min, max, step);
+  if(keypress)
+  {
+    nk_hash hash = 0;
+    /* calculate hash from name */
+    if (name[0] == '#') {
+      hash = nk_murmur_hash(name, (int)nk_strlen(name), ctx->current->property.seq-1);
+      name++; /* special number hash */
+    } else hash = nk_murmur_hash(name, (int)nk_strlen(name), 42);
+    int hot = ctx->current->property.active &&
+      (ctx->current->property.state == NK_PROPERTY_EDIT) &&
+      (hash == ctx->current->property.name);
+    if (hot)
+    {
+      ctx->current->property.state = NK_PROPERTY_DEFAULT;
+      nk_property_save(&variant, ctx->current->property.buffer, ctx->current->property.length);
+      *val = variant.value.f;
+      return 1;
+    }
+  }
+  return 0;
 }
 NK_API int
 nk_property_int_unfocus(struct nk_context *ctx, const char *name, int min, int *val, int max, int step, int keypress)

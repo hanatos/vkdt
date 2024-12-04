@@ -1,3 +1,4 @@
+sigma:slider:0.0:1.0
 shadows:slider:0.0:10.0
 hilights:slider:0.0:10.0
 clarity:slider:-1.0:3.0
