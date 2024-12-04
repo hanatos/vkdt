@@ -7,13 +7,12 @@
 // these structs for the gui.
 typedef struct dt_widget_descriptor_t
 {
-  dt_token_t type;     // such as "slider"
-  float      min;      // min slider value
-  float      max;      // max slider value
-  int        grpid;    // param id: group this widget belongs to, or -1
-  int        mode;     // widget only shows if int group param is in this mode
-  int        cntid;    // param id: this integer param holds the multiplicity of this widget, or -1
-  int        tab_next; // press tab and this one will be the next "tabbable" widget in this module
-  void      *data;     // any extra data a widget might need to initialise (strings for combo boxes)
+  dt_token_t type;  // such as "slider"
+  float      min;   // min slider value
+  float      max;   // max slider value
+  int        grpid; // param id: group this widget belongs to, or -1
+  int        mode;  // widget only shows if int group param is in this mode
+  int        cntid; // param id: this integer param holds the multiplicity of this widget, or -1
+  void      *data;  // any extra data a widget might need to initialise (strings for combo boxes)
 }
 dt_widget_descriptor_t;

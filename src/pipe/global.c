@@ -176,7 +176,6 @@ dt_module_so_load(
     // where param-name refers to an integer parameter which sets the mode.
     int grpid = -1;
     int mode = 0;
-    int tab_prev_pid = -1, tab_first_pid = -1;
     while(!feof(f))
     {
       fscanf(f, "%8191[^\n]", line);
@@ -230,12 +229,6 @@ dt_module_so_load(
       else if(type == dt_token("rgbknobs")){}
       else dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);
       int pid = dt_module_get_param(mod, parm);
-      if(type == dt_token("slider"))
-      {
-        if(tab_prev_pid == -1) tab_first_pid = pid;
-        else mod->param[tab_prev_pid]->widget.tab_next = pid;
-        tab_prev_pid = pid;
-      }
       if(pid == -1)
       {
         dt_log(s_log_pipe, "unknown param `%"PRItkn"' in %s!", dt_token_str(parm), filename);
@@ -260,7 +253,6 @@ dt_module_so_load(
         .data  = data,
       };
     }
-    if(tab_prev_pid != -1) mod->param[tab_prev_pid]->widget.tab_next = tab_first_pid;
     fclose(f);
   }
 

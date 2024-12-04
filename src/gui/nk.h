@@ -12,12 +12,12 @@
 #include "nuklear_glfw_vulkan.h"
 
 // define groups of widgets that can be switched by pressing "tab"
-#define nk_focus_group_property_id(TYPE, CTX, NAME, m, V, M, I1, I2, P, N)\
+#define nk_focus_group_property(TYPE, CTX, NAME, m, V, M, I1, I2)\
   do {\
-    if(P == focus_id_next) { nk_property_focus(CTX); focus_id_next = -1; }\
+    if(0 == focus_id_next) { nk_property_focus(CTX); focus_id_next = -1; }\
     nk_property_ ## TYPE(CTX, NAME, m, V, M, I1, I2);\
     int adv = nk_property_## TYPE ##_unfocus(CTX, NAME, m, V, M, I1, tab_keypress);\
-    if(adv) { tab_keypress = adv = 0; focus_id_next = N; }\
+    if(adv) { tab_keypress = adv = 0; focus_id_next = 0; }\
   } while(0)
 #define nk_focus_group_head() \
   static int focus_id_next = -1;\
@@ -29,11 +29,3 @@
     time_tab = time_now; \
     tab_keypress = 1; \
   }
-#define nk_focus_group_property_first(TYPE, CTX, NAME, m, V, M, I1, I2)\
-  int focus_id_curr = 0; \
-  nk_focus_group_head(); \
-  nk_focus_group_property_id(TYPE, CTX, NAME, m, V, M, I1, I2, focus_id_curr++, focus_id_curr);
-#define nk_focus_group_property(TYPE, CTX, NAME, m, V, M, I1, I2)\
-  nk_focus_group_property_id(TYPE, CTX, NAME, m, V, M, I1, I2, focus_id_curr++, focus_id_curr);
-#define nk_focus_group_property_last(TYPE, CTX, NAME, m, V, M, I1, I2)\
-  nk_focus_group_property_id(TYPE, CTX, NAME, m, V, M, I1, I2, focus_id_curr++, 0);
