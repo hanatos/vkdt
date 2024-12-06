@@ -232,7 +232,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
           }
         }
         // trigger recomputation:
-        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | s_graph_run_wait_done;
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
         vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
       }
       float yoff = ctx->input.mouse.scroll_delta.y;

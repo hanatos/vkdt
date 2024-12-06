@@ -165,8 +165,7 @@ dt_graph_connector_image(
 
 // apply all keyframes found in the module list and write to the modules parameters according to
 // the current frame in the graph (g->frame). floating point parameters will be interpolated.
-dt_graph_run_t // return required runflags on graph
-dt_graph_apply_keyframes(
+void dt_graph_apply_keyframes(
     dt_graph_t *g);
 
 static inline dt_token_t

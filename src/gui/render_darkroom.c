@@ -574,7 +574,8 @@ void render_darkroom()
         vkdt.state.anim_frame = anim_frame;
         vkdt.graph_dev.frame = vkdt.state.anim_frame;
         vkdt.state.anim_no_keyframes = 0;  // (re-)enable keyframes
-        vkdt.graph_dev.runflags = dt_graph_apply_keyframes(&vkdt.graph_dev); // rerun once
+        dt_graph_apply_keyframes(&vkdt.graph_dev); // rerun once
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
       }
       char text[50];
       snprintf(text, sizeof(text), "frame %d/%d", vkdt.state.anim_frame, vkdt.state.anim_max_frame);
@@ -868,9 +869,9 @@ darkroom_process()
         dt_log(s_log_snd, "frame drop warning, audio may stutter!");
       vkdt.graph_dev.frame = vkdt.state.anim_frame;
       if(!vkdt.state.anim_no_keyframes)
-        vkdt.graph_dev.runflags |= dt_graph_apply_keyframes(&vkdt.graph_dev);
+        dt_graph_apply_keyframes(&vkdt.graph_dev);
       if(vkdt.graph_dev.frame_cnt == 0 || vkdt.state.anim_frame < vkdt.state.anim_max_frame+1)
-        vkdt.graph_dev.runflags |= s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     }
     if(vkdt.state.anim_frame == vkdt.graph_dev.frame_cnt - 1)
       dt_gui_dr_anim_stop(); // reached the end, stop.

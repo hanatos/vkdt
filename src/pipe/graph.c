@@ -358,8 +358,10 @@ VkResult dt_graph_run(
       dt_log(s_log_pipe|s_log_err, "too many nodes in graph!");
       return VK_INCOMPLETE;
     }
-#define TRAVERSE_POST \
-    nodeid[cnt++] = curr;
+#define TRAVERSE_POST {\
+    module_flags |= arr[curr].flags;\
+    nodeid[cnt++] = curr;\
+  }
 #include "graph-traverse.inc"
 
     if(cnt == 0)
@@ -607,11 +609,10 @@ void dt_graph_reset(dt_graph_t *g)
 #endif
 }
 
-dt_graph_run_t
+void
 dt_graph_apply_keyframes(
     dt_graph_t *g)
 {
-  dt_graph_run_t ret = s_graph_run_record_cmd_buf;
   for(int m=0;m<g->num_modules;m++)
   {
     if(g->module[m].name == 0) continue; // skip deleted modules
@@ -677,7 +678,6 @@ dt_graph_apply_keyframes(
         if(src1[0] < src0[0]) for(int i=vcnt;i<dst[0];i++) vd[i] = v0[i];
         vd[dst[0]-1] = dt_draw_endmarker();
         g->module[m].flags = s_module_request_read_source; // make sure the draw list is updated
-        ret |= s_graph_run_upload_source;
       }
       else
       { // apply directly
@@ -685,5 +685,4 @@ dt_graph_apply_keyframes(
       }
     }
   }
-  return ret;
 }

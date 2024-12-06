@@ -40,7 +40,8 @@ dt_graph_run_nodes_upload(
       {
         if(node->module->so->read_source)
         {
-          int run_node = (node->flags & s_module_request_read_source) ||
+          int run_node = (node->module->flags & s_module_request_read_source) ||
+                         (node->flags & s_module_request_read_source) ||
                          (run & s_graph_run_upload_source);
           const int c = 0;
           if(run_node || (dynamic_array && (node->connector[c].flags & s_conn_dynamic_array)))
