@@ -21,10 +21,11 @@
   } while(0)
 #define nk_focus_group_head() \
   static double nk_focus_group_time_tab; \
-  double nk_focus_group_time_now = glfwGetTime(); \
   static int nk_focus_group_tab_keypress = 0, nk_focus_group_next = -1; \
+  {\
+  double nk_focus_group_time_now = glfwGetTime(); \
   if(glfwGetKey(vkdt.win.window, GLFW_KEY_TAB) == GLFW_PRESS && (nk_focus_group_time_now - nk_focus_group_time_tab > 0.2)) \
   { \
     nk_focus_group_time_tab = nk_focus_group_time_now; \
     nk_focus_group_tab_keypress = 1; \
-  }
+  }}
