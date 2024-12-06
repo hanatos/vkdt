@@ -131,7 +131,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     }\
   }
 #endif
-  nk_focus_group_head();
 
   const double throttle = 2.0; // min delay for same param in history, in seconds
   // distinguish by count:

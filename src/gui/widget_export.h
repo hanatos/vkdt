@@ -165,8 +165,6 @@ dt_export(
   int resi;
   float resf;
 
-  nk_focus_group_head();
-
   resi = w->wd;
   nk_focus_group_property(int, ctx, "#", 0, &resi, 65535, 1, 1);
   if(resi != w->wd) dt_rc_set_int(&vkdt.rc, "gui/export/wd", (w->wd = resi));

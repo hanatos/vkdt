@@ -111,6 +111,8 @@ typedef struct dt_gui_wstate_t
 
   int popup;                    // currently open popup, see dt_gui_popup_t
   int popup_appearing;          // set on the first frame a popup is shown
+
+  int focus_group_tab_state;    // state required to tab between tabbable widgets
 }
 dt_gui_wstate_t;
 
@@ -338,3 +340,13 @@ hsv2rgb(float h, float s, float v)
   oklab_to_rec2020(oklab, rgb);
   return (struct nk_colorf){rgb[0], rgb[1], rgb[2], 1.0f};
 }
+
+// define groups of widgets that can be switched by pressing "tab"
+// render.c will initialise the tab state in case a key has been pressed.
+#define nk_focus_group_property(TYPE, CTX, NAME, m, V, M, I1, I2)\
+  do {\
+    if(vkdt.wstate.focus_group_tab_state == 2) { nk_property_focus(CTX); vkdt.wstate.focus_group_tab_state = 0; }\
+    nk_property_ ## TYPE(CTX, NAME, m, V, M, I1, I2);\
+    int adv = nk_property_## TYPE ##_unfocus(CTX, NAME, m, V, M, I1, vkdt.wstate.focus_group_tab_state);\
+    if(adv) { vkdt.wstate.focus_group_tab_state = 2; adv = 0; }\
+  } while(0)
