@@ -14,18 +14,17 @@
 // define groups of widgets that can be switched by pressing "tab"
 #define nk_focus_group_property(TYPE, CTX, NAME, m, V, M, I1, I2)\
   do {\
-    if(0 == focus_id_next) { nk_property_focus(CTX); focus_id_next = -1; }\
+    if(0 == nk_focus_group_next) { nk_property_focus(CTX); nk_focus_group_next = -1; }\
     nk_property_ ## TYPE(CTX, NAME, m, V, M, I1, I2);\
-    int adv = nk_property_## TYPE ##_unfocus(CTX, NAME, m, V, M, I1, tab_keypress);\
-    if(adv) { tab_keypress = adv = 0; focus_id_next = 0; }\
+    int adv = nk_property_## TYPE ##_unfocus(CTX, NAME, m, V, M, I1, nk_focus_group_tab_keypress);\
+    if(adv) { nk_focus_group_tab_keypress = adv = 0; nk_focus_group_next = 0; }\
   } while(0)
 #define nk_focus_group_head() \
-  static int focus_id_next = -1;\
-  static double time_tab; \
-  double time_now = glfwGetTime(); \
-  static int tab_keypress = 0; \
-  if(glfwGetKey(vkdt.win.window, GLFW_KEY_TAB) == GLFW_PRESS && (time_now - time_tab > 0.2)) \
+  static double nk_focus_group_time_tab; \
+  double nk_focus_group_time_now = glfwGetTime(); \
+  static int nk_focus_group_tab_keypress = 0, nk_focus_group_next = -1; \
+  if(glfwGetKey(vkdt.win.window, GLFW_KEY_TAB) == GLFW_PRESS && (nk_focus_group_time_now - nk_focus_group_time_tab > 0.2)) \
   { \
-    time_tab = time_now; \
-    tab_keypress = 1; \
+    nk_focus_group_time_tab = nk_focus_group_time_now; \
+    nk_focus_group_tab_keypress = 1; \
   }
