@@ -166,12 +166,12 @@ dt_export(
   float resf;
 
   resi = w->wd;
-  nk_focus_group_property(int, ctx, "#", 0, &resi, 65535, 1, 1);
+  nk_tab_property(int, ctx, "#", 0, &resi, 65535, 1, 1);
   if(resi != w->wd) dt_rc_set_int(&vkdt.rc, "gui/export/wd", (w->wd = resi));
   nk_label(ctx, "width", NK_TEXT_LEFT);
 
   resi = w->ht;
-  nk_focus_group_property(int, ctx, "#", 0, &resi, 65535, 1, 1);
+  nk_tab_property(int, ctx, "#", 0, &resi, 65535, 1, 1);
   if(resi != w->ht) dt_rc_set_int(&vkdt.rc, "gui/export/ht", (w->ht = resi));
   nk_label(ctx, "height", NK_TEXT_LEFT);
 
@@ -188,7 +188,7 @@ dt_export(
   nk_label(ctx, "filename", NK_TEXT_LEFT);
 
   resf = w->quality;
-  nk_focus_group_property(float, ctx, "#", 1, &resf, 100, 1, 0.1);
+  nk_tab_property(float, ctx, "#", 1, &resf, 100, 1, 0.1);
   if(resf != w->quality) dt_rc_set_float(&vkdt.rc, "gui/export/quality", (w->quality = resf));
   nk_label(ctx, "quality", NK_TEXT_LEFT);
 

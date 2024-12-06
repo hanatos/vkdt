@@ -112,7 +112,7 @@ typedef struct dt_gui_wstate_t
   int popup;                    // currently open popup, see dt_gui_popup_t
   int popup_appearing;          // set on the first frame a popup is shown
 
-  int focus_group_tab_state;    // state required to tab between tabbable widgets
+  int tab_state;                // state required to tab between tabbable widgets
 }
 dt_gui_wstate_t;
 
@@ -343,10 +343,21 @@ hsv2rgb(float h, float s, float v)
 
 // define groups of widgets that can be switched by pressing "tab"
 // render.c will initialise the tab state in case a key has been pressed.
-#define nk_focus_group_property(TYPE, CTX, NAME, m, V, M, I1, I2)\
+#define nk_tab_property(TYPE, CTX, NAME, m, V, M, I1, I2)\
   do {\
-    if(vkdt.wstate.focus_group_tab_state == 2) { nk_property_focus(CTX); vkdt.wstate.focus_group_tab_state = 0; }\
+    int adv = 0, act = (CTX)->current && !((CTX)->current->flags & NK_WINDOW_NOT_INTERACTIVE);\
+    if(act && vkdt.wstate.tab_state == 2) { nk_property_focus(CTX); vkdt.wstate.tab_state = 0; }\
     nk_property_ ## TYPE(CTX, NAME, m, V, M, I1, I2);\
-    int adv = nk_property_## TYPE ##_unfocus(CTX, NAME, m, V, M, I1, vkdt.wstate.focus_group_tab_state);\
-    if(adv) { vkdt.wstate.focus_group_tab_state = 2; adv = 0; }\
+    if(act) adv = nk_property_## TYPE ##_unfocus(CTX, NAME, m, V, M, I1, vkdt.wstate.tab_state);\
+    if(act && adv) { vkdt.wstate.tab_state = 2; adv = 0; }\
   } while(0)
+
+#define nk_tab_edit_string_zero_terminated(CTX, FLAGS, STR, LEN, FILTER) ({\
+    nk_flags ret = 0;\
+    int act = (CTX)->current && !((CTX)->current->flags & NK_WINDOW_NOT_INTERACTIVE);\
+    if(act && vkdt.wstate.tab_state == 2) { nk_edit_focus(CTX, 0); vkdt.wstate.tab_state = 0; }\
+    ret = nk_edit_string_zero_terminated(CTX, FLAGS, STR, LEN, FILTER);\
+    int has_focus = (CTX) && (CTX)->current->edit.seq-1 == (CTX)->current->edit.name && (CTX)->current->edit.active;\
+    if(act && has_focus && vkdt.wstate.tab_state == 1) {\
+      vkdt.wstate.tab_state = 2; }\
+    ret; })

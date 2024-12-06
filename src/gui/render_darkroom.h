@@ -160,7 +160,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       float oldval = *val;
       RESETBLOCK
       struct nk_rect bounds = nk_widget_bounds(ctx);
-      nk_focus_group_property(float, ctx, "#", param->widget.min, val, param->widget.max,
+      nk_tab_property(float, ctx, "#", param->widget.min, val, param->widget.max,
           (param->widget.max - param->widget.min)/100.0,
           (param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd));
       // draw fill level
@@ -197,7 +197,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       int32_t oldval = *val;
       RESETBLOCK
-      nk_focus_group_property(int, ctx, "#", param->widget.min, val, param->widget.max,
+      nk_tab_property(int, ctx, "#", param->widget.min, val, param->widget.max,
           (int)(1.0+(param->widget.max - param->widget.min)/100.0),
           ((param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd)));
       if(*val != oldval) change = 1;
@@ -441,7 +441,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       if(param->type == dt_token("string"))
       {
         char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
-        nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
+        nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
       }
       else nk_label(ctx, "", NK_TEXT_LEFT);
     }
@@ -974,7 +974,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     { // only show first, cnt refers to allocation length of string param
       nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
       char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
-      nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
+      nk_flags ret = nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
       if(ret & NK_EDIT_COMMITED)
       { // kinda grave change, rerun all, but only if enter pressed
         nk_edit_unfocus(ctx); // make keyboard nav work again
@@ -1214,7 +1214,7 @@ render_darkroom_modals()
       static char mod_inst[10] = "01";
       const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
       nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
-      nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, mod_inst, 8, nk_filter_default);
+      nk_tab_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, mod_inst, 8, nk_filter_default);
       nk_label(&vkdt.ctx, "instance name", NK_TEXT_LEFT);
       char filename[1024] = {0};
       static char filter[256];
@@ -1289,7 +1289,7 @@ render_darkroom_modals()
             "press enter to apply top item\n"
             "press escape to close");
         if(vkdt.wstate.popup_appearing) nk_edit_focus(&vkdt.ctx, 0);
-        nk_flags ret = nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
+        nk_flags ret = nk_tab_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
         if(ret & NK_EDIT_COMMITED) ok = 1;
         vkdt.wstate.popup_appearing = 0;
 
@@ -1330,7 +1330,7 @@ render_darkroom_modals()
         dt_tooltip("presets will be stored as\n"
             "~/.config/vkdt/presets/<this>.pst");
         nk_edit_focus(&vkdt.ctx, 0); // ???
-        nk_flags ret = nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, preset, NK_LEN(preset), nk_filter_default);
+        nk_flags ret = nk_tab_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, preset, NK_LEN(preset), nk_filter_default);
         if(ret & NK_EDIT_COMMITED) ok = 2;
         nk_layout_row_dynamic(&vkdt.ctx, row_height, 5);
         nk_label(&vkdt.ctx, "", 0);

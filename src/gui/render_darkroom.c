@@ -278,9 +278,9 @@ void render_darkroom_full(char *filter_name, char *filter_inst)
   {
     nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
     dt_tooltip("filter by module name");
-    nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter_name, sizeof(filter_name), nk_filter_default);
+    nk_tab_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter_name, sizeof(filter_name), nk_filter_default);
     dt_tooltip("filter by module instance");
-    nk_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter_inst, sizeof(filter_inst), nk_filter_default);
+    nk_tab_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter_inst, sizeof(filter_inst), nk_filter_default);
   }
   dt_graph_t *graph = &vkdt.graph_dev;
   dt_module_t *const arr = graph->module;

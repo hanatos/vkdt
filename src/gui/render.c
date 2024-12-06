@@ -251,11 +251,11 @@ void dt_gui_render_frame_nk()
   nk_buffer_clear(&vkdt.global_buf);
   double now = glfwGetTime();
 
-  static double focus_group_time_tab;
-  if(glfwGetKey(vkdt.win.window, GLFW_KEY_TAB) == GLFW_PRESS && (now - focus_group_time_tab > 0.2))
+  static double time_tab;
+  if(glfwGetKey(vkdt.win.window, GLFW_KEY_TAB) == GLFW_PRESS && (now - time_tab > 0.2))
   { // let tab widgets know tab has been pressed
-    focus_group_time_tab = now;
-    vkdt.wstate.focus_group_tab_state = 1;
+    time_tab = now;
+    vkdt.wstate.tab_state = 1;
   }
 
   switch(vkdt.view_mode)
