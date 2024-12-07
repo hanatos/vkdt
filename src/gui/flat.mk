@@ -44,10 +44,12 @@ ifeq ($(VKDT_USE_PENTABLET),1)
 GUI_CFLAGS+=-DVKDT_USE_PENTABLET=1
 endif
 
+GUI_SPV_FILES := gui/shd/gui.vert.spv gui/shd/gui.frag.spv
+
 gui/main.o: core/signal.h
-gui/shd.h: gui/shd/gui.vert.spv gui/shd/gui.frag.spv
+gui/shd.h: $(GUI_SPV_FILES)
 	xxd -i gui/shd/gui.vert.spv > gui/shd.h
 	xxd -i gui/shd/gui.frag.spv >> gui/shd.h
 
-%.spv: %
-	$(GLSLC) -I$(dir $$<) $(GLSLC_FLAGS) $$< -o $$@
+$(GUI_SPV_FILES): %.spv: %
+	$(GLSLC) -I$(dir $<) $(GLSLC_FLAGS) $< -o $@

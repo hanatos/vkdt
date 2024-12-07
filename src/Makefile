@@ -164,11 +164,8 @@ pipe/modules/$1/lib$1.so:pipe/modules/$1/main.cc pipe/modules/$1/flat.mk $(MOD_$
 endef
 $(foreach mod,$(MODULESXX),$(eval $(call MOD_RULEXX,$(mod))))
 
-define SPV_RULE
-%.$(1).spv: %.$(1)
-	$(GLSLC) -Ipipe/modules -I$(dir $$<) $(GLSLC_FLAGS) $$< -o $$@
-endef
-$(foreach shd,$(SHD_EXT),$(eval $(call SPV_RULE,$(shd))))
+%.spv : %
+	$(GLSLC) -Ipipe/modules -I$(dir $<) $(GLSLC_FLAGS) $< -o $@
 
 %/ptooltips: %/readme.md Makefile
   # generate tooltips for this module, both for parameters and connectors
