@@ -81,6 +81,10 @@ jobs:
           ref: ${{ env.BRANCH }}
           # We have to fetch the entire history to correctly generate the version for the AppImage filename
           fetch-depth: 0
+      - name: configure generic x86_64 build
+        run: |
+          echo "OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG" >> bin/config.mk
+          echo "export OPT_CFLAGS" >> bin/config.mk
       - name: configure for local glfw
         run: |
           echo "VKDT_GLFW_CFLAGS=-I${{ github.workspace }}/glfw/include" >> bin/config.mk
@@ -216,6 +220,10 @@ jobs:
         run: |
           /c/Users/runneradmin/.cargo/bin/rustup toolchain install stable-x86_64-pc-windows-gnu
           /c/Users/runneradmin/.cargo/bin/rustup default stable-x86_64-pc-windows-gnu
+      - name: configure generic x86_64 build
+        run: |
+          echo "OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG" >> bin/config.mk
+          echo "export OPT_CFLAGS" >> bin/config.mk
       - name: build and install
         run: |
           export PATH=/c/Users/runneradmin/.cargo/bin/:$PATH
