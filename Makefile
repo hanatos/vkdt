@@ -80,14 +80,14 @@ install-lib: install-mod Makefile src/core/version.h
 RELEASE_FILES=$(shell echo src/core/version.h; git ls-files --recurse-submodules)
 ifeq ($(VKDT_USE_RAWINPUT), 1)
   RAWSPEED_DIR=$(shell ls -d src/pipe/modules/i-raw/rawspeed-*)
-  RELEASE_FILES+=$(shell cd $(RAWSPEED_DIR) && git ls-files | sed -e 's#^#$(RAWSPEED_DIR)/#')
+  RELEASE_FILES+=$(shell cd $(RAWSPEED_DIR) && git ls-files | sed -e 's\#^\#$(RAWSPEED_DIR)/\#')
 endif
 ifeq ($(VKDT_USE_MCRAW), 1)
   MCRAW_DIR=$(shell ls -d src/pipe/modules/i-mcraw/mcraw-*)
-  RELEASE_FILES+=$(shell cd $(MCRAW_DIR) && git ls-files | sed -e 's#^#$(MCRAW_DIR)/#')
+  RELEASE_FILES+=$(shell cd $(MCRAW_DIR) && git ls-files | sed -e 's\#^\#$(MCRAW_DIR)/\#')
 endif
 ifeq ($(VKDT_USE_QUAKE), 1)
-  RELEASE_FILES+=$(shell cd src/pipe/modules/quake/quakespasm; git ls-files | sed -e 's#^#src/pipe/modules/quake/quakespasm/#')
+  RELEASE_FILES+=$(shell cd src/pipe/modules/quake/quakespasm; git ls-files | sed -e 's\#^\#src/pipe/modules/quake/quakespasm/\#')
 endif
 RELEASE_FILES:=$(filter-out .%,$(RELEASE_FILES))
 
