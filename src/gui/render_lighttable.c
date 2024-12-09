@@ -576,7 +576,7 @@ void render_lighttable_right_panel()
 
     float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
     float old_dpi_scale = dpi_scale;
-    nk_property_float(ctx, "#", 0.1, &dpi_scale, 10.0, 0.1, 0.05);
+    nk_tab_property(float, ctx, "#", 0.1, &dpi_scale, 10.0, 0.1, 0.05);
     dt_tooltip("scale the font size, and with it the whole gui");
     nk_label(ctx, "gui scale", NK_TEXT_LEFT);
     if(old_dpi_scale != dpi_scale)
@@ -731,7 +731,7 @@ void render_lighttable_right_panel()
       static char typed_filter_val[20] = "uninited";
       if(!strcmp(typed_filter_val, "uninited")) snprintf(typed_filter_val, sizeof(typed_filter_val), "%s", ft->createdate);
       dt_tooltip("substring to match in the createdate\nin YYYY:MM:DD HH:MM:SS form");
-      nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, typed_filter_val, sizeof(typed_filter_val), nk_filter_default);
+      nk_flags ret = nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, typed_filter_val, sizeof(typed_filter_val), nk_filter_default);
       if(ret & NK_EDIT_COMMITED)
       {
         snprintf(ft->createdate, sizeof(ft->createdate), "%s", typed_filter_val);

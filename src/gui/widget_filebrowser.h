@@ -119,7 +119,7 @@ dt_filebrowser(
   dt_tooltip("current working directory.\nedit to taste and press enter to change");
   nk_style_pop_font(ctx);
   if(w->focus_path) nk_edit_focus(ctx, 0);
-  nk_flags ret = nk_edit_string_zero_terminated(ctx,
+  nk_flags ret = nk_tab_edit_string_zero_terminated(ctx,
       (w->focus_path ? NK_EDIT_AUTO_SELECT|NK_EDIT_SELECTABLE : 0) |
       NK_EDIT_ALWAYS_INSERT_MODE|NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, w->cwd, sizeof(w->cwd), nk_filter_default);
   if(ret & NK_EDIT_COMMITED)
@@ -131,7 +131,7 @@ dt_filebrowser(
   dt_tooltip("filter the displayed filenames.\ntype a search string and press enter to apply");
   nk_style_pop_font(ctx);
   if(w->focus_filter) nk_edit_focus(ctx, 0);
-  ret = nk_edit_string_zero_terminated(ctx,
+  ret = nk_tab_edit_string_zero_terminated(ctx,
       (w->focus_filter ? NK_EDIT_AUTO_SELECT|NK_EDIT_SELECTABLE : 0) |
       NK_EDIT_ALWAYS_INSERT_MODE|NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, filter, 256, nk_filter_default);
   if(ret & NK_EDIT_COMMITED)

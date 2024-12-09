@@ -609,7 +609,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
 
     // full manual control over parameter using the slider:
     RESETBLOCK
-    nk_property_float(ctx, "#", -360.0f, val, 360.0f, 
+    nk_tab_property(float, ctx, "#", -360.0f, val, 360.0f, 
           (360.0f)/100.0,
           (360.0f)/(0.6*vkdt.state.center_wd));
     if(*val != oldval) change = 1;
@@ -730,7 +730,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         w->scale = 0.9 * MIN(w->win_w/w->wd, w->win_h/w->ht);
       }
     }
-    nk_property_float(ctx, "#aspect", 0.0, &vkdt.wstate.aspect, 10.0, 0.1, .001);
+    nk_tab_property(float, ctx, "#aspect", 0.0, &vkdt.wstate.aspect, 10.0, 0.1, .001);
     RESETBLOCK
     if(change)
     {
@@ -852,7 +852,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
               memcpy(val-i, val-i-3, sizeof(float)*3);
               change = 1;
             }
-            nk_property_float(ctx, "#", 0.0, val, 1.0, 0.1, .001);
+            nk_tab_property(float, ctx, "#", 0.0, val, 1.0, 0.1, .001);
             if(*val != oldval) change = 1;
             if(change)
             {
@@ -1013,7 +1013,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           dt_token_str(param->name),
           comp == 0 ? "red" : (comp == 1 ? "green" : "blue"));
       RESETBLOCK
-      nk_property_float(ctx, "#", param->widget.min, val, param->widget.max, 0.1, .001);
+      nk_tab_property(float, ctx, "#", param->widget.min, val, param->widget.max, 0.1, .001);
       if(*val != oldval) change = 1;
       if(change)
       {

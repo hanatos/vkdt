@@ -651,7 +651,7 @@ void render_darkroom()
         nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
 
         int resi = vkdt.wstate.lod;
-        nk_property_int(ctx, "#", 1, &resi, 16, 1, 1);
+        nk_tab_property(int, ctx, "#", 1, &resi, 16, 1, 1);
         if(resi != vkdt.wstate.lod)
         {
           vkdt.wstate.lod = resi;
@@ -665,7 +665,7 @@ void render_darkroom()
       { // animation controls
         nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
         int resi = vkdt.state.anim_max_frame;
-        nk_property_int(ctx, "#", 0, &resi, 10000, 1, 1);
+        nk_tab_property(int, ctx, "#", 0, &resi, 10000, 1, 1);
         if(resi != vkdt.state.anim_max_frame) 
         {
           vkdt.state.anim_max_frame = resi;
@@ -674,7 +674,7 @@ void render_darkroom()
         }
         nk_label(ctx, "last frame", NK_TEXT_LEFT);
         float resf = vkdt.graph_dev.frame_rate;
-        nk_property_float(ctx, "#", 0, &resf, 200, 1, 1);
+        nk_tab_property(float, ctx, "#", 0, &resf, 200, 1, 1);
         if(resf != vkdt.graph_dev.frame_rate)
         {
           vkdt.graph_dev.frame_rate = resf; // conv to double

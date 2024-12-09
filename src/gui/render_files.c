@@ -198,7 +198,7 @@ void render_files()
           "${date} - YYYYMMDD date\n"
           "${yyyy} - four char year\n"
           "${dest} - dest string just below");
-      nk_flags ret = nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, pattern, sizeof(pattern), nk_filter_default);
+      nk_flags ret = nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, pattern, sizeof(pattern), nk_filter_default);
       if(ret & NK_EDIT_COMMITED) dt_rc_set(&vkdt.rc, "gui/copy_destination", pattern);
       nk_label(ctx, "destination", NK_TEXT_LEFT);
       static char dest[20];
@@ -206,7 +206,7 @@ void render_files()
           "enter a descriptive string to be used as the ${dest} variable when expanding\n"
           "the 'gui/copy_destination' pattern from the config.rc file. it is currently\n"
           "`%s'", pattern);
-      nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, dest, sizeof(dest), nk_filter_default);
+      nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, dest, sizeof(dest), nk_filter_default);
       nk_label(ctx, "dest", NK_TEXT_LEFT);
       static int32_t copy_mode = 0;
       int32_t num_idle = 0;
