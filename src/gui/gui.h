@@ -359,5 +359,6 @@ hsv2rgb(float h, float s, float v)
     ret = nk_edit_string_zero_terminated(CTX, FLAGS, STR, LEN, FILTER);\
     int has_focus = (CTX) && (CTX)->current->edit.seq-1 == (CTX)->current->edit.name && (CTX)->current->edit.active;\
     if(act && has_focus && vkdt.wstate.tab_state == 1) {\
+      nk_edit_unfocus(CTX);\
       vkdt.wstate.tab_state = 2; }\
     ret; })
