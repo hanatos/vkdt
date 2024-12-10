@@ -113,7 +113,7 @@ LDFLAGS=-L/c/msys64/ucrt64/lib
 export CFLAGS CXXFLAGS LDFLAGS
 
 # optimised flags, you may want to use -march=x86-64 for distro builds:
-OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG
+OPT_CFLAGS=-Wall -pipe -O3 -march=native -DNDEBUG
 OPT_LDFLAGS=
 AR=ar
 
