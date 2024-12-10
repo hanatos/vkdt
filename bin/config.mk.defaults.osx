@@ -108,7 +108,7 @@ GLSLC_FLAGS=--target-env vulkan1.2
 # GLSLC_FLAGS=--target-env=vulkan1.2
 
 # optimised flags, you may want to use -march=x86-64 for distro builds:
-OPT_CFLAGS=-Werror -Wall -pipe -O3 -march=$(shell arch) -DNDEBUG
+OPT_CFLAGS=-Werror -Wall -pipe -O3 -march=native -DNDEBUG
 OPT_LDFLAGS=
 AR=ar
 DYNAMIC=-rdynamic -fvisibility=hidden
