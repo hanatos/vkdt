@@ -241,7 +241,6 @@ int dt_gui_init_nk()
 // call from main loop:
 void dt_gui_render_frame_nk()
 {
-  nk_buffer_clear(&vkdt.global_buf);
   double now = glfwGetTime();
 
   switch(vkdt.view_mode)
