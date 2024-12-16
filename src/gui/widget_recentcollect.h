@@ -123,6 +123,7 @@ recently_used_collections_draw(
   }
   if((f->active & (1<<s_prop_labels)) && f->labels > 0)
   {
+    pos -= wd;
     for(int i=0;i<5;i++) if(f->labels & (1<<i)) pos -= wd;
     dt_draw_labels(pos, ypos+wd*0.5, wd, f->labels);
   }
