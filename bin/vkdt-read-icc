@@ -102,33 +102,110 @@ out.write('%f %f %f\n'%(O[1,0], O[1,1], O[1,2]))
 out.write('%f %f %f\n'%(O[2,0], O[2,1], O[2,2]))
 out.close()
 
-# check if the operating system is not Windows
-if platform.system() != "Windows":
-    # find monitor connection name with xrandr
-    proc = subprocess.Popen(['xrandr'], stdout=subprocess.PIPE)
-    out, err = proc.communicate()
-    lines = out.decode().split('\n')
-    monitor_names = [line.split(' ')[0] for line in lines if ' connected' in line]
+def get_monitors_info():
+    try:
+        # Execute the command hwinfo --monitor and capture the output
+        output = subprocess.check_output(["hwinfo", "--monitor"]).decode("utf-8")
 
-    # ask user for which monitor the profile should be installed
-    print("available monitors:")
-    for i, monitor_name in enumerate(monitor_names):
-        print(f"{i+1}. {monitor_name}")
-    choice = 0
-    if len(monitor_names) > 1:
-      choice = int(input("for which monitor do you want to install the profile? ")) - 1
-    monitor_name = monitor_names[choice]
+        # Split the output into lines
+        lines = output.splitlines()
 
-    # path to directory ./config/vkdt in the user directory
-    config_dir = os.path.expanduser('~/.config/vkdt')
+        # Initialize lists to store monitors
+        vendor_lines = [line for line in lines if "Vendor:" in line]
+        model_lines = [line for line in lines if "Model:" in line]
 
-    # check if the directory exists, if not, create
-    if not os.path.exists(config_dir):
-        os.makedirs(config_dir)
+        # Extract manufacturer and model names for each monitor
+        monitors = []
+        for vendor_line, model_line in zip(vendor_lines, model_lines):
+            vendor = vendor_line.split("Vendor:")[1].strip()
+            model = model_line.split("Model:")[1].strip().strip('"')
+            monitors.append({"vendor": vendor, "model": model})
 
-    new_filename = config_dir + '/display.' + monitor_name
+        return monitors
 
-    # copy the file to ./config/vkdt
-    print("installing display.profile as "+new_filename)
-    shutil.copy('display.profile', new_filename)
+    except Exception as e:
+        print(f"Failed to retrieve monitor information: {e}")
+        return []
 
+def install_display_profile(monitor_name):
+    if platform.system() != "Windows":
+        # path to directory ./config/vkdt in the user directory
+        config_dir = os.path.expanduser('~/.config/vkdt')
+
+        # check if the directory exists, if not, create
+        if not os.path.exists(config_dir):
+            os.makedirs(config_dir)
+
+        new_filename = os.path.join(config_dir, f"display.{monitor_name}")
+
+        # copy the file to ./config/vkdt
+        print(f"Installing display.profile as {new_filename}")
+        shutil.copy('display.profile', new_filename)
+
+    else:
+        print("Windows platform detected. Display profile installation not supported on Windows.")
+
+def main():
+    # Check the session type (Wayland or X11)
+    session_type = os.getenv("XDG_SESSION_TYPE")
+
+    if session_type == "x11":
+        # Installation on X11 using xrandr
+        print("X11 session detected. Installing display profile using xrandr.")
+
+        # find monitor connection name with xrandr
+        proc = subprocess.Popen(['xrandr'], stdout=subprocess.PIPE)
+        out, err = proc.communicate()
+        lines = out.decode().split('\n')
+        monitor_names = [line.split(' ')[0] for line in lines if ' connected' in line]
+
+        if len(monitor_names) == 1:
+            # If only one monitor is detected, install profile automatically
+            install_display_profile(monitor_names[0])
+        else:
+            # ask user for which monitor the profile should be installed
+            print("Available monitors:")
+            for i, monitor_name in enumerate(monitor_names):
+                print(f"{i+1}. {monitor_name}")
+
+            # prompt user for selection
+            selection = int(input("Enter the number of the monitor to install profile: "))
+            selected_monitor_name = monitor_names[selection - 1]
+
+            # Install profile for the selected monitor
+            install_display_profile(selected_monitor_name)
+
+    elif session_type == "wayland":
+        # Installation on Wayland using hwinfo --monitor
+        print("Wayland session detected. Installing display profile using hwinfo --monitor.")
+
+        # Get monitors information
+        monitors = get_monitors_info()
+
+        if not monitors:
+            print("Failed to retrieve monitor information. Cannot install display profile.")
+            return
+
+        if len(monitors) == 1:
+            # If only one monitor is detected, install profile automatically
+            install_display_profile(f"{monitors[0]['vendor']} {monitors[0]['model']}")
+        else:
+            # Print available monitors
+            print("Monitors detected:")
+            for i, monitor in enumerate(monitors):
+                print(f"{i+1}. {monitor['vendor']} {monitor['model']}")
+
+            # prompt user for selection
+            selection = int(input("Enter the number of the monitor to install profile: "))
+            selected_monitor = monitors[selection - 1]
+
+            # Install profile for the selected monitor
+            install_display_profile(f"{selected_monitor['vendor']} {selected_monitor['model']}")
+
+    else:
+        print(f"Unsupported session type: {session_type}. Cannot install display profile.")
+        return
+
+# Call the main function to start installation
+if __name__ == "__main__":
+    main()
