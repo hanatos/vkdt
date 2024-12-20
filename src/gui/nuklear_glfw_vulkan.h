@@ -1251,7 +1251,7 @@ nk_glfw3_mouse_button_callback(
   float xscale, yscale;
   dt_gui_content_scale(w, &xscale, &yscale);
   x *= xscale; y *= yscale;
-  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+  if (button == GLFW_MOUSE_BUTTON_LEFT && action != GLFW_PRESS)
   {
     struct nk_glfw_win  *win = &glfw.w0;
     if(w == glfw.w1.win) win = &glfw.w1;
