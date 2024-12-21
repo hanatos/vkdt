@@ -222,6 +222,11 @@ int dt_gui_init_nk()
     if(vkdt.win.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
        vkdt.win.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
       bitdepth = 10;
+    if(monitors_cnt < 2 || xpos1 == 0)
+    {
+      memcpy(rec2020_to_dspy1, rec2020_to_dspy0, sizeof(rec2020_to_dspy0));
+      memcpy(gamma1, gamma0, sizeof(gamma0));
+    }
     nk_glfw3_setup_display_colour_management(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
   }
 
