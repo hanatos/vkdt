@@ -543,7 +543,7 @@ allocate_buffer_array_element(
                      VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                      VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                      VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | // to build ray tracing accels on geo from here
-                     VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+                     (qvk.raytracing_supported ? VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR : 0),
       .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
     };
     QVKR(vkCreateBuffer(qvk.device, &create_info, 0, &img->buffer));
