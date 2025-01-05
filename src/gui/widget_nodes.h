@@ -16,6 +16,7 @@ typedef struct dt_node_editor_t
   int inited;
   dt_module_t *selected;  // last selected module, active
   float zoom;             // magnifies world space in view if > 1
+  float dpi_scale;        // extra scale to account for font size (moves nodes apart to leave space in between when they become larger)
   struct nk_vec2 scroll;  // world space offset
   dt_node_connection_t connection;
   float add_pos_x, add_pos_y;
@@ -215,8 +216,8 @@ dt_node_editor_context_menu(
     if(!sel_node_cnt)
     {
       struct nk_vec2 pos = dt_node_view_to_world(nedit, nk_vec2(in->mouse.pos.x - size.x, in->mouse.pos.y - size.y));
-      nedit->add_pos_x = pos.x;
-      nedit->add_pos_y = pos.y;
+      nedit->add_pos_x = pos.x / nedit->dpi_scale;
+      nedit->add_pos_y = pos.y / nedit->dpi_scale;
       nk_layout_row_dynamic(ctx, row_height, 1);
       if (nk_contextual_item_label(ctx, "add module..", NK_TEXT_LEFT))
       {
@@ -245,6 +246,10 @@ dt_node_editor(
     memset(nedit, 0, sizeof(*nedit));
     nedit->zoom = 1.0f;
     nedit->inited = 1;
+    float scalex, scaley;
+    dt_gui_content_scale(vkdt.win.window, &scalex, &scaley);
+    const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
+    nedit->dpi_scale = CLAMP(scalex * dpi_scale, 0.01f, 10.0f);
   }
 
   canvas = nk_window_get_canvas(ctx);
@@ -306,9 +311,9 @@ dt_node_editor(
     const int mid = module - graph->module; // fix index
 
     const float mod_wd = 7*dt_gui_get_font(0)->handle.height;
-    struct nk_rect module_bounds = nk_rect(module->gui_x, module->gui_y, mod_wd, 0);
-    struct nk_vec2 lbb_min = dt_node_world_to_view(nedit, nk_vec2(module->gui_x, module->gui_y));
-    struct nk_vec2 lbb_max = dt_node_world_to_view(nedit, nk_vec2(module->gui_x + module_bounds.w, module->gui_y));
+    struct nk_rect module_bounds = nk_rect(nedit->dpi_scale*module->gui_x, nedit->dpi_scale*module->gui_y, mod_wd, 0);
+    struct nk_vec2 lbb_min = dt_node_world_to_view(nedit, nk_vec2(nedit->dpi_scale*module->gui_x, nedit->dpi_scale*module->gui_y));
+    struct nk_vec2 lbb_max = dt_node_world_to_view(nedit, nk_vec2(nedit->dpi_scale*module->gui_x + module_bounds.w, nedit->dpi_scale*module->gui_y));
     struct nk_rect lbb = nk_rect(lbb_min.x, lbb_min.y, lbb_max.x-lbb_min.x, row_height * (module->num_connectors + 3));
     nk_layout_space_push(ctx, lbb);
     if(nk_input_is_mouse_hovering_rect(in, lbb)) mouse_over_something = 1;
@@ -408,7 +413,7 @@ dt_node_editor(
         { // draw link to output if we are connected
           dt_module_t *mo = graph->module + mido;
           const float mod_wd = 7*dt_gui_get_font(0)->handle.height;
-          struct nk_rect mo_bounds = nk_rect(mo->gui_x, mo->gui_y, mod_wd, row_height * (mo->num_connectors + 3));
+          struct nk_rect mo_bounds = nk_rect(nedit->dpi_scale*mo->gui_x, nedit->dpi_scale*mo->gui_y, mod_wd, row_height * (mo->num_connectors + 3));
           struct nk_vec2 l0 = nk_layout_space_to_screen(ctx,
               dt_node_world_to_view(nedit,
                 nk_vec2(
@@ -513,8 +518,8 @@ dt_node_editor(
           nk_input_is_mouse_down(in, NK_BUTTON_LEFT) &&
           (mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid])
       {
-        module->gui_x += in->mouse.delta.x/nedit->zoom;
-        module->gui_y += in->mouse.delta.y/nedit->zoom;
+        module->gui_x += in->mouse.delta.x/nedit->zoom/nedit->dpi_scale;
+        module->gui_y += in->mouse.delta.y/nedit->zoom/nedit->dpi_scale;
       }
     }
     nk_style_pop_style_item(ctx);
@@ -556,8 +561,8 @@ dt_node_editor(
   struct nk_vec2 pos = dt_node_view_to_world(nedit, nk_vec2(
         size.x + size.w/2,
         size.y + size.h/2));
-  nedit->add_pos_x = pos.x;
-  nedit->add_pos_y = pos.y;
+  nedit->add_pos_x = pos.x/nedit->dpi_scale;
+  nedit->add_pos_y = pos.y/nedit->dpi_scale;
 
   nk_style_pop_vec2(ctx);
   nk_style_pop_vec2(ctx);
