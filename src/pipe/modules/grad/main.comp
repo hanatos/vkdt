@@ -8,7 +8,8 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  vec4 colour;  // rgb+density
+  vec4 colour;  // rgb
+  float stops;  // density in stops
   float dist;
   float width;
   float rotate;
@@ -39,7 +40,7 @@ main()
   float w = 1.5707963267948966 + atan(d/params.width) / 1.5707963267948966;
 
   // beer transmittance
-  vec3 t = exp(-max(vec3(1e-8), .5*(1.0 - params.colour.rgb) * params.colour.w * w));
+  vec3 t = exp(-max(vec3(1e-8), .6931471805*(1.0 - params.colour.rgb) * params.stops * w));
 
   rgb *= t;
 

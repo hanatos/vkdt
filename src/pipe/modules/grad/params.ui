@@ -1,4 +1,5 @@
-rgb:slider:0.0:1.0
+rgb:rgbknobs
+stops:slider:0.0:10.0
 dist:slider:-1.0:1.0
 width:slider:0.0:1.0
 rotate:slider:0.0:360.0
