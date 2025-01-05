@@ -15,5 +15,5 @@ it after the `colour` module.
 
 ## connectors
 
-* `input` the input buffer with chromatic aberrations
+* `input` the input buffer with chromatic aberrations, after the colour module
 * `output` the output buffer without chromatic aberrations

@@ -18,3 +18,8 @@ see: ACES S-2016-001 : ACEScct --- A Quasi-Logarithmic Encoding of ACES Data for
 * `lift` hsv colour to lift the blacks
 * `gamma` hsv colour to push the gamma (affects the mid tones mostly)
 * `gain` hsv colour gain. this affects the whole image (but mostly pins the highlights) and works as white balance coefficients would.
+
+## connectors
+
+* `input` the display referred input image in zero/one range
+* `output` the graded output image
