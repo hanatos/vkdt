@@ -346,6 +346,8 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
         // the validation layers shout at me. this means there seems to be *no* way
         // to ask for pass through behaviour (and if there was it would be ignored downstream, see above)
         // fts
+        // XXX probably want VK_COLOR_SPACE_HDR10_HLG_EXT or VK_COLOR_SPACE_HDR10_ST2084_EXT for hdr here
+        win->surf_format.colorSpace = VK_COLOR_SPACE_HDR10_HLG_EXT;
         dt_log(s_log_qvk, "using %s and colour space %d",
             qvk_format_to_string(win->surf_format.format), win->surf_format.colorSpace);
         goto out;
@@ -524,6 +526,33 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
   }
   win->frame_index = 0;
   win->sem_index = 0;
+
+
+  // hdr/colour management
+  VkHdrMetadataEXT meta = { // rec2020
+    .sType = VK_STRUCTURE_TYPE_HDR_METADATA_EXT,
+    .displayPrimaryRed   = { .x=0.708, .y=0.292 },
+    .displayPrimaryGreen = { .x=0.170, .y=0.797 },
+    .displayPrimaryBlue  = { .x=0.131, .y=0.046 },
+    .whitePoint          = { .x=0.3127, .y=0.3290 },
+    // maxLuminance is the maximum luminance of the display used to optimize the content in nits
+    // minLuminance is the minimum luminance of the display used to optimize the content in nits
+    // maxContentLightLevel is the value in nits of the desired luminance for the brightest pixels in the displayed image.
+    // maxFrameAverageLightLevel is the value in nits of the average luminance of the frame which has the brightest average luminance anywhere in the content.
+    // TODO configure these in the file (for the master screen and as some content setting)
+    .maxLuminance              = 1000.0f,
+    .minLuminance              = 0.0f,
+    .maxContentLightLevel      = 1000.0f,
+    .maxFrameAverageLightLevel = 70.0f,
+  };
+  PFN_vkSetHdrMetadataEXT func = (PFN_vkSetHdrMetadataEXT)vkGetInstanceProcAddr(qvk.instance, "vkSetHdrMetadataEXT");
+  if(func)
+  func(
+      qvk.device,
+      1,
+      &win->swap_chain,
+      &meta);
+
   return VK_SUCCESS;
 }
 

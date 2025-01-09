@@ -143,12 +143,12 @@ int dt_gui_init_nk()
     int xpos0, xpos1, ypos;
     glfwGetMonitorPos(monitors[0], &xpos0, &ypos);
     glfwGetMonitorPos(monitors[MIN(monitors_cnt-1, 1)], &xpos1, &ypos);
-    float gamma0[] = {1.0f/2.2f, 1.0f/2.2f, 1.0f/2.2f};
+    float gamma0[] = {0}; // 0 means use sRGB TRC
     float rec2020_to_dspy0[] = { // to linear sRGB D65
        1.66022709, -0.58754775, -0.07283832,
       -0.12455356,  1.13292608, -0.0083496,
       -0.01815511, -0.100603  ,  1.11899813 };
-    float gamma1[] = {1.0f/2.2f, 1.0f/2.2f, 1.0f/2.2f};
+    float gamma1[] = {0};
     float rec2020_to_dspy1[] = { // to linear sRGB D65
        1.66022709, -0.58754775, -0.07283832,
       -0.12455356,  1.13292608, -0.0083496,
@@ -199,6 +199,9 @@ int dt_gui_init_nk()
       memcpy(rec2020_to_dspy1, rec2020_to_dspy0, sizeof(rec2020_to_dspy0));
       memcpy(gamma1, gamma0, sizeof(gamma0));
     }
+    // TODO: if hdr runtime switch:
+    gamma0[0] = gamma0[1] = gamma0[2] = -1.0; // HLG
+    gamma1[0] = gamma1[1] = gamma1[2] = -1.0;
     nk_glfw3_setup_display_colour_management(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
   }
 

@@ -43,12 +43,16 @@ _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
 const char *vk_requested_layers[] = {
+  "VK_LAYER_hdr_wsi",
+#ifdef QVK_ENABLE_VALIDATION
   "VK_LAYER_KHRONOS_validation",
+#endif
 };
 
 const char *vk_requested_instance_extensions[] = {
   // colour management:
-  // VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
+  VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
+  //VK_EXT_HDR_METADATA_EXTENSION_NAME, ???
   // debugging:
   VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
   VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
@@ -152,14 +156,14 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
 
   get_vk_extension_list(NULL, &qvk.num_extensions, &qvk.extensions);
 
+  int hdr = 1;
+
   /* create instance */
   VkInstanceCreateInfo inst_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
     .pApplicationInfo        = &vk_app_info,
-#ifdef QVK_ENABLE_VALIDATION
-    .enabledLayerCount       = LENGTH(vk_requested_layers),
-    .ppEnabledLayerNames     = vk_requested_layers,
-#endif
+    .enabledLayerCount       = hdr ? LENGTH(vk_requested_layers) : 0,
+    .ppEnabledLayerNames     = hdr ? vk_requested_layers : 0,
     .enabledExtensionCount   = num_inst_ext_combined,
     .ppEnabledExtensionNames = (const char * const*)ext,
 #ifdef __APPLE__
