@@ -68,7 +68,7 @@ export VKDT_USE_MCRAW
 # for the i-vid module using libavformat/libavcodec to read
 # video streams, we depend on these libraries
 # note that vkdt requires ffmpeg version > 5 (6 is first good)
-FFMPEG_VERSION=$(shell ffmpeg -version | head -1 | cut -f 3 -d' ' | cut -d. -f1)
+FFMPEG_VERSION=$(shell ffmpeg -version | head -1 | cut -f 3 -d' ' | cut -d. -f1|tr -d 'n')
 VKDT_USE_FFMPEG=$(eval VKDT_USE_FFMPEG := $$(shell [ $(FFMPEG_VERSION) -gt 5 ] && echo 1 || echo 0))
 export VKDT_USE_FFMPEG
 VKDT_AV_CFLAGS=$(eval VKDT_AV_CFLAGS := $$(shell pkg-config --cflags libavformat --cflags libavcodec --cflags libswresample))$(VKDT_AV_CFLAGS)
