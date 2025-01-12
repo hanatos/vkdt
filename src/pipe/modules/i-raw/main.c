@@ -26,6 +26,8 @@ free_raw(dt_module_t *mod)
 {
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   rl_deallocate(mod_data->img.data, mod_data->len);
+  mod_data->img.data = 0;
+  mod_data->len = 0;
   for(int i=0;i<3;i++)
   {
     dng_opcode_list_free(mod_data->dng_opcode_lists[i]);
@@ -65,6 +67,8 @@ load_raw(
         mod_data->img.dng_opcode_lists[i], mod_data->img.dng_opcode_lists_len[i]);
       // free the raw opcode list now that we have decoded it
       rl_deallocate(mod_data->img.dng_opcode_lists[i], mod_data->img.dng_opcode_lists_len[i]);
+      mod_data->img.dng_opcode_lists[i] = 0;
+      mod_data->img.dng_opcode_lists_len[i] = 0;
       have_dngop = 1;
     }
   }
@@ -101,7 +105,7 @@ int init(dt_module_t *mod)
 void cleanup(dt_module_t *mod)
 {
   if(!mod->data) return;
-  rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
+  rawinput_buf_t *mod_data = mod->data;
   free_raw(mod);
   free(mod_data);
   mod->data = 0;
