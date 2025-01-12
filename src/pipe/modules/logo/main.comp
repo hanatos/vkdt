@@ -1,0 +1,84 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+layout(set = 1, binding = 0) uniform writeonly image2D img_out;
+
+float sd_box(in vec2 p, in vec2 b, in float r)
+{
+  vec2 q = abs(p)-b+r;
+  return min(max(q.x,q.y),0.0) + length(max(q,0.0)) - r;
+}
+
+float sd_ring(in vec2 p, in float r)
+{
+  return length(p) - r;
+}
+
+vec2 rotate(in vec2 p, in float u)
+{
+  float s = sin(u), c = cos(u);
+  mat2 R = mat2(-s, c, c, s);
+  return R * p;
+}
+
+float scatter(float d)
+{
+  if(d <= 0.0) return 1.0;
+#if 0
+  else return 0.0;
+#else
+  // fake inscattering by distance
+  return 0.01 * exp(-d*d * 20.0)
+       + 0.01 * exp(-d*d * 60.0);
+#endif
+}
+
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec3 col = vec3(1,0,1);
+  vec3 rgb = vec3(0.0);
+  vec2 x = (ipos + 0.5)/vec2(imageSize(img_out));
+
+  const float t = 0.035; // half stroke width
+  float res = 0.0;
+
+  { // scale down a bit to leave room for border:
+    x = 1.4 * (x-vec2(0.5)) + vec2(0.5);
+    // ||
+    res += scatter(sd_box(x - vec2(0.425, 0.5), vec2(t, 0.45), 0.0));
+    res += scatter(sd_box(x - vec2(0.575, 0.4), vec2(t, 0.35), 0.0));
+    // o
+    res += scatter(abs(sd_ring(x - vec2(0.25,0.75), 0.175))-t);
+    // t_
+    res += scatter(max(max(abs(sd_ring(x - vec2(0.75,0.75), 0.175))-t,
+      x.x - 0.8), 0.75 - x.y));
+    // t-
+    res += scatter(sd_box(x - vec2(0.65, 0.575), vec2(0.15,t), 0.0));
+    // v
+    res += scatter(sd_box(rotate(x - vec2(0.3,0.3), -3.1415/4.0), vec2(0.18,t), 0.0));
+    // k
+    res += scatter(sd_box(rotate(x - vec2(0.7,0.3), 3.1415/4.0), vec2(0.18,t), 0.0));
+    // k
+    // d = min(d, sd_box(rotate(x - vec2(0.75,0.4), -3.1415/4.0), vec2(0.1,t), 0.0));
+    res += scatter(sd_box(rotate(x - vec2(0.73,0.41), -3.1415/2.8), vec2(0.12,t), 0.0));
+  }
+
+  rgb = min(1.0, res) * col;
+
+#if 0
+  { // rounded box/border
+    float d = sd_box(x-vec2(0.5), vec2(0.7), 0.25);
+    if(d > -0.005) rgb = vec3(1);
+  }
+#endif
+
+
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}
