@@ -175,7 +175,7 @@ dt_dopesheet(
   TOOLTIP("advance to next frame");
   if(nk_button_label(ctx, "\ue044")) dt_gui_dr_anim_step_fwd();
   TOOLTIP("rewind to start");
-  if(nk_button_label(ctx, "\ue042")) dt_gui_dr_prev();
+  if(nk_button_label(ctx, "\ue042")) dt_gui_dr_anim_seek(0);
   nk_style_pop_font(ctx);\
 
   nk_labelf(ctx, NK_TEXT_LEFT, "frame %d/%d", vkdt.graph_dev.frame, vkdt.graph_dev.frame_cnt);
