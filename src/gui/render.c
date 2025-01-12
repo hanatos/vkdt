@@ -113,8 +113,8 @@ void dt_gui_init_fonts()
   if(g_font[0]) nk_glfw3_font_cleanup();
   nk_glfw3_font_stash_begin(&atlas);
   struct nk_font_config cfg = nk_font_config(fontsize);
-  cfg.oversample_h = 5;
-  cfg.oversample_v = 5;
+  cfg.oversample_h = 3;
+  cfg.oversample_v = 1;
   g_font[0] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, &cfg);
   g_font[1] = nk_font_atlas_add_from_file(atlas, tmp, floorf(1.5*fontsize), 0);
   g_font[2] = nk_font_atlas_add_from_file(atlas, tmp, 2*fontsize, 0);
