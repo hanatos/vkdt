@@ -115,6 +115,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [accum: accumulate frames in a frame buffer](./accum/readme.md)
 * [bvh: append triangle mesh to ray tracing acceleration structure](./bvh/readme.md)
 * [i-obj: load triangle meshes from wavefront obj files](./i-obj/readme.md)
+* [logo: render the animated vkdt icon](./logo/readme.md)
 * [quake: the 1996 game ray traced based on QSS](./quake/readme.md)
 * [rt: real-time ray tracing](./rt/readme.md)
 * [spheres: shadertoy demo ported for testing](./spheres/readme.md)
