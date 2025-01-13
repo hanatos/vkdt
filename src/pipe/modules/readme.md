@@ -17,6 +17,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [i-lut: half float lut input module](./i-lut/readme.md)
 * [i-mcraw: read motioncam raw video](./i-mcraw/readme.md)
 * [i-mlv: magic lantern raw video input module](./i-mlv/readme.md)
+* [i-obj: load triangle meshes from wavefront obj files](./i-obj/readme.md)
 * [i-pfm: 32-bit floating point map input module](./i-pfm/readme.md)
 * [i-raw: input module for raw-format photographic stills or timelapses](./i-raw/readme.md)
 * [i-v4l2: webcam input module](./i-v4l2/readme.md)
@@ -57,6 +58,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 
 **colour processing**
 
+* [colenc: encode colour for colour managed output like adobeRGB, P3, etc](./colenc/readme.md)
 * [colour: generic colour manipulation/input transform](./colour/readme.md)
 * [grade: simple ACES CDL grading tool](./grade/readme.md)
 
@@ -101,7 +103,6 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [align: align animation frames or burst photographs](./align/readme.md)
 * [blend: masked frame blending](./blend/readme.md)
 * [cnngenin: generate random input for neural network training](./cnngenin/readme.md)
-* [colenc: encode colour for colour managed output like adobeRGB, P3, etc](./colenc/readme.md)
 * [format: change texture format (number of channels and data type)](./format/readme.md)
 * [f2srgb: convert linear floating point data to 8-bit sRGB for output](./f2srgb/readme.md)
 * [kpn-t: kernel prediction neural network for denoising, training](./kpn-t/readme.md)
@@ -114,7 +115,6 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 
 * [accum: accumulate frames in a frame buffer](./accum/readme.md)
 * [bvh: append triangle mesh to ray tracing acceleration structure](./bvh/readme.md)
-* [i-obj: load triangle meshes from wavefront obj files](./i-obj/readme.md)
 * [logo: render the animated vkdt icon](./logo/readme.md)
 * [quake: the 1996 game ray traced based on QSS](./quake/readme.md)
 * [rt: real-time ray tracing](./rt/readme.md)

@@ -46,8 +46,6 @@ shaper curve.
 
 ## gui
 all gui colours need to be given in rec2020 tristimulus values.
-`gui/render.cc` has a function to convert user/theme supplied
-srgb values to linear rec2020.
 
 ## thumbnails
 bc1 thumbnails are stored in gamma/sRGB. they are loaded as
@@ -66,6 +64,6 @@ will be rendered at that precision (all our internal buffers
 have higher precision).
 
 ## cli
-the command line interface explicitly inserts `f2srgb` nodes before
+the command line interface explicitly inserts `colenc` nodes before
 the `o-*` nodes if the output format requires gamma encoding,
 such as jpeg.

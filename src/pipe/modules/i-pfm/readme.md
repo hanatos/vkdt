@@ -7,6 +7,8 @@ point maps. does not flip y coordinate.
 
 * `filename` the name of the input file, potentially containing %04d for sequences
 * `startid` the index of the first file if loading a sequence
+* `noise a` the gaussian part of the noise estimation
+* `noise b` the poissonian part of the noise estimation
 
 ## connectors
 

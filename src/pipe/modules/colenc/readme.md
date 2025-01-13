@@ -16,6 +16,12 @@ possible choices for the trc are: `linear`, `709` (SMPTE RP 431-2),
 `sRGB` (IEC 61966-2-1), `PQ` (SMPTE ST 2084), `DCI` (SMPTE ST 428-1),
 `HLG` (Rec. ITU-R BT.2100-1), and `gamma`.
 
+if you are looking for the reverse operation, colour decoding, the [`colour`
+module](../colour/readme.md) is probably what you need. it will pick up the
+primaries and trc from metadata that travels with the buffers.
+some input modules such as the [`i-exr` module](../i-exr/readme.md) allow you
+to overwrite these annotations.
+
 ## connectors
 
 * `input` scene referred linear rec2020
