@@ -30,6 +30,6 @@ void main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb * pow(2.0, params.ev);
   // output viridis visualisation:
-  rgb = viridis(luminance_rec2020(rgb));
+  rgb = viridis(clamp(luminance_rec2020(rgb), 0.0, 1.0));
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
