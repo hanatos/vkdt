@@ -54,7 +54,7 @@ fn copy_string(
 {
   for (i, c) in src.chars().enumerate() {
     if i > 30 { break; }
-    dst[i] = c as i8;
+    dst[i] = c as c_char;
   }
   dst[cmp::min(src.len(),31)] = 0;
 }
