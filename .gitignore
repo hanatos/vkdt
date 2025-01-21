@@ -25,3 +25,9 @@ bin/data/nprof/
 src/gui/shd.h
 src/gui/shd/gui.frag.spv
 src/gui/shd/gui.vert.spv
+src/pipe/modules/i-mcraw/mcraw-*
+src/pipe/modules/i-raw/rawloader-c/target
+src/pipe/modules/quake/quakespasm
+src/macadam
+src/macadam.lut
+src/mkabney
