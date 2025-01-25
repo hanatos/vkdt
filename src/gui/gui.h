@@ -253,8 +253,8 @@ dt_gui_content_scale(GLFWwindow *w, float *x, float *y)
   { // x11 doesn't do this dance
     x[0] = y[0] = 1.0;
   }
-  else if(0) // if(vkdt.session_type == 1)
-  { // hyprland also doesn't. or does it?
+  else if(vkdt.session_type == 666)
+  { // windows also doesn't
     x[0] = y[0] = 1.0;
   }
   else if(w == vkdt.win.window)

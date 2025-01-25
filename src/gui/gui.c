@@ -182,6 +182,9 @@ int dt_gui_init()
   else if(!strcmp(session_type, "x11"))     vkdt.session_type =  0;
   else if(!strcmp(session_type, "wayland")) vkdt.session_type =  1;
   else vkdt.session_type = -1; // what's this? windows or macos maybe?
+#ifdef _WIN64
+  vkdt.session_type = 666;
+#endif
 
   if(!glfwInit())
   {
