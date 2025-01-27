@@ -25,11 +25,13 @@ dt_snd_alsa_init(
   memset(snd, 0, sizeof(*snd));
   snd->sample_rate = sample_rate;
   snd->channels = channels;
-  int err;
+  int err = 0;
   snd_pcm_hw_params_t *hwparams = 0;
   snd_pcm_sw_params_t *swparams = 0;
 
   snd_pcm_t *pcm;
+
+  if(format == -1) goto error;
 
   const char *pcm_device = dt_rc_get(&vkdt.rc, "snd/alsa/pcm", "default");
   if(0 > (err = snd_pcm_open(&pcm, pcm_device, SND_PCM_STREAM_PLAYBACK, 0)))
