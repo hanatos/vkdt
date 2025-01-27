@@ -498,8 +498,8 @@ void export_job_work(uint32_t item, void *arg)
     param.last_frame_only = 1; // avoid small thumbnail per frame in videos
     snprintf(filedir, sizeof(filedir), "%s-small", filename);
     param.output[1].p_filename = filedir;
-    param.output[1].max_width  = 400;
-    param.output[1].max_height = 400;
+    param.output[1].max_width  = 1024;
+    param.output[1].max_height = 1024;
     param.output[1].quality    = j->quality;
     param.output[1].inst_out   = dt_token("small");
     param.output[1].mod        = dt_token("o-jpg");
