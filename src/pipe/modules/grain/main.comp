@@ -51,13 +51,13 @@ void main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  vec3 rgb = clamp(texelFetch(img_in, ipos, 0).rgb, vec3(0.0), vec3(1.0));
 
   vec2 tc = 1.0/clamp(params.size, 0.6, 2.0) * 0.3 * vec2(ipos);
   // just summing the noise looks weird (becomes solid black at times).
   // let's say this changes the optical thickness of some film material instead:
 #if 1 // logistic answer to film density:
-  rgb = log(rgb / (1.0 - rgb));
+  rgb = log(1e-4 + rgb / (1e-4 + 1.0 - rgb));
   rgb += params.magnitude * noise(tc);
   rgb = exp(rgb) / (1.0 + exp(rgb));
 #else
