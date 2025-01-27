@@ -109,8 +109,13 @@ dt_gui_win_init(dt_gui_win_t *win)
   glfwGetFramebufferSize(win->window, &win->width, &win->height);
   glfwSetWindowSizeCallback(win->window, window_size_callback);
   glfwSetFramebufferSizeCallback(win->window, framebuffer_size_callback);
-  glfwSetWindowContentScaleCallback(win->window, window_content_scale_callback);
-  glfwGetWindowContentScale(win->window, win->content_scale, win->content_scale+1);
+  if(vkdt.session_type == 0 || vkdt.session_type == 666) // x11 or windows
+    win->content_scale[0] = win->content_scale[1] = 1.0;
+  else
+  {
+    glfwSetWindowContentScaleCallback(win->window, window_content_scale_callback);
+    glfwGetWindowContentScale(win->window, win->content_scale, win->content_scale+1);
+  }
   glfwSetWindowSizeLimits(win->window, 512, 128, GLFW_DONT_CARE, GLFW_DONT_CARE);
 }
 
@@ -181,7 +186,7 @@ int dt_gui_init()
   if     (!session_type)                    vkdt.session_type = -1;
   else if(!strcmp(session_type, "x11"))     vkdt.session_type =  0;
   else if(!strcmp(session_type, "wayland")) vkdt.session_type =  1;
-  else vkdt.session_type = -1; // what's this? windows or macos maybe?
+  else vkdt.session_type = -1; // what's this? macos maybe?
 #ifdef _WIN64
   vkdt.session_type = 666;
 #endif

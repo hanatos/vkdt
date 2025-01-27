@@ -246,18 +246,14 @@ void dt_gui_win1_open();
 // close secondary window
 void dt_gui_win1_close();
 
+// this is only a shorthand for the direct access to vkdt.win*.content_scale
+// selecting the right one based on the glfw window. this is otherwise
+// exactly equivalent to direct variable access.
 static inline void
 dt_gui_content_scale(GLFWwindow *w, float *x, float *y)
-{
-  if(vkdt.session_type == 0)
-  { // x11 doesn't do this dance
-    x[0] = y[0] = 1.0;
-  }
-  else if(vkdt.session_type == 666)
-  { // windows also doesn't
-    x[0] = y[0] = 1.0;
-  }
-  else if(w == vkdt.win.window)
+{ // these factors are only inited to content scale if the compositor cares 
+  // (i.e. wayland and macintosh, not x11 or windows)
+  if(w == vkdt.win.window)
   {
     x[0] = vkdt.win.content_scale[0];
     y[0] = vkdt.win.content_scale[1];
