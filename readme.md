@@ -49,20 +49,20 @@ which you can use to try out/run on any linux distro, for instance:
 
 ## build instructions
 
-you should then be able to simply run 'make' from the bin/ folder. for debug
-builds (which enable the vulkan validation layers, so you need to have them
-installed), try
+you should then be able to simply run 'make' from the bin/ folder. debug
+builds enable the vulkan validation layers, so you need to have them
+installed.
 ```
   cd bin/
-  make debug -j12
+  make -j20
 ```
 
-simply run `make` without the `debug` for a release build. note that the debug
+simply run `make debug` for a debug build. note that the debug
 build includes some extra memory overhead and performs expensive checks and can
 thus be much slower. `make sanitize` is supported to switch on the address
 sanitizer. changes to the compile time configuration as well as the compiler
-toolchain can be set in `config.mk`. if you don't have that file yet, you can
-copy it from `config.mk.defaults`.
+toolchain can be set in `bin/config.mk`. if you don't have that file yet, you can
+copy it from `bin/config.mk.defaults`.
 
 ## running
 
@@ -70,7 +70,7 @@ the binaries are put into the `bin/` directory. if you want to run `vkdt` from
 anywhere, create a symlink such as `/usr/local/bin/vkdt -> ~/vc/vkdt/bin/vkdt`.
 ```
   cd bin/
-  ./vkdt -d all /path/to/your/rawfile.raw
+  ./vkdt -d all examples/logo.cfg
 ```
 raw files will be assigned the `bin/default-darkroom.i-raw` processing graph.
 if you run the command line interface `vkdt-cli`, it will replace all `display`
@@ -82,9 +82,9 @@ exists on your system.
 ## licence
 
 our code is licenced under the 2-clause bsd licence (if not clearly marked
-otherwise in the respective source files, which contain a bit of GPLv3).
-there are parts from other libraries that are licenced differently. in
-particular:
+otherwise in the respective source files, which contain a bit of viral GPLv3,
+so handle with care if you're afraid of the GPL). there are parts from other
+libraries that are licenced differently. in particular:
 
 rawspeed:     LGPLv2
 ffmpeg:       LGPLv2
@@ -172,12 +172,14 @@ devices [on this website](https://vulkan.gpuinfo.org).
 also, `vkdt` requires 4GB video ram (it may run with less, but this seems to be a
 number that is fun to work with). a fast ssd is desirable since disk io is often times
 a limiting factor, especially during thumbnail creation.
+to work with large graphs or 50MP+ images you want at least 8GB video ram.
 
 * **can i speed up rendering on my 2012 on-board GPU?**  
 you can set the level of detail (LOD) parameter in your
-`~/.config/vkdt/config.rc` file: `intgui/lod:1`. set it to `2` to only render
-exactly at the resolution of your screen (will slow down when you zoom in), or
-to `3` and more to brute force downsample.
+`~/.config/vkdt/config.rc` file: `intgui/lod:1` (1 is the maximum resolution,
+render all the pixels). set it to `2` to only render exactly at the resolution
+of your screen (will slow down when you zoom in), or to `3` and more to brute
+force downsample.
 
 * **can i limit the frame rate to save power?**  
 there is the `frame_limiter` option in `~/.config/vkdt/config.rc` for this.
