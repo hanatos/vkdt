@@ -70,7 +70,7 @@ NK_API void nk_glfw3_win1_close();
 #define NK_GLFW_DOUBLE_CLICK_LO 0.02
 #endif
 #ifndef NK_GLFW_DOUBLE_CLICK_HI
-#define NK_GLFW_DOUBLE_CLICK_HI 0.2
+#define NK_GLFW_DOUBLE_CLICK_HI 0.25
 #endif
 #ifndef NK_GLFW_MAX_TEXTURES
 #define NK_GLFW_MAX_TEXTURES 256
