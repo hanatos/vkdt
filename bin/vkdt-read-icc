@@ -60,36 +60,17 @@ A = numpy.matrix([
 [float(tokens[32]), float(tokens[33]), float(tokens[34])],
 [float(tokens[45]), float(tokens[46]), float(tokens[47])]]).T
 
-bradford = numpy.matrix([
-[ 0.8951000,   0.2664000, -0.1614000],
-[-0.7502000,   1.7135000,  0.0367000],
-[ 0.0389000,  -0.0685000,  1.0296000]])
-
-B = bradford @ A
-#  D50   0.96422   1.00000   0.82521
-#  D55   0.95682   1.00000   0.92149
-#  D65   0.95047   1.00000   1.08883
-# we need to remove the D50 white from the icc and apply ours
-white = numpy.array([0.96422, 1.00000, 0.82521])
-white_lms = bradford @ white
-wt_lms    = bradford @ wt
-
-C = numpy.diag(numpy.ravel(wt_lms / white_lms)) @ B
-M = bradford.I @ C
-
-# used for debugging/sanity checking
-# xyz_to_srgb = numpy.matrix([ [ 3.2404542, -1.5371385, -0.4985314], [-0.9692660,  1.8760108,  0.0415560], [ 0.0556434, -0.2040259,  1.0572252] ])
-# xyz_to_rec2020 = numpy.matrix([ [ 1.7166511880, -0.3556707838, -0.2533662814], [-0.6666843518,  1.6164812366,  0.0157685458], [ 0.0176398574, -0.0427706133,  0.9421031212] ])
-
-xyz_to_dspy = M.I
-
-xyz_to_rec2020 = numpy.matrix([
-[ 1.7166511880, -0.3556707838, -0.2533662814],
-[-0.6666843518,  1.6164812366,  0.0157685458],
-[ 0.0176398574, -0.0427706133,  0.9421031212],
+# data extracted from ITU-R_BT2020(beta).icc available at https://www.color.org/chardata/rgb/BT2020.xalter
+# we're using the already D50 adapted rec2020 matrix (with negative primaries), because it undoes precisely
+# what the icc profile connection space (D50 XYZ) caused on the other end:
+Rec2020_to_PCS = numpy.matrix([
+[ 0.67345, 0.16565, 0.12505],
+[ 0.27902, 0.67535, 0.04561],
+[ -0.00194, 0.02998, 0.79689],
 ])
+PCS_to_display = numpy.linalg.inv(A)
+O = PCS_to_display @ Rec2020_to_PCS
 
-O = xyz_to_dspy * xyz_to_rec2020.I
 print('rec2020 to display matrix')
 print(O)
 print('gamma')
