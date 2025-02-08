@@ -1,3 +1,4 @@
+#include "anim.h"
 #include "graph.h"
 #include "graph-io.h"
 #include "draw.h"
@@ -644,7 +645,7 @@ dt_graph_apply_keyframes(
       uint8_t *pdat = g->module[m].param + p->offset;
       uint8_t *fdat = kf[ki].data;
       size_t els = dt_ui_param_size(p->type, 1);
-      const float t = (g->frame - kf[ki].frame)/(float)(kf[kiM].frame - kf[ki].frame);
+      const float t = dt_anim_warp((g->frame - kf[ki].frame)/(float)(kf[kiM].frame - kf[ki].frame), kf[kiM].anim);
       if(kiM >= 0 && p->type == dt_token("float")) // TODO: don't search for kiM above in the other cases?
       { // interpolate generic floating point parameters
         float *dst = (float *)pdat, *src0 = (float *)fdat, *src1 = (float *)kf[kiM].data;

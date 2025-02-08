@@ -96,6 +96,7 @@ typedef struct dt_keyframe_t
   int            frame;     // the frame to apply this
   uint32_t       beg, end;  // the begin and end byte offsets in the params array
   uint8_t       *data;      // the data to slap over. points into the graph's param pool.
+  uint32_t       anim;      // animation mode, see dt_anim_mode_t in anim.h
   // if this keyframe is hooked into the acceleration structure per param,
   // module->param_keyframe, this is a linked list sorted by frame.
   struct dt_keyframe_t *next; 
