@@ -436,8 +436,8 @@ dt_graph_write_keyframe_ascii(
   if(mod->name == 0) return line;
   WRITE("%s:%d:%"PRItkn":%"PRItkn":%"PRItkn":%d:%d:",
       mod->keyframe[k].anim == s_anim_step     ? "keyFRAME" :
-      mod->keyframe[k].anim == s_anim_ease_in  ? "keyframE" :
-      mod->keyframe[k].anim == s_anim_ease_out ? "Keyframe" :
+      mod->keyframe[k].anim == s_anim_ease_in  ? "Keyframe" :
+      mod->keyframe[k].anim == s_anim_ease_out ? "keyframE" :
       mod->keyframe[k].anim == s_anim_smooth   ? "KeyframE" :
       "keyframe",
       mod->keyframe[k].frame,

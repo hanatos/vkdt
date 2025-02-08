@@ -1,4 +1,5 @@
 #pragma once
+#include "pipe/anim.h"
 #include "pipe/graph-history.h"
 #include "gui/gui.h"
 #include "gui/darkroom.h"

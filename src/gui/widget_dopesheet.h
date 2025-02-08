@@ -62,20 +62,6 @@ dt_draw_param_line(
     struct nk_rect bbk = {.x = x-ht/2.0, .y = y-ht/2.0, .w = ht, .h = ht};
     if(nk_input_is_mouse_hovering_rect(&ctx->input, bbk))
     {
-      nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0, 0));
-      nk_style_push_vec2(ctx, &ctx->style.window.padding, nk_vec2(0, 0));
-      if(nk_tooltip_begin(ctx, vkdt.state.panel_wd))
-      {
-        nk_layout_row_static(ctx, vkdt.ctx.style.font->height, vkdt.state.panel_wd, 1);
-        // TODO: echo more dimensions of the same parameter?
-        nk_labelf(ctx, NK_TEXT_LEFT, "%"PRItkn " %f", dt_token_str(mod->so->param[p]->name), *((float*)mod->keyframe[k].data));
-        nk_label(ctx, "right click to delete", NK_TEXT_LEFT);
-        nk_label(ctx, "left click and drag to move", NK_TEXT_LEFT);
-        nk_label(ctx, "see hotkeys to duplicate (default shift-d)", NK_TEXT_LEFT);
-        nk_tooltip_end(ctx);
-      }
-      nk_style_pop_vec2(ctx);
-      nk_style_pop_vec2(ctx);
       if(hotkey == 1)
       {
         dt_graph_t *g = mod->graph;
@@ -104,12 +90,44 @@ dt_draw_param_line(
       drag_k = drag_mod = -1u;
       modified = 1;
     }
-    if (nk_input_has_mouse_click(&ctx->input, NK_BUTTON_RIGHT) &&
-        nk_input_has_mouse_click_in_rect(&ctx->input, NK_BUTTON_RIGHT, bbk))
-    { // right click: delete this keyframe by copying the last one over it and decreasing keyframe_cnt
-      mod->keyframe[k--] = mod->keyframe[--mod->keyframe_cnt];
-      modified = 1;
-      break; // oops we broke the pointers
+    if(nk_contextual_begin(ctx, 0, nk_vec2(vkdt.state.panel_wd, vkdt.state.panel_wd), bbk))
+    {
+      const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+      nk_layout_row_dynamic(ctx, row_height, 1);
+      if(nk_contextual_item_label(ctx, "delete keyframe", NK_TEXT_LEFT))
+      { // delete this keyframe by copying the last one over it and decreasing keyframe_cnt
+        mod->keyframe[k--] = mod->keyframe[--mod->keyframe_cnt];
+        modified = 1;
+        nk_contextual_end(ctx);
+        break; // oops we broke the pointers
+      }
+      nk_layout_row_dynamic(ctx, row_height, 5);
+      int set = 0;
+#define ANIM_ITEM(mode, str) do {\
+      set = mod->keyframe[k].anim == s_anim_ ## mode; \
+      if(set) nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.contextual_button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));\
+      if(nk_contextual_item_label(ctx, str, NK_TEXT_LEFT))\
+        mod->keyframe[k].anim = s_anim_ ## mode ;\
+      if(set) nk_style_pop_style_item(&vkdt.ctx);\
+      } while(0)
+
+      ANIM_ITEM(step,"step");
+      ANIM_ITEM(lerp,"lerp");
+      ANIM_ITEM(ease_in, "ease in");
+      ANIM_ITEM(ease_out, "ease out");
+      ANIM_ITEM(smooth, "smooth");
+#undef ANIM_ITEM
+
+      nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0, 0));
+      nk_style_push_vec2(ctx, &ctx->style.window.padding, nk_vec2(0, 0));
+      nk_layout_row_static(ctx, vkdt.ctx.style.font->height, vkdt.state.panel_wd, 1);
+      // TODO: echo more dimensions of the same parameter?
+      nk_labelf(ctx, NK_TEXT_LEFT, "%"PRItkn " %f", dt_token_str(mod->so->param[p]->name), *((float*)mod->keyframe[k].data));
+      nk_label(ctx, "left click and drag to move", NK_TEXT_LEFT);
+      nk_label(ctx, "see hotkeys to duplicate (default shift-d)", NK_TEXT_LEFT);
+      nk_style_pop_vec2(ctx);
+      nk_style_pop_vec2(ctx);
+      nk_contextual_end(ctx);
     }
     key = key->next;
   }
@@ -118,7 +136,12 @@ dt_draw_param_line(
   // fix keyframe list if we changed anything
   if(modified) dt_module_keyframe_post_update(mod);
 
-  if(!modified && nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_LEFT, bounds)) // left click: move animation time
+  // don't change anim time if popup is still open
+  struct nk_window *popup = ctx->current->popup.win;
+  if(popup && ctx->current->popup.type == NK_PANEL_CONTEXTUAL)
+    modified = 1;
+
+  if(!modified && nk_input_is_mouse_click_down_in_rect(&ctx->input, NK_BUTTON_LEFT, bounds, nk_true)) // left click: move animation time
     dt_gui_dr_anim_seek(screen_to_frame(ctx->input.mouse.pos.x, mod->graph, bounds));
 
   float x[4] = {
