@@ -111,6 +111,7 @@ dt_gui_keyframe_add(int modid, int parid)
     g->module[modid].keyframe[ki].beg   = 0;
     g->module[modid].keyframe[ki].end   = count;
     g->module[modid].keyframe[ki].frame = g->frame;
+    g->module[modid].keyframe[ki].anim  = s_anim_lerp;
     g->module[modid].keyframe[ki].param = param->name;
     g->module[modid].keyframe[ki].data  = g->params_pool + g->params_end;
     g->params_end += dt_ui_param_size(param->type, count);
