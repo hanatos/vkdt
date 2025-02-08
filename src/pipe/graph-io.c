@@ -1,3 +1,4 @@
+#include "pipe/anim.h"
 #include "pipe/graph-io.h"
 #include "pipe/graph-history.h"
 #include "modules/api.h"
@@ -26,7 +27,8 @@ read_param_values_ascii(
     int         beg,
     int         end,
     int         frame,
-    dt_param_write_mode_t mode)
+    dt_param_write_mode_t mode,
+    dt_anim_mode_t anim)
 {
   int modid = dt_module_get(graph, name, inst);
   if(modid < 0 || modid > graph->num_modules)
@@ -63,6 +65,7 @@ read_param_values_ascii(
       graph->module[modid].keyframe = dt_realloc(graph->module[modid].keyframe, &graph->module[modid].keyframe_size, sizeof(dt_keyframe_t)*(ki+1));
     }
     graph->module[modid].keyframe[ki].frame = frame;
+    graph->module[modid].keyframe[ki].anim  = anim;
     graph->module[modid].keyframe[ki].param = parm;
     graph->module[modid].keyframe[ki].beg   = beg;
     graph->module[modid].keyframe[ki].end   = end;
@@ -113,7 +116,7 @@ read_param_ascii(
   dt_token_t name = dt_read_token(line, &line);
   dt_token_t inst = dt_read_token(line, &line);
   dt_token_t parm = dt_read_token(line, &line);
-  return read_param_values_ascii(graph, line, name, inst, parm, 0, 0, -1, s_param_set);
+  return read_param_values_ascii(graph, line, name, inst, parm, 0, 0, -1, s_param_set, 0);
 }
 
 // read only a subset of the parameters, given explicit indices for begin and end.
@@ -129,14 +132,15 @@ read_paramsub_ascii(
   dt_token_t parm = dt_read_token(line, &line);
   int beg = dt_read_int(line, &line);
   int end = dt_read_int(line, &line);
-  return read_param_values_ascii(graph, line, name, inst, parm, beg, end, -1, mode);
+  return read_param_values_ascii(graph, line, name, inst, parm, beg, end, -1, mode, 0);
 }
 
 // helper to keyframe from config file
 static inline int
 read_keyframe_ascii(
-    dt_graph_t *graph,
-    char       *line)
+    dt_graph_t    *graph,
+    char          *line,
+    dt_anim_mode_t anim)
 {
   // read frame:module:instance:param:beg:end:value x cnt
   int frame = dt_read_int(line, &line);
@@ -145,7 +149,7 @@ read_keyframe_ascii(
   dt_token_t parm = dt_read_token(line, &line);
   uint32_t beg = dt_read_int(line, &line);
   uint32_t end = dt_read_int(line, &line);
-  return read_param_values_ascii(graph, line, name, inst, parm, beg, end, frame, s_param_set);
+  return read_param_values_ascii(graph, line, name, inst, parm, beg, end, frame, s_param_set, anim);
 }
 
 // helper to read a connection information from config file
@@ -236,7 +240,11 @@ int dt_graph_read_config_line(
   else if(cmd == dt_token("paramsub")) return read_paramsub_ascii(graph, c, s_param_set);
   else if(cmd == dt_token("paraminc")) return read_paramsub_ascii(graph, c, s_param_inc);
   else if(cmd == dt_token("paramdec")) return read_paramsub_ascii(graph, c, s_param_dec);
-  else if(cmd == dt_token("keyframe")) return read_keyframe_ascii(graph, c);
+  else if(cmd == dt_token("keyframe")) return read_keyframe_ascii(graph, c, s_anim_lerp);
+  else if(cmd == dt_token("keyframE")) return read_keyframe_ascii(graph, c, s_anim_ease_out);
+  else if(cmd == dt_token("Keyframe")) return read_keyframe_ascii(graph, c, s_anim_ease_in);
+  else if(cmd == dt_token("KeyframE")) return read_keyframe_ascii(graph, c, s_anim_smooth);
+  else if(cmd == dt_token("keyFRAME")) return read_keyframe_ascii(graph, c, s_anim_step);
   else if(cmd == dt_token("connect"))  return read_connection_ascii(graph, c, 0);
   else if(cmd == dt_token("feedback")) return read_connection_ascii(graph, c, s_conn_feedback);
   else if(cmd == dt_token("frames"))   graph->frame_cnt  = atol(c); // does not fail
@@ -426,7 +434,12 @@ dt_graph_write_keyframe_ascii(
 {
   const dt_module_t *mod = graph->module + m;
   if(mod->name == 0) return line;
-  WRITE("keyframe:%d:%"PRItkn":%"PRItkn":%"PRItkn":%d:%d:",
+  WRITE("%s:%d:%"PRItkn":%"PRItkn":%"PRItkn":%d:%d:",
+      mod->keyframe[k].anim == s_anim_step     ? "keyFRAME" :
+      mod->keyframe[k].anim == s_anim_ease_in  ? "keyframE" :
+      mod->keyframe[k].anim == s_anim_ease_out ? "Keyframe" :
+      mod->keyframe[k].anim == s_anim_smooth   ? "KeyframE" :
+      "keyframe",
       mod->keyframe[k].frame,
       dt_token_str(mod->name),
       dt_token_str(mod->inst),
