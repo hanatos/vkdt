@@ -65,17 +65,19 @@ main()
     rgb.g = max(rgb.g, 0.9 * smoothstep(t, 0.0, d));
   }
 
+  vec3 spot = vec3(0);
   for(int i=0;i<params.nspots;i++)
   { // reference spots, same format as colour picker
-    vec3 pp = inverse(xyz_to_rec2020)*vec3(
+    vec3 col = vec3(
           params.ref[(3*i+0)/4][(3*i+0)%4],
           params.ref[(3*i+1)/4][(3*i+1)%4],
           params.ref[(3*i+2)/4][(3*i+2)%4]);
+    vec3 pp = inverse(xyz_to_rec2020)*col;
     vec2 p = pp.xy / dot(pp, vec3(1));
     d = distance(xy, p);
-    rgb.r = max(rgb.r, 0.9 * smoothstep(3*t, 0.0, d));
-    rgb.g = max(rgb.g, 0.9 * smoothstep(3*t, 0.0, d));
+    spot = max(spot, mix(vec3(0), col, 0.9 * smoothstep(3*t, 0.0, d)));
   }
+  if(spot.r > 0) rgb = spot;
 
   imageStore(img_out, ipos, vec4(rgb, 1.0));
 }
