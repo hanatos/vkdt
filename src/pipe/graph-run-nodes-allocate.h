@@ -1188,7 +1188,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 }
 
 
-static inline void
+static inline VkResult
 count_references(dt_graph_t *graph, dt_node_t *node)
 {
   // dt_log(s_log_pipe, "counting references for %"PRItkn"_%"PRItkn,
@@ -1202,6 +1202,14 @@ count_references(dt_graph_t *graph, dt_node_t *node)
       int mi = node->connector[c].connected_mi;
       int mc = node->connector[c].connected_mc;
       if(mi != -1) graph->node[mi].connector[mc].connected_mi++;
+      else
+      {
+        snprintf(graph->gui_msg_buf, sizeof(graph->gui_msg_buf), "kernel %"PRItkn"_%"PRItkn"_%"PRItkn":%"PRItkn" is not connected!",
+            dt_token_str(node->name), dt_token_str(node->module->inst),
+            dt_token_str(node->kernel), dt_token_str(node->connector[c].name));
+        graph->gui_msg = graph->gui_msg_buf;
+        return VK_INCOMPLETE;
+      }
       // dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
       //     graph->node[mi].connector[mc].connected_mi,
       //     dt_token_str(graph->node[mi].name),
@@ -1221,6 +1229,7 @@ count_references(dt_graph_t *graph, dt_node_t *node)
       //     dt_token_str(node->connector[c].name));
     }
   }
+  return VK_SUCCESS;
 }
 
 
@@ -1256,7 +1265,7 @@ dt_graph_run_nodes_allocate(
     // perform reference counting on the final connected node graph.
     // this is needed for memory allocation later:
     for(int i=0;i<cnt;i++)
-      count_references(graph, graph->node+nodeid[i]);
+      QVKR(count_references(graph, graph->node+nodeid[i]));
     // free pipeline resources if previously allocated anything:
     dt_vkalloc_nuke(&graph->heap);
     dt_vkalloc_nuke(&graph->heap_ssbo);
