@@ -16,7 +16,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 layout(set = 1, binding = 0) uniform usampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
-// display histogram, runs on output dimensions==input
+// display vectorscope
 void
 main()
 {
