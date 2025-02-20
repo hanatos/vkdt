@@ -42,7 +42,8 @@ vec3 fetch_coeff(vec3 rgb, out float b)
   b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
   tri2quad(tc);
-  return texture(img_coeff, tc).rgb;
+  ivec2 tci = ivec2(tc * textureSize(img_coeff, 0) + 0.5);
+  return texelFetch(img_coeff, tci, 0).rgb;
 }
 
 void
