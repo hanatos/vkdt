@@ -292,6 +292,8 @@ dt_node_editor(
 
   // row height is view space, i.e. already scaled for display
   float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
+  float lineskip = row_height + vkdt.ctx.style.window.spacing.y;
+  float header_offset = 1.5*lineskip; // whatever the fuck. i will not find out what it is.
 
   const struct nk_color col_feedback = nk_rgb(200, 30, 200);
   static struct nk_rect selected_rect;
@@ -329,7 +331,7 @@ dt_node_editor(
     }
 
     const float pin_radius = 0.3*row_height;
-    const float link_thickness = 0.3*pin_radius;
+    const float link_thickness = 0.35*pin_radius;
 
     for(int c=0;c<module->num_connectors;c++)
     {
@@ -342,7 +344,7 @@ dt_node_editor(
               module_bounds.y)));
         struct nk_rect circle = {
           .x = p.x - pin_radius,
-          .y = p.y + row_height * (c+2),
+          .y = p.y + lineskip * c + header_offset,
           .w = 2*pin_radius,
           .h = 2*pin_radius,
         };
@@ -378,7 +380,7 @@ dt_node_editor(
                 module_bounds.y)));
         struct nk_rect circle = {
           .x = p.x - pin_radius,
-          .y = p.y + row_height * (c+2),
+          .y = p.y + lineskip * c + header_offset,
           .w = 2*pin_radius,
           .h = 2*pin_radius,
         };
@@ -419,9 +421,9 @@ dt_node_editor(
                 nk_vec2(
                   mo_bounds.x + mo_bounds.w,
                   mo_bounds.y)));
-          l0.y += row_height * (cido+2) + pin_radius;
+          l0.y += lineskip * cido + header_offset + pin_radius;
           p.x += pin_radius;
-          p.y += row_height * (c+2) + pin_radius;
+          p.y += lineskip * c + header_offset + pin_radius;
           struct nk_color col = nk_rgb(100,100,100);
           if(module->connector[c].flags & s_conn_feedback)
             col = col_feedback;
