@@ -328,8 +328,8 @@ dt_node_editor(
       else if(mid < NK_LEN(nedit->selected_mid)) nedit->selected_mid[mid] = 0;
     }
 
-    const float pin_radius = 0.01*vkdt.state.center_ht;
-    const float link_thickness = 0.4*pin_radius;
+    const float pin_radius = 0.3*row_height;
+    const float link_thickness = 0.3*pin_radius;
 
     for(int c=0;c<module->num_connectors;c++)
     {
@@ -338,13 +338,13 @@ dt_node_editor(
         struct nk_vec2 p = nk_layout_space_to_screen(ctx,
             dt_node_world_to_view(nedit,
             nk_vec2(
-              module_bounds.x + module_bounds.w-pin_radius,
+              module_bounds.x + module_bounds.w,
               module_bounds.y)));
         struct nk_rect circle = {
-          .x = p.x,
+          .x = p.x - pin_radius,
           .y = p.y + row_height * (c+2),
-          .w = 2*pin_radius*nedit->zoom,
-          .h = 2*pin_radius*nedit->zoom,
+          .w = 2*pin_radius,
+          .h = 2*pin_radius,
         };
         const int hovering_circle = nk_input_is_mouse_hovering_rect(in, circle);
         nk_fill_circle(canvas, circle, hovering_circle ? vkdt.style.colour[NK_COLOR_DT_ACCENT] : nk_rgb(100, 100, 100));
@@ -374,13 +374,13 @@ dt_node_editor(
         struct nk_vec2 p = nk_layout_space_to_screen(ctx, 
             dt_node_world_to_view(nedit,
               nk_vec2(
-                module_bounds.x - pin_radius,
+                module_bounds.x,
                 module_bounds.y)));
         struct nk_rect circle = {
-          .x = p.x,
+          .x = p.x - pin_radius,
           .y = p.y + row_height * (c+2),
-          .w = 2*pin_radius*nedit->zoom,
-          .h = 2*pin_radius*nedit->zoom,
+          .w = 2*pin_radius,
+          .h = 2*pin_radius,
         };
         const int hovering_circle = nk_input_is_mouse_hovering_rect(in, circle);
         if (!disabled && hovering_circle) mouse_over_something = 2;
@@ -418,10 +418,10 @@ dt_node_editor(
               dt_node_world_to_view(nedit,
                 nk_vec2(
                   mo_bounds.x + mo_bounds.w,
-                  mo_bounds.y + pin_radius)));
-          l0.y += row_height * (cido+2);
-          p.x += pin_radius * nedit->zoom;
-          p.y += row_height * (c+2) + pin_radius * nedit->zoom;
+                  mo_bounds.y)));
+          l0.y += row_height * (cido+2) + pin_radius;
+          p.x += pin_radius;
+          p.y += row_height * (c+2) + pin_radius;
           struct nk_color col = nk_rgb(100,100,100);
           if(module->connector[c].flags & s_conn_feedback)
             col = col_feedback;
