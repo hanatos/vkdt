@@ -32,7 +32,7 @@ void tri2quad(inout vec2 tc)
   tc.x = (1.0-tc.x)*(1.0-tc.x);
 }
 
-vec3 fetch_coeff(vec3 rgb, out float b)
+vec4 fetch_coeff(vec3 rgb, out float b)
 {
   const mat3 rec2020_to_xyz = mat3(
     6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
@@ -43,7 +43,7 @@ vec3 fetch_coeff(vec3 rgb, out float b)
   vec2 tc = xyz.xy/b;
   tri2quad(tc);
   ivec2 tci = ivec2(tc * textureSize(img_coeff, 0) + 0.5);
-  return texelFetch(img_coeff, tci, 0).rgb;
+  return texelFetch(img_coeff, tci, 0);
 }
 
 void
@@ -69,7 +69,7 @@ main()
     // params.pick[]
 
     float b;
-    vec3 coeff = fetch_coeff(picked_rgb, b);
+    vec4 coeff = fetch_coeff(picked_rgb, b);
     vec3 cyl = vec3(coeff.x, coeff.z - coeff.y*coeff.y /(4.0 * coeff.x), -coeff.y / (2.0*coeff.x));
 
     float lambda = 360.0 + ipos.x/float(imageSize(img_out).x) * (830.0 - 360.0);
@@ -77,8 +77,8 @@ main()
     float y = 1. / sqrt(x * x + 1.);
     float val = 0.5 * x * y +  0.5;
     float ddx = abs(0.5 * pow(x*x + 1.0, -3.0/2.0) * (2.0*coeff.x*(lambda-cyl.z)));
-    // val *= b;
-    // ddx *= b;
+    val *= b / coeff.w;
+    ddx *= b / coeff.w;
 
     const float w = 4.0; // stroke width
     const float t = w*max(1.0, imageSize(img_out).y*ddx);
