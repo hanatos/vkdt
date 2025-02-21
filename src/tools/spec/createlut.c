@@ -55,6 +55,7 @@ typedef enum Gamut {
   REC2020,
   ERGB,
   XYZ,
+  XYZ_D65,
 } Gamut;
 
 double sigmoid(double x) {
@@ -180,10 +181,14 @@ void init_tables(Gamut gamut)
       memcpy(rgb_to_xyz, ergb_to_xyz, sizeof(double) * 9);
       break;
 
-    case XYZ:
-      // illuminant = cie_e;
-      // illuminant = cie_c; // for munsell data compatibility
+    case XYZ_D65:
       illuminant = cie_d65; // for hue constancy table with d65 white
+      memcpy(xyz_to_rgb, xyz_to_xyz, sizeof(double) * 9);
+      memcpy(rgb_to_xyz, xyz_to_xyz, sizeof(double) * 9);
+      break;
+
+    case XYZ:
+      illuminant = cie_e;
       memcpy(xyz_to_rgb, xyz_to_xyz, sizeof(double) * 9);
       memcpy(rgb_to_xyz, xyz_to_xyz, sizeof(double) * 9);
       break;
@@ -449,7 +454,7 @@ void parallel_run(uint32_t item, void *data)
 
 int main(int argc, char **argv)
 {
-  Gamut gamut = XYZ;
+  Gamut gamut = XYZ_D65;
   init_tables(gamut);
 
   const int res = 512;//atoi(argv[1]); // resolution of 2d lut
@@ -492,95 +497,6 @@ mac_error:
       exit(2);
     }
   }
-
-#if 0
-  const int N = 50;
-  for(int i=0;i<N;i++)
-  {
-    double theta = i/(double)N*2.0*M_PI;//xrand()*2.0*M_PI;
-    double sat = 0.75;//xrand();
-    double dist = max_dist(theta) * sat;
-    double x = cos(theta) * dist;
-    double y = sin(theta) * dist;
-
-    double rgb[3];
-    double coeffs[3];
-    init_coeffs(coeffs);
-    // normalise to max(rgb)=1
-    rgb[0] = x;
-    rgb[1] = y;
-    rgb[2] = 1.0-x-y;
-    // if(check_gamut(rgb)) continue;
-
-    int ii = (int)fmin(max_w - 1, fmax(0, x * max_w + 0.5));
-    int jj = (int)fmin(max_h - 1, fmax(0, y * max_h + 0.5));
-    double m = fmax(0.001, 0.5*max_b[ii + max_w * jj]);
-    double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
-    double resid = gauss_newton(rgbm, coeffs);
-
-    double c0yl[3];
-    cvt_c012_c0yl(coeffs, c0yl);
-    fprintf(stdout, "%g %g %g\n", theta, sat, c0yl[2]);
-    // turingbot says:
-    // 485.798+((7.18167-(3.77891*fmod(-0.102169+col2,col1)/(-1.02793+col1)))*log(col2)-(cos((-1.81813)*(0.516929+col1))+((round(col2)+3.48652)*(-0.0856938+col2)*tan(col1+0.256979))))
-    //
-    // for sat == 0.5 it finds:
-    // for random theta:
-    //  479.698+(1.69192*log2((abs(1.07426-tan(((-0.00382351)/tan(1.00703*col1-0.967258))+(1.01348*(-0.0135525+col1))))+0.16693)*erf(0.907124+col1))-(0.0326317+tan(0.232961+col1)))
-    // for uniform theta:
-    // 488.9+(5.4483*asinh((((-0.131495)/abs(tan(-0.977603+col1)))+tan(-3.4558-(0.000227752+col1))-2.92341)/1.58603)+(asinh(-2.51662*tan(3.9132+col1))/1.46824))
-    //
-    //sat == 0.75
-    // (abs(tan(-1.034-col1+col2)+4.23188)/0.301905)-asinh(0.168976*(tan(0.99956+col1)+tan(-0.660586-col1)+cos(-1.94464*col1)+tan(-0.019656+col1)))+469.578
-    // TODO: plot theta vs hue angle or wavelength vs wavelength!
-    // TODO: this way we won't see all the tan trying to compensate
-
-    // (18.86-((tan(0.14787+1.02656*col1)/0.324046)+1.2005*atanh(cos(2.30529*(-0.726312+col1)))-((4.31693+(col1-cos(2.08053*col1)))*(1.13487-col2))))*(erf(col2)-(0.00470529/(-0.051686+col2)))+468.909
-  }
-  exit(0);
-#endif
-#if 0
-  // go through dt_spectrum_clip points as start and know the wavelength that
-  // goes with it.
-  // wedge saturation from that to zero (i.e. linearly blend with E)
-  // then find lambda 
-  const float E[] = {1./3., 1./3.};
-  const int p_cnt = sizeof(dt_spectrum_clip)/2/sizeof(dt_spectrum_clip[0]);
-  for(int i=0;i<p_cnt;i++)
-  {
-    double lambda = 420.0 + 5.0*i;
-    fprintf(stdout, "%g ", lambda);
-    int ns = 20;
-    for(int s=0;s<ns;s++)
-    {
-      // TODO: also do it for purple line/u-shapes!
-      double sat = s/(ns-1.0);
-      double x = sat * dt_spectrum_clip[2*i+0] + (1.0-sat)*E[0];
-      double y = sat * dt_spectrum_clip[2*i+1] + (1.0-sat)*E[1];
-
-      double rgb[3];
-      double coeffs[3];
-      init_coeffs(coeffs);
-      // normalise to max(rgb)=1
-      rgb[0] = x;
-      rgb[1] = y;
-      rgb[2] = 1.0-x-y;
-      // if(check_gamut(rgb)) continue;
-
-      int ii = (int)fmin(max_w - 1, fmax(0, x * max_w + 0.5));
-      int jj = (int)fmin(max_h - 1, fmax(0, y * max_h + 0.5));
-      double m = fmax(0.001, 0.5*max_b[ii + max_w * jj]);
-      double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
-      double resid = gauss_newton(rgbm, coeffs);
-
-      double c0yl[3];
-      cvt_c012_c0yl(coeffs, c0yl);
-      fprintf(stdout, "%g ", c0yl[2]);
-    }
-    fprintf(stdout, "\n");
-  }
-  exit(0);
-#endif
 
   printf("optimising ");
 
