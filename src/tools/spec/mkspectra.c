@@ -447,6 +447,13 @@ mac_error:
       if(f)   fwrite(q, sizeof(float), 4, f);
       // if(pfm) fwrite(q, sizeof(float), 3, pfm);
     }
+    fprintf(f,
+        "spectral upsampling table for Jakob 2019 style sigmoid spectra.\n"
+        "lookup using triangle-to-quad xy chromaticities.\n"
+        "this is meant to be used for emissions, i.e. querying at the equal energy white\n"
+        "coordinates (1/3,1/3) will yield the equal energy spectrum.\n"
+        "the fourth channel is the brightness b=X+Y+Z of the corresponding colour coordinate.\n"
+        "this is not 1.0/constant because the bounded spectra are subject to MacAdams limit.");
     if(f) fclose(f);
     // if(pfm) fclose(pfm);
   }
