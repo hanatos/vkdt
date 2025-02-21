@@ -1,6 +1,6 @@
 .PHONY:tools
 
-tools:../bin/data/spectra.lut ../bin/vkdt-mkssf ../bin/vkdt-mkclut ../bin/vkdt-lutinfo ../bin/vkdt-eval-profile
+tools:../bin/data/spectra.lut ../bin/data/abney.lut ../bin/vkdt-mkssf ../bin/vkdt-mkclut ../bin/vkdt-lutinfo ../bin/vkdt-eval-profile
 
 ADD_CFLAGS=-Itools -Itools/shared
 ADD_LDFLAGS=-lm -ldl
@@ -31,10 +31,15 @@ MKCLUT_DEPS=core/inpaint.h \
 ../bin/vkdt-eval-profile: tools/clut/src/eval.c ${MKSSF_DEPS} Makefile
 	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(ADD_CFLAGS) $< -o $@ $(LDFLAGS) $(ADD_LDFLAGS)
 
-../bin/data/spectra.lut: mkabney macadam.lut Makefile
-	@echo "[tools] precomputing rgb to spectrum upsampling table.."
+../bin/data/abney.lut: mkabney macadam.lut Makefile
+	@echo "[tools] precomputing abney hue line table.."
 	./mkabney
-	mv spectra.lut abney.lut ../bin/data/
+	mv abney.lut ../bin/data/
+
+../bin/data/spectra.lut: mkspectra macadam.lut Makefile
+	@echo "[tools] precomputing rgb to spectrum upsampling table.."
+	./mkspectra
+	mv spectra.lut ../bin/data/
 
 macadam.lut: macadam
 	./macadam
@@ -43,5 +48,8 @@ macadam: tools/spec/macadam.c core/threads.c Makefile
 	@echo "[tools] precomputing max theoretical reflectance brightness.."
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(EXE_CFLAGS) $(ADD_CFLAGS) $< core/threads.c -o $@ $(LDFLAGS) $(ADD_LDFLAGS) -pthread
 
-mkabney: tools/spec/createlut.c core/threads.c Makefile
+mkspectra: tools/spec/mkspectra.c core/threads.c Makefile
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(EXE_CFLAGS) $(ADD_CFLAGS) $< core/threads.c -o $@ $(LDFLAGS) $(ADD_LDFLAGS) -pthread
+
+mkabney: tools/spec/mkabney.c core/threads.c Makefile
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) $(EXE_CFLAGS) $(ADD_CFLAGS) $< core/threads.c -o $@ $(LDFLAGS) $(ADD_LDFLAGS) -pthread
