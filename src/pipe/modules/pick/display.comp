@@ -13,19 +13,10 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float picked[60]; // actually 3-strided colours
 } params;
 
-layout( // input picked colour buffer
-    set = 1, binding = 0
-) uniform sampler2D img_in;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform sampler2D img_coeff;
+layout(set = 1, binding = 2) uniform writeonly image2D img_out;
 
-layout( // rgb to sigmoid lut
-    set = 1, binding = 1
-) uniform sampler2D img_coeff;
-
-layout( // output buffer
-    set = 1, binding = 2
-) uniform writeonly image2D img_out;
-
-// TODO: put in shared.glsl?
 void tri2quad(inout vec2 tc)
 {
   tc.y = tc.y / (1.0-tc.x);
