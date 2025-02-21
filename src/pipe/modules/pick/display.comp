@@ -78,6 +78,9 @@ main()
     rgb = max(rgb, picked_rgb * vec3(pow(smoothstep(t, 0.0, d), 3)));
     // on white:
     // rgb = mix(rgb, picked_rgb, vec3(pow(smoothstep(t, 0.0, d), 3)));
+    // shade below:
+    if(ipos.y / float(imageSize(img_out).y) > 1.0-val)
+      rgb = mix(rgb, picked_rgb, 0.1);
   }
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
