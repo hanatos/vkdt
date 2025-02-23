@@ -371,6 +371,25 @@ VkResult dt_graph_run(
       return VK_INCOMPLETE;
     }
 
+    for(int i=0;i<cnt;i++)
+    {
+      const dt_node_t *node = graph->node+nodeid[i];
+      for(int c=0;c<node->num_connectors;c++)
+      {
+        if(dt_connector_input(node->connector+c))
+        {
+          if(node->connector[c].connected_mi == -1)
+          {
+            snprintf(graph->gui_msg_buf, sizeof(graph->gui_msg_buf), "kernel %"PRItkn"_%"PRItkn"_%"PRItkn":%"PRItkn" is not connected!",
+                dt_token_str(node->name), dt_token_str(node->module->inst),
+                dt_token_str(node->kernel), dt_token_str(node->connector[c].name));
+            graph->gui_msg = graph->gui_msg_buf;
+            return VK_INCOMPLETE;
+          }
+        }
+      }
+    }
+
     // potentially free/re-allocate memory, create buffers, images, image_views, and descriptor sets:
     int dynamic_array = 0;
     QVKR(dt_graph_run_nodes_allocate(graph, &run, nodeid, cnt, &dynamic_array));
