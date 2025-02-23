@@ -6,8 +6,8 @@ struct rtgeo_vtx_t
 {
   float x, y, z;
   uint tex;
-  uint n;
-  uint st;
+  uint n;     // encode normal, see geo_encode_normal
+  uint st;    // packHalf2x16
 };
 
 // 32-bit normal encoding from Journal of Computer Graphics Techniques Vol. 3, No. 2, 2014
@@ -284,3 +284,11 @@ float vmf_get_kappa(float x)
       (-1.12718*x*x+29.1433*x+1.0));
 }
 
+// importance sample the blackman harris pixel filter.
+// has 1.5px radius support
+vec2 filter_bh_sample(vec2 rand)
+{
+  vec2 res = vec2(cos(rand.y*M_PI*2.0), sin(rand.y*M_PI*2.0));
+  float r = 0.943404 * asin(0.636617 * asin(sqrt(rand.x))); // surprisingly good fit to inverse cdf
+  return res * r;
+}

@@ -1,0 +1,7 @@
+film:int:1:0
+paper:int:1:0
+gamma f:float:1:1.0
+exp p:float:1:0.0
+gamma p:float:1:1.0
+filter m:float:1:1.0
+filter y:float:1:1.0

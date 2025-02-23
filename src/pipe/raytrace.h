@@ -27,7 +27,7 @@ typedef struct dt_raytrace_graph_t
   size_t                                      accel_end,   accel_max;
   uint32_t                                   *nid;
   uint32_t                                    nid_cnt, nid_max;
-  VkDescriptorSet                             dset;              // one descriptor set for every frame (the whole struct is per frame)
+  VkDescriptorSet                             dset[2];           // one descriptor set for every frame
   VkDescriptorSetLayout                       dset_layout;       // they all share the same layout
 }
 dt_raytrace_graph_t;
@@ -43,7 +43,6 @@ typedef struct dt_raytrace_node_t
   off_t                                       buf_accel_offset;
   off_t                                       buf_scratch_offset;
   uint32_t                                    tri_cnt;        // number of triangles provided by this node, i.e. number of vertices / 3
-  int                                         force_build_bvh;// override for static geo in odd frames
 }
 dt_raytrace_node_t;
 

@@ -16,26 +16,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform sampler2D img_coeff;
 layout(set = 1, binding = 2) uniform writeonly image2D img_out;
-
-void tri2quad(inout vec2 tc)
-{
-  tc.y = tc.y / (1.0-tc.x);
-  tc.x = (1.0-tc.x)*(1.0-tc.x);
-}
-
-vec4 fetch_coeff(vec3 rgb, out float b)
-{
-  const mat3 rec2020_to_xyz = mat3(
-    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
-    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
-    1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
-  vec3 xyz = rec2020_to_xyz * rgb;
-  b = dot(vec3(1),xyz);
-  vec2 tc = xyz.xy/b;
-  tri2quad(tc);
-  ivec2 tci = ivec2(tc * textureSize(img_coeff, 0) + 0.5);
-  return texelFetch(img_coeff, tci, 0);
-}
+#include "shared/upsample.glsl"
 
 void
 main()
@@ -59,17 +40,14 @@ main()
     // or else read colour from params (requires round trip to cpu)?
     // params.pick[]
 
-    float b;
-    vec4 coeff = fetch_coeff(picked_rgb, b);
+    vec4 coeff = fetch_coeff(picked_rgb);
     vec3 cyl = vec3(coeff.x, coeff.z - coeff.y*coeff.y /(4.0 * coeff.x), -coeff.y / (2.0*coeff.x));
 
     float lambda = 360.0 + ipos.x/float(imageSize(img_out).x) * (830.0 - 360.0);
     float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
-    float y = 1. / sqrt(x * x + 1.);
-    float val = 0.5 * x * y +  0.5;
     float ddx = abs(0.5 * pow(x*x + 1.0, -3.0/2.0) * (2.0*coeff.x*(lambda-cyl.z)));
-    val *= b / coeff.w;
-    ddx *= b / coeff.w;
+    float val = sigmoid_eval(coeff, lambda);
+    ddx *= coeff.w;
 
     const float w = 4.0; // stroke width
     const float t = w*max(1.0, imageSize(img_out).y*ddx);

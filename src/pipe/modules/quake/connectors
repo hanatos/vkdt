@@ -1,6 +1,4 @@
-output:write:rgba:f32
-blue:read:*:*
-aov:write:rgba:f16
-mv:read:*:*
-gbuf:write:rgba:f32
-debug:write:rgba:f16
+ui:write:rgba:f16
+dyngeo:source:ssbo:tri
+stcgeo:source:ssbo:tri
+tex:source:rgba:ui8

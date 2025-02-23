@@ -25,7 +25,7 @@ dt_graph_run_nodes_download(
         {
           dt_write_sink_params_t p = { .node = node, .c = 0, .a = 0 };
           node->module->so->write_sink(node->module,
-              mapped + node->connector[0].offset_staging, &p);
+              mapped + node->connector[0].offset_staging[graph->double_buffer], &p);
         }
       }
     }

@@ -297,19 +297,6 @@ double gauss_newton(const double rgb[3], double coeffs[3])
   return sqrt(r);
 }
 
-// this is the piecewise fit
-double max_dist(double theta)
-{
-  double x = theta <= 1.7355 ? theta + 2*M_PI : theta;
-  if(x > 1.7355)
-    return 0.230142/(cos(x-0.0236733-8.96303)+((-4.61744e-06)/(-1.73848+x)));
-  if(x > 3.604)
-    return 0.0583482*x/(-0.0635246+cos(cos(-0.0382566+x)+0.0321751));
-  if(x > 5.805)
-    return 0.699391/(sin((2.00266-(-0.0155152*cos(-2.00539*x)))*x)+1.99541);
-  else return 0.0; // XXX
-}
-
 typedef struct parallel_shared_t
 {
   float *out, *max_b;
@@ -338,16 +325,18 @@ void parallel_run(uint32_t item, void *data)
   rgb[0] = x;
   rgb[1] = y;
   rgb[2] = 1.0-x-y;
+  int idx = j*d->res + i;
+  d->out[4*idx + 0] = d->out[4*idx + 1] = d->out[4*idx + 2] = d->out[4*idx + 3] = 0.0;
   if(check_gamut(rgb)) return;
 
   int ii = (int)fmin(d->max_w - 1, fmax(0, x * d->max_w + 0.5));
   int jj = (int)fmin(d->max_h - 1, fmax(0, y * d->max_h + 0.5));
-  double m = fmax(0.01, 0.5*d->max_b[ii + d->max_w * jj]);
+  double m = 0.5*d->max_b[ii + d->max_w * jj];
+  if(m <= 0.01) return;
   double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
   double resid = gauss_newton(rgbm, coeffs);
 
   (void)resid;
-  int idx = j*d->res + i;
   d->out[4*idx + 0] = coeffs[0];
   d->out[4*idx + 1] = coeffs[1];
   d->out[4*idx + 2] = coeffs[2];

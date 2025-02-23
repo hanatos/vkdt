@@ -84,7 +84,7 @@ dt_inpaint_fill(dt_inpaint_buf_t *f, const dt_inpaint_buf_t *c)
     }
 #else // straight upsampling
     int jo = j/2, io = i/2;
-    if(dt_inpaint_unset(f, i, j) && !unset(c, io, jo))
+    if(dt_inpaint_unset(f, i, j) && !dt_inpaint_unset(c, io, jo))
     { // could blur here too, but it seems kinda smooth already.
       for(int k=0;k<f->cpp;k++)
         f->dat[f->cpp*(f->wd*j + i)+k] = c->dat[c->cpp*(c->wd*jo+io)+k];

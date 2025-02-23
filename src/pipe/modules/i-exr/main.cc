@@ -87,7 +87,12 @@ read_header(
     FreeEXRErrorMessage(err);
     goto error;
   }
-  // TODO: maybe set hdr->requested_pixel_types[c] to something HALF?
+  if(exr->hdr.pixel_types[0] == TINYEXR_PIXELTYPE_HALF)
+    mod->connector[0].format = dt_token("f16");
+  else if(exr->hdr.pixel_types[0] == TINYEXR_PIXELTYPE_FLOAT)
+    mod->connector[0].format = dt_token("f32");
+  else if(exr->hdr.pixel_types[0] == TINYEXR_PIXELTYPE_UINT)
+    mod->connector[0].format = dt_token("ui32");
 
   mod->img_param.colour_primaries = s_colour_primaries_2020;
   mod->img_param.colour_trc       = s_colour_trc_linear;
@@ -190,7 +195,7 @@ static int
 read_plain(
     dt_module_t    *mod,
     exrinput_buf_t *exr,
-    uint16_t       *out)
+    void           *out)
 {
   const int   id       = dt_module_param_int(mod, 1)[0];
   const char *filename = dt_module_param_string(mod, 0);
@@ -200,18 +205,29 @@ read_plain(
   if(LoadEXRImageFromFile(&exr->img, &exr->hdr, fname, 0) < 0)
     return 1;
 
+  uint16_t *out_f16 = (uint16_t *)out;
+  float    *out_f32 = (float    *)out;
+  uint32_t *out_u32 = (uint32_t *)out;
+  uint8_t  *out_u8  = (uint8_t  *)out;
   uint16_t one = float_to_half(1.0f);
   const int wd = mod->connector[0].roi.wd;
   const int ht = mod->connector[0].roi.ht;
 
-  for (int y = 0; y < ht; y++)
-    for (int x = 0; x < wd; x++)
-      out[4*(y * wd + x)+3] = one; // opaque alpha
-
-  for(int c=0;c<exr->hdr.num_channels;c++) if(exr->hdr.pixel_types[c] != TINYEXR_PIXELTYPE_HALF)
-  { // TODO: support FLOAT and UINT too
-    fprintf(stderr, "[i-exr] %s: sorry only support half type so far\n", fname);
-    return 1;
+  int pxs = 0;
+  if(exr->hdr.pixel_types[0] == TINYEXR_PIXELTYPE_HALF)
+  {
+    pxs = sizeof(uint16_t);
+    for (int y = 0; y < ht; y++) for (int x = 0; x < wd; x++) out_f16[4*(y * wd + x)+3] = one; // opaque alpha
+  }
+  if(exr->hdr.pixel_types[0] == TINYEXR_PIXELTYPE_FLOAT)
+  {
+    pxs = sizeof(float);
+    for (int y = 0; y < ht; y++) for (int x = 0; x < wd; x++) out_f32[4*(y * wd + x)+3] = 1.0f;
+  }
+  else if(exr->hdr.pixel_types[0] == TINYEXR_PIXELTYPE_UINT)
+  {
+    pxs = sizeof(uint32_t);
+    for (int y = 0; y < ht; y++) for (int x = 0; x < wd; x++) out_u32[4*(y * wd + x)+3] = -1u;
   }
   if(exr->img.tiles)
   {
@@ -227,11 +243,11 @@ read_plain(
       for (int c = 0; c < exr->hdr.num_channels; c++)
       {
         int co = get_cid(&exr->hdr, c);
-        const uint16_t* src = (const uint16_t*)(exr->img.tiles[tile_idx].images[c]);
+        const uint8_t *src = (const uint8_t *)(exr->img.tiles[tile_idx].images[c]);
         for (int y = 0; y < ey - sy; y++)
           for (int x = 0; x < ex - sx; x++)
-            out[4*((y + sy) * wd + (x + sx))+co] =
-                src[y * exr->hdr.tile_size_x + x];
+            memcpy(out_u8 + pxs*(4*((y + sy) * wd + (x + sx))+co), 
+                src + pxs*(y * exr->hdr.tile_size_x + x), pxs);
       }
     }
   }
@@ -240,10 +256,10 @@ read_plain(
     for (int c = 0; c < exr->hdr.num_channels; c++)
     {
       int co = get_cid(&exr->hdr, c);
-      const uint16_t* src = (const uint16_t*)(exr->img.images[c]);
+      const uint8_t *src = (const uint8_t *)(exr->img.images[c]);
       for (int y = 0; y < ht; y++)
         for (int x = 0; x < wd; x++)
-          out[4*(y * wd + x)+co] = src[y * wd + x];
+          memcpy(out_u8 + pxs*(4*(y * wd + x)+co), src + pxs*(y * wd + x), pxs);
     }
   }
   FreeEXRImage(&exr->img);
@@ -317,6 +333,6 @@ int read_source(
   const char *filename = dt_module_param_string(mod, 0);
   if(read_header(mod, mod->graph->frame+id, filename)) return 1;
   exrinput_buf_t *exr = (exrinput_buf_t *)mod->data;
-  return read_plain(mod, exr, (uint16_t *)mapped);
+  return read_plain(mod, exr, mapped);
 }
 }

@@ -16,7 +16,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       }
 
   // runflag will be 1 if we ask to upload source explicitly (the first time around)
-  if((runflag == 0) && dt_node_source(node))
+  if((runflag == 0) && dt_node_source(node) && !node->force_upload)
   {
     for(int i=0;i<node->num_connectors;i++)
     { // this is completely retarded and just to make the layout match what we expect below
@@ -38,6 +38,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     }
     return VK_SUCCESS;
   }
+
+  // clear the force upload flag, we are done:
+  if(node->force_upload == 2) node->force_upload = 0;
 
   // TODO: extend the runflag to only switch on modules *after* cached input/changed parameters
 
@@ -89,7 +92,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   // increased efficiency in this case.
   for(int i=0;i<node->num_connectors;i++)
   {
-    // ssbo are not depending on image layouts and are also not cleared to zero:
+    // ssbo are not depending on image layouts
     if(dt_connector_ssbo(node->connector+i))
     { // input buffers have a barrier
       if(dt_connector_input(node->connector+i))
@@ -218,9 +221,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       vkCmdCopyBuffer(
           cmd_buf,
           dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->buffer,
-          node->connector[0].staging,
+          node->connector[0].staging[graph->double_buffer],
           1, &bufreg);
-      BARRIER_COMPUTE_BUFFER(node->connector[0].staging);
+      BARRIER_COMPUTE_BUFFER(node->connector[0].staging[graph->double_buffer]);
     }
     else
     {
@@ -228,9 +231,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
           cmd_buf,
           dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->image,
           VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-          node->connector[0].staging,
+          node->connector[0].staging[graph->double_buffer],
           yuv ? 2 : 1, yuv ? regions+1 : regions);
-      BARRIER_COMPUTE_BUFFER(node->connector[0].staging);
+      BARRIER_COMPUTE_BUFFER(node->connector[0].staging[graph->double_buffer]);
     }
   }
   else if(dt_node_source(node) &&
@@ -249,9 +252,10 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer),
         UNDEFINED,
         TRANSFER_DST_OPTIMAL);
-    vkCmdCopyBufferToImage(
+    if(wd > 0 && ht > 0)
+      vkCmdCopyBufferToImage(
         cmd_buf,
-        node->connector[0].staging,
+        node->connector[0].staging[graph->double_buffer],
         dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->image,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         yuv ? 2 : 1, yuv ? regions+1 : regions);
@@ -314,7 +318,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   VkDescriptorSet desc_sets[] = {
     node->uniform_dset[f],
     node->dset[f],
-    graph->rt[f].dset,
+    graph->rt.dset[f],
   };
   const int desc_sets_cnt = LENGTH(desc_sets) - 1 + dt_raytrace_present(graph);
 

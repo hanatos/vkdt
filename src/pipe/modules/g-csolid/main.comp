@@ -1,0 +1,173 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+#include "shared/render3d.glsl"
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  int frame;
+  int frame_cnt;
+}
+global;
+// TODO: options:
+// number of taper object vertices?
+// smooth normals?
+// rotate frame
+// how to mess with taper object radius/hardness
+// opacity maps to what?
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+layout(push_constant, std140) uniform push_t
+{
+  int vtx_cnt;
+  int vtx_end;
+}
+push;
+layout(set = 1, binding = 0) readonly  buffer buf_icrv_t { uint v[]; } buf_crv;
+layout(set = 1, binding = 1) writeonly buffer buf_ovtx_t { rtgeo_vtx_t v[]; } buf_tri;
+
+bool decode_vert(
+    in  uint  i,
+    out float radius,
+    out float opacity,
+    out float hardness,
+    out vec2  p)
+{ // decode vertex i:
+  if(buf_crv.v[2*i] == 0 && buf_crv.v[2*i+1] == 0) return true;
+  radius = 2.0 * unpackUnorm2x16(buf_crv.v[2*i+1]).x;
+  if(radius == 0.0) return true;
+  vec2 u = unpackUnorm4x8(buf_crv.v[2*i+1]).zw;
+  opacity  = u.x;
+  hardness = u.y;
+  p = unpackUnorm2x16(buf_crv.v[2*i]) * 4.0 - 2.0;
+  return false;
+}
+
+vec3 v_to_ws(in vec2 p, bool back)
+{
+  // bring in line with 2d drawing:
+  vec3 p0 = vec3(p.x, 0, -p.y);
+  float a = 4; // increase this to make the grafitti tighter. lower will blow it up
+  p0.y = sqrt(max(1.0-p0.z*p0.z*a*a, 0.0))/a;
+  if(back) p0.y = -p0.y;
+  return p0;
+}
+
+void compute_ring(
+    in float s,
+    in float thickness,
+    in vec3 p0,
+    in vec3 p1,
+    in vec3 p2,
+    out vec3 f0,
+    out vec3 f1,
+    out vec3 f2,
+    out mat3 M)
+{
+  { // some rotating up vector:
+    // vec3 up = vec3(0, sin(global.frame/100.0), cos(global.frame/100.0));
+    // TODO: make a param to be passed in as keyframe..
+    vec3 up = vec3(0, sin(s), cos(s)); // XXX s + param something
+    vec3 w = normalize(p2-p0);
+    vec3 u = normalize(cross(w, up));
+    M = mat3(u, cross(u, w), w);
+  }
+  // a triangular cross section:
+  const vec3 tv0 = vec3(  0,  0.577, 0);
+  const vec3 tv1 = vec3( .5, -0.289, 0);
+  const vec3 tv2 = vec3(-.5, -0.289, 0);
+  // construct world space triangle vertices
+  const float sc = thickness;  // scale the thickness of the stroke stencil
+  const float s2 = 20.0; // scale the curve vertices before extrusion
+  f0 = M * sc * tv0 + s2 * p1;
+  f1 = M * sc * tv1 + s2 * p1;
+  f2 = M * sc * tv2 + s2 * p1;
+}
+
+
+void emit_tri(uint ti,
+    vec3 v0,  vec3 v1,  vec3 v2,
+    vec2 st0, vec2 st1, vec2 st2,
+    vec3 n0,  vec3 n1,  vec3 n2)
+{
+  uint tex = 4;
+  uint ni0 = geo_encode_normal(n0);
+  uint ni1 = geo_encode_normal(n1);
+  uint ni2 = geo_encode_normal(n2);
+  buf_tri.v[3*ti+0] = rtgeo_vtx_t(v0.x, v0.y, v0.z, tex, ni0, packHalf2x16(st0));
+  buf_tri.v[3*ti+1] = rtgeo_vtx_t(v1.x, v1.y, v1.z, 0,   ni1, packHalf2x16(st1));
+  buf_tri.v[3*ti+2] = rtgeo_vtx_t(v2.x, v2.y, v2.z, 0,   ni2, packHalf2x16(st2));
+}
+
+void emit_quad(uint ti, vec3 f0, vec3 f1, vec3 b0, vec3 b1, mat3 Mf, mat3 Mb)
+{
+  vec3 nf = cross(f1-f0, Mf[2]);
+  vec3 nb = cross(b1-b0, Mb[2]);
+  uint i = (ti/2) % 3;
+  vec2 stf0 = vec2( ti   /600.0,  i   /3.0);
+  vec2 stf1 = vec2( ti   /600.0, (i+1)/3.0);
+  vec2 stb0 = vec2((ti+6)/600.0,  i   /3.0);
+  vec2 stb1 = vec2((ti+6)/600.0, (i+1)/3.0);
+  emit_tri(ti  , f0, f1, b0, stf0, stf1, stb0, nf, nf, nb);
+  emit_tri(ti+1, b0, f1, b1, stb0, stf1, stb1, nb, nf, nb);
+}
+
+void emit_no_tri(uint ti)
+{
+  vec3 o = vec3(0.0/0.0);
+  emit_tri(6*ti+0, o, o, o, o.xy, o.xy, o.xy, o, o, o);
+  emit_tri(6*ti+1, o, o, o, o.xy, o.xy, o.xy, o, o, o);
+  emit_tri(6*ti+2, o, o, o, o.xy, o.xy, o.xy, o, o, o);
+  emit_tri(6*ti+3, o, o, o, o.xy, o.xy, o.xy, o, o, o);
+  emit_tri(6*ti+4, o, o, o, o.xy, o.xy, o.xy, o, o, o);
+  emit_tri(6*ti+5, o, o, o, o.xy, o.xy, o.xy, o, o, o);
+}
+
+void main()
+{
+  uint tidx = gl_GlobalInvocationID.x;
+
+  // TODO every thread works on uhm.. one vertex? and outputs .. 6 triangles of
+  // a strip? maybe plus one for the cap on either side?
+  // TODO think of something clever where a subgroup computes all the 12 hull vertices
+  // TODO and then each thread emits one of the triangles
+
+  if(tidx == 0 || tidx >= push.vtx_end)
+  { // output something or else the bvh will be unhappy
+    emit_no_tri(tidx);
+    return;
+  }
+
+  float r0, o0, h0, r1, o1, h1;
+  vec3 p0, p1, px0, px1;
+  bool ext0 = tidx-2 <  0            || decode_vert(tidx-2, r0, o0, h0, px0.xz);
+  bool ext1 = tidx+1 >= push.vtx_end || decode_vert(tidx+1, r1, o1, h1, px1.xz);
+  bool end0 = decode_vert(tidx-1, r0, o0, h0, p0.xz);
+  bool end1 = decode_vert(tidx,   r1, o1, h1, p1.xz);
+
+  if(end0 || end1)
+  {
+    emit_no_tri(tidx);
+    return;
+  }
+
+  bool back = p1.z > p0.z;
+  p0  = v_to_ws(p0.xz,  back);
+  p1  = v_to_ws(p1.xz,  back);
+  px0 = v_to_ws(px0.xz, back);
+  px1 = v_to_ws(px1.xz, back);
+  if(ext0) px0 = p0;
+  if(ext1) px1 = p1;
+  vec3 f0, f1, f2, b0, b1, b2;
+  float rad0 = ext0 ? 0.0 : 3.0;
+  float rad1 = ext1 ? 0.0 : 3.0;
+  mat3 Mf, Mb;
+  compute_ring( tidx   /7.0, rad0, px0, p0, p1, f0, f1, f2, Mf);
+  compute_ring((tidx+1)/7.0, rad1, p0, p1, px1, b0, b1, b2, Mb);
+
+  // emit rtgeo vertices
+  // thats a loooot of memory traffic for a single thread here
+  emit_quad(6*tidx+0, f0, f1, b0, b1, Mf, Mb);
+  emit_quad(6*tidx+2, f1, f2, b1, b2, Mf, Mb);
+  emit_quad(6*tidx+4, f2, f0, b2, b0, Mf, Mb);
+}

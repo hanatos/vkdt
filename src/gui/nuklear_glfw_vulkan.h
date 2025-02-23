@@ -1125,6 +1125,12 @@ void nk_glfw3_create_cmd(
   VkDescriptorSet current_texture = 0;
   uint32_t index_offset = 0;
   const struct nk_draw_command *cmd;
+  // bind font texture first, just to keep stuff initialised in case
+  vkCmdBindDescriptorSets(
+      command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+      dev->pipeline_layout, 1, 1,
+      (VkDescriptorSet*)&glfw.font_dset,
+      0, NULL);
   nk_draw_foreach(cmd, ctx, &dev->cmds)
   { // iterate over draw commands and issue as vulkan draw call
     if(cmd->texture.ptr && cmd->texture.ptr != current_texture)

@@ -1,14 +1,10 @@
 cam:grab
 fog:hidden
 spp:hidden
-torch:hidden
 water:hidden
 skybox:hidden
 exec:hidden
-ref:combo:guided sampling:reference mode
 pause:slider:0:2000
 cltime:hidden
 health:hidden
 armor:hidden
-wd:slider:576:3840
-ht:slider:320:2400

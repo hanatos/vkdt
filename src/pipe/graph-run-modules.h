@@ -109,6 +109,9 @@ create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
   {
     for(int i=0;i<graph->node[n].num_connectors;i++)
     {
+      if((graph->node[n].flags & s_module_request_read_source) &&
+         (graph->node[n].connector[i].type == dt_token("source")))
+        graph->node[n].connector[i].frames = 2;
       if(graph->node[n].connector[i].frames == 0)
       {
         if(graph->node[n].connector[i].flags & s_conn_feedback)
@@ -242,8 +245,7 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   }
   if(module->name == dt_token("bvh")) module->flags |= s_module_request_build_bvh;
   // this does not work if the *node* has a bvh name. in this case create_nodes has to take care of the correct flags manually.
-  if(module->name == dt_token("display") ||
-    (module->name == dt_token("bvh") && dt_module_param_int(module, dt_module_get_param(module->so, dt_token("animate")))[0]))
+  if(module->name == dt_token("display"))
   { // if this is a display module, walk our input connector and make the connection a feedback thing for double buffering
     if(input >= 0)
     {
@@ -303,11 +305,17 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
     }
     if(output < 0)
     {
-      dt_log(s_log_pipe|s_log_err, "input roi on %"PRItkn"_%"PRItkn" uninitialised!",
+      dt_log(s_log_pipe|s_log_err, "default modify_roi_in: input roi on %"PRItkn"_%"PRItkn" uninitialised!",
           dt_token_str(module->name), dt_token_str(module->inst));
       return;
     }
     dt_roi_t *roi = &module->connector[output].roi;
+
+    if(roi->wd == 0)
+    { // uninited, set to something:
+      roi->wd = roi->ht = 2;
+      roi->scale = 1.0f;
+    }
 
     // all input connectors get the same roi as our output.
     for(int i=0;i<module->num_connectors;i++)
@@ -526,8 +534,9 @@ dt_graph_run_modules(
       {
         dt_connector_t *c = graph->node[i].connector+j;
         c->associated_i = c->associated_c = -1;
-        if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
-        c->staging = 0;
+        if(c->staging[0]) vkDestroyBuffer(qvk.device, c->staging[0], VK_NULL_HANDLE);
+        if(c->staging[1]) vkDestroyBuffer(qvk.device, c->staging[1], VK_NULL_HANDLE);
+        c->staging[0] = c->staging[1] = 0;
       }
       vkDestroyPipelineLayout     (qvk.device, graph->node[i].pipeline_layout,  0);
       vkDestroyPipeline           (qvk.device, graph->node[i].pipeline,         0);

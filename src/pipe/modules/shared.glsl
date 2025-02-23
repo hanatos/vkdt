@@ -213,14 +213,19 @@ vec3 rec2020_to_xyY(vec3 rec2020)
   return vec3(xyz.xy / dot(vec3(1),xyz), xyz.y);
 }
 
-vec3 xyY_to_rec2020(vec3 xyY)
+vec3 XYZ_to_rec2020(vec3 xyz)
 {
-  const vec3 xyz = vec3(xyY.xy, 1.0-xyY.x-xyY.y) * xyY.z / xyY.y;
   const mat3 xyz_to_rec2020 = mat3(
     1.71665119, -0.66668435,  0.01763986,
    -0.35567078,  1.61648124, -0.04277061,
    -0.25336628,  0.01576855,  0.94210312);
   return xyz_to_rec2020 * xyz;
+}
+
+vec3 xyY_to_rec2020(vec3 xyY)
+{
+  const vec3 xyz = vec3(xyY.xy, 1.0-xyY.x-xyY.y) * xyY.z / xyY.y;
+  return XYZ_to_rec2020(xyz);
 }
 
 vec3 rec2020_to_oklab(vec3 rgb)
@@ -309,13 +314,14 @@ void evd2x2(
 // lie outside an analytic approximation to the spectral locus
 bool outside_spectral_locus(vec2 xy)
 {
-  if(xy.x + xy.y > 1) return true;
+  if(xy.x + xy.y > 1 || xy.x < 0) return true;
   if(xy.y < (xy.x-0.17)*0.47) return true;
   // turingbot ftw!
   if(xy.y > pow(tanh(5.73314*xy.x),0.10809)-xy.x) return true;
   // if(xy.y > 1.02942-((0.00585019/(0.014045+0.508182*xy.x))+1.01853*xy.x)) return true;
   if(xy.x < 0.18 && 
-     xy.y < (1.14195-((6.57178+(-5.63051*xy.x))*xy.x))*(0.443525-2.58406*xy.x+(0.000566481/xy.x))+0.00587683) return true;
+     xy.y < (1.14195-((6.57178+(-5.63051*xy.x))*xy.x))*(0.443525-2.58406*xy.x+(0.000566481/xy.x))+0.00587683) 
+    return true;
 
   return false;
 }

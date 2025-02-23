@@ -35,6 +35,11 @@ quad that is square for full opacity and very thin for low opacity.
 value of what is set as `opacity` parameter (for instance in the gui with slider). this
 way you can easily draw masks of level opacity, since the strokes merge seamlessly.
 
+## connectors
+
+* `output` the single channel floating point mask as drawn, connect this to a blend module
+* `curve` the brush strokes as list of vertices for further geometric processing, for most use cases you can ignore this
+
 ## parameters
 
 * `opacity` the global opacity of all brush strokes in this instance

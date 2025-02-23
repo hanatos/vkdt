@@ -1,0 +1,2 @@
+curve:read:ssbo:ui32
+geo:write:ssbo:tri

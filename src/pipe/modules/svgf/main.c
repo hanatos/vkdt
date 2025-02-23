@@ -1,157 +1,45 @@
 #include "modules/api.h"
 #include "config.h"
 
+// XXX go through this and do stuff in 32 or in 16 bits please!
+//
+// TODO: input: straight ssbo from renderer
+// TODO: input: approximate albedo/base texture
+// TODO: preblend: do albedo *demodulation* (keep path tracer out of the hacky business)
 void
 create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
   // preblend: merge samples from previous frame buffer before denoising
-  assert(graph->num_nodes < graph->max_nodes);
-  int id_preblend = graph->num_nodes++;
-  graph->node[id_preblend] = (dt_node_t) {
-    .name   = dt_token("svgf"),
-    .kernel = dt_token("preblend"),
-    .module = module,
-    .wd     = module->connector[0].roi.wd,
-    .ht     = module->connector[0].roi.ht,
-    .dp     = 1,
-    .num_connectors = 6,
-    .connector = {{ // 0
-      .name   = dt_token("mv"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rg"),
-      .format = dt_token("*"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{ // 1
-      .name   = dt_token("prevl"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("*"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{ // 2
-      .name   = dt_token("light"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("*"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{ // 3
-      .name   = dt_token("gbufp"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f32"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{ // 4
-      .name   = dt_token("gbufc"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f32"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{ // 5
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f32"),
-      .roi    = module->connector[0].roi,
-    }},
-  };
+  const int id_preblend = dt_node_add(graph, module, "svgf", "preblend",
+      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 6,
+      "mv",     "read",  "rg",   "*",   dt_no_roi,
+      "prevl",  "read",  "rgba", "*",   dt_no_roi,
+      "light",  "read",  "rgba", "*",   dt_no_roi,
+      "gbufp",  "read",  "*",    "f32", dt_no_roi,
+      "gbufc",  "read",  "*",    "f32", dt_no_roi,
+      "output", "write", "rgba", "f32", &module->connector[0].roi);
 
   // blend: final taa and albedo modulation
-  assert(graph->num_nodes < graph->max_nodes);
-  int id_blend = graph->num_nodes++;
-  graph->node[id_blend] = (dt_node_t) {
-    .name   = dt_token("svgf"),
-    .kernel = dt_token("blend"),
-    .module = module,
-    .wd     = module->connector[0].roi.wd,
-    .ht     = module->connector[0].roi.ht,
-    .dp     = 1,
-    .num_connectors = 5,
-    .connector = {{ // 0
-      .name   = dt_token("mv"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rg"),
-      .format = dt_token("*"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{ // 1
-      .name   = dt_token("prevb"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("*"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{ // 2
-      .name   = dt_token("light"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("*"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{ // 3
-      .name   = dt_token("albedo"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("*"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{ // 4
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f32"),
-      .roi    = module->connector[0].roi,
-    }},
-  };
+  const int id_blend = dt_node_add(graph, module, "svgf", "blend",
+      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 5,
+      "mv",     "read",  "rg",   "*",   dt_no_roi,
+      "prevb",  "read",  "rgba", "*",   dt_no_roi,
+      "light",  "read",  "rgba", "*",   dt_no_roi,
+      "albedo", "read",  "rgba", "*",   dt_no_roi,
+      "output", "write", "rgba", "f32", &module->connector[0].roi);
 
   int id_eaw[SVGF_IT];
-
   for(int i=0;i<SVGF_IT;i++)
   {
-    id_eaw[i] = graph->num_nodes++;
-    graph->node[id_eaw[i]] = (dt_node_t) {
-      .name   = dt_token("svgf"),
-      .kernel = dt_token("eaw"),
-      .module = module,
-      .wd     = module->connector[0].roi.wd,
-      .ht     = module->connector[0].roi.ht,
-      .dp     = 1,
-      .num_connectors = 4,
-      .connector = {{ // 0
-        .name   = dt_token("input"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("*"),
-        .roi    = module->connector[0].roi,
-        .connected_mi = -1,
-      },{ // 1
-        .name   = dt_token("gbuf"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("*"),
-        .format = dt_token("f32"),
-        .roi    = module->connector[0].roi,
-        .connected_mi = -1,
-      },{ // 2
-        .name   = dt_token("output"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
-        .roi    = module->connector[0].roi,
-      },{ // 3
-        .name   = dt_token("gbuf_out"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rg"),
-        .format = dt_token("f32"),
-        .roi    = module->connector[0].roi,
-      }},
-      .push_constant_size = 1*sizeof(uint32_t),
-      .push_constant = { 1<<i },
-    };
+    int pc[] = {1<<i};
+    id_eaw[i] = dt_node_add(graph, module, "svgf", "eaw",
+        module->connector[0].roi.wd, module->connector[0].roi.ht, 1, sizeof(pc), pc, 4,
+        "input",    "read",  "rgba", "*",   dt_no_roi,
+        "gbuf",     "read",  "*",    "f32", dt_no_roi,
+        "output",   "write", "rgba", "f16", &module->connector[0].roi,
+        "gbuf_out", "write", "rg",   "f32", &module->connector[0].roi);
   }
 
   dt_connector_copy(graph, module, 0, id_preblend, 0);  // mv
@@ -159,8 +47,8 @@ create_nodes(
   dt_connector_copy(graph, module, 4, id_preblend, 3);  // previous gbuffer
   dt_connector_copy(graph, module, 5, id_preblend, 4);  // current gbuffer
 
-  CONN(dt_node_feedback(graph, id_preblend, 5, id_preblend, 1));  // previous noisy light
-  CONN(dt_node_connect(graph, id_preblend, 5, id_eaw[0], 0)); // less noisy light
+  CONN(dt_node_feedback(graph, id_preblend, 5, id_preblend, 1)); // previous noisy light
+  CONN(dt_node_connect (graph, id_preblend, 5, id_eaw[0],   0)); // less noisy light
   // dt_connector_copy(graph, module, 1, id_eaw[0], 0);  // noisy light
   dt_connector_copy(graph, module, 5, id_eaw[0], 1);  // gbuffer for normal, depth, L moments
   for(int i=1;i<SVGF_IT;i++)

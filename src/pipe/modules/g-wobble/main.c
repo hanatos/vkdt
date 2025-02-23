@@ -1,8 +1,10 @@
 #include "modules/api.h"
 
-#if 0
-// TODO or maybe have a "dynamic" flag on the bvh instead?
-// TODO: then in fact need to figure out how to *not* execute geo shaders on the way once done..
+// TODO: need to figure out how to *not* execute geo shaders on the way once done for static bvh
+// commit_params is run *last*, after everything is setup, right before the
+// command buffer is recorded and submitted to the queue.
+// the deal is that every animated geo module needs to update roi on module and nodes in this callback.
+// other than this max count we can only set triangles to NaN to keep them out of the BVH.
 void commit_params(
     dt_graph_t  *graph,
     dt_module_t *module)
@@ -12,22 +14,25 @@ void commit_params(
   {
     if(graph->node[n].name == dt_token("g-wobble") &&
        graph->node[n].kernel == dt_token("main") &&
-       graph->node[n].module.inst == module->inst)
+       graph->node[n].module->inst == module->inst)
     {
-      // TODO: how is this propagated to bvh?
-      graph->node[n].rt[graph->double_buffer].tri_cnt = module->connector[0].roi.wd;
-      graph->node[n].flags |= s_module_request_build_bvh;
+      const dt_connector_t *c = graph->node[n].connector;
+      const int tri_cnt = (c->connected_mi >= 0 && c->connected_mc >= 0) ?
+        graph->node[c->connected_mi].connector[c->connected_mc].roi.full_wd : 0;
+      graph->node[n].connector[0].roi.full_wd = tri_cnt;
+      graph->node[n].connector[1].roi.full_wd = tri_cnt;
+      graph->node[n].wd = (tri_cnt + 31)/32*DT_LOCAL_SIZE_X;
+      break;
     }
   }
 }
-#endif
 
 void
 create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  int pc[] = { module->connector[0].roi.wd };
+  int pc[] = { module->connector[0].roi.full_wd };
   int id_geo = dt_node_add(graph, module, "g-wobble", "main", 
       (module->connector[0].roi.wd+31)/32*DT_LOCAL_SIZE_X, 1, 1, sizeof(pc), pc, 2,
       "input",  "read",  "ssbo", "tri", dt_no_roi,

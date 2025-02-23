@@ -10,13 +10,24 @@
 
 // run the graph.
 // upload source to GPU buffers portion.
+// the logic when an upload is triggered follow several steps:
+// - the module requested upload as a whole, via module->flags & s_module_request_read_source
+// - the node requested upload (on a finer grained level), via node->flags & s_module_request_read_source
+// - the runflags from the outside indicate s_graph_run_upload_source
+//   this might be triggered by a re-allocation/heap resize in graph-run-nodes-allocate or from the outside.
+// - a node had their source uploaded last iteration, and it is double-buffered. this is tracked
+//   by the node->force_upload state that is only modified here. graph.c includes it when computing
+//   aggregate module_flags.
+// - there is a global branch to trigger walking all nodes and map the memory in the first place.
+//   it is controlled by module_flags, which is collected by the graph traversal earlier, and holds
+//   the accumulated flags from all modules and nodes.
 static inline VkResult
 dt_graph_run_nodes_upload(
     dt_graph_t          *graph,
     const dt_graph_run_t run,
     uint32_t            *nodeid,
     int                  cnt,
-    dt_module_flags_t    module_flags,
+    dt_module_flags_t    module_flags,  // or-ed mask of module flags collected over all *nodes*
     int                  dynamic_array)
 {
   VkCommandBufferBeginInfo begin_info = {
@@ -40,12 +51,19 @@ dt_graph_run_nodes_upload(
       {
         if(node->module->so->read_source)
         {
-          int run_node = (node->module->flags & s_module_request_read_source) ||
+          int run_node_reg = (node->module->flags & s_module_request_read_source) ||
                          (node->flags & s_module_request_read_source) ||
                          (run & s_graph_run_upload_source);
+          int run_node = run_node_reg ||
+                         node->force_upload;
           const int c = 0;
           if(run_node || (dynamic_array && (node->connector[c].flags & s_conn_dynamic_array)))
           {
+            if(node->connector[c].frames > 1)
+            { // handle double buffer/make sure both buffers are uploaded (remember for next time)
+              if(run_node_reg) node->force_upload = 1;
+              else             node->force_upload = 2; // signal record command buffer that it has to run and clear the flag
+            }
             for(int a=0;a<MAX(1,node->connector[c].array_length);a++)
             {
               if(node->connector[c].array_req)
@@ -54,9 +72,7 @@ dt_graph_run_nodes_upload(
                 node->connector[c].array_req[a] = 0; // clear image load request
               }
               dt_read_source_params_t p = { .node = node, .c = c, .a = a };
-              size_t offset = node->connector[c].offset_staging;
-              if(node->connector[c].chan == dt_token("ssbo"))
-                offset = dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer)->offset;
+              size_t offset = node->connector[c].offset_staging[graph->double_buffer];
               node->module->so->read_source(node->module,
                   mapped + offset, &p);
               if(node->connector[c].array_length > 1)
@@ -89,7 +105,7 @@ dt_graph_run_nodes_upload(
                     TRANSFER_DST_OPTIMAL);
                 vkCmdCopyBufferToImage(
                     cmd_buf,
-                    node->connector[c].staging,
+                    node->connector[c].staging[graph->double_buffer],
                     dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer)->image,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     yuv ? 2 : 1, yuv ? regions+1 : regions);

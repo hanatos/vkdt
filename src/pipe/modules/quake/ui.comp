@@ -1,0 +1,77 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_control_flow_attributes : enable
+
+#include "shared.glsl"
+#include "shared/text.h"
+#include "shared/render3d.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 0) uniform global_t
+{ 
+  int frame;
+} global;
+
+#include "water.glsl"
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{ 
+  vec4 cam_x;
+  vec4 cam_w;
+  vec4 cam_u;
+  vec4 fog;
+  float duration; // hijacked: int spp;
+  int torch;
+  int water;
+  uint sky_rt, sky_bk, sky_lf, sky_ft, sky_up, sky_dn;
+  float cl_time; // quake time
+  int   ref;     // use reference sampling
+  int   health;
+  int   armor;
+  int   wd;
+  int   ht;
+} params;
+
+layout(set = 1, binding = 0) uniform writeonly image2D img_out;
+
+void main()
+{
+  const ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec4 irr = vec4(0);
+
+  // draw frame time in corners
+  if(ipos.y < imageSize(img_out).y*0.08)
+  { 
+    if(ipos.x > imageSize(img_out).x*0.8)
+    {
+      vec2 ts = vec2(0.47,0.04)*imageSize(img_out);
+      float c = print_number(params.duration, ts, vec2(0,ts.y)+vec2(1,-1)*(ipos-ts));
+      irr.rgb = vec3(c);
+      irr.a = 1.0;
+    }
+    else
+    {
+      vec2 ts = vec2(0.01,0.04)*imageSize(img_out);
+      float c = print_number(params.duration, ts, vec2(0,ts.y)+vec2(1,-1)*(ipos-ts));
+      irr.rgb = vec3(c);
+      irr.a = 1.0;
+    }
+  }
+  if(ipos.y > imageSize(img_out).y*0.96 && ipos.x > imageSize(img_out).x*0.8)
+  { // draw health + armor indicators
+    float val = 0.0;
+    if(ipos.y > imageSize(img_out).y*0.98) val = params.health;
+    else val = params.armor;
+    vec3 col = 0.1*clamp(vec3(100.0-val, val, 10.0), vec3(0), vec3(100));
+    float off = (ipos.x/float(imageSize(img_out).x) - 0.8)/0.1;
+    if(off*100 < val)
+    {
+      irr.rgb = col;
+      irr.a = 1.0;
+    }
+  }
+  imageStore(img_out, ipos, irr);
+}

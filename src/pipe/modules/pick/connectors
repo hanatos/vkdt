@@ -1,4 +1,4 @@
 input:sink:*:*
-spectra:read:rgba:*
+spectra:read:rgba:f32
 dsp_:write:rgba:f16
 picked:write:r:atom

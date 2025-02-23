@@ -1,4 +1,12 @@
-cam:float:8:0:0:0:0:1:0:0:0
+cam:float:12:0:0:0:0:1:0:0:0:0:0:1:0
+fog:float:4:0
+cltime:float:1:0
 spp:int:1:1
-filename:string:256:env.hdr
+wd:int:1:1920
+ht:int:1:1080
+cam mode:int:1:0
+cam_mod:string:8:
+cam_inst:string:8:
+envmap:string:256:env.hdr
 startid:int:1:0
+sampler:int:1:0

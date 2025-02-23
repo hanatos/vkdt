@@ -39,7 +39,8 @@ main()
   float alpha = params.lalpha; // blend weight, larger means use more of the history.
   // predict temporal variance from biased moments.
   // could use a bias correction scheme as adam does if we knew the number of iterations.
-  float sigma = sqrt(max(0, gbufc.w - gbufc.z*gbufc.z));
+  // XXX TODO variance comes to us a second moment stored in the fourth channel of the light buffer
+  float sigma = 1;//sqrt(max(0, gbufc.w - gbufc.z*gbufc.z));
   // float sigmap = sqrt(max(0, gbufp.w - gbufp.z*gbufp.z));
 
   // discontinuity detection

@@ -8,6 +8,24 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   f[0] = g[0]; // opacity
   f[1] = g[1]; // radius
   f[2] = g[2]; // hardness
+
+  // now pass the actual number of vertices onwards, too.
+  // unfortunately need to search for our node, setting it on the module
+  // will be too late
+  const int pi = dt_module_get_param(module->so, dt_token("draw"));
+  const uint32_t *p_draw = dt_module_param_uint32(module, pi);
+  const int num_verts = p_draw[0];
+  for(int n=0;n<graph->num_nodes;n++)
+  {
+    if(graph->node[n].name == dt_token("draw") &&
+       graph->node[n].kernel == dt_token("source") &&
+       graph->node[n].module->inst == module->inst)
+    {
+      dt_connector_t *c = graph->node[n].connector;
+      c->roi.full_wd = 2+num_verts;
+      break;
+    }
+  }
 }
 
 int init(dt_module_t *mod)
@@ -32,6 +50,31 @@ check_params(
 
 // TODO: check_params to support incremental updates (store on struct here and
 // memcpy only what's needed in read_source)
+
+void modify_roi_out(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{
+  const int pi = dt_module_get_param(module->so, dt_token("draw"));
+  // const uint32_t *p_draw = dt_module_param_uint32(module, pi);
+  // const int num_verts = p_draw[0];
+  const int num_verts = module->so->param[pi]->cnt;
+  module->connector[0].roi = (dt_roi_t){ .full_wd = 1024, .full_ht = 1024 };
+  module->connector[1].roi = (dt_roi_t){ .full_wd = 2+num_verts, .full_ht = 2 };
+}
+
+void modify_roi_in(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{
+  const int pi = dt_module_get_param(module->so, dt_token("draw"));
+  // const uint32_t *p_draw = dt_module_param_uint32(module, pi);
+  // const int num_verts = p_draw[0];
+  const int num_verts = module->so->param[pi]->cnt;
+  module->connector[1].roi.wd = 2+num_verts;
+  module->connector[1].roi.ht = 2;
+  module->connector[1].roi.scale = 1;
+}
 
 int read_source(
     dt_module_t *mod,
@@ -77,49 +120,14 @@ create_nodes(
   float aspect = wd/(float)ht;
   uint32_t aspecti = dt_touint(aspect);
 
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_source = graph->num_nodes++;
-  graph->node[id_source] = (dt_node_t) {
-    .name   = dt_token("draw"),
-    .kernel = dt_token("source"),
-    .module = module,
-    .num_connectors = 1,
-    .connector = {{
-      .name   = dt_token("source"),
-      .type   = dt_token("source"),
-      .chan   = dt_token("ssbo"),
-      .format = dt_token("ui32"),
-      .roi    = roi_ssbo,
-    }},
-  };
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_draw = graph->num_nodes++;
-  graph->node[id_draw] = (dt_node_t) {
-    .name   = dt_token("draw"),
-    .kernel = dt_token("main"),
-    .type   = s_node_graphics,
-    .module = module,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-    .num_connectors = 2,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("ssbo"),
-      .format = dt_token("ui32"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("y"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-    }},
-    .push_constant_size = 2*sizeof(float),
-    .push_constant = { aspecti, wd },
-  };
+  const int id_source = dt_node_add(graph, module, "draw", "source", 1, 1, 1, 0, 0, 1,
+      "source", "source", "ssbo", "ui32", &roi_ssbo);
+  int pc[] = { aspecti, wd };
+  const int id_draw = dt_node_add(graph, module, "draw", "main", wd, ht, dp, sizeof(pc), pc, 2,
+      "input", "read", "ssbo", "ui32", dt_no_roi,
+      "output", "write", "y", "f16", &module->connector[0].roi);
+  graph->node[id_draw].type = s_node_graphics; // mark for rasterisation via vert/geo/frag shaders
   CONN(dt_node_connect(graph, id_source, 0, id_draw, 0));
   dt_connector_copy(graph, module, 0, id_draw, 1);
+  dt_connector_copy(graph, module, 1, id_source, 0); // route out the raw stroke data
 }

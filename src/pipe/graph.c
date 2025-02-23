@@ -181,8 +181,9 @@ dt_graph_cleanup(dt_graph_t *g)
     for(int j=0;j<g->node[i].num_connectors;j++)
     {
       dt_connector_t *c = g->node[i].connector+j;
-      if(c->staging) vkDestroyBuffer(qvk.device, c->staging, VK_NULL_HANDLE);
-      c->staging = 0;
+      if(c->staging[0]) vkDestroyBuffer(qvk.device, c->staging[0], VK_NULL_HANDLE);
+      if(c->staging[1]) vkDestroyBuffer(qvk.device, c->staging[1], VK_NULL_HANDLE);
+      c->staging[0] = c->staging[1] = 0;
       if(c->array_alloc)
       { // free any potential residuals of dynamic allocation
         dt_vkalloc_cleanup(c->array_alloc);
@@ -361,6 +362,7 @@ VkResult dt_graph_run(
     }
 #define TRAVERSE_POST {\
     module_flags |= arr[curr].flags;\
+    if(arr[curr].force_upload) module_flags |= s_module_request_read_source;\
     nodeid[cnt++] = curr;\
   }
 #include "graph-traverse.inc"
@@ -397,7 +399,14 @@ VkResult dt_graph_run(
     // upload all source data to staging memory
     QVKR(dt_graph_run_nodes_upload(graph, run, nodeid, cnt, module_flags, dynamic_array));
 
-    // record command buffer
+    // now upload uniform data before submitting the command buffer. this runs
+    // on module scope, but needs to interlude here, so ray tracing nodes can
+    // cut the tri_cnt of dynamic geo that is known after upload. animated nodes
+    // should do this in commit_params (and need to find out their respective node
+    // from the modules)
+    QVKR(dt_graph_run_modules_upload_uniforms(graph, run));
+
+    // record command buffer, including memory barriers for transfers (to uniforms and staging)
     QVKR(dt_graph_run_nodes_record_cmd(graph, run, nodeid, cnt, module_flags));
   } // end scope, done with nodes
 
@@ -413,9 +422,6 @@ VkResult dt_graph_run(
         graph->heap_staging.peak_rss/(1024.0*1024.0),
         graph->heap_staging.vmsize  /(1024.0*1024.0));
   }
-
-  // now upload uniform data before submitting command buffer
-  QVKR(dt_graph_run_modules_upload_uniforms(graph, run));
 
   double clock_end = dt_time();
   dt_log(s_log_perf, "record cmd buffer:\t%8.3f ms", 1000.0*(clock_end - clock_beg));

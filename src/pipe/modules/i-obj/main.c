@@ -28,11 +28,37 @@ read_obj(
     (!strstr(filename, "%") || obj->frame == frame))
     return 0; // already loaded
   assert(obj); // this should be inited in init()
+  if(obj->tri) free(obj->tri);
+  obj->tri = 0;
 
-  char fname[512];
-  if(dt_graph_get_resource_filename(mod, filename, frame, fname, sizeof(fname))) goto error;
-
-  obj->tri = geo_obj_read(fname, &obj->tri_cnt);
+  char triname[512], fname[512];
+  snprintf(triname, sizeof(triname), "%s.tri", filename);
+  if(!dt_graph_get_resource_filename(mod, triname, frame, fname, sizeof(fname)))
+  { // found cache file
+    FILE *f = fopen(fname, "rb");
+    if(f)
+    {
+      uint32_t tri_cnt = 0;
+      fread(&tri_cnt, sizeof(uint32_t), 1, f);
+      obj->tri = malloc(sizeof(geo_tri_t)*tri_cnt);
+      fread(obj->tri, sizeof(geo_tri_t), tri_cnt, f);
+      obj->tri_cnt = tri_cnt;
+      fclose(f);
+    }
+  }
+  else
+  {
+    if(dt_graph_get_resource_filename(mod, filename, frame, fname, sizeof(fname))) goto error;
+    obj->tri = geo_obj_read(fname, &obj->tri_cnt);
+    snprintf(triname, sizeof(triname), "%s.tri", fname);
+    FILE *f = fopen(triname, "wb");
+    if(f)
+    {
+      fwrite(&obj->tri_cnt, sizeof(uint32_t), 1, f);
+      fwrite(obj->tri, sizeof(geo_tri_t), obj->tri_cnt, f);
+      fclose(f);
+    }
+  }
   if(!obj->tri) goto error;
 
   snprintf(obj->filename, sizeof(obj->filename), "%s", filename);

@@ -83,8 +83,8 @@ static inline uint16_t float_to_half(float fi)
   } FP16;
   FP32 f = { .f = fi };
   FP32 f32infty = { 255 << 23 };
-  FP32 f16max = { (127 + 16) << 23 };
   FP32 magic = { 15 << 23 };
+  FP32 f16max = { (127 + 16) << 23 };
   FP32 expinf = { (255 ^ 31) << 23 };
   uint32_t sign_mask = 0x80000000u;
   FP16 o = { 0 };

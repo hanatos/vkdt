@@ -91,7 +91,7 @@ typedef struct dt_graph_t
   uint32_t              uniform_global_size; // size of the global section
   VkDescriptorSetLayout uniform_dset_layout; // same layout for all nodes
 
-  dt_raytrace_graph_t   rt[2];
+  dt_raytrace_graph_t   rt;
 
   size_t                vkmem_size;          // allocation sizes to tell whether we need to re-alloc
   size_t                vkmem_ssbo_size;

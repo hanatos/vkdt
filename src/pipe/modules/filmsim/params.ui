@@ -1,0 +1,7 @@
+film:combo:kodak_portra_400:kodak_ultramax_400:kodak_gold_200:kodak_vision3_50d:fujifilm_pro_400h:fujifilm_xtra_400:fujifilm_c200
+paper:combo:kodak_endura_premier:kodak_ektacolor_edge:kodak_supra_endura:kodak_portra_endura:fujifilm_crystal_archive_typeii
+gamma f:slider:0:2
+exp p:slider:-10:10
+gamma p:slider:0:2
+filter m:slider:0:1
+filter y:slider:0:1

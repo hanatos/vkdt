@@ -17,15 +17,36 @@ typedef struct rt_t
 }
 rt_t;
 
+dt_graph_run_t
+check_params(
+    dt_module_t *mod,
+    uint32_t     parid,
+    uint32_t     num,
+    void        *oldval)
+{
+  const int parw = dt_module_get_param(mod->so, dt_token("wd"));
+  const int parh = dt_module_get_param(mod->so, dt_token("ht"));
+  const int pars = dt_module_get_param(mod->so, dt_token("sampler"));
+  if(parid == parw || parid == parh || parid == pars)
+  { // dimensions wd or ht
+    int oldsz = *(int*)oldval;
+    int newsz = dt_module_param_int(mod, parid)[0];
+    if(oldsz != newsz) return s_graph_run_all; // we need to update the graph topology
+  }
+  return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
+}
+
 void modify_roi_out(
     dt_graph_t *graph,
-    dt_module_t *module)
+    dt_module_t *mod)
 {
-  const int wd = 2048, ht = 1152;
-  module->connector[0].roi.full_wd = module->connector[3].roi.full_wd = wd;
-  module->connector[0].roi.full_ht = module->connector[3].roi.full_ht = ht;
-  module->connector[0].roi.scale = module->connector[3].roi.scale = 1;
-  module->img_param   = (dt_image_params_t) {
+  const int p_wd = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("wd")))[0];
+  const int p_ht = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("ht")))[0];
+  int wd = p_wd, ht = p_ht;
+  mod->connector[0].roi.full_wd = mod->connector[3].roi.full_wd = wd;
+  mod->connector[0].roi.full_ht = mod->connector[3].roi.full_ht = ht;
+  mod->connector[0].roi.scale   = mod->connector[3].roi.scale = 1;
+  mod->img_param   = (dt_image_params_t) {
     .black            = {0, 0, 0, 0},
     .white            = {65535,65535,65535,65535},
     .whitebalance     = {1.0, 1.0, 1.0, 1.0},
@@ -77,13 +98,13 @@ input(
   { // keyboard
     if(p->action <= 1) // ignore key repeat
     switch(p->key)
-    {
-      case 'E': rt->move = (rt->move & ~(1<<0)) | (p->action<<0); break;
-      case 'D': rt->move = (rt->move & ~(1<<1)) | (p->action<<1); break;
-      case 'S': rt->move = (rt->move & ~(1<<2)) | (p->action<<2); break;
-      case 'F': rt->move = (rt->move & ~(1<<3)) | (p->action<<3); break;
+    { // splitkb dvorak, sorry:
+      case '.': rt->move = (rt->move & ~(1<<0)) | (p->action<<0); break;
+      case 'E': rt->move = (rt->move & ~(1<<1)) | (p->action<<1); break;
+      case 'O': rt->move = (rt->move & ~(1<<2)) | (p->action<<2); break;
+      case 'U': rt->move = (rt->move & ~(1<<3)) | (p->action<<3); break;
       case ' ': rt->move = (rt->move & ~(1<<4)) | (p->action<<4); break;
-      case 'V': rt->move = (rt->move & ~(1<<5)) | (p->action<<5); break;
+      case 'K': rt->move = (rt->move & ~(1<<5)) | (p->action<<5); break;
       case 'R': // reset camera
                 rt->move = 0;
                 memset(p_cam, 0, sizeof(float)*8);
@@ -115,6 +136,35 @@ void commit_params(dt_graph_t *graph, dt_module_t *mod)
   if(rt->move & (1<<4)) for(int k=0;k<3;k++) p_cam[k] += vel * top[k];
   if(rt->move & (1<<5)) for(int k=0;k<3;k++) p_cam[k] -= vel * top[k];
   // fprintf(stderr, "cam %g %g %g dir %g %g %g\n", p_cam[0], p_cam[1], p_cam[2], p_cam[4], p_cam[5], p_cam[6]);
+
+  // grab uniform stuff from camera module
+  int mode = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("cam mode")))[0];
+  if(mode == 1)
+  {
+    dt_token_t cam_module   = dt_token(dt_module_param_string(mod,
+          dt_module_get_param(mod->so, dt_token("cam_mod"))));
+    dt_token_t cam_instance = dt_token(dt_module_param_string(mod,
+          dt_module_get_param(mod->so, dt_token("cam_inst"))));
+    if(cam_module && cam_instance) for(int m=0;m<graph->num_modules;m++)
+    {
+      if(graph->module[m].name == cam_module &&
+         graph->module[m].inst == cam_instance)
+      {
+        const float *p2_cam    = dt_module_param_float(graph->module+m,
+            dt_module_get_param(graph->module[m].so, dt_token("cam")));
+        const float *p2_fog    = dt_module_param_float(graph->module+m,
+            dt_module_get_param(graph->module[m].so, dt_token("fog")));
+        const float *p2_cltime = dt_module_param_float(graph->module+m,
+            dt_module_get_param(graph->module[m].so, dt_token("cltime")));
+        float *p_fog = (float *)dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("fog")));
+        float *p_cltime = (float *)dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("cltime")));
+        memcpy(p_cam, p2_cam, sizeof(float)*12);
+        memcpy(p_fog, p2_fog, sizeof(float)*4);
+        memcpy(p_cltime, p2_cltime, sizeof(float));
+        break;
+      }
+    }
+  }
 }
 
 int init(dt_module_t *mod)
@@ -144,6 +194,7 @@ read_header(
     const char *filename)
 {
   rt_t *hdr = mod->data;
+  if(!filename || !filename[0]) goto error;
   if(hdr && !strcmp(hdr->filename, filename) && hdr->frame == frame)
     return 0; // already loaded
   assert(hdr); // this should be inited in init()
@@ -166,6 +217,7 @@ error:
   fprintf(stderr, "[rt] could not load envmap file `%s'!\n", filename);
   hdr->filename[0] = 0;
   hdr->frame = -1;
+  hdr->width = hdr->height = 8;
   return 1;
 }
 
@@ -183,9 +235,10 @@ create_nodes(
     dt_module_t *module)
 {
   rt_t *rt = module->data;
+  // const int   sampler  = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("sampler")))[0];
   // environment importance sampling:
-  const int   id       = dt_module_param_int(module, 3)[0];
-  const char *filename = dt_module_param_string(module, 2);
+  const int   id       = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("startid")))[0];
+  const char *filename = dt_module_param_string(module, dt_module_get_param(module->so, dt_token("envmap")));
   if(read_header(module, graph->frame+id, filename)) {} // XXX error handling ???
   dt_roi_t roi_mip = { .wd = rt->width, .ht = rt->height };
   roi_mip.ht = roi_mip.ht + roi_mip.ht / 12 + 1; // true for 8k
@@ -193,27 +246,29 @@ create_nodes(
       1, 1, 1, 0, 0, 1,
       "output", "source", "rgba", "f32", &roi_mip);
 
-  dt_roi_t roi_gbuf = { .wd = module->connector[0].roi.wd, .ht = module->connector[0].roi.ht * 4 };
-  int pc[] = { module->connector[0].roi.wd, module->connector[0].roi.ht };
-  int id_rt = dt_node_add(graph, module, "rt", "main", 
-      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, sizeof(pc), pc, 5,
-      "output",   "write", "ssbo", "f32",  &roi_gbuf,                 // 0
-      "blue",     "read",  "*",    "*",    dt_no_roi,                 // 1
-      "tex",      "read",  "*",    "*",    dt_no_roi,                 // 2
-      "aov",      "write", "rgba", "f16",  &module->connector[0].roi, // 3
-      "env",      "read",  "*",    "*",    dt_no_roi);                // 4
-  dt_connector_copy(graph, module, 1, id_rt, 1);
-  dt_connector_copy(graph, module, 2, id_rt, 2);
-  dt_connector_copy(graph, module, 3, id_rt, 3);
-  CONN(dt_node_connect_named(graph, id_env, "output", id_rt, "env"));
-
-  const int id_post = dt_node_add(graph, module, "rt", "post",
-    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 2,
-      "input",  "read",  "ssbo", "f32", dt_no_roi,
-      "output", "write", "rgba", "f16", &module->connector[0].roi);
-  // graph->node[id_rt].connector[0].flags = s_conn_clear; // clear for light tracing
-  CONN(dt_node_connect_named(graph, id_rt, "output", id_post, "input"));
-  dt_connector_copy(graph, module, 0, id_post, 1);
+  const int wd = module->connector[0].roi.wd;
+  const int ht = module->connector[0].roi.ht;
+  dt_roi_t roi_fb  = { .wd = wd, .ht = ht * 4 };
+  // if(sampler == 0)
+  { // std pt
+    int id_main = dt_node_add(graph, module, "rt", "main", wd, ht, 1, 0, 0, 5,
+        "output", "write", "ssbo", "f32",  &roi_fb,                   // 0
+        "blue",   "read",  "*",    "*",    dt_no_roi,                 // 1
+        "tex",    "read",  "*",    "*",    dt_no_roi,                 // 2
+        "aov",    "write", "rgba", "f16",  &module->connector[0].roi,
+        "env",    "read",  "*",    "*",    dt_no_roi);
+    dt_connector_copy(graph, module, 1, id_main, 1);
+    dt_connector_copy(graph, module, 2, id_main, 2);
+    dt_connector_copy(graph, module, 3, id_main, 3);
+    CONN(dt_node_connect_named(graph, id_env,  "output", id_main, "env"));
+    const int id_post = dt_node_add(graph, module, "rt", "post", wd, ht, 1, 0, 0, 3,
+        "input",  "read",  "ssbo", "f32", dt_no_roi,
+        "output", "write", "rgba", "f16", &module->connector[0].roi,
+        "dep",    "read",  "*",    "*",   dt_no_roi); // sync exec connector
+    CONN(dt_node_connect_named(graph, id_main, "output", id_post, "dep"));
+    CONN(dt_node_connect_named(graph, id_main, "output", id_post, "input"));
+    dt_connector_copy(graph, module, 0, id_post, 1);
+  }
 }
 
 int read_source(
@@ -222,8 +277,8 @@ int read_source(
     dt_read_source_params_t *p)
 {
   if(p->node->kernel != dt_token("env")) return 0;
-  const int   id       = dt_module_param_int(mod, 3)[0];
-  const char *filename = dt_module_param_string(mod, 2);
+  const int   id       = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("startid")))[0];
+  const char *filename = dt_module_param_string(mod, dt_module_get_param(mod->so, dt_token("envmap")));
   if(read_header(mod, mod->graph->frame+id, filename)) return 1;
   rt_t *hdr = mod->data;
   int ret = read_plain(hdr, mapped);

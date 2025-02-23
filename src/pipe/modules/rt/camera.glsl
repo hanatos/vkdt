@@ -2,6 +2,15 @@
 //  camera related functions and structs
 // =============================================
 
+void camera_setup(vec3 o, vec3 w, vec3 up)
+{
+  camera.o = o;
+  vec3 r = normalize(cross(w, up));
+  vec3 t = normalize(cross(w, r));
+  camera.rot = mat3(r, t, w);
+}
+
+#if 0
 void camera_setup(float angle, float dist)
 { // camera setup
   float h = 0.2;
@@ -12,6 +21,7 @@ void camera_setup(float angle, float dist)
   camera.rot = mat3(rg, cross(to,rg), to);
   camera.o = camera.rot * vec3(0.0, 0.0, -dist) + vec3(0, h, dist/4.0);
 }
+#endif
 
 float // returns W(x0) / (p(x0) * p(w))  (all x in area measure and w in projected solid angle measure)
 camera_sample_xw(

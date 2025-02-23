@@ -502,13 +502,14 @@ dt_node_editor(
       for(int c=0;c<module->num_connectors;c++)
       {
         nk_style_push_font(ctx, &dt_gui_get_font(0)->handle);
-        dt_tooltip("format: %" PRItkn ":%" PRItkn "\n%s%s\n%d x %d",
+        dt_tooltip("format: %" PRItkn ":%" PRItkn "\n%s%s\n%d x %d %s",
             dt_token_str(module->connector[c].chan),
             dt_token_str(module->connector[c].format),
             module->connector[c].tooltip && module->connector[c].tooltip[0] ? module->connector[c].tooltip : "",
             dt_connector_output(module->connector+c) ? "": "\nright click on circle to delete link",
             module->connector[c].roi.wd,
-            module->connector[c].roi.ht);
+            module->connector[c].roi.ht,
+            module->connector[c].frames > 1 ? "double buffered" : "");
         snprintf(str, sizeof(str), "%"PRItkn, dt_token_str(module->connector[c].name));
         nk_style_pop_font(ctx);
         nk_label(ctx, str, dt_connector_output(module->connector+c) ? NK_TEXT_RIGHT : NK_TEXT_LEFT);

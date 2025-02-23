@@ -181,11 +181,11 @@ geo_obj_read(const char *filename, uint32_t *num_tris)
       for(int vi=0;vi<vcnt;vi++)
       {
         vtx[vi] = (geo_vtx_t){
-          .x   = v[3*vert[vi]+0], .y = v[3*vert[vi]+1], .z = v[3*vert[vi]+2],
-          .tex = vi ? 0 : mtl,
-          .n   = geo_encode_normal(n + 3*norm[vi]),
-          .s   = float_to_half(vt[2*uvco[vi]+0]),
-          .t   = float_to_half(vt[2*uvco[vi]+1]),
+          .x    = v[3*vert[vi]+0], .y = v[3*vert[vi]+1], .z = v[3*vert[vi]+2],
+          .tex0 = vi ? 0 : mtl,
+          .n    = geo_encode_normal(n + 3*norm[vi]),
+          .s    = float_to_half(vt[2*uvco[vi]+0]),
+          .t    = float_to_half(vt[2*uvco[vi]+1]),
         };
       }
       int ti = face++;

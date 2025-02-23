@@ -1214,10 +1214,11 @@ render_darkroom_modals()
       static char mod_inst[10] = "01";
       const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
       nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
-      nk_tab_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, mod_inst, 9, nk_filter_default);
+      nk_flags ret = nk_tab_edit_string_zero_terminated(&vkdt.ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, mod_inst, 9, nk_filter_default);
       nk_label(&vkdt.ctx, "instance name", NK_TEXT_LEFT);
       char filename[1024] = {0};
       static char filter[256];
+      if(ret & NK_EDIT_COMMITED) vkdt.wstate.popup_appearing = 1; // re-focus, will trigger enter => accept
       int ok = filteredlist("%s/modules", 0, filter, filename, sizeof(filename), s_filteredlist_descr_req | s_filteredlist_return_short);
       if(ok) vkdt.wstate.popup = 0;
       if(ok == 1)

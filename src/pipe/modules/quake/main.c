@@ -57,7 +57,6 @@ extern particle_t *active_particles;
 int init(dt_module_t *mod)
 {
   mod->data = &qs_data;
-  mod->flags = s_module_request_read_source;
 
   uint32_t initing = 0;
   do
@@ -342,11 +341,11 @@ void QS_texture_load(gltexture_t *glt, uint32_t *data)
     if(!strncmp(glt->name+strlen(glt->name)-3, "_ft", 3)) qs_data.skybox[3] = glt->texnum;
     if(!strncmp(glt->name+strlen(glt->name)-3, "_up", 3)) qs_data.skybox[4] = glt->texnum;
     if(!strncmp(glt->name+strlen(glt->name)-3, "_dn", 3)) qs_data.skybox[5] = glt->texnum;
+    // these are reswizzled after everything has been loaded, wtf. this means we need to
+    // re-upload the static geo to fix it. we'll do this with the sledge hammer, hopefully
+    // doesn't happen all the fucking time:
+    qs_data.worldspawn = 1;
   }
-  // these should emit in ad_tears. we hack it later when uploading the texture:
-  // if(strstr(glt->name, "wfall")) fprintf(stderr, "XXX %s\n", glt->name);
-
-  // TODO: think about cleanup later, maybe
 }
 
 #if 0
@@ -385,6 +384,7 @@ add_particles(
     if(tri)
     {
       geo_tri_t *cur = tri + ntri;
+      *cur = (geo_tri_t){0};
       for(int l=0;l<3;l++)
       {
         float off = 2*(xrand(0)-0.5) + 2*(xrand(0)-0.5);
@@ -408,9 +408,9 @@ add_particles(
       cur->v1.t = float_to_half(0);
       cur->v2.s = float_to_half(1);
       cur->v2.t = float_to_half(0);
-      cur->v0.tex = tex_col;
-      cur->v1.tex = tex_lum;
-      cur->v2.tex = 0;
+      cur->v0.tex0 = tex_col;
+      cur->v1.tex0 = tex_lum;
+      cur->v2.tex0 = 0;
       ntri++;
     }
   } // end for all particles
@@ -507,16 +507,12 @@ add_geo(
         trivtx[tv].t = float_to_half((desc[v].st[1]+0.5)/(float)hdr->skinheight);
       }
       const int sk = CLAMP(0, ent->skinnum, hdr->numskins-1), fm = ((int)(cl.time*10))&3;
-      cur->v0.tex = MIN(qs_data.tex_cnt-1, hdr->gltextures[sk][fm]->texnum);
-      cur->v1.tex = MIN(qs_data.tex_cnt-1, hdr->fbtextures[sk][fm] ? hdr->fbtextures[sk][fm]->texnum : 0);
-      cur->v2.tex = 0;
-#if 1 // XXX use normal map if we have it. FIXME this discards the vertex normals
+      cur->v0.tex0 = MIN(qs_data.tex_cnt-1, hdr->gltextures[sk][fm]->texnum);
+      cur->v1.tex0 = MIN(qs_data.tex_cnt-1, hdr->fbtextures[sk][fm] ? hdr->fbtextures[sk][fm]->texnum : 0);
+      // use normal map if we have it
       if(hdr->nmtextures[sk][fm])
-      {
-        cur->v0.n = MIN(qs_data.tex_cnt-1, hdr->nmtextures[sk][fm]->texnum)<<16;
-        cur->v1.n = 0xffffffff; // mark as brush model // XXX ??? why aren't we using v2.tex?
-      }
-#endif
+        cur->v2.tex0 = MIN(qs_data.tex_cnt-1, hdr->nmtextures[sk][fm]->texnum);
+      cur->v0.tex1 = s_geo_nonorm; // actually fuck these vertex normals, they are broken
 #if 0
       float nm[3], nw[3];
       int off = hdr->numverts * f;
@@ -559,6 +555,7 @@ again:;
         if(tri && wateroffset) for(int k=2;k<p->numverts;k++)
         {
           geo_tri_t *cur = tri + k-2;
+          *cur = (geo_tri_t){0};
           geo_vtx_t *vert = &cur->v0;
           for(int tv=0;tv<3;tv++)
           { // dunno what's wrong with quake's coordinate systems and the bounds, but this works:
@@ -592,11 +589,9 @@ again:;
           cur->v2.x = p->verts[i2][0] * fwd[0] - p->verts[i2][1] * rgt[0] + p->verts[i2][2] * top[0] + ent->origin[0];
           cur->v2.y = p->verts[i2][0] * fwd[1] - p->verts[i2][1] * rgt[1] + p->verts[i2][2] * top[1] + ent->origin[1];
           cur->v2.z = p->verts[i2][0] * fwd[2] - p->verts[i2][1] * rgt[2] + p->verts[i2][2] * top[2] + ent->origin[2];
-          // normals, brush models don't have normals
-          cur->v0.n =   (t->gloss ? MIN(qs_data.tex_cnt-1, t->gloss->texnum) : 0) | 
-                       ((t->norm  ? MIN(qs_data.tex_cnt-1, t->norm->texnum ) : 0)<<16);
-          cur->v1.n = 0xffffffff; // mark as brush model
-          cur->v2.n = 0xffffffff;
+          // normal maps, brush models don't have vertex normals
+          cur->v2.tex0 = (t->norm  ? MIN(qs_data.tex_cnt-1, t->norm->texnum ) : 0);
+          cur->v2.tex1 = (t->gloss ? MIN(qs_data.tex_cnt-1, t->gloss->texnum) : 0);
           if(surf->texinfo->texture->gltexture)
           { // texture st coordinates
             cur->v0.s = float_to_half(p->verts[i0][3]);
@@ -606,30 +601,34 @@ again:;
             cur->v2.s = float_to_half(p->verts[i2][3]);
             cur->v2.t = float_to_half(p->verts[i2][4]);
             // texture ids for albedo + fullbright
-            cur->v0.tex = MIN(qs_data.tex_cnt-1, t->gltexture->texnum);
-            cur->v1.tex = t->fullbright ? MIN(qs_data.tex_cnt-1, t->fullbright->texnum) : 0;
-            cur->v2.tex = 0;
+            cur->v0.tex0 = MIN(qs_data.tex_cnt-1, t->gltexture->texnum);
+            cur->v1.tex0 = t->fullbright ? MIN(qs_data.tex_cnt-1, t->fullbright->texnum) : 0;
             // max textures is 4096 (12 bit) and we have 16. so we can put 4 bits worth of flags here:
-            uint32_t flags = 0;
-            if(surf->flags & SURF_DRAWLAVA)  flags = 1;
-            if(surf->flags & SURF_DRAWSLIME) flags = 2;
-            if(surf->flags & SURF_DRAWTELE)  flags = 3;
-            if(surf->flags & SURF_DRAWWATER) flags = 4;
+            uint32_t flags = s_geo_nonorm; // mark as no vertex normals / brush model
+            if(surf->flags & SURF_DRAWLAVA)  flags |= s_geo_lava;
+            if(surf->flags & SURF_DRAWSLIME) flags |= s_geo_slime;
+            if(surf->flags & SURF_DRAWTELE)  flags |= s_geo_tele;
+            if(surf->flags & SURF_DRAWWATER) flags |= s_geo_water;
             // hack for ad_tears and emissive waterfalls
-            if(strstr(t->gltexture->name, "wfall")) flags = 7;// ext[14*pi+13] = t->gltexture->texnum;
+            if(strstr(t->gltexture->name, "wfall")) flags |= s_geo_watere; // emissive water
 #if WATER_MODE==WATER_MODE_FULL
-            if(wateroffset)                  flags = 5; // this is our procedural water lower mark
+            if(wateroffset) flags |= s_geo_waterb; // this is our procedural water lower mark
 #endif
-            // if(surf->flags & SURF_DRAWSKY)   flags = 6; // could do this too
-            cur->v1.tex |= flags << 12;
-            uint32_t ai = CLAMP(0, (ent->alpha - 1.0)/254.0 * 15, 15); // alpha in 4 bits
-            if(!ent->alpha) ai = 15;
+            cur->v0.tex1 = flags;
+            uint16_t ai = CLAMP(0, (ent->alpha - 1.0)/254.0*0xffff, 0xffff); // 16 bit alpha
+            if(!ent->alpha) ai = 0xffff;
             // TODO: 0 means default, 1 means invisible, 255 is opaque, 2--254 is really applicable
             // TODO: default means  map_lavaalpha > 0 ? map_lavaalpha : map_wateralpha
             // TODO: or "slime" or "tele" instead of "lava"
-            cur->v0.tex |= ai << 12;
+            cur->v1.tex1 = ai;
           }
-          if(surf->flags & SURF_DRAWSKY) cur->v0.tex = 0xfff;
+          if(surf->flags & SURF_DRAWSKY)
+          { // store skybox textures:
+            cur->v0.tex1 = s_geo_sky;
+            cur->v0.n = (qs_data.skybox[1]<<16)|(qs_data.skybox[0]&0xffff);
+            cur->v1.n = (qs_data.skybox[3]<<16)|(qs_data.skybox[2]&0xffff);
+            cur->v2.n = (qs_data.skybox[5]<<16)|(qs_data.skybox[4]&0xffff);
+          }
         }
         ntri += p->numverts-2;
 #if WATER_MODE==WATER_MODE_FULL
@@ -769,6 +768,7 @@ again:;
         cur[1].v0.n = geo_encode_normal(n);
         cur[1].v1.n = geo_encode_normal(n);
         cur[1].v2.n = geo_encode_normal(n);
+        // FIXME these aren't correct currently:
         cur[0].v0.s = float_to_half(0);
         cur[0].v0.t = float_to_half(1);
         cur[0].v1.s = float_to_half(0);
@@ -783,10 +783,10 @@ again:;
         cur[1].v2.t = float_to_half(1);
         if(frame->gltexture)
         {
-          cur[0].v0.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
-          cur[0].v1.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum); // sprites always emit
-          cur[1].v0.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
-          cur[1].v1.tex = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          cur[0].v0.tex0 = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          cur[0].v1.tex0 = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum); // sprites always emit
+          cur[1].v0.tex0 = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
+          cur[1].v1.tex0 = MIN(qs_data.tex_cnt-1, frame->gltexture->texnum);
         }
       }
       ntri += 2;
@@ -795,51 +795,32 @@ again:;
   *tri_cnt += ntri;
 }
 
+void modify_roi_in(
+    dt_graph_t  *graph,
+    dt_module_t *mod)
+{
+  // no such thing
+}
+
 void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *mod)
 {
-  const int p_wd = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("wd")))[0];
-  const int p_ht = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("ht")))[0];
-  // int wd = 1920, ht = 1080;
-  int wd = p_wd, ht = p_ht;
+  qs_data_t *d = mod->data;
+  // uh maybe we need them back:
+  // int wd = p_wd, ht = p_ht;
+  // const int p_wd = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("wd")))[0];
+  // const int p_ht = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("ht")))[0];
+  int wd = 1920, ht = 1080;
   mod->connector[0].roi.scale   = 1.0;
   mod->connector[0].roi.full_wd = wd;
   mod->connector[0].roi.full_ht = ht;
-  mod->connector[2].roi.scale   = 1.0;
-  mod->connector[2].roi.full_wd = wd;
-  mod->connector[2].roi.full_ht = ht;
-  mod->img_param = (dt_image_params_t) {
-    .black          = {0, 0, 0, 0},
-    .white          = {65535,65535,65535,65535},
-    .whitebalance   = {1.0, 1.0, 1.0, 1.0},
-    .filters        = 0, // anything not 0 or 9 will be bayer starting at R
-    .crop_aabb      = {0, 0, wd, ht},
-    .cam_to_rec2020 = {1, 0, 0, 0, 1, 0, 0, 0, 1},
-    .snd_samplerate = 44100,
-    .snd_format     = 2, // SND_PCM_FORMAT_S16_LE
-    .snd_channels   = 2, // stereo
-    .noise_a        = 1.0,
-    .noise_b        = 0.0,
-    .orientation    = 0,
-  };
-  mod->connector[5].roi = mod->connector[0].roi; // debug connector
-}
-
-dt_graph_run_t
-check_params(
-    dt_module_t *module,
-    uint32_t     parid,
-    uint32_t     num,
-    void        *oldval)
-{
-  if(parid == 12 || parid == 13)
-  { // dimensions wd or ht
-    int oldsz = *(int*)oldval;
-    int newsz = dt_module_param_int(module, parid)[0];
-    if(oldsz != newsz) return s_graph_run_all; // we need to update the graph topology
-  }
-  return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
+  mod->connector[3].roi = (dt_roi_t){ .wd = d->tex_maxw, .ht = d->tex_maxh, .full_wd = d->tex_maxw, .full_ht = d->tex_maxh };
+  const int tri_cnt = MAX_VTX_CNT/3;
+  dt_roi_t roi_geo = { .scale=1.0, .wd=tri_cnt, .ht=1, .full_wd=tri_cnt, .full_ht=1 };
+  // will be inited on node and written to module on copy
+  mod->connector[1].roi = roi_geo;
+  mod->connector[2].roi = roi_geo;
 }
 
 void animate(
@@ -874,9 +855,10 @@ void animate(
     key_dest = key_game;
     m_state = m_none;
     IN_Activate();
-    for(int k=0;k<10;k++) Host_Frame(1.0/60.0); // prewarm/avoid multi-frame init problems
+    for(int i=0;i<5;i++) Host_Frame(1.0/60.0); // unfortunately needed or else quake crashes on us
     dat->worldspawn = 0;
   }
+  else module->flags = 0;
 
   // print these interesting messages from the map:
   graph->gui_msg = con_lastcenterstring;
@@ -907,11 +889,6 @@ void animate(
 
   if(sv_player_set)
   {
-
-    if(sv_player->v.weapon == 1) // shotgun has torch built in:
-      ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 1;
-    else
-      ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("torch"))))[0] = 0;
     if(sv_player->v.waterlevel >= 3) // apply crazy underwater effect
       ((int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("water"))))[0] = 1;
     else
@@ -928,9 +905,6 @@ void commit_params(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  int *sky = (int *)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("skybox")));
-  for(int i=0;i<6;i++) sky[i] = qs_data.skybox[i];
-
   ((float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cltime"))))[0] = cl.time;
   float *p_cam = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("cam")));
   float *p_fog = (float *)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("fog")));
@@ -958,6 +932,30 @@ void commit_params(
   for(int k=0;k<3;k++) p_cam[8+k] = top[k];
   // fprintf(stderr, "camera pos %g %g %g\n", p_cam[0], p_cam[1], p_cam[2]);
 #endif
+
+  // this callback runs as the last thing, just before the command buffer
+  // is recorded and submitted. it's thus the place to inform the ray tracing
+  // core of our updated triangle count.
+  for(int n=0;n<graph->num_nodes;n++)
+  {
+    if(graph->node[n].name   == dt_token("quake") &&
+       graph->node[n].kernel == dt_token("dyngeo") &&
+       graph->node[n].module->inst == module->inst)
+    {
+      const int tri_cnt = module->connector[1].roi.full_wd;
+      graph->node[n].connector[0].roi.full_wd = tri_cnt;
+      // break;
+    }
+#if 1 // XXX should not be necessary other than the first time around
+    if(graph->node[n].name   == dt_token("quake") &&
+       graph->node[n].kernel == dt_token("stcgeo") &&
+       graph->node[n].module->inst == module->inst)
+    {
+      const int tri_cnt = module->connector[2].roi.full_wd;
+      graph->node[n].connector[0].roi.full_wd = tri_cnt;
+    }
+#endif
+  }
 }
 
 int read_source(
@@ -972,6 +970,7 @@ int read_source(
     memcpy(mapped, d->tex[p->a], sizeof(uint32_t)*d->tex_dim[2*p->a]*d->tex_dim[2*p->a+1]);
     p->node->flags &= ~s_module_request_read_source; // done uploading textures
     d->tex_req[p->a] = 0;
+    // fprintf(stderr, "quake read source tex connector length %d\n", p->node->connector[0].array_length);
   }
   uint32_t tri_cnt = 0;
   geo_tri_t *tri = mapped;
@@ -984,48 +983,15 @@ int read_source(
     for(int i=0; i<cl.num_statics; i++)
       add_geo(cl_static_entities+i, tri + tri_cnt, &tri_cnt);
     add_particles(tri + tri_cnt, &tri_cnt);
-    p->node->flags |= s_module_request_read_source; // need to do this all the time
-    mod->flags |= s_module_request_read_source; // need to do this all the time
-    // XXX we are called on the source node, not the bvh sink node! need to somehow propagate these counts along!
-    // TODO: need facility to propagate updated roi along with geometry cpu-side!
-    // this could work via modify_roi_out for geo modules, but not internal nodes.
-    for(int n=0;n<mod->graph->num_nodes;n++) if(mod->graph->node[n].name == dt_token("bvh") && mod->graph->node[n].kernel == dt_token("dyn"))
-    {
-      mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = tri_cnt;
-      mod->graph->node[n].flags |= s_module_request_build_bvh;
-      break;
-    }
-    // fprintf(stderr, "uploading dyn geo for frame %d node %"PRItkn" with %d tris f %d\n", mod->graph->frame, dt_token_str(p->node->name), vtx_cnt/3, mod->graph->double_buffer);
+    mod->connector[1].roi.full_wd = tri_cnt;
+    // fprintf(stderr, "%d quake uploading dyn geo node %"PRItkn" with %d tris f %d|%d worldspawn %d\n", mod->graph->frame, dt_token_str(p->node->name), tri_cnt, mod->graph->double_buffer, p->node->connector[0].frames, qs_data.worldspawn);
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
     add_geo(cl_entities+0, tri + tri_cnt, &tri_cnt);
-    // if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_geo; // done uploading static geo for now
     if(!qs_data.worldspawn) p->node->flags &= ~s_module_request_read_source; // done uploading static geo for now
-#if 1
-    for(int n=0;n<mod->graph->num_nodes;n++) if(mod->graph->node[n].name == dt_token("bvh") && mod->graph->node[n].kernel == dt_token("stc"))
-    {
-      mod->graph->node[n].rt[mod->graph->double_buffer].tri_cnt = tri_cnt;
-      mod->graph->node[n].flags |= s_module_request_build_bvh;
-      break;
-    }
-    mod->flags |= s_module_request_build_bvh;
-#endif
-    // fprintf(stderr, "uploading stc geo for frame %d node %"PRItkn" with %d tris f %d|%d\n", mod->graph->frame, dt_token_str(p->node->name), tri_cnt, mod->graph->double_buffer, p->node->connector[0].frames);
-#if 0 // debug: quake aabb are in +-4096
-    float aabb[6] = {FLT_MAX,FLT_MAX,FLT_MAX, -FLT_MAX,-FLT_MAX,-FLT_MAX};
-    for(int i=0;i<vtx_cnt;i++) 
-    {
-      aabb[0] = MIN(aabb[0], p->vtx[3*i+0]);
-      aabb[1] = MIN(aabb[1], p->vtx[3*i+1]);
-      aabb[2] = MIN(aabb[2], p->vtx[3*i+2]);
-      aabb[3] = MAX(aabb[3], p->vtx[3*i+0]);
-      aabb[4] = MAX(aabb[4], p->vtx[3*i+1]);
-      aabb[5] = MAX(aabb[5], p->vtx[3*i+2]);
-    }
-    fprintf(stderr, "XXX static geo bounds %g %g %g -- %g %g %g\n",
-        aabb[0], aabb[1], aabb[2], aabb[3], aabb[4], aabb[5]);
-#endif
+    mod->connector[2].roi.full_wd = tri_cnt;
+    // fprintf(stderr, "%d quake uploading stc geo node %"PRItkn" with %d tris f %d|%d worldspawn %d\n", mod->graph->frame, dt_token_str(p->node->name), tri_cnt, mod->graph->double_buffer, p->node->connector[0].frames, qs_data.worldspawn);
   }
   return 0;
 }
@@ -1037,52 +1003,13 @@ create_nodes(
 {
   qs_data_t *d = module->data;
 
-  // ray tracing kernel:
-  int id_rt = dt_node_add(graph, module, "quake", "main", 
-    module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 9,
-      "output",   "write", "rgba", "f32",  &module->connector[0].roi, // 0
-      "tex",      "read",  "*",    "*",    dt_no_roi,                 // 1
-      "aov",      "write", "rgba", "f16",  &module->connector[0].roi, // 2
-      "nee_in",   "read",  "rgba", "ui32", dt_no_roi,                 // 3
-      "nee_out",  "write", "rgba", "ui32", &module->connector[0].roi, // 4
-      "mv",       "read",  "rg",   "f16",  dt_no_roi,                 // 5
-      "gbuf_in",  "read",  "rgba", "f32",  dt_no_roi,                 // 6
-      "gbuf_out", "write", "rgba", "f32",  &module->connector[0].roi, // 7
-      "debug",    "write", "rgba", "f16",  &module->connector[0].roi);// 8
-      // "oldout",   "read",  "*",    "*",    &module->connector[0].roi);// 9
-  graph->module[id_rt].connector[4].flags |= s_conn_clear;
-  graph->module[id_rt].connector[7].flags |= s_conn_clear;
+  const int id_ui = dt_node_add(graph, module, "quake", "ui", 
+      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 1,
+      "ui", "write", "rgba", "f16", &module->connector[0].roi);
 
-  assert(graph->num_nodes < graph->max_nodes);
-  const uint32_t id_tex = graph->num_nodes++;
-  graph->node[id_tex] = (dt_node_t) {
-    .name   = dt_token("quake"),
-    .kernel = dt_token("tex"),
-    .module = module,
-    .wd     = 1,
-    .ht     = 1,
-    .dp     = 1,
-    .flags  = s_module_request_read_source,
-    .num_connectors = 1,
-    .connector = {{
-      .name   = dt_token("tex"),
-      .type   = dt_token("source"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("ui8"),
-      .roi    = {
-        .scale   = 1.0,
-        .wd      = d->tex_maxw,
-        .ht      = d->tex_maxh,
-        .full_wd = d->tex_maxw,
-        .full_ht = d->tex_maxh,
-      },
-      .array_length = MAX_GLTEXTURES, // d->tex_cnt,
-      .array_dim    = d->tex_dim,
-      .array_req    = d->tex_req,
-      .flags        = s_conn_dynamic_array | s_conn_feedback, // mark as dynamic allocation suitable for multi-frame processing (double buffered)
-      .array_alloc_size = 1500<<20, // something enough for quake
-    }},
-  };
+  dt_roi_t roi_tex = { .wd = d->tex_maxw, .ht = d->tex_maxh, .full_wd = d->tex_maxw, .full_ht = d->tex_maxh };
+  const int id_tex = dt_node_add(graph, module, "quake", "tex", 1, 1, 1, 0, 0, 1,
+      "tex", "source", "rgba", "ui8", &roi_tex);
   // in case quake was already inited but we are called again to create nodes,
   // we'll also need to re-upload all textures. flag them here:
   for(int i=0;i<d->tex_cnt;i++)
@@ -1095,9 +1022,9 @@ create_nodes(
   // i suppose the core allocator might need support for incremental additions otherwise.
   tri_cnt = MAX_VTX_CNT/3;
 
-  dt_roi_t roi_geo = { .scale=1.0, .wd=tri_cnt, .ht=sizeof(geo_tri_t)/sizeof(float), .full_wd=tri_cnt, .full_ht=sizeof(geo_tri_t)/sizeof(float) };
+  dt_roi_t roi_geo = { .scale=1.0, .wd=tri_cnt, .ht=1, .full_wd=tri_cnt, .full_ht=1 };
   const uint32_t id_dyngeo = dt_node_add(graph, module, "quake", "dyngeo", 1, 1, 1, 0, 0, 1,
-    "dyngeo", "source", "ssbo", "f32", &roi_geo);
+    "dyngeo", "source", "ssbo", "tri", &roi_geo);
   graph->node[id_dyngeo].flags = s_module_request_read_source;
 
   // the static geometry we count. this means that we'll need to re-create nodes on map change.
@@ -1106,42 +1033,24 @@ create_nodes(
   // fprintf(stderr, "[create_nodes] static tri count %u\n", tri_cnt);
   tri_cnt = MAX(1, tri_cnt); // avoid crash for not initialised model
 
-  roi_geo = (dt_roi_t){ .scale=1.0, .wd=tri_cnt, .ht=sizeof(geo_tri_t)/sizeof(float), .full_wd=tri_cnt, .full_ht=sizeof(geo_tri_t)/sizeof(float) };
+  roi_geo = (dt_roi_t){ .scale=1.0, .wd=tri_cnt, .ht=1, .full_wd=tri_cnt, .full_ht=1 };
   const uint32_t id_stcgeo = dt_node_add(graph, module, "quake", "stcgeo", 1, 1, 1, 0, 0, 1,
-    "stcgeo", "source", "ssbo", "f32", &roi_geo);
-  graph->node[id_stcgeo].flags = s_module_request_read_source;
+    "stcgeo", "source", "ssbo", "tri", &roi_geo);
 
-  const uint32_t id_dynbvh = dt_node_add(graph, module, "bvh", "dyn", 1, 1, 1, 0, 0, 1,
-    "geo", "sink", "ssbo", "f32", dt_no_roi);
-  const uint32_t id_stcbvh = dt_node_add(graph, module, "bvh", "stc", 1, 1, 1, 0, 0, 1,
-    "geo", "sink", "ssbo", "f32", dt_no_roi);
-  CONN(dt_node_connect(graph, id_dyngeo, 0, id_dynbvh, 0));
-  CONN(dt_node_connect(graph, id_stcgeo, 0, id_stcbvh, 0));
-  graph->node[id_dynbvh].flags = s_module_request_build_bvh;
-  graph->node[id_stcbvh].flags = s_module_request_build_bvh;
+  dt_connector_copy(graph, module, 0, id_ui, 0);     // wire ui
+  dt_connector_copy(graph, module, 1, id_dyngeo, 0); // wire dynamic geo
+  dt_connector_copy(graph, module, 2, id_stcgeo, 0); // wire static geo
+  dt_connector_copy(graph, module, 3, id_tex, 0);    // wire textures
 
-  // XXX apparently this runs so in sync that it's not even needed:
-  // graph->node[id_dyngeo].connector[0].flags |= s_conn_double_buffer;
-  // graph->node[id_dyngeo].connector[0].frames = 2;
-  // graph->node[id_dynbvh].connector[0].flags |= s_conn_double_buffer;
-  // graph->node[id_dynbvh].connector[0].frames = 2;
-  // // .. and this would need extra love to actually init both buffers at least once:
-  // graph->node[id_stcgeo].connector[0].flags |= s_conn_double_buffer;
-  // graph->node[id_stcgeo].connector[0].frames = 2;
-  // graph->node[id_stcbvh].connector[0].flags |= s_conn_double_buffer;
-  // graph->node[id_stcbvh].connector[0].frames = 2;
-
-  CONN(dt_node_connect(graph, id_tex, 0, id_rt, 1));
-  CONN(dt_node_feedback(graph, id_rt, 4, id_rt, 3)); // nee cache
-  CONN(dt_node_feedback(graph, id_rt, 7, id_rt, 6)); // gbuf
-  dt_connector_copy(graph, module, 0, id_rt, 0); // wire output buffer
-  dt_connector_copy(graph, module, 2, id_rt, 2); // output aov image
-  dt_connector_copy(graph, module, 3, id_rt, 5); // motion vectors from outside
-  dt_connector_copy(graph, module, 4, id_rt, 7); // gbuf output (n, d, mu_1, mu_2)
-  dt_connector_copy(graph, module, 5, id_rt, 8); // wire debug output
-
-  // propagate up so things will start to move at all at the node level:
-  module->flags = s_module_request_build_bvh;
+  // dt_connector_copy destroys some of the stuff on the node/module connector!
+  graph->node[id_tex].flags = s_module_request_read_source;
+  graph->node[id_tex].connector[0].array_length = MAX_GLTEXTURES;
+  graph->node[id_tex].connector[0].array_dim = d->tex_dim;
+  graph->node[id_tex].connector[0].array_req = d->tex_req;
+  // mark as dynamic allocation suitable for multi-frame processing (double buffered)
+  graph->node[id_tex].connector[0].flags = s_conn_dynamic_array | s_conn_feedback;
+  graph->node[id_tex].connector[0].array_alloc_size = 1500<<20; // something enough for quake
+  module->connector[3].array_length = graph->node[id_tex].connector[0].array_length;
 }
 
 int audio(

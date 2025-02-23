@@ -1,0 +1,8 @@
+input:read:*:*
+output:write:*:*
+dencurv:read:*:*
+dyedens:read:*:*
+logsens:read:*:*
+enlarger:read:*:*
+grain:read:*:*
+spectra:read:*:*

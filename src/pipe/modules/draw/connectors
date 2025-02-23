@@ -1,1 +1,2 @@
 output:write:y:f16
+curve:write:ssbo:ui32

@@ -146,8 +146,8 @@ create_nodes(
       },{
         .name   = dt_token("lut"),
         .type   = dt_token("read"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
+        .chan   = dt_token("*"),
+        .format = dt_token("*"),
         .roi    = module->connector[1].roi,
         .connected_mi = -1,
       },{

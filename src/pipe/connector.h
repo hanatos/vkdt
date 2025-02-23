@@ -93,7 +93,7 @@ typedef struct dt_connector_t
   int           array_resync;     // means we need to sync a dynamic array for multi-frame descriptor sets with one frame delay (internal use)
 
   // buffer associated with this in case it connects nodes:
-  uint64_t offset_staging, size_staging;
+  uint64_t offset_staging[2], size_staging;
   // mem object for allocator:
   // while this may seem duplicate with offset/size, it may be freed already
   // and the offset and size are still valid for successive runs through the
@@ -112,7 +112,7 @@ typedef struct dt_connector_t
   // conn_image[] pool. the location can be determined by dt_graph_connector_image()
   // and makes use of the node->conn_image index list.
 
-  VkBuffer      staging;     // for sources and sinks
+  VkBuffer      staging[2];  // for sources and sinks, potentially double buffered
 
   const char   *tooltip;     // tooltip extracted from docs
 }

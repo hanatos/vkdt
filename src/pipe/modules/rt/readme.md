@@ -19,6 +19,11 @@ the `rt` module uses hero wavelength spectral sampling for accurate colour repro
 ## parameters
 this still changes so often.. be careful to trust this text.
 
-* `cam_x` position of the camera
-* `cam_w` look-at direction of the camera
-* `spp`   samples per pixel
+* `cam` position, direction, and up vector of the camera
+* `fog` homogeneous global background fog
+* `spp` samples per pixel
+* `envmap` filename of the environment map, 2:1 aspect latitude/longitude, .hdr preferably 8k
+* `cam mode` use custom camera in this module, or grab camera, simulation time, and fog from another module
+* `cam_mod` if cam mode is set to another module, this is the other module's name
+* `cam_inst` if cam mode is set to another module, this is the other module's instance
+* `sampler` choose which path space sampler to use for rendering

@@ -76,7 +76,7 @@ float _sample_mie_fit_cos(
 
 float volume_phase_function(float cosu)
 {
-  return _eval_mie_fit(volume.d, cosu);
+  return _eval_mie_fit(volume.d, clamp(cosu, -1.0, 1.0));
 }
 
 float volume_sample_phase_function_cos(vec2 xi)
