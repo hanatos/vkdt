@@ -446,7 +446,7 @@ mac_error:
     };
     // FILE *pfm = fopen(argv[2], "wb"); // also write pfm for debugging purposes
     // if(pfm) fprintf(pfm, "PF\n%d %d\n-1.0\n", res, res);
-    FILE *f = fopen("spectra.lut", "wb");
+    FILE *f = fopen("spectra-em.lut", "wb");
     if(f) fwrite(&head, sizeof(head), 1, f);
     for(int k=0;k<res*res;k++)
     {

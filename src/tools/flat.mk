@@ -1,6 +1,6 @@
 .PHONY:tools
 
-tools:../bin/data/spectra.lut ../bin/data/abney.lut ../bin/vkdt-mkssf ../bin/vkdt-mkclut ../bin/vkdt-lutinfo ../bin/vkdt-eval-profile
+tools:../bin/data/spectra-em.lut ../bin/data/abney.lut ../bin/vkdt-mkssf ../bin/vkdt-mkclut ../bin/vkdt-lutinfo ../bin/vkdt-eval-profile
 
 ADD_CFLAGS=-Itools -Itools/shared
 ADD_LDFLAGS=-lm -ldl
@@ -36,10 +36,10 @@ MKCLUT_DEPS=core/inpaint.h \
 	./mkabney
 	mv abney.lut ../bin/data/
 
-../bin/data/spectra.lut: mkspectra macadam.lut Makefile
+../bin/data/spectra-em.lut: mkspectra macadam.lut Makefile
 	@echo "[tools] precomputing rgb to spectrum upsampling table.."
 	./mkspectra
-	mv spectra.lut ../bin/data/
+	mv spectra-em.lut ../bin/data/
 
 macadam.lut: macadam
 	./macadam

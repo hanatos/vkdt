@@ -627,6 +627,32 @@ mac_error:
     free(bound_spectral);
     if(pfm) fclose(pfm);
   }
+
+  { // write spectra map: (x,y) |--> sigmoid coeffs + saturation
+    header_t head = (header_t) {
+      .magic    = 1234,
+      .version  = 2,
+      .channels = 4,
+      .datatype = 1,  // 32-bit float
+      .wd       = res,
+      .ht       = res,
+    };
+    // FILE *pfm = fopen(argv[2], "wb"); // also write pfm for debugging purposes
+    // if(pfm) fprintf(pfm, "PF\n%d %d\n-1.0\n", res, res);
+    FILE *f = fopen("spectra.lut", "wb");
+    if(f) fwrite(&head, sizeof(head), 1, f);
+    for(int k=0;k<res*res;k++)
+    {
+      double coeffs[3] = {out[5*k+0], out[5*k+1], out[5*k+2]};
+      float q[] = {0, 0, 0, out[5*k+4]}; // c0yl works in half, but doesn't interpolate upon lookup :(
+      quantise_coeffs(coeffs, q);
+      if(f)   fwrite(q, sizeof(float), 4, f);
+      // if(pfm) fwrite(q, sizeof(float), 3, pfm);
+    }
+    if(f) fclose(f);
+    // if(pfm) fclose(pfm);
+  }
+
   free(out);
   free(lsbuf);
   free(max_b);
