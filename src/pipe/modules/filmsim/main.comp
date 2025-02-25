@@ -4,6 +4,11 @@
 #include "shared.glsl"
 #include "../rt/colour.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  int frame;
+  int frame_cnt;
+} global;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   int film;
@@ -13,6 +18,9 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float gamma_paper;
   float filter_m;
   float filter_y;
+  float grain_size;
+  int   n_grains;
+  int   grain_non_uniformity;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
@@ -24,13 +32,38 @@ layout(set = 1, binding = 6) uniform sampler2D img_density_layers;  // 3x3 data 
 layout(set = 1, binding = 7) uniform sampler2D img_coeff;           // spectral upsampling for emission
 #include "shared/upsample.glsl"
 
+vec2 hash(in vec2 i)
+{
+  uint seed = uint(133700 * i.x + i.y * 37 + 13 * global.frame);
+  seed = uint(4000300*mrand(seed));
+  seed = uint(4070000*mrand(seed));
+  // approximate correction for std dev of uniform distribution
+  float sigma = 1.7; // approximately correct for the uniform distribution [-1,1] instead of gaussian
+  return sigma * (-1 + 2*vec2(mrand(seed), mrand(seed)));
+}
+
+float noise(in vec2 p)
+{ // (c) iq, MIT
+  const float K1 = 0.366025404; // (sqrt(3)-1)/2;
+  const float K2 = 0.211324865; // (3-sqrt(3))/6;
+  vec2  i = floor( p + (p.x+p.y)*K1 );
+  vec2  a = p - i + (i.x+i.y)*K2;
+  float m = step(a.y,a.x);
+  vec2  o = vec2(m,1.0-m);
+  vec2  b = a - o + K2;
+  vec2  c = a - 1.0 + 2.0*K2;
+  vec3  h = max( 0.5-vec3(dot(a,a), dot(b,b), dot(c,c) ), 0.0 );
+  vec3  n = h*h*h*h*vec3( dot(a,hash(i+0.0)), dot(b,hash(i+o)), dot(c,hash(i+1.0)));
+  return dot( n, vec3(70.0) );
+}
+
 // TODO this needs a direct simulation method, is too slow for large n
 int poisson(inout uint seed, float lambda)
 {
-  float u = mrand(seed);
+  float u = 1.0;
   float b = exp(-lambda);
   int m = 60; // should be > 2x lambda or else you can see the bias
-  for(int i=1;i<m;i++)
+  for(int i=0;i<m;i++)
   {
     if(u < b) return i;
     u *= mrand(seed);
@@ -45,16 +78,121 @@ int binom(inout uint seed, int n, float p)
     if(mrand(seed) < p) k++;
   return k;
 }
+#if 1
+// 0: integer hash
+// 1: float hash (aliasing based)
+#define METHOD 0
 
-vec3 add_grain(inout uint seed, vec3 density)
+// 0: cubic
+// 1: quintic
+#define INTERPOLANT 1
+
+
+#if METHOD==0
+vec2 hash( in ivec2 p )  // this hash is not production ready, please
+{                        // replace this by something better
+
+    // 2D -> 1D
+    ivec2 n = p.x*ivec2(3,37) + p.y*ivec2(311,113);
+
+    // 1D hash by Hugo Elias
+	n = (n << 13) ^ n;
+    n = n * (n * n * 15731 + 789221) + 1376312589;
+    return -1.0+2.0*vec2( n & ivec2(0x0fffffff))/float(0x0fffffff);
+}
+#else
+vec2 hash( in vec2 x )   // this hash is not production ready, please
+{                        // replace this by something better
+    const vec2 k = vec2( 0.3183099, 0.3678794 );
+    x = x*k + k.yx;
+    return -1.0 + 2.0*fract( 16.0 * k*fract( x.x*x.y*(x.x+x.y)) );
+}
+#endif
+
+// return gradient noise (in x) and its derivatives (in yz)
+vec3 noised( in vec2 p )
 {
+    #if METHOD==0
+    ivec2 i = ivec2(floor( p ));
+    #else
+    vec2 i = floor( p );
+    #endif
+    vec2 f = fract( p );
+
+    #if INTERPOLANT==1
+    // quintic interpolation
+    vec2 u = f*f*f*(f*(f*6.0-15.0)+10.0);
+    vec2 du = 30.0*f*f*(f*(f-2.0)+1.0);
+    #else
+    // cubic interpolation
+    vec2 u = f*f*(3.0-2.0*f);
+    vec2 du = 6.0*f*(1.0-f);
+    #endif
+
+    #if METHOD==0
+    vec2 ga = hash( i + ivec2(0,0) );
+    vec2 gb = hash( i + ivec2(1,0) );
+    vec2 gc = hash( i + ivec2(0,1) );
+    vec2 gd = hash( i + ivec2(1,1) );
+    #else
+    vec2 ga = hash( i + vec2(0.0,0.0) );
+    vec2 gb = hash( i + vec2(1.0,0.0) );
+    vec2 gc = hash( i + vec2(0.0,1.0) );
+    vec2 gd = hash( i + vec2(1.0,1.0) );
+    #endif
+
+    float va = dot( ga, f - vec2(0.0,0.0) );
+    float vb = dot( gb, f - vec2(1.0,0.0) );
+    float vc = dot( gc, f - vec2(0.0,1.0) );
+    float vd = dot( gd, f - vec2(1.0,1.0) );
+
+    return vec3( va + u.x*(vb-va) + u.y*(vc-va) + u.x*u.y*(va-vb-vc+vd),   // value
+                 ga + u.x*(gb-ga) + u.y*(gc-ga) + u.x*u.y*(ga-gb-gc+gd) +  // derivatives
+                 du * (u.yx*(va-vb-vc+vd) + vec2(vb,vc) - va));
+}
+#endif
+
+// TODO: separate density into three layers of grains (coarse, mid, fine) that sum up
+// to the max density. lower density values are taken mostly by coarse grains.
+// TODO: use simplex noise / correlated to simulate the three layers (is here grain?)
+// TODO: simulate a binomial distribution x3: are the grains turned?
+// expectation should be =density, i.e. n*p + n*p + n*p = density for the three layers
+vec3 add_grain(ivec2 ipos, vec3 density)
+{
+  int n_grains_per_pixel = params.n_grains;
+  int grain_non_uniformity = params.grain_non_uniformity;
+  float grain_size = params.grain_size;
+  float density_max = 3.3;
+  vec3 res = vec3(0.0);
+  uint seed = 123456789*ipos.x + 1333337*ipos.y;
+  for(int col=0;col<3;col++)
+  {
+    float np = density[col] / density_max; // expectation of normalised number of developed grains
+    vec3 doff = vec3(0.2, 0.2, 0.6);
+    for(int layer=0;layer<3;layer++)
+    { // from coarse to fine layers
+      float npl = min(doff[layer], np);
+      np -= npl;
+      vec2 tc = pow(2, layer)/grain_size * 0.3 * vec2(ipos + 1000*col);
+      // int r = int(grain_non_uniformity*noise(tc));
+      int r = int(grain_non_uniformity*noised(tc).x);
+      int n = int(n_grains_per_pixel*pow(2, layer));
+      float p = npl;// / float(n);
+      // if(layer==2)
+      res[col] += density_max * (n+r)*p/float(n); // this is using the expected value of developed grains directly
+      // res[col] += density_max * poisson(seed, (n+r)*p)/float(n); // simulates poisson, too bright
+      // XXX this is i think the right expectation but not correlated between pixels enough:
+      // res[col] += density_max * binom(seed, (n+r), p)/float(n); // looks broken too
+    }
+  }
+  return res;
+
+#if 0
   // statistically sample whether grains are turned or not.
   // TODO the grains need inter/sub pixel stability, use simplex noise!
   // TODO poisson something is too slow above
   // TODO do it in the three layers, use the data we have in img_density_layers
-  float density_max = 3.3;
   float grain_uniformity = 1.0;
-  vec3 probability_of_development = density / density_max;
   vec3 saturation = 1.0 - probability_of_development*grain_uniformity*(1.0-1e-6);
   float n_particles_per_pixel = 25.0;
   ivec3 ps = ivec3(
@@ -67,6 +205,7 @@ vec3 add_grain(inout uint seed, vec3 density)
       binom(seed, ps.z, probability_of_development.z));
   grain *= saturation * density_max / n_particles_per_pixel;
   return grain;
+#endif
 }
 
 void main()
@@ -111,7 +250,7 @@ void main()
 
   vec3 density_cmy;
   { // develop film
-    uint seed = /*19937 * global.frame + */133700000 * ipos.x + ipos.y * 70007;
+    // uint seed = /*19937 * global.frame + */133700000 * ipos.x + ipos.y * 70007;
     vec2 tc = vec2(0.0, (film + 0.5)/textureSize(img_density_curves, 0).y);
     // TODO apply gamma factor by multiplying it to x coordinate in tc!
     tc.x = clamp((gamma_factor_film*log_raw.r - log_exp_min)/(log_exp_max-log_exp_min), 0.0, 1.0);
@@ -125,7 +264,7 @@ void main()
         // density_cmy      = self._apply_density_correction_dir_couplers(density_cmy, log_raw, pixel_size_um)
     density_cmy = mix(density_cmy, vec3(0.0), isnan(density_cmy));
     // TODO: has some gauss blur in it, but do i want that? maybe use pixel correlated seeds instead
-    density_cmy = add_grain(seed, density_cmy);
+    density_cmy = add_grain(ipos, density_cmy);
     rgb = density_cmy; // XXX
   }
 

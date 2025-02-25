@@ -5,3 +5,6 @@ exp p:float:1:0.0
 gamma p:float:1:1.0
 filter m:float:1:1.0
 filter y:float:1:1.0
+grain:float:1:1.0
+ngrains:int:1:10
+grainuni:int:1:3

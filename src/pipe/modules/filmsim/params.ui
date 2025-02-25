@@ -5,3 +5,6 @@ exp p:slider:-10:10
 gamma p:slider:0:2
 filter m:slider:0:1
 filter y:slider:0:1
+grain:slider:0.5:2.0
+ngrains:slider:1:100
+grainuni:slider:1:40
