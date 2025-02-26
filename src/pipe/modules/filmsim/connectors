@@ -3,5 +3,4 @@ output:write:*:*
 dencurv:read:*:*
 dyedens:read:*:*
 logsens:read:*:*
-enlarger:read:*:*
 spectra:read:*:*

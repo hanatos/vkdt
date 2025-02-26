@@ -27,8 +27,7 @@ layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 layout(set = 1, binding = 2) uniform sampler2D img_density_curves;  // log exp to density lut
 layout(set = 1, binding = 3) uniform sampler2D img_dye_density;     // spectral dye density lut
 layout(set = 1, binding = 4) uniform sampler2D img_log_sensitivity; // spectral sensitivity lut
-layout(set = 1, binding = 5) uniform sampler2D img_enlarger;        // spectral cmy enlarger lamp filters
-layout(set = 1, binding = 6) uniform sampler2D img_coeff;           // spectral upsampling for emission
+layout(set = 1, binding = 5) uniform sampler2D img_coeff;           // spectral upsampling for emission
 #include "shared/upsample.glsl"
 
 vec2 hash(in vec2 i)
@@ -274,6 +273,10 @@ void main()
     // vec3 neutral = vec3(0.8239429286474425, 0.19397097820027817, 0.35);
     // values are ymc and ours is cmy
     // vec3 neutral = vec3(0.7741901967581455, 0.45280080115502647, 0.35).zyx; // kodak portra endura / kodak gold 200
+    vec4 coeff_c = fetch_coeff(vec3(0.0, 1.0, 1.0));
+    vec4 coeff_m = fetch_coeff(vec3(1.0, 0.0, 1.0));
+    vec4 coeff_y = fetch_coeff(vec3(1.0, 1.0, 0.0));
+    coeff_c.w = coeff_m.w = coeff_y.w = 1.0; // we want reflectance/transmittance limited to 1.0 here
     vec3 neutral = vec3(0.35, params.filter_m, params.filter_y);
     // neutral = vec3(0.005,0.008,1);
     // neutral = vec3(0,0,1);
@@ -299,11 +302,19 @@ void main()
 
       // this is from 350..800nm
       float illuminant = 0.001*colour_blackbody(vec4(lambda), 3200.0).x;
+#if 0
       // lamp filters are transmittances 0..100%
       vec3 enlarger = mix(
           vec3(100.0),
           texture(img_enlarger, vec2((lambda-350.0)/(800.0-350.0), 0.0)).rgb,
           neutral);
+#else
+      // lamp filters are transmittances 0..1.0
+      vec3 enlarger = 100.0*mix(
+          vec3(1.0),
+          vec3(sigmoid_eval(coeff_c, lambda), sigmoid_eval(coeff_m, lambda), sigmoid_eval(coeff_y, lambda)),
+          neutral);
+#endif
 
       float print_illuminant = enlarger.x*enlarger.y*enlarger.z * illuminant;
       float light = pow(10.0, -density_spectral) * print_illuminant;
