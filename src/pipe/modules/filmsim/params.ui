@@ -7,8 +7,7 @@ g paper:slider:0:2
 grain:combo:digi clean:simulate grain
 group:grain:1
 size:slider:0.5:2.0
-ngrains:slider:1:100
-grainuni:slider:1:40
+uniform:slider:0:1.0
 group:-1:0
 enlarger:combo:output negative:1x resolution:2x resolution:4x resolution
 filter m:slider:0:1
