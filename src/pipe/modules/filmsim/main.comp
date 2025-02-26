@@ -210,7 +210,8 @@ void main()
           // computes new log_law and re-does the density-from-log-raw lut
         // density_cmy      = self._apply_density_correction_dir_couplers(density_cmy, log_raw, pixel_size_um)
     density_cmy = mix(density_cmy, vec3(0.0), isnan(density_cmy));
-    if(params.grain > 0) density_cmy = add_grain(ipos, density_cmy);
+    // hack to not have grain in preview images/thumbnails:
+    if(params.grain > 0 && imageSize(img_out).x > 400) density_cmy = add_grain(ipos, density_cmy);
     rgb = density_cmy;
   }
 
