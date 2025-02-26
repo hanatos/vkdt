@@ -61,6 +61,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [colenc: encode colour for colour managed output like adobeRGB, P3, etc](./colenc/readme.md)
 * [colour: generic colour manipulation/input transform](./colour/readme.md)
 * [grade: simple ACES CDL grading tool](./grade/readme.md)
+* [filmsim: spectral analog film simulation](./filmsim/readme.md)
 
 **corrective**
 

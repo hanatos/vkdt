@@ -214,6 +214,9 @@ void main()
     rgb = density_cmy;
   }
 
+  if(params.enlarger > 0)
+  {
+
   { // enlarger: expose film to print paper
     vec3 raw = vec3(0.0);
     // TODO: these come for all combinations of film and paper:
@@ -269,9 +272,6 @@ void main()
     rgb = raw;
   }
 
-  if(params.enlarger > 0)
-  {
-
   { // develop print
     // interpolate log exposure to density again
     vec2 tc = vec2(0.0, get_tcy(s_density_curve, paper));
@@ -281,7 +281,8 @@ void main()
     density_cmy.g = texture(img_filmsim, tc).g;
     tc.x = clamp((gamma_factor_paper*log_raw.b - log_exp_min)/(log_exp_max-log_exp_min), 0.0, 1.0);
     density_cmy.b = texture(img_filmsim, tc).b;
-    // rgb = density_cmy;
+    rgb = density_cmy;
+  }
   }
 
   { // scan
@@ -304,10 +305,10 @@ void main()
       vec3 cmf = cmf_1931(lambda); // 1931 2 deg std observer, approximate version
       raw += light * cmf;
     }
+
     rgb = XYZ_to_rec2020(raw);
     // TODO add glare
     // TODO _apply_blur_and_unsharp
-  }
   }
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
