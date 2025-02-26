@@ -1,6 +1,4 @@
 input:read:*:*
 output:write:*:*
-dencurv:read:*:*
-dyedens:read:*:*
-logsens:read:*:*
+filmsim:read:*:*
 spectra:read:*:*

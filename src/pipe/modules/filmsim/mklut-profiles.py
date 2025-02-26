@@ -24,20 +24,9 @@ print_papers = [
 
 # start lut files:
 num_films = len(film_stocks) + len(print_papers)
-f_log_sensitivity = open("log_sensitivity.lut", "wb") # spectral
-f_dye_density     = open("dye_density.lut", "wb")     # spectral
-f_density_curves  = open("density_curves.lut", "wb")  # -4..4 log exposure lut
-f_density_layers  = open("density_layers.lut", "wb")  # 0..3.3 density lut, 3x3 per item
-header = struct.pack('<iHBBii', 1234, 2, 4, 1, 81, num_films)
-f_log_sensitivity.write(header)
-f_dye_density.write(header)
-header = struct.pack('<iHBBii', 1234, 2, 4, 1, 256, num_films)
-f_density_curves.write(header)
+f_lut = open("filmsim.lut", "wb")  # unified all of the above in 0..255, padded with zeros
 header = struct.pack('<iHBBii', 1234, 2, 4, 1, 256, 3*num_films)
-f_density_layers.write(header)
-# log_sensitivity (81, 3)
-# dye_density     (81, 4)
-# density_curves (256, 3)
+f_lut.write(header)
 
 film_stocks.extend(print_papers)
 
@@ -64,11 +53,10 @@ for f in film_stocks:
           profile.data.log_sensitivity[i][1],
           profile.data.log_sensitivity[i][2],
           1)
-      f_log_sensitivity.write(px)
-    # FIXME: pad in between, not at the end!
-    for i in range(np.shape(profile.data.log_sensitivity)[0], 81):
+      f_lut.write(px)
+    for i in range(np.shape(profile.data.log_sensitivity)[0], 256):
       px = struct.pack('<ffff', 0, 0, 0, 1)
-      f_log_sensitivity.write(px)
+      f_lut.write(px)
 
     profile.data.dye_density = np.array(profile.data.dye_density)
     print(np.shape(profile.data.dye_density)) # (41, 5) or (81, 5)
@@ -78,11 +66,10 @@ for f in film_stocks:
           profile.data.dye_density[i][1],
           profile.data.dye_density[i][2],
           profile.data.dye_density[i][3])
-      f_dye_density.write(px)
-    # FIXME: pad in between, not at the end!
-    for i in range(np.shape(profile.data.dye_density)[0], 81):
+      f_lut.write(px)
+    for i in range(np.shape(profile.data.dye_density)[0], 256):
       px = struct.pack('<ffff', 0, 0, 0, 1)
-      f_dye_density.write(px)
+      f_lut.write(px)
 
 
     # Mx3
@@ -104,7 +91,7 @@ for f in film_stocks:
           dens[i][1],
           dens[i][2],
           1)
-      f_density_curves.write(px)
+      f_lut.write(px)
     # shape stuff, is always the same i hope:
     # profile.data.wavelengths = np.array(profile.data.wavelengths)
 
@@ -116,29 +103,26 @@ for f in film_stocks:
     # print(profile.data.density_curves[0])
     # print(profile.data.density_curves[255])
     # print(profile.data.density_curves_layers)
-    print(np.shape(profile.data.density_curves_layers)) # (256, 3, 3)
-    profile.data.density_curves_layers = np.array(profile.data.density_curves_layers)
-
-    # resample to common range 0..3.3
-    densx  = np.linspace(0.0, 3.3, 256)
-    layers = np.zeros((256, 3, 3))
-    for c0 in np.arange(3):
-      for c1 in np.arange(3):
-        sel = ~np.isnan(profile.data.density_curves[:,c0])
-        layers[:,c0,c1] = np.interp(densx[:],
-                                             profile.data.density_curves[sel,c0],
-                                             profile.data.density_curves_layers[sel,c0,c1])
-
-    for layer in np.arange(3):
-      for i in range(0, np.shape(profile.data.density_curves_layers)[0]):
-        px = struct.pack('<ffff',
-          layers[i,0,layer],
-          layers[i,1,layer],
-          layers[i,2,layer],
-          1)
-        f_density_layers.write(px)
-
-f_log_sensitivity.close();
-f_dye_density.close();
-f_density_curves.close();
-f_density_layers.close();
+# print(np.shape(profile.data.density_curves_layers)) # (256, 3, 3)
+#     profile.data.density_curves_layers = np.array(profile.data.density_curves_layers)
+# 
+#     # resample to common range 0..3.3
+#     densx  = np.linspace(0.0, 3.3, 256)
+#     layers = np.zeros((256, 3, 3))
+#     for c0 in np.arange(3):
+#       for c1 in np.arange(3):
+#         sel = ~np.isnan(profile.data.density_curves[:,c0])
+#         layers[:,c0,c1] = np.interp(densx[:],
+#                                              profile.data.density_curves[sel,c0],
+#                                              profile.data.density_curves_layers[sel,c0,c1])
+# 
+#     for layer in np.arange(3):
+#       for i in range(0, np.shape(profile.data.density_curves_layers)[0]):
+#         px = struct.pack('<ffff',
+#           layers[i,0,layer],
+#           layers[i,1,layer],
+#           layers[i,2,layer],
+#           1)
+#         f_density_layers.write(px)
+# 
+f_lut.close();
