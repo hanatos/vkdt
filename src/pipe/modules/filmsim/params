@@ -1,7 +1,7 @@
 film:int:1:0
 ev film:float:1:0
 g film:float:1:1.0
-paper:int:1:0
+paper:int:1:1
 ev paper:float:1:0.0
 g paper:float:1:1.0
 grain:int:1:0

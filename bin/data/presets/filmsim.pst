@@ -1,0 +1,12 @@
+# put spectral analog film simulation into the default pipeline
+# instead of filmcurve and local contrast.
+module:filmsim:01
+module:i-lut:filmsim
+module:i-lut:spectem
+param:i-lut:filmsim:filename:data/filmsim.lut
+param:i-lut:spectem:filename:data/spectra-em.lut
+connect:colour:01:output:filmsim:01:input
+connect:filmsim:01:output:display:main:input
+connect:filmsim:01:output:hist:01:input
+connect:i-lut:filmsim:output:filmsim:01:filmsim
+connect:i-lut:spectem:output:filmsim:01:spectra
