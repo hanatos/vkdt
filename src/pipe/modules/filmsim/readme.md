@@ -7,14 +7,14 @@ to run this, you need the `filmsim.lut` data file. to create it:
 
 ```
 cd
-git clone //github.com/andreavolpato/agx-emulsion
+git clone https://github.com/andreavolpato/agx-emulsion
 python -m venv agx
 source agx/bin/activate
 cd agx-emulsion
 pip install -r requirements
 pip install -e .
 cd agx-emulsion/agx_emulsion/data/profiles
-cp ~/vkdt/src/pipe/modules/filmsim/mklut-profiles.py .
+wget https://raw.githubusercontent.com/hanatos/vkdt/refs/heads/master/src/pipe/modules/filmsim/mklut-profiles.py
 python ./mklut-profiles.py
 mkdir -p ~/.config/vkdt/data
 cp filmsim.lut ~/.config/vkdt/data
@@ -40,10 +40,10 @@ TODO
 
 * `film` the film id in the datafile
 * `ev film` exposure correction when exposing the film
-* `g film` gamma correction for exposing the film
+* `g film` gamma correction for exposing the film, use to adjust dynamic range
 * `paper` the paper id in the datafile
 * `ev paper` exposure correction when sensitising the paper
-* `g paper` gamma correction when sensitising the paper
+* `g paper` gamma correction when sensitising the paper, affects dynamic range and contrast
 * `grain` switch grain simulation on or off
 * `size` scale the grain size
 * `uniform` uniformity of the grains as seen through the pixels. 1.0 means no variation at all
