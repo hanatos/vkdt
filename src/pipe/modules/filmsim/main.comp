@@ -28,8 +28,7 @@ layout(set = 1, binding = 2) uniform sampler2D img_density_curves;  // log exp t
 layout(set = 1, binding = 3) uniform sampler2D img_dye_density;     // spectral dye density lut
 layout(set = 1, binding = 4) uniform sampler2D img_log_sensitivity; // spectral sensitivity lut
 layout(set = 1, binding = 5) uniform sampler2D img_enlarger;        // spectral cmy enlarger lamp filters
-layout(set = 1, binding = 6) uniform sampler2D img_density_layers;  // 3x3 data for noise synth
-layout(set = 1, binding = 7) uniform sampler2D img_coeff;           // spectral upsampling for emission
+layout(set = 1, binding = 6) uniform sampler2D img_coeff;           // spectral upsampling for emission
 #include "shared/upsample.glsl"
 
 vec2 hash(in vec2 i)

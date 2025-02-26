@@ -29,6 +29,15 @@ main()
   // on white
   // vec3 rgb = vec3(1.0);
 
+  float lambda = 360.0 + ipos.x/float(imageSize(img_out).x) * (830.0 - 360.0);
+  // draw lines every 50nm
+  float d = fract(lambda / 50.0);
+  d = min(abs(d), abs(1.0-d));
+  rgb = max(rgb, vec3(.2) * vec3(pow(smoothstep(.01, 0.0, d), 3)));
+  d = fract(lambda / 100.0);
+  d = min(abs(d), abs(1.0-d));
+  rgb = max(rgb, vec3(.2) * vec3(pow(smoothstep(.03, 0.0, d), 3)));
+
   for(int i=0;i<params.nspots.x;i++)
   {
     // read colour from texture
@@ -43,7 +52,6 @@ main()
     vec4 coeff = fetch_coeff(picked_rgb);
     vec3 cyl = vec3(coeff.x, coeff.z - coeff.y*coeff.y /(4.0 * coeff.x), -coeff.y / (2.0*coeff.x));
 
-    float lambda = 360.0 + ipos.x/float(imageSize(img_out).x) * (830.0 - 360.0);
     float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
     float ddx = abs(0.5 * pow(x*x + 1.0, -3.0/2.0) * (2.0*coeff.x*(lambda-cyl.z)));
     float val = sigmoid_eval(coeff, lambda);
@@ -60,6 +68,7 @@ main()
     if(ipos.y / float(imageSize(img_out).y) > 1.0-val)
       rgb = mix(rgb, picked_rgb, 0.1);
   }
+
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
 
