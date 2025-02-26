@@ -3,10 +3,29 @@
 this is based on [agx emulsion](https://github.com/andreavolpato/agx-emulsion).
 for a nice introduction see [this post](https://discuss.pixls.us/t/spectral-film-simulations-from-scratch/48209/1).
 
+to run this, you need the `filmsim.lut` data file. to create it:
+
+```
+cd
+git clone //github.com/andreavolpato/agx-emulsion
+python -m venv agx
+source agx/bin/activate
+cd agx-emulsion
+pip install -r requirements
+pip install -e .
+cd agx-emulsion/agx_emulsion/data/profiles
+cp ~/vkdt/src/pipe/modules/filmsim/mklut-profiles.py .
+python ./mklut-profiles.py
+mkdir -p ~/.config/vkdt/data
+cp filmsim.lut ~/.config/vkdt/data
+```
+
+and then wire an `i-lut` module with filename `data/filmsim.lut` to the `filmsim` input connector.
+
 TODO
 * put documentation/nice example images from artic's post above
 * implement DIR coupling
-* implementa halation
+* implement halation
 * map grain params to film iso values
 * create main.c, handle enlarged output buffer
 
