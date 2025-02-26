@@ -11,16 +11,19 @@ layout(std140, set = 0, binding = 0) uniform global_t
 } global;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  int film;
-  int paper;
+  int   film;
+  float ev_film;
   float gamma_film;
-  float exp_paper;
+  int   paper;
+  float ev_paper;
   float gamma_paper;
-  float filter_m;
-  float filter_y;
+  int   grain;
   float grain_size;
   int   n_grains;
   int   grain_non_uniformity;
+  int   enlarger;
+  float filter_m;
+  float filter_y;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
@@ -249,7 +252,7 @@ void main()
     // TODO: the following two require to split the kernel and blur the intermediates:
       // TODO gaussian blur / lens radius
       // TODO apply halation
-    log_raw = log(raw+1e-10) * (1.0/log(10.0));
+    log_raw = params.ev_film * (log(2.0)/log(10.0)) + log(raw+1e-10) * (1.0/log(10.0));
     // rgb = pow(vec3(10.0),log_raw);
       // rgb = texture(img_filmsim, vec2(0.5, get_tcy(0,0))).rgb;
   }
@@ -268,8 +271,8 @@ void main()
           // computes new log_law and re-does the density-from-log-raw lut
         // density_cmy      = self._apply_density_correction_dir_couplers(density_cmy, log_raw, pixel_size_um)
     density_cmy = mix(density_cmy, vec3(0.0), isnan(density_cmy));
-    density_cmy = add_grain(ipos, density_cmy);
-    rgb = density_cmy; // XXX
+    if(params.grain > 0) density_cmy = add_grain(ipos, density_cmy);
+    rgb = density_cmy;
   }
 
   { // enlarger: expose film to print paper
@@ -279,10 +282,11 @@ void main()
     // vec3 neutral = vec3(0.8239429286474425, 0.19397097820027817, 0.35);
     // values are ymc and ours is cmy
     // vec3 neutral = vec3(0.7741901967581455, 0.45280080115502647, 0.35).zyx; // kodak portra endura / kodak gold 200
-    vec4 coeff_c = fetch_coeff(vec3(0.0, 1.0, 1.0));
-    vec4 coeff_m = fetch_coeff(vec3(1.0, 0.0, 1.0));
-    vec4 coeff_y = fetch_coeff(vec3(1.0, 1.0, 0.0));
-    coeff_c.w = coeff_m.w = coeff_y.w = 1.0; // we want reflectance/transmittance limited to 1.0 here
+    // sigmoidal transmission filters for cmy:
+    // vec4 coeff_c = fetch_coeff(vec3(0.0, 1.0, 1.0));
+    // vec4 coeff_m = fetch_coeff(vec3(1.0, 0.0, 1.0));
+    // vec4 coeff_y = fetch_coeff(vec3(1.0, 1.0, 0.0));
+    // coeff_c.w = coeff_m.w = coeff_y.w = 1.0; // we want reflectance/transmittance limited to 1.0 here
     vec3 neutral = vec3(0.35, params.filter_m, params.filter_y);
     for(int l=0;l<=40;l++)
     {
@@ -290,7 +294,6 @@ void main()
       vec2 tc = vec2(0.0, get_tcy(s_sensitivity, paper));
       tc.x = (l+0.5) / 256.0;
       vec3 log_sensitivity = texture(img_filmsim, tc).rgb;
-      // vec3 sensitivity = exp(log_sensitivity);
       vec3 sensitivity = pow(vec3(10.0), log_sensitivity);
       sensitivity = mix(sensitivity, vec3(0.0), isnan(sensitivity));
 
@@ -303,22 +306,32 @@ void main()
 
       // this is from 350..800nm
       float illuminant = 0.001*colour_blackbody(vec4(lambda), 3200.0).x;
+#if 1 // pretty coarse manual fit to thorlabs filters:
+      vec3 enlarger = 100.0*mix(
+          vec3(1.0),
+          vec3(lambda > 575 ? 0.0 : 0.9,
+               lambda > 485 && lambda < 625 ? 0.0 : 0.9,
+               lambda > 521 ? 0.9 : 0.0),
+          neutral);
+#else
       // lamp filters are transmittances 0..100%
       vec3 enlarger = 100.0*mix(
           vec3(1.0),
           vec3(sigmoid_eval(coeff_c, lambda), sigmoid_eval(coeff_m, lambda), sigmoid_eval(coeff_y, lambda)),
           neutral);
+#endif
 
       float print_illuminant = enlarger.x*enlarger.y*enlarger.z * illuminant;
       float light = pow(10.0, -density_spectral) * print_illuminant;
-      // float light = exp(-density_spectral) * print_illuminant;
-      raw += sensitivity * light * pow(2.0, params.exp_paper); // TODO and normalise to mid gray factor
+      raw += sensitivity * light * pow(2.0, params.ev_paper); // TODO and normalise to mid gray factor
       // TODO and the same yet again for the preflash
     }
-    // log_raw = log(raw + 1e-10);
     log_raw = log(raw + 1e-10)*(1.0/log(10.0));
-    rgb = raw; // XXX output negative
+    rgb = raw;
   }
+
+  if(params.enlarger > 0)
+  {
 
   { // develop print
     // interpolate log exposure to density again
@@ -349,13 +362,13 @@ void main()
       density_spectral += dye_density.w * dye_density_min_factor_paper;
       float scan_illuminant = 0.2*sigmoid_eval(coeff, lambda);
       float light = pow(10.0, -density_spectral) * scan_illuminant;
-      // float light = exp(-density_spectral) * scan_illuminant;
       vec3 cmf = cmf_1931(lambda); // 1931 2 deg std observer, approximate version
       raw += light * cmf;
     }
     rgb = XYZ_to_rec2020(raw);
     // TODO add glare
     // TODO _apply_blur_and_unsharp
+  }
   }
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

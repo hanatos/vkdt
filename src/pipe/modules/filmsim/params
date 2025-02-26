@@ -1,10 +1,13 @@
 film:int:1:0
+ev film:float:1:0
+g film:float:1:1.0
 paper:int:1:0
-gamma f:float:1:1.0
-exp p:float:1:0.0
-gamma p:float:1:1.0
+ev paper:float:1:0.0
+g paper:float:1:1.0
+grain:int:1:0
+size:float:1:1.0
+ngrains:int:1:10
+grainuni:int:1:10
+enlarger:int:1:1
 filter m:float:1:1.0
 filter y:float:1:1.0
-grain:float:1:1.0
-ngrains:int:1:10
-grainuni:int:1:3
