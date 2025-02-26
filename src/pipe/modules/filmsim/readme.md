@@ -1,8 +1,13 @@
 # filmsim: artic's sophisticated spectral analog film simulation
 
+this is based on [agx emulsion](https://github.com/andreavolpato/agx-emulsion).
+for a nice introduction see [this post](https://discuss.pixls.us/t/spectral-film-simulations-from-scratch/48209/1).
+
 TODO
-* put documentation/nice example images
-* DIR coupling
+* put documentation/nice example images from artic's post above
+* implement DIR coupling
+* implementa halation
+* map grain params to film iso values
 * create main.c, handle enlarged output buffer
 
 ## connectors
