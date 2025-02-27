@@ -48,11 +48,18 @@ int poisson(inout uint seed, float lambda)
 }
 
 int binom(inout uint seed, int n, float p)
-{ // bernoulli trials
+{
+#if 1 // gaussian approximation, good for large n*p
+  float u = n*p;
+  float s = sqrt(n*p*(1.0-p));
+  vec2 r = vec2(mrand(seed), mrand(seed));
+  return max(0, int(u + s * warp_gaussian(r).x));
+#else // bernoulli trials
   int k = 0;
   for(int i=0;i<n;i++)
     if(mrand(seed) < p) k++;
   return k;
+#endif
 }
 
 vec2 hash(in ivec2 p)  // this hash is not production ready, please
@@ -96,7 +103,7 @@ float noise(in vec2 p)
 // expectation should be =density, i.e. n*p + n*p + n*p = density for the three layers
 vec3 add_grain(ivec2 ipos, vec3 density)
 {
-  int n_grains_per_pixel = 200;// XXX ???params.n_grains;
+  int n_grains_per_pixel = 1000; // from artic's python. starts to look very good!
   int grain_non_uniformity = int((1.0-params.grain_uniformity)*n_grains_per_pixel);
   float grain_size = params.grain_size;
   float density_max = 3.3;
@@ -120,10 +127,10 @@ vec3 add_grain(ivec2 ipos, vec3 density)
       float p = npl;// / float(n);
       // if(layer!=2) res[col] += density_max * npl; else
       // uint seed = n;//n_grains_per_pixel;
-      res[col] += density_max * (n+r)*p/float(n); // this is using the expected value of developed grains directly
+      // res[col] += density_max * (n+r)*p/float(n); // this is using the expected value of developed grains directly
       // res[col] += density_max * poisson(seed, (n+r)*p)/float(n); // simulates poisson, too bright
-      // XXX this is i think the right expectation but not correlated between pixels enough:
-      // res[col] += density_max * binom(seed, (n+r), p)/float(n); // looks broken too
+      // now simulate whether these grains actually turn:
+      res[col] += density_max * binom(seed, (n+r), p)/float(n); // looks broken too
     }
   }
   return res;
