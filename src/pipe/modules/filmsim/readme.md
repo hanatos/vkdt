@@ -11,9 +11,9 @@ git clone https://github.com/andreavolpato/agx-emulsion
 python -m venv agx
 source agx/bin/activate
 cd agx-emulsion
-pip install -r requirements
+pip install -r requirements.txt
 pip install -e .
-cd agx-emulsion/agx_emulsion/data/profiles
+cd agx_emulsion/data/profiles
 wget https://raw.githubusercontent.com/hanatos/vkdt/refs/heads/master/src/pipe/modules/filmsim/mklut-profiles.py
 python ./mklut-profiles.py
 mkdir -p ~/.config/vkdt/data
