@@ -335,7 +335,7 @@ void main()
     for(int l=0;l<=40;l++)
     {
       float lambda = 380 + l*10;
-      vec2 tc = vec2(0.0, get_tcy(s_dye_density, paper));
+      vec2 tc = vec2(0.0, get_tcy(s_dye_density, params.enlarger > 0 ? paper : film));
       tc.x = (l+0.5) / 256.0;
       vec4 dye_density = texture(img_filmsim, tc);
       dye_density = mix(dye_density, vec4(0.0), isnan(dye_density));
