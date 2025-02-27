@@ -10,8 +10,8 @@ size:slider:0.5:2.0
 uniform:slider:0:1.0
 group:-1:0
 enlarger:combo:output negative:1x resolution:2x resolution:4x resolution
-filter c:slider:0:1
-filter m:slider:0:1
-filter y:slider:0:1
+filter c:hidden
+filter m:hidden
+filter y:hidden
 tune m:slider:-1:1
 tune y:slider:-1:1
