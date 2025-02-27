@@ -8,5 +8,8 @@ grain:int:1:0
 size:float:1:1.0
 uniform:float:1:0.7
 enlarger:int:1:1
+filter c:float:1:0.35
 filter m:float:1:0.4
 filter y:float:1:0.8
+tune m:float:1:0.0
+tune y:float:1:0.0

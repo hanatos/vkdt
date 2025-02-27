@@ -48,8 +48,7 @@ void evaluate_f(double *p, double *f, int m, int n, void *data)
   dat->graph.frame = frame;
   dt_graph_apply_keyframes(&dat->graph);
   VkResult res = dt_graph_run(&dat->graph,
-      s_graph_run_record_cmd_buf | 
-      s_graph_run_download_sink  |
+      s_graph_run_all |
       s_graph_run_wait_done);
   
   if(res)
@@ -302,6 +301,7 @@ int main(int argc, char *argv[])
   dt_graph_run(&dat.graph, s_graph_run_all); // run once to init nodes
 
   // init lower and upper bounds
+  // XXX TODO init from params.ui bounds (but nelder mead for instance ignores this anyways)
   double lb[num_params], ub[num_params];
   for(int i=0;i<num_params;i++) lb[i] = -DBL_MAX;
   for(int i=0;i<num_params;i++) ub[i] =  DBL_MAX;
@@ -339,7 +339,7 @@ int main(int argc, char *argv[])
   fprintf(stderr, "post-opt params: ");
   for(int i=0;i<num_params;i++) fprintf(stderr, "%g ", p[i]);
   fprintf(stderr, "\n");
-  fprintf(stderr, "post-opt loss: %g", resid);
+  fprintf(stderr, "post-opt loss: %g\n", resid);
 
   pp = p;
   for(int i=1;i<dat.param_cnt;i++) // [0] is the target parameter array

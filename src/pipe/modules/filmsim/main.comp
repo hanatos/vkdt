@@ -21,8 +21,11 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float grain_size;
   float grain_uniformity;
   int   enlarger;
+  float filter_c;
   float filter_m;
   float filter_y;
+  float tune_m;
+  float tune_y;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
@@ -206,10 +209,44 @@ void main()
     density_cmy.g = texture(img_filmsim, tc).g;
     tc.x = clamp((gamma_factor_film*log_raw.b - log_exp_min)/(log_exp_max-log_exp_min), 0.0, 1.0);
     density_cmy.b = texture(img_filmsim, tc).b;
-          // TODO: this requires a kernel split/gauss blur.
-          // computes new log_law and re-does the density-from-log-raw lut
-        // density_cmy      = self._apply_density_correction_dir_couplers(density_cmy, log_raw, pixel_size_um)
     density_cmy = mix(density_cmy, vec3(0.0), isnan(density_cmy));
+    // TODO: this requires a kernel split/gauss blur.
+    // computes new log_law and re-does the density-from-log-raw lut
+#if 0
+    // compute layer coupling 3x3 matrix by diffusion:
+    M = np.eye(3) // 3x3 identity matrix
+    amount_rgb=[0.7,0.7,0.5], layer_diffusion=1)
+    // input, sigma, constant=0 border handling, only blur y axis
+    M_diffused = gaussian_filter(M, layer_diffusion, mode='constant', cval=0, axes=1)
+    M_diffused /= np.sum(M_diffused, axis=1)[:, None] // normalise the columns again
+    // M = vec3(2, 1, 0,  1, 2, 1,  0, 1, 2) / 3;
+    M = M_diffused *np.array(amount_rgb)[:, None] // multiply this to the uhm columns too?
+    // compute density curves before dir couplers:
+    d_max = np.nanmax(density_curves, axis=0) // = 3.3 i think
+    dc_norm = density_curves/d_max // 3d log-exp density curves, normalised
+    dc_norm_shift = dc_norm + high_exposure_couplers_shift*dc_norm**2 // defaults to +zero
+    // correct the curves by (optionally shifting and) multiplying the matrix
+    couplers_amount_curves = contract('jk, km->jm', dc_norm_shift, dir_couplers_matrix)
+    // log_exposure is the image (log_raw from above)
+    x0 = log_exposure[:,None] - couplers_amount_curves
+    // compute new density curves by evaluating density curves shifted to (x0,dc) locations at log_raw
+    // XXX wtf does this mean. awful lot of re-interpolation, i think this should be simpler:
+    density_curves_corrected = np.zeros_like(density_curves)
+    for i in np.arange(3):
+        density_curves_corrected[:,i] = np.interp(log_exposure, x0[:,i], density_curves[:,i])
+    return density_curves_corrected
+    // now compute corrected log_raw exposure values:
+    norm_density = density_cmy/density_max // 3d
+    norm_density += high_exposure_couplers_shift*norm_density**2 // defaults to zero
+    log_raw_correction = contract('ijk, km->ijm', norm_density, dir_couplers_matrix)// matrix M from above
+    // i suppose this is potentially a larger support gaussian and definitely needs a kernel split
+    // XXX we're linear filtering the log values here. does that make sense?
+    log_raw_correction = gaussian_filter(log_raw_correction, (diffusion_size_pixel, diffusion_size_pixel, 0), truncate=7)
+    log_raw_corrected = log_raw - log_raw_correction
+    return log_raw_corrected // TODO get this as input from blur kernel
+    // TODO: now re-run the density curve interpolation with new log_raw and new density_curves
+#endif
+    // TODO do this in commit_params on cpu side, there we know the actual scale factor:
     // hack to not have grain in preview images/thumbnails:
     if(params.grain > 0 && imageSize(img_out).x > 400) density_cmy = add_grain(ipos, density_cmy);
     rgb = density_cmy;
@@ -220,17 +257,13 @@ void main()
 
   { // enlarger: expose film to print paper
     vec3 raw = vec3(0.0);
-    // TODO: these come for all combinations of film and paper:
-    // coefficients for cmy filters in lamp:
-    // vec3 neutral = vec3(0.8239429286474425, 0.19397097820027817, 0.35);
-    // values are ymc and ours is cmy
-    // vec3 neutral = vec3(0.7741901967581455, 0.45280080115502647, 0.35).zyx; // kodak portra endura / kodak gold 200
     // sigmoidal transmission filters for cmy:
     // vec4 coeff_c = fetch_coeff(vec3(0.0, 1.0, 1.0));
     // vec4 coeff_m = fetch_coeff(vec3(1.0, 0.0, 1.0));
     // vec4 coeff_y = fetch_coeff(vec3(1.0, 1.0, 0.0));
     // coeff_c.w = coeff_m.w = coeff_y.w = 1.0; // we want reflectance/transmittance limited to 1.0 here
-    vec3 neutral = vec3(0.35, params.filter_m, params.filter_y);
+    vec3 neutral = vec3(params.filter_c, params.filter_m + 0.1*params.tune_m, params.filter_y + 0.1*params.tune_y);
+    // XXX TODO clamp neutral to physical range? the fitting finds negative values for some paper/film combinations..
     for(int l=0;l<=40;l++)
     {
       float lambda = 380.0 + l*10.0;

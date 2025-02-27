@@ -300,5 +300,5 @@ void write_sink(
     // it to amd at some point, too.
     // fprintf(stderr, "read %d: %g %g %g\n", k, picked[3*k+0], picked[3*k+1], picked[3*k+2]);
   }
-  // fprintf(stderr, "[pick] colour difference %g (%d) - %g - %g (%d)\n", de76[0], mi, de76[1], de76[2], Mi);
+  // fprintf(stderr, "[pick] colour difference %g - %g - %g\n", de76[0], de76[1], de76[2]);
 }

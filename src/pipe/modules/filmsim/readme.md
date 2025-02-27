@@ -27,7 +27,7 @@ TODO
 * implement DIR coupling
 * implement halation
 * map grain params to film iso values
-* create main.c, handle enlarged output buffer
+* handle enlarged output buffer
 
 ## connectors
 
@@ -50,3 +50,5 @@ TODO
 * `enlarger` mode of exposing the paper: output straight film negative or resize output
 * `filter m` when exposing the print paper, dial in this share of magenta filter
 * `filter y` when exposing the print paper, dial in this share of yellow filter
+* `tune m` fine tune the magenta filter. think of this as a red/green tint
+* `tune y` fine tune the yellow filter. think of this as a warm/cold white balance temperature

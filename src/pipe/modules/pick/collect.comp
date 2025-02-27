@@ -35,8 +35,6 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
-
   for(int i=0;i<params.nspots.x;i++)
   {
     vec3 rgb = vec3(0);
