@@ -33,10 +33,11 @@ main()
   // draw lines every 50nm
   float d = fract(lambda / 50.0);
   d = min(abs(d), abs(1.0-d));
-  rgb = max(rgb, vec3(.2) * vec3(pow(smoothstep(.01, 0.0, d), 3)));
+  rgb = max(rgb, vec3(.2) * vec3(pow(smoothstep(.026, 0.0, d), 3)));
   d = fract(lambda / 100.0);
   d = min(abs(d), abs(1.0-d));
-  rgb = max(rgb, vec3(.2) * vec3(pow(smoothstep(.03, 0.0, d), 3)));
+  if(d > 0.03 && (int(30*(ipos.y / float(imageSize(img_out).y)))%2)==0)
+    rgb = vec3(0.0);
 
   for(int i=0;i<params.nspots.x;i++)
   {

@@ -88,9 +88,10 @@ void init_coeffs(double coeffs[3])
 void clamp_coeffs(double coeffs[3])
 {
   double max = fmax(fmax(fabs(coeffs[0]), fabs(coeffs[1])), fabs(coeffs[2]));
-  if (max > 100000.0) {
+  const double clip = 100000.0;
+  if (max > clip) {
     for (int j = 0; j < 3; ++j)
-      coeffs[j] *= 100000.0 / max;
+      coeffs[j] *= clip / max;
   }
 }
 
