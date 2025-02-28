@@ -400,7 +400,7 @@ void parallel_run(uint32_t item, void *data)
 
   int ii = (int)fmin(d->max_w - 1, fmax(0, x * d->max_w + 0.5));
   int jj = (int)fmin(d->max_h - 1, fmax(0, y * d->max_h + 0.5));
-  double m = fmax(0.001, 0.5*d->max_b[ii + d->max_w * jj]);
+  double m = fmax(0.01, 0.5*d->max_b[ii + d->max_w * jj]);
   double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
   double resid = gauss_newton(rgbm, coeffs);
 
@@ -628,6 +628,15 @@ mac_error:
     if(pfm) fclose(pfm);
   }
 
+  {
+    dt_inpaint_buf_t inpaint_buf = {
+      .dat = (float *)out,
+      .wd  = res,
+      .ht  = res,
+      .cpp = 5,
+    };
+    dt_inpaint(&inpaint_buf);
+  }
   { // write spectra map: (x,y) |--> sigmoid coeffs + saturation
     header_t head = (header_t) {
       .magic    = 1234,

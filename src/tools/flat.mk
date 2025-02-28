@@ -1,6 +1,6 @@
 .PHONY:tools
 
-tools:../bin/data/spectra-em.lut ../bin/data/abney.lut ../bin/vkdt-mkssf ../bin/vkdt-mkclut ../bin/vkdt-lutinfo ../bin/vkdt-eval-profile
+tools:../bin/data/spectra-em.lut ../bin/data/spectra.lut ../bin/data/abney.lut ../bin/vkdt-mkssf ../bin/vkdt-mkclut ../bin/vkdt-lutinfo ../bin/vkdt-eval-profile
 
 ADD_CFLAGS=-Itools -Itools/shared
 ADD_LDFLAGS=-lm -ldl
@@ -31,10 +31,12 @@ MKCLUT_DEPS=core/inpaint.h \
 ../bin/vkdt-eval-profile: tools/clut/src/eval.c ${MKSSF_DEPS} Makefile
 	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(ADD_CFLAGS) $< -o $@ $(LDFLAGS) $(ADD_LDFLAGS)
 
-../bin/data/abney.lut: mkabney macadam.lut Makefile
+../bin/data/spectra.lut: ../bin/data/abney.lut tools/flat.mk
+../bin/data/abney.lut: mkabney macadam.lut Makefile tools/flat.mk
 	@echo "[tools] precomputing abney hue line table.."
 	./mkabney
 	mv abney.lut ../bin/data/
+	mv spectra.lut ../bin/data/
 
 ../bin/data/spectra-em.lut: mkspectra macadam.lut Makefile
 	@echo "[tools] precomputing rgb to spectrum upsampling table.."
