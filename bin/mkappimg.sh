@@ -36,7 +36,9 @@ export VERSION=$(git describe)
 export ARCH=x86_64
 export NO_STRIP=1
 export DISABLE_COPYRIGHT_FILES_DEPLOYMENT=1
-./linuxdeploy-x86_64.AppImage --appdir AppDir -i vkdt.png --output appimage $(find AppDir/ -name "lib*.so" | sed -e 's/^/ -l /' | tr -d '\n') \
--e AppDir/usr/bin/vkdt \
+echo "adding library $(find AppDir/ -name "lib*.so" | sed -e 's/^/ --library=/' | tr -d '\n') "
+./linuxdeploy-x86_64.AppImage --appdir=AppDir --icon-file=vkdt.png --output=appimage \
+$(find AppDir/ -name "lib*.so" | sed -e 's/^/ --library=/' | tr -d '\n') \
+--executable=AppDir/usr/bin/vkdt \
 --deploy-deps-only=AppDir/usr/lib/vkdt
-rm -rf AppDir
+# rm -rf AppDir

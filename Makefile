@@ -46,6 +46,8 @@ install-bin: all Makefile
 	cp -rfL bin/darkroom.ui bin/style.txt ${VKDTDIR}
 ifneq ($(OS), Windows_NT)
 ifeq ($(shell uname),Linux)
+	mkdir -p $(DESTDIR)$(prefix)/share/icons/
+	mkdir -p $(DESTDIR)$(prefix)/share/applications/
 	cp -rfL vkdt.png $(DESTDIR)$(prefix)/share/icons/
 	cp -rfL vkdt.desktop $(DESTDIR)$(prefix)/share/applications/
 endif
