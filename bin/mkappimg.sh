@@ -41,4 +41,4 @@ echo "adding library $(find AppDir/ -name "lib*.so" | sed -e 's/^/ --library=/' 
 $(find AppDir/ -name "lib*.so" | sed -e 's/^/ --library=/' | tr -d '\n') \
 --executable=AppDir/usr/bin/vkdt \
 --deploy-deps-only=AppDir/usr/lib/vkdt
-# rm -rf AppDir
+rm -rf AppDir
