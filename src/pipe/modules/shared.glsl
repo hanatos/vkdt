@@ -6,6 +6,39 @@ float clamps(float v, float m, float M)
   return max(m, min(M, v));
 }
 
+vec4 sample_catmull_rom_1d(sampler2D tex, vec2 uv)
+{
+  vec2 texSize = textureSize(tex, 0);
+  float samplePos = uv.x * texSize.x;
+  float texPos1 = floor(samplePos - 0.5) + 0.5;
+
+  float f = samplePos - texPos1;
+
+  float w0 = f * ( -0.5 + f * (1.0 - 0.5*f));
+  float w1 = 1.0 + f * f * (-2.5 + 1.5*f);
+  float w2 = f * ( 0.5 + f * (2.0 - 1.5*f) );
+  float w3 = f * f * (-0.5 + 0.5 * f);
+
+  float w12 = w1 + w2;
+  float offset12 = w2 / (w1 + w2);
+
+  // Compute the final UV coordinates we'll use for sampling the texture
+  float texPos0 = texPos1 - 1.0;
+  float texPos3 = texPos1 + 2.0;
+  float texPos12 = texPos1 + offset12;
+
+  texPos0 /= texSize.x;
+  texPos3 /= texSize.x;
+  texPos12 /= texSize.x;
+
+  vec4 result = vec4(0.0);
+  result += textureLod(tex, vec2(texPos0.x,  uv.y),  0) * w0.x;
+  result += textureLod(tex, vec2(texPos12.x, uv.y),  0) * w12.x;
+  result += textureLod(tex, vec2(texPos3.x,  uv.y),  0) * w3.x;
+  return result;
+}
+
+
 // http://vec3.ca/bicubic-filtering-in-fewer-taps/
 vec4 sample_catmull_rom(sampler2D tex, vec2 uv)
 {

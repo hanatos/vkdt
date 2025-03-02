@@ -328,12 +328,16 @@ void parallel_run(uint32_t item, void *data)
   rgb[2] = 1.0-x-y;
   int idx = j*d->res + i;
   d->out[4*idx + 0] = d->out[4*idx + 1] = d->out[4*idx + 2] = d->out[4*idx + 3] = 0.0;
-  if(check_gamut(rgb)) return;
+  double check[] = { // cut out some percentage and leave for inpainting (smoother transitions for extreme values)
+    1.04*(rgb[0] - 1./3.)+1./3.,
+    1.04*(rgb[1] - 1./3.)+1./3.,
+    1.04*(rgb[2] - 1./3.)+1./3.};
+  if(check_gamut(check)) return;
 
   int ii = (int)fmin(d->max_w - 1, fmax(0, x * d->max_w + 0.5));
   int jj = (int)fmin(d->max_h - 1, fmax(0, y * d->max_h + 0.5));
   double m = 0.5*d->max_b[ii + d->max_w * jj];
-  if(m <= 0.01) return;
+  if(m <= 0.001) return;
   double rgbm[3] = {rgb[0] * m, rgb[1] * m, rgb[2] * m};
   double resid = gauss_newton(rgbm, coeffs);
 

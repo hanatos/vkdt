@@ -188,6 +188,37 @@ float get_tcy(int type, int stock)
   return (stock * 3 + off + 0.5)/s;
 }
 
+#if 0
+float sigmoid(float x)
+{ // sigmoid function
+  return 0.5 + 0.5*x/sqrt(1.0+x*x);
+}
+
+float sigmoid_inv(float s)
+{ // invert sigmoid s in (0,1)
+  s = clamp(s, 1e-4, 1.0-1e-4);
+  return (2.0*s - 1.0)/(2.0*sqrt(s*(1.0-s)));
+  // return 2.0*(x-0.5)/sqrt(1.0-4.0*(x-0.5)*(x-0.5));
+}
+
+float ddx_sigmoid(float x)
+{
+  return 0.5 * pow(x*x+1.0, -3.0/2.0);
+}
+
+float sig_sample(float xi, float a, float b, out float pdf)
+{
+  // cdf = sigmoid(a*(x-b));
+  // pdf = d/dx sigmoid(a*(x-b)) (and normalised to range)
+  float cdf_m = sigmoid(a*(380.0-b)); // min
+  float cdf_M = sigmoid(a*(730.0-b)); // max
+  xi = mix(cdf_m, cdf_M, xi);   // rescale random variable
+  float x = sigmoid_inv(xi)/a + b; // inverse cdf sampling
+  pdf = ddx_sigmoid(a*(x-b)) * a / (cdf_M - cdf_m);
+  return x;
+}
+#endif
+
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
@@ -208,29 +239,53 @@ void main()
 
   vec3 log_raw;
   { // film exposure in camera and chemical development
+    vec4 d65cf = fetch_coeff(vec3(1));
     vec4 coeff = fetch_coeff(rgb);
+    // const mat3 M = mat3(
+    //      1.66022677, -0.12455334, -0.01815514,
+    //     -0.58754761,  1.13292605, -0.10060303,
+    //     -0.07283825, -0.00834963,  1.11899817);
+    // vec3 srgb = M * rgb;
     vec2 tc = vec2(0, get_tcy(s_sensitivity, film));
     vec3 raw = vec3(0.0);
+    // float r0 = mrand(seed);
     for(int l=0;l<=40;l++)
-    // for(int l=0;l<40;l++)
     {
+#if 0 // monte carlo importance sampling
+      float pdf = 0.0;
+      float b = -coeff.y / (2.0 * coeff.x); // mean wavelength of sigmoid spectrum, in nanometers
+      float c = clamp(coeff.x, -1.0, -0.00001);
+      float h = 1.0+0.15*pow(abs(log(-c)), 3);
+      float t = smoothstep(-0.0001, 0.0, coeff.x);
+      t = sqrt(t);
+      b = mix(b, 550.0, t);
+      float xi = fract(r0 + l/(40.0+1.0));
+      float lambda = sig_sample(xi, 1.0/h, b, pdf);
+      tc.x = ((lambda-380.0)/10.0+0.5)/256.0;
+      pdf *= 730.0-380.0;
+      pdf *= 40.0;// N
+#else // regular quadrature/riemann integration
+      float pdf = 40.0;
       float lambda = 380 + l*10;
-      // float lambda = 380 + l*10 + mrand(seed)*10;
+      tc.x = (l+0.5)/256.0;
+#endif
       float val = sigmoid_eval(coeff, lambda);
+      // this upsamples *reflectances*, i.e. 111 is equal energy not D65
+      // float val = colour_upsample(srgb, vec4(lambda)).x * sigmoid_eval(d65cf, lambda);
       // not sure if needed: cuts off wavelength ranges that the spectral
       // upsampling doesn't care about since it is outside the XYZ support
       float env = envelope(lambda);
-      tc.x = (l+0.5)/256.0;
       vec3 log_sensitivity = texture(img_filmsim, tc).rgb;
+      // vec3 log_sensitivity = sample_catmull_rom_1d(img_filmsim, tc).rgb;
       vec3 sensitivity = pow(vec3(10.0), log_sensitivity);
       sensitivity = mix(sensitivity, vec3(0.0), isnan(sensitivity));
-      raw += sensitivity * val * env / 40.0; // XXX uh something number of bins * 10nm or something
+      raw += sensitivity * val * env / pdf;
     }
     // TODO: the following two require to split the kernel and blur the intermediates:
       // TODO gaussian blur / lens radius
       // TODO apply halation
     log_raw = params.ev_film * (log(2.0)/log(10.0)) + log(raw+1e-10) * (1.0/log(10.0));
-    // rgb = pow(vec3(10.0), log_raw);
+    // rgb = 100.0*abs(coeff.xxx);//pow(vec3(10.0), log_raw);
     // imageStore(img_out, ipos, vec4(rgb, 1));
     // return;
     // rgb = texture(img_filmsim, vec2(0.5, get_tcy(0,0))).rgb;
