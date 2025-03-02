@@ -62,13 +62,20 @@ int binom(inout uint seed, int n, float p)
 #endif
 }
 
-vec3 thorlabs_filters(float lambda)
+vec3 thorlabs_filters(float w)
 {
-  float cyan    = smoothstep(350.0, 375.0, lambda)*(1.0-smoothstep(575.0, 625.0, lambda));
-  float magenta = lambda > 550.0 ?
-    smoothstep(575.0, 625.0, lambda) :
-    smoothstep(350.0, 375.0, lambda)*(1.0-smoothstep(475.0, 525.0, lambda));
-  float yellow  = smoothstep(475.0, 525.0, lambda);
+  // this is what looks like it might be a good fit to the thorlabs filters in a plot.
+  // the lines marked with XXX smooth out the yellow/magenta transition at 500nm such that the two
+  // filters sum to one. as a result i can fit the neutral filter configuration for supra and portra
+  // without using negative weights (!!).
+  // makes me think that somewhere else in the pipeline there might be something off.
+  float cyan    = 0.93*smoothstep(345.0, 380.0, w)*(1.0-smoothstep(545.0, 590.0, w))+0.7*smoothstep(775.0,810,w);
+  // float magenta = 0.9*smoothstep(355.0, 380.0, w)*(1.0-smoothstep(475.0, 505.0, w));
+  float magenta = 0.9*smoothstep(355.0, 380.0, w)*(1.0-smoothstep(475.0, 525.0, w)); // XXX
+  if(w > 550.0)
+    magenta = 0.9*smoothstep(595.0, 645.0, w);
+  // float yellow  = 0.92*smoothstep(492.0, 542.0, w) + 0.2*(1.0-smoothstep(370, 390, w));
+  float yellow  = 0.92*smoothstep(475.0, 525.0, w) + 0.2*(1.0-smoothstep(370, 390, w)); // XXX
   return vec3(cyan, magenta, yellow);
 }
 
@@ -192,6 +199,7 @@ void main()
   float gamma_factor_paper = params.gamma_paper;
   float log_exp_min = -4.0;
   float log_exp_max =  4.0;
+  // uint seed = /*19937 * global.frame + */133700000 * ipos.x + ipos.y * 70007;
 
   vec3 log_raw;
   { // film exposure in camera and chemical development
@@ -199,8 +207,10 @@ void main()
     vec2 tc = vec2(0, get_tcy(s_sensitivity, film));
     vec3 raw = vec3(0.0);
     for(int l=0;l<=40;l++)
+    // for(int l=0;l<40;l++)
     {
       float lambda = 380 + l*10;
+      // float lambda = 380 + l*10 + mrand(seed)*10;
       float val = sigmoid_eval(coeff, lambda);
       tc.x = (l+0.5)/256.0;
       vec3 log_sensitivity = texture(img_filmsim, tc).rgb;
@@ -212,13 +222,14 @@ void main()
       // TODO gaussian blur / lens radius
       // TODO apply halation
     log_raw = params.ev_film * (log(2.0)/log(10.0)) + log(raw+1e-10) * (1.0/log(10.0));
-    // rgb = pow(vec3(10.0),log_raw);
-      // rgb = texture(img_filmsim, vec2(0.5, get_tcy(0,0))).rgb;
+    // rgb = pow(vec3(10.0), log_raw);
+    // imageStore(img_out, ipos, vec4(rgb, 1));
+    // return;
+    // rgb = texture(img_filmsim, vec2(0.5, get_tcy(0,0))).rgb;
   }
 
   vec3 density_cmy;
   { // develop film
-    // uint seed = /*19937 * global.frame + */133700000 * ipos.x + ipos.y * 70007;
     vec2 tc = vec2(0.0, get_tcy(s_density_curve, film));
     vec3 tcx = clamp((gamma_factor_film*log_raw - log_exp_min)/(log_exp_max-log_exp_min), vec3(0.0), vec3(1.0));
     density_cmy.r = texture(img_filmsim, vec2(tcx.r, tc.y)).r;
@@ -272,6 +283,8 @@ void main()
 
   { // enlarger: expose film to print paper
     vec3 raw = vec3(0.0);
+    // vec3 thungsten = vec3(1.0985, 1.0000, 0.3558); // 2856K
+    // vec4 coeff_l = fetch_coeff(XYZ_to_rec2020(thungsten));
     // sigmoidal transmission filters for cmy:
     // vec4 coeff_c = fetch_coeff(vec3(0.153, 1.0, 0.5));
     // vec4 coeff_m = fetch_coeff(vec3(1.0, -0.1, 2.0));
@@ -295,10 +308,13 @@ void main()
       float density_spectral = dot(vec3(1), density_cmy * dye_density.xyz);
       density_spectral += dye_density.w * dye_density_min_factor_film;
 
-      // this is from 350..800nm
-      float illuminant = 0.001*colour_blackbody(vec4(lambda), 3200.0).x;
+      // float illuminant = 0.001*colour_blackbody(vec4(lambda), 3200.0).x;
+      // float illuminant = 0.03*colour_blackbody(vec4(lambda), 2200.0).x;
+      float illuminant = 0.002*colour_blackbody(vec4(lambda), 2856.0).x;
+      // float illuminant = 5*sigmoid_eval(coeff_l, lambda);
 #if 1 // pretty coarse manual fit to thorlabs filters:
       vec3 enlarger = 100.0*mix(
+      // vec3 enlarger = mix(
           vec3(1.0),
           thorlabs_filters(lambda),
           neutral);
