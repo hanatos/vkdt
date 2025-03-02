@@ -85,6 +85,8 @@ jobs:
         run: |
           echo "OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG" >> bin/config.mk
           echo "export OPT_CFLAGS" >> bin/config.mk
+          echo "OPT_LDFLAGS=" >> bin/config.mk
+          echo "export OPT_LDFLAGS" >> bin/config.mk
       - name: configure for local glfw
         run: |
           echo "VKDT_GLFW_CFLAGS=-I${{ github.workspace }}/glfw/include" >> bin/config.mk
