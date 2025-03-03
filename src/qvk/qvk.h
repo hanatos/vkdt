@@ -103,6 +103,7 @@ typedef struct qvk_t
   qvk_queue_t                 queue[s_queue_cnt];
 
   VkSampler                   tex_sampler;
+  VkSampler                   tex_sampler_dspy;
   VkSampler                   tex_sampler_nearest;
   VkSampler                   tex_sampler_yuv;
   VkSamplerYcbcrConversion    yuv_conversion;

@@ -200,6 +200,8 @@ write_descriptor_sets(
             int iii = cur_img++;
             if(c->format == dt_token("yuv"))
               img_info[iii].sampler   = 0; // needs immutable sampler
+            else if(node->module->name == dt_token("display"))
+              img_info[iii].sampler   = qvk.tex_sampler_dspy;
             else if(c->type == dt_token("sink") || c->format == dt_token("ui32") || c->format == dt_token("atom"))
               img_info[iii].sampler   = qvk.tex_sampler_nearest;
             else
@@ -312,7 +314,7 @@ bind_buffers_to_memory(
       .subresourceRange = {
         .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
         .baseMipLevel   = 0,
-        .levelCount     = 1,
+        .levelCount     = img->mip_levels,
         .baseArrayLayer = 0,
         .layerCount     = 1
       },
@@ -678,6 +680,9 @@ allocate_image_array_element(
   images_create_info.extent.height = ht;
   dt_connector_image_t *img = dt_graph_connector_image(graph,
       node - graph->node, c - node->connector, k, f);
+  if(c->flags & s_conn_mipmap) // maybe actually a few are enough
+    img->mip_levels = images_create_info.mipLevels = MIN(4, (uint32_t)(log2f(MAX(wd, ht))) + 1);
+  else img->mip_levels = 1;
   if(img->image)  vkDestroyImage (qvk.device, img->image,  VK_NULL_HANDLE);
   if(img->buffer) vkDestroyBuffer(qvk.device, img->buffer, VK_NULL_HANDLE);
   img->image  = 0;

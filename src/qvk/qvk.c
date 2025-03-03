@@ -432,6 +432,23 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
   qvk.raytracing_acc_min_align = devprop_acc.minAccelerationStructureScratchOffsetAlignment;
 
   // create texture samplers
+  VkSamplerCreateInfo sampler_dspy_info = {
+    .sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .magFilter               = VK_FILTER_NEAREST,
+    .minFilter               = VK_FILTER_LINEAR,
+    .addressModeU            = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+    .addressModeV            = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+    .addressModeW            = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+    .anisotropyEnable        = VK_FALSE,
+    .maxAnisotropy           = 16,
+    .borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE,
+    .mipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .minLod                  = 0.0f,
+    .maxLod                  = 128.0f,
+  };
+  QVKR(vkCreateSampler(qvk.device, &sampler_dspy_info, NULL, &qvk.tex_sampler_dspy));
+  ATTACH_LABEL_VARIABLE(qvk.tex_sampler_dspy, SAMPLER);
   VkSamplerCreateInfo sampler_info = {
     .sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
     .magFilter               = VK_FILTER_LINEAR,
@@ -521,6 +538,7 @@ qvk_cleanup()
     }
   }
   vkDestroySampler(qvk.device, qvk.tex_sampler, 0);
+  vkDestroySampler(qvk.device, qvk.tex_sampler_dspy, 0);
   vkDestroySampler(qvk.device, qvk.tex_sampler_nearest, 0);
   vkDestroySampler(qvk.device, qvk.tex_sampler_yuv, 0);
   vkDestroySamplerYcbcrConversion(qvk.device, qvk.yuv_conversion, 0);

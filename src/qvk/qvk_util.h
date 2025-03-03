@@ -54,14 +54,14 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
         1, &img_mem_barrier); \
   } while(0)
 
-#define BARRIER_IMG_LAYOUT(img, old_layout, new_layout) \
+#define BARRIER_IMG_LAYOUT(img, old_layout, new_layout, mip_levels) \
   do { \
     IMAGE_BARRIER(cmd_buf, \
         .image            = img, \
         .subresourceRange = {\
           .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT, \
           .baseMipLevel   = 0, \
-          .levelCount     = 1, \
+          .levelCount     = mip_levels, \
           .baseArrayLayer = 0, \
           .layerCount     = 1 \
         }, \

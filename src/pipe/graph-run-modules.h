@@ -251,8 +251,10 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     {
       if(c->connected_mi >= 0 && c->connected_mc >= 0)
       {
-        c->flags |= s_conn_double_buffer;
-        graph->module[c->connected_mi].connector[c->connected_mc].flags |= s_conn_double_buffer;
+        int extra_flag = s_conn_double_buffer;
+        if(module->inst == dt_token("main")) extra_flag |= s_conn_mipmap;
+        c->flags |= extra_flag;
+        graph->module[c->connected_mi].connector[c->connected_mc].flags |= extra_flag;
         c->frames = graph->module[c->connected_mi].connector[c->connected_mc].frames = 2;
         // also every input connected to the output we're referring to here needs to be updated!
         // this is different from feedback connectors who can happily access both buffers at their dispatch stage.
@@ -266,7 +268,7 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
                 graph->module[m].connector[i].connected_mi == c->connected_mi &&
                 graph->module[m].connector[i].connected_mc == c->connected_mc)
             {
-              graph->module[m].connector[i].flags |= s_conn_double_buffer;
+              graph->module[m].connector[i].flags |= extra_flag;
               graph->module[m].connector[i].frames = 2;
             }
           }

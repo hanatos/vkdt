@@ -15,6 +15,7 @@ typedef struct dt_connector_image_t
   uint64_t      offset, size;   // actual memory position during the time it is valid
   uint64_t      plane1_offset;  // yuv buffers need the offset to the chroma plane
   uint32_t      wd, ht;         // if non zero, these are the varying dimensions of image arrays
+  uint32_t      mip_levels;     // number of mip map levels, if any (mostly zero)
   dt_vkmem_t   *mem;            // used for alloc/free during graph traversal
   VkImage       image;          // vulkan image object
   VkImageView   image_view;

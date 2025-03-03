@@ -1,5 +1,108 @@
 #pragma once
 
+static inline void
+generate_mipmaps(
+    dt_graph_t           *graph,
+    int                   rwd,
+    int                   rht,
+    dt_connector_image_t *img)
+{
+  if(img->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) return;
+  VkCommandBuffer cmd_buf = graph->command_buffer[graph->double_buffer];
+  VkImageMemoryBarrier barrier = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .image = img->image,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .subresourceRange.baseArrayLayer = 0,
+    .subresourceRange.layerCount = 1,
+    .subresourceRange.levelCount = 1,
+  };
+  int wd = img->wd > 0 ? img->wd : rwd;
+  int ht = img->ht > 0 ? img->ht : rht;
+
+  // put all mip levels into transfer_dst_optimal, since we want to blit onto them:
+  barrier.subresourceRange.levelCount = img->mip_levels;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.oldLayout = img->layout;
+  barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  vkCmdPipelineBarrier(cmd_buf,
+      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT|VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+      0, NULL,
+      0, NULL,
+      1, &barrier);
+  barrier.subresourceRange.levelCount = 1;
+
+#if 0 // apparently we have this feature (and if not we should disable the flag emission somewhere else)
+   VkFormatProperties formatProperties;
+   vkGetPhysicalDeviceFormatProperties(qvk.physical_device, VK_FORMAT_R16G16B16A16_SFLOAT, &formatProperties);
+   if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
+      fprintf(stderr, "Fucking FFFFUUUUCCK!\n");
+#endif
+
+  for (uint32_t i = 1; i < img->mip_levels; i++)
+  {
+    barrier.subresourceRange.baseMipLevel = i - 1;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    vkCmdPipelineBarrier(cmd_buf,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+        0, NULL,
+        0, NULL,
+        1, &barrier);
+    VkImageBlit blit = {
+      .srcOffsets = {{ 0, 0, 0 }, { wd, ht, 1 }},
+      .srcSubresource = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .mipLevel = i - 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+      },
+      .dstOffsets = {{ 0, 0, 0 }, { wd > 1 ? wd / 2 : 1, ht > 1 ? ht / 2 : 1, 1 }},
+      .dstSubresource = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .mipLevel = i,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+      },
+    };
+    vkCmdBlitImage(cmd_buf,
+        img->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        img->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1, &blit,
+        VK_FILTER_LINEAR);
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(cmd_buf,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+        0, NULL,
+        0, NULL,
+        1, &barrier);
+    if(wd > 1) wd /= 2;
+    if(ht > 1) ht /= 2;
+  }
+  barrier.subresourceRange.baseMipLevel = img->mip_levels - 1;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+  vkCmdPipelineBarrier(cmd_buf,
+      VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+      0, NULL,
+      0, NULL,
+      1, &barrier);
+  img->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+}
+
 static inline VkResult
 record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
 {
@@ -73,7 +176,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     dt_connector_image_t *img = dt_graph_connector_image(graph,
         node-graph->node, 0, 0, 0);
     IMG_LAYOUT(img, UNDEFINED, TRANSFER_SRC_OPTIMAL);
-    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1);
     vkCmdCopyImage(cmd_buf,
         img->image,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -81,7 +184,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1,
         &cp);
-    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
     return VK_SUCCESS;
   }
 
@@ -121,14 +224,31 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       if(!((node->connector[i].type == dt_token("sink")) && node->module->so->write_sink))
       {
         if(!(node->connector[i].flags & s_conn_dynamic_array))
+        {
           for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
-            IMG_LAYOUT(
-              dt_graph_connector_image(graph, node-graph->node, i, k,
-                (node->connector[i].flags & s_conn_feedback) ?
-                1-(graph->double_buffer & 1) :
-                graph->double_buffer),
-              GENERAL,
-              SHADER_READ_ONLY_OPTIMAL);
+          {
+            if(node->connector[i].flags & s_conn_mipmap)
+            { // we have mipmaps on this (display) node, can't simply transition:
+              generate_mipmaps(graph, 
+                  node->connector[i].roi.wd,
+                  node->connector[i].roi.ht,
+                  dt_graph_connector_image(graph, node-graph->node, i, k,
+                    (node->connector[i].flags & s_conn_feedback) ?
+                    1-(graph->double_buffer & 1) :
+                    graph->double_buffer));
+            }
+            else
+            {
+              IMG_LAYOUT(
+                  dt_graph_connector_image(graph, node-graph->node, i, k,
+                    (node->connector[i].flags & s_conn_feedback) ?
+                    1-(graph->double_buffer & 1) :
+                    graph->double_buffer),
+                  GENERAL,
+                  SHADER_READ_ONLY_OPTIMAL);
+            }
+          }
+        }
       }
       else for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
         IMG_LAYOUT(

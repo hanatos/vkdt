@@ -4,7 +4,7 @@
   if(!img->image) break;\
   VkImageLayout nl = VK_IMAGE_LAYOUT_ ## nli;\
   if(nl != img->layout)\
-    BARRIER_IMG_LAYOUT(img->image, img->layout, nl);\
+    BARRIER_IMG_LAYOUT(img->image, img->layout, nl, img->mip_levels);\
   img->layout = nl;\
 } while(0)
 
