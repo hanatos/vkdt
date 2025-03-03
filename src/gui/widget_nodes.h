@@ -509,7 +509,9 @@ dt_node_editor(
             dt_connector_output(module->connector+c) ? "": "\nright click on circle to delete link",
             module->connector[c].roi.wd,
             module->connector[c].roi.ht,
-            module->connector[c].frames > 1 ? "double buffered" : "");
+            module->connector[c].associated_i >= 0 &&
+            graph->node[module->connector[c].associated_i].connector[module->connector[c].associated_c].frames > 1 ?
+            "double buffered" : "");
         snprintf(str, sizeof(str), "%"PRItkn, dt_token_str(module->connector[c].name));
         nk_style_pop_font(ctx);
         nk_label(ctx, str, dt_connector_output(module->connector+c) ? NK_TEXT_RIGHT : NK_TEXT_LEFT);

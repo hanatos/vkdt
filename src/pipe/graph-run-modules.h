@@ -40,7 +40,6 @@ create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
     module->param_size;
   u_size = (u_size + qvk.uniform_alignment-1) & -qvk.uniform_alignment;
   *uniform_offset += u_size;
-  const int nodes_begin = graph->num_nodes;
   // TODO: if roi size/scale does not match, insert resample node!
   // TODO: where? inside create_nodes? or we fix it afterwards?
   if(module->disabled)
@@ -101,11 +100,56 @@ create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
     for(int i=0;i<module->num_connectors;i++)
       dt_connector_copy(graph, module, i, nodeid, i);
   }
-
   module->uniform_offset = u_offset;
   module->uniform_size   = u_size;
-  // now init frame count, repoint connection image storage
-  for(int n=nodes_begin;n<graph->num_nodes;n++)
+}
+
+static inline void
+init_display_flags(dt_graph_t *graph, dt_module_t *module)
+{
+  if(module->name == dt_token("display"))
+  { // if this is a display module, walk our input connector and make the connection double buffered
+    dt_connector_t *c = module->connector; // display has connector 0 as the input
+    if(c->connected_mi >= 0 && c->connected_mc >= 0)
+    {
+      int extra_flag = s_conn_double_buffer;
+      if(qvk.blit_supported && module->inst == dt_token("main"))
+        extra_flag |= s_conn_mipmap;
+      c->flags |= extra_flag;
+
+      // find node corresponding to our display module
+      int ni = c->associated_i;
+      int nc = c->associated_c;
+      c = graph->node[ni].connector + nc;
+      int ni1 = c->connected_mi;
+      int nc1 = c->connected_mc;
+      graph->node[ni1].connector[nc1].flags |= extra_flag;
+      c->frames = graph->node[ni1].connector[nc1].frames = 2;
+      // also every input connected to the output we're referring to here needs to be updated!
+      // this is different from feedback connectors who can happily access both buffers at their dispatch stage.
+      // since we're adding the flag so late, it's our responsibility to propagate it. on the bright side
+      // the graph topology is fixed now, so we can safely do this:
+      for(int n=0;n<graph->num_nodes;n++)
+      {
+        for(int i=0;i<graph->node[n].num_connectors;i++)
+        {
+          if(dt_connector_input(graph->node[n].connector+i) &&
+              graph->node[n].connector[i].connected_mi == ni1 &&
+              graph->node[n].connector[i].connected_mc == nc1)
+          {
+            graph->node[n].connector[i].flags |= extra_flag;
+            graph->node[n].connector[i].frames = 2;
+          }
+        }
+      }
+    }
+  }
+}
+
+static inline void
+init_connector_images(dt_graph_t *graph)
+{ // now init frame count, repoint connection image storage
+  for(int n=0;n<graph->num_nodes;n++)
   {
     for(int i=0;i<graph->node[n].num_connectors;i++)
     {
@@ -130,7 +174,6 @@ create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
     }
   }
 }
-
 
 // propagate full buffer size from source to sink
 static inline void
@@ -245,38 +288,6 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   }
   if(module->name == dt_token("bvh")) module->flags |= s_module_request_build_bvh;
   // this does not work if the *node* has a bvh name. in this case create_nodes has to take care of the correct flags manually.
-  if(module->name == dt_token("display"))
-  { // if this is a display module, walk our input connector and make the connection a feedback thing for double buffering
-    if(input >= 0)
-    {
-      if(c->connected_mi >= 0 && c->connected_mc >= 0)
-      {
-        int extra_flag = s_conn_double_buffer;
-        if(qvk.blit_supported && module->inst == dt_token("main"))
-          extra_flag |= s_conn_mipmap;
-        c->flags |= extra_flag;
-        graph->module[c->connected_mi].connector[c->connected_mc].flags |= extra_flag;
-        c->frames = graph->module[c->connected_mi].connector[c->connected_mc].frames = 2;
-        // also every input connected to the output we're referring to here needs to be updated!
-        // this is different from feedback connectors who can happily access both buffers at their dispatch stage.
-        // since we're adding the flag so late, it's our responsibility to propagate it. on the bright side
-        // the graph topology is fixed now, so we can safely do this:
-        for(int m=0;m<graph->num_modules;m++)
-        {
-          for(int i=0;i<graph->module[m].num_connectors;i++)
-          {
-            if(dt_connector_input(graph->module[m].connector+i) &&
-                graph->module[m].connector[i].connected_mi == c->connected_mi &&
-                graph->module[m].connector[i].connected_mc == c->connected_mc)
-            {
-              graph->module[m].connector[i].flags |= extra_flag;
-              graph->module[m].connector[i].frames = 2;
-            }
-          }
-        }
-      }
-    }
-  }
 }
 
 
@@ -574,9 +585,7 @@ dt_graph_run_modules(
     // or else the connection performed during node creation will copy some node id
     // from the connected module that has not yet been initialised.
     // we work around this by storing the *module* id and connector in
-    // dt_connector_copy() for feedback connectors, and repoint it here.
-    // i suppose we could always do that, not only for feedback connectors, to
-    // simplify control logic.
+    // dt_connector_copy(), and repoint it here.
     for(int ni=0;ni<graph->num_nodes;ni++)
     {
       dt_node_t *n = graph->node + ni;
@@ -638,6 +647,10 @@ dt_graph_run_modules(
         }
       }
     }
+    for(int i=0;i<cnt;i++)
+      if(graph->module[modid[i]].connector[0].roi.full_wd > 0)
+        init_display_flags(graph, graph->module+modid[i]);
+    init_connector_images(graph);
   }
   // one last check:
   if(main_input_module >= 0 && graph->module[main_input_module].connector[0].roi.wd == 0) return VK_INCOMPLETE;
