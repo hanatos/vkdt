@@ -36,13 +36,6 @@ generate_mipmaps(
       1, &barrier);
   barrier.subresourceRange.levelCount = 1;
 
-#if 0 // apparently we have this feature (and if not we should disable the flag emission somewhere else)
-   VkFormatProperties formatProperties;
-   vkGetPhysicalDeviceFormatProperties(qvk.physical_device, VK_FORMAT_R16G16B16A16_SFLOAT, &formatProperties);
-   if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
-      fprintf(stderr, "Fucking FFFFUUUUCCK!\n");
-#endif
-
   for (uint32_t i = 1; i < img->mip_levels; i++)
   {
     barrier.subresourceRange.baseMipLevel = i - 1;

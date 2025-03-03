@@ -252,7 +252,8 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
       if(c->connected_mi >= 0 && c->connected_mc >= 0)
       {
         int extra_flag = s_conn_double_buffer;
-        if(module->inst == dt_token("main")) extra_flag |= s_conn_mipmap;
+        if(qvk.blit_supported && module->inst == dt_token("main"))
+          extra_flag |= s_conn_mipmap;
         c->flags |= extra_flag;
         graph->module[c->connected_mi].connector[c->connected_mc].flags |= extra_flag;
         c->frames = graph->module[c->connected_mi].connector[c->connected_mc].frames = 2;

@@ -296,6 +296,12 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
     .queueFamilyIndex = queue_family_index,
   };
 
+  VkFormatProperties format_properties;
+  vkGetPhysicalDeviceFormatProperties(qvk.physical_device, VK_FORMAT_R16G16B16A16_SFLOAT, &format_properties);
+  if(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)
+    qvk.blit_supported = 1;
+  else qvk.blit_supported = 0;
+
   VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features = {
     .sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
     .accelerationStructure = VK_TRUE,
@@ -483,7 +489,6 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
   ATTACH_LABEL_VARIABLE(qvk.tex_sampler_nearest, SAMPLER);
 
   // also one for webcams/yuv:
-  VkFormatProperties format_properties;
   vkGetPhysicalDeviceFormatProperties(qvk.physical_device, VK_FORMAT_G8_B8R8_2PLANE_420_UNORM, &format_properties);
   int cosited = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_COSITED_CHROMA_SAMPLES_BIT) != 0;
   int midpoint = !cosited && ((format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_MIDPOINT_CHROMA_SAMPLES_BIT) != 0);
