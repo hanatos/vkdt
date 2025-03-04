@@ -1,4 +1,4 @@
-film:int:1:0
+film:int:1:2
 ev film:float:1:0
 g film:float:1:1.0
 paper:int:1:1
@@ -8,9 +8,9 @@ grain:int:1:0
 size:float:1:1.0
 uniform:float:1:0.7
 enlarger:int:1:1
-filter c:float:1:0.35
-filter m:float:1:0.4
-filter y:float:1:0.8
+filter c:float:1:0.4959
+filter m:float:1:0.4966
+filter y:float:1:0.7396
 tune m:float:1:0.0
 tune y:float:1:0.0
 couplers:float:1:0.0
