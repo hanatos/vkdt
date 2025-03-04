@@ -1,5 +1,8 @@
 #include "modules/api.h"
 
+// TODO: introduce commit_params and adjust grain to roi
+// TODO: introduce modify_roi_out/in and respect the enlarger resize parameter
+
 dt_graph_run_t
 check_params(
     dt_module_t *module,
@@ -26,6 +29,7 @@ check_params(
       ((float*)dt_module_param_float(module, pid_filter_y))[0] = wb[film][paper][3];
     }
   }
+  // TODO look at align/main.c and copy the if-blur-radius changed logic
   // TODO if output res changed, return s_graph_run_all
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms is fine
 }
@@ -36,6 +40,7 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  // TODO: if no resize and no couplers, use the monolithic kernel w/o global memory copy!
   int iwd = module->connector[0].roi.wd;
   int iht = module->connector[0].roi.ht;
   int owd = module->connector[1].roi.wd;
