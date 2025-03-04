@@ -12,4 +12,4 @@ group:-1:0
 enlarger:combo:output negative:1x resolution:2x resolution:4x resolution
 tune m:slider:-1:1
 tune y:slider:-1:1
-couplers:slider:0.0:2.0
+couplers:slider:0.0:1.0

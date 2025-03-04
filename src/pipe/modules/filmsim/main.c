@@ -29,3 +29,39 @@ check_params(
   // TODO if output res changed, return s_graph_run_all
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms is fine
 }
+
+
+void
+create_nodes(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{
+  int iwd = module->connector[0].roi.wd;
+  int iht = module->connector[0].roi.ht;
+  int owd = module->connector[1].roi.wd;
+  int oht = module->connector[1].roi.ht;
+  const int id_part0 = dt_node_add(graph, module, "filmsim", "part0", iwd, iht, 1, 0, 0, 5,
+      "input",   "read",  "*",    "*",    dt_no_roi,
+      "coupler", "write", "rgba", "f16", &module->connector[0].roi,
+      "filmsim", "read",  "*",    "*",    dt_no_roi,
+      "spectra", "read",  "*",    "*",    dt_no_roi,
+      "exp",     "write", "rgba", "f16", &module->connector[0].roi);
+  const int id_part1 = dt_node_add(graph, module, "filmsim", "part1", owd, oht, 1, 0, 0, 5,
+      "exp",     "read",  "*",    "*",    dt_no_roi,
+      "output",  "write", "rgba", "f16", &module->connector[1].roi,
+      "filmsim", "read",  "*",    "*",    dt_no_roi,
+      "spectra", "read",  "*",    "*",    dt_no_roi,
+      "coupler", "read",  "*",    "*",    dt_no_roi);
+  float blur = 20;
+  const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_part0, 1, 0, 0, blur) : id_part0;
+  const int cn_blur = blur > 0 ? 1 : 1;
+  CONN(dt_node_connect(graph, id_blur, cn_blur, id_part1, 4));
+  dt_connector_copy(graph, module, 0, id_part0, 0);
+  dt_connector_copy(graph, module, 2, id_part0, 2);
+  dt_connector_copy(graph, module, 3, id_part0, 3);
+  dt_connector_copy(graph, module, 0, id_part1, 0);
+  dt_connector_copy(graph, module, 1, id_part1, 1);
+  dt_connector_copy(graph, module, 2, id_part1, 2);
+  dt_connector_copy(graph, module, 3, id_part1, 3);
+  CONN(dt_node_connect_named(graph, id_part0, "exp", id_part1, "exp"));
+}

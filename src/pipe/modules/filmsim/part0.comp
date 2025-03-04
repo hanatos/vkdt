@@ -1,0 +1,16 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "head.glsl"
+layout(set = 1, binding = 4) uniform writeonly image2D img_exp;
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+
+  vec3 log_raw = expose_film(rgb, params.film);
+  vec3 coupler = develop_film_compute_couplers(log_raw);
+  imageStore(img_out, ipos, vec4(coupler, 1));
+  imageStore(img_exp, ipos, vec4(log_raw, 1));
+}
