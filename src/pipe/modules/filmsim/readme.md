@@ -52,4 +52,4 @@ TODO
 * `filter y` when exposing the print paper, dial in this share of yellow filter
 * `tune m` fine tune the magenta filter. think of this as a red/green tint
 * `tune y` fine tune the yellow filter. think of this as a warm/cold white balance temperature
-* `couplers` amount of developer inhibitor release couplers (affects colourfulness)
+* `couplers` amount of developer inhibitor release couplers (affects colourfulness and local contrast)
