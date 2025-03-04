@@ -52,6 +52,10 @@ int main(int argc, char *argv[])
   int output_cnt = 0;
   int config_start = 0; // start of arguments which are interpreted as additional config lines
   dt_graph_export_t param = {0};
+  // default to sRGB if nothing given on cmdline
+  // maybe sane defaults per output module would be interesting
+  param.output[0].colour_primaries = parse_prim("sRGB");
+  param.output[0].colour_trc = parse_prim("sRGB");
   const char *gpu_name = 0;
   int gpu_id = -1;
   for(int i=0;i<argc;i++)
@@ -114,7 +118,7 @@ int main(int argc, char *argv[])
     "                                  linear, bt709, sRGB, PQ, DCI, HLG, gamma2.2, mclog\n"
     "    [--output <inst>]             name the instance of the output to write (can use multiple)\n"
     "                                  this harvests and then resets output specific options: quality, width, height,\n"
-    "                                  audio, colour-prim, colour-trc\n"
+    "                                  audio, colour-prim, colour-trc, filename\n"
     "    [--device <gpu name>]         explicitly use this gpu if you have multiple\n"
     "    [--device-id <gpu id>]        explicitly use this gpu id if you have multiple\n"
     "    [--config]                    everything after this will be interpreted as additional cfg lines\n"
