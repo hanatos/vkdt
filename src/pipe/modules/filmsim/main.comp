@@ -15,7 +15,7 @@ void main()
     vec3 coupler = develop_film_compute_couplers(log_raw);
     log_raw = develop_film_correct_exposure(log_raw, coupler);
   }
-  vec3 density_cmy = develop_fim(log_raw, params.film, ipos);
+  vec3 density_cmy = develop_film(log_raw, params.film, ipos, 1.0);
   if(params.enlarger > 0)
   {
     log_raw = enlarger_expose_film_to_paper(density_cmy);

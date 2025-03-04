@@ -3,6 +3,10 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 #include "head.glsl"
 layout(set = 1, binding = 4) uniform sampler2D img_coupler;
+layout(push_constant, std140) uniform push_t
+{
+  float scale;
+} push;
 
 void main()
 {
@@ -12,7 +16,7 @@ void main()
   vec3 log_raw = texture(img_in, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
 
   log_raw = develop_film_correct_exposure(log_raw, coupler);
-  vec3 density_cmy = develop_fim(log_raw, params.film, ipos);
+  vec3 density_cmy = develop_film(log_raw, params.film, ipos, push.scale);
   if(params.enlarger > 0)
   {
     log_raw = enlarger_expose_film_to_paper(density_cmy);

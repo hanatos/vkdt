@@ -9,8 +9,8 @@ void main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
-  vec3 log_raw = clamp(expose_film(rgb, params.film), vec3(-100.0), vec3(100.0));
-  vec3 coupler = clamp(develop_film_compute_couplers(log_raw), vec3(-100.0), vec3(100.0));
+  vec3 log_raw = clamp(expose_film(rgb, params.film), vec3(-10.0), vec3(10.0));
+  vec3 coupler = clamp(develop_film_compute_couplers(log_raw), vec3(-10.0), vec3(10.0));
   imageStore(img_out, ipos, vec4(coupler, 1));
   imageStore(img_exp, ipos, vec4(log_raw, 1));
 }

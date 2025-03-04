@@ -1,4 +1,8 @@
-// helper functions
+// helper functions for film simulation.
+// this is all more or less a straight port of agx-emulsion
+// https://github.com/andreavolpato/agx-emulsion
+// so as derivative work i suppose this makes it GPL-v3
+
 int binom(inout uint seed, int n, float p)
 { // gaussian approximation, good for large n*p
   float u = n*p;
@@ -65,8 +69,9 @@ float noise(in vec2 p)
 // use perlin gradient noise / correlated to simulate the three layers (represents non-uniformity of grain counts/pixel)
 // simulate a poisson distribution x3: are the grains turned?
 // expectation should be =density, i.e. n*p + n*p + n*p = density for the three layers
-vec3 add_grain(ivec2 ipos, vec3 density)
+vec3 add_grain(ivec2 ipos, vec3 density, float scale)
 {
+  ipos = ivec2(vec2(ipos)*scale); // if not processing full size (scale = 1), adjust here
   int n_grains_per_pixel = 1000; // from artic's python. starts to look very good!
   int grain_non_uniformity = int((1.0-params.grain_uniformity)*n_grains_per_pixel);
   float grain_size = params.grain_size;
@@ -87,7 +92,7 @@ vec3 add_grain(ivec2 ipos, vec3 density)
       vec2 tc = c/grain_size * 0.3*vec2(ipos + 1000*col);
       // int r = int(grain_non_uniformity*noise(tc));
       int r = int(grain_non_uniformity*c*noise(tc));
-      int n = int(n_grains_per_pixel*c);
+      int n = int(n_grains_per_pixel*c*scale*scale);
       float p = npl;// / float(n);
       // if(layer!=2) res[col] += density_max * npl; else
       // uint seed = n;//n_grains_per_pixel;
@@ -193,7 +198,7 @@ develop_film_correct_exposure(vec3 log_raw, vec3 coupler)
 }
 
 vec3 // returns density_cmy
-develop_fim(vec3 log_raw, int film, ivec2 ipos)
+develop_film(vec3 log_raw, int film, ivec2 ipos, float scale)
 {
   const float gamma_factor_film = params.gamma_film;
   const float log_exp_min = -4.0;
@@ -206,9 +211,7 @@ develop_fim(vec3 log_raw, int film, ivec2 ipos)
   density_cmy.b = texture(img_filmsim, vec2(tcx.b, tc.y)).b;
   density_cmy = mix(density_cmy, vec3(0.0), isnan(density_cmy));
 
-  // TODO do this in commit_params on cpu side, there we know the actual scale factor:
-  // hack to not have grain in preview images/thumbnails:
-  if(params.grain > 0 && imageSize(img_out).x > 400) density_cmy = add_grain(ipos, density_cmy);
+  if(scale < 10.0) density_cmy = add_grain(ipos, density_cmy, scale);
   return density_cmy;
 }
 
@@ -304,5 +307,6 @@ scan(vec3 density_cmy)
     vec3 cmf = cmf_1931(lambda); // 1931 2 deg std observer, approximate version
     raw += light * cmf;
   }
+  raw = clamp(raw, vec3(0.0), vec3(14.0));
   return XYZ_to_rec2020(raw);
 }
