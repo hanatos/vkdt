@@ -16,8 +16,12 @@ export_render_widget(
 
   // skip if group mode does not match:
   if(param->widget.grpid != -1)
-    if(*(const int32_t *)(pdata + mso->param[param->widget.grpid]->offset) != param->widget.mode)
+  {
+    if(param->widget.mode <  100 && *(const int32_t *)(pdata + mso->param[param->widget.grpid]->offset) != param->widget.mode)
       return;
+    if(param->widget.mode >= 100 && *(const int32_t *)(pdata + mso->param[param->widget.grpid]->offset) == param->widget.mode-100)
+      return;
+  }
 
   // TODO: bring back somehow
   // static int gamepad_reset = 0;

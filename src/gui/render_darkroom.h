@@ -82,8 +82,12 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
 
   // skip if group mode does not match:
   if(param->widget.grpid != -1)
-    if(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] != param->widget.mode)
+  {
+    if(param->widget.mode <  100 && dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] != param->widget.mode)
       return;
+    if(param->widget.mode >= 100 && dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] == param->widget.mode-100)
+      return;
+  }
 
 #if 0 // TODO port
   int axes_cnt = 0;

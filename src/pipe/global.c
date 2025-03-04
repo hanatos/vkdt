@@ -174,6 +174,8 @@ dt_module_so_load(
     //  group:tkn:int
     //  group:param-name:mode
     // where param-name refers to an integer parameter which sets the mode.
+    // if mode >= 100, it hides the following params for param-name=mode-100
+    // if tkn==-1, the group resets to all visible.
     int grpid = -1;
     int mode = 0;
     while(!feof(f))
