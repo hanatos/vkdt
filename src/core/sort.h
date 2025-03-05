@@ -1,4 +1,5 @@
 #pragma once
+#include "sort_r.h"
 // portable sort
 typedef int sort_compare_t(const void *, const void *, void *);
 typedef struct sort_wrapper_t
@@ -24,9 +25,9 @@ static inline void sort(void *base, size_t nmemb, size_t size, sort_compare_t *c
   qsort_r(base, nmemb, size, &w, sort_wrap_compare);
 #elif defined(_WIN64)
   qsort_s(base, nmemb, size, sort_wrap_compare, &w);
-#elif defined(__linux__) && defined(_GNU_SOURCE)
+#elif defined(__linux__) && defined(_GNU_SOURCE) && !defined(__ANDROID_NDK__)
   qsort_r(base, nmemb, size, compare, data);
 #else
-  #error "TODO: implement qsort fallback!"
+  sort_r(base, nmemb, size, compare, data);
 #endif
 }
