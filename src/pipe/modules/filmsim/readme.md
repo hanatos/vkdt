@@ -24,10 +24,8 @@ and then wire an `i-lut` module with filename `data/filmsim.lut` to the `filmsim
 
 TODO
 * put documentation/nice example images from artic's post above
-* implement DIR coupling
 * implement halation
 * map grain params to film iso values
-* handle enlarged output buffer
 
 ## connectors
 
@@ -47,7 +45,7 @@ TODO
 * `grain` switch grain simulation on or off
 * `size` scale the grain size
 * `uniform` uniformity of the grains as seen through the pixels. 1.0 means no variation at all
-* `enlarger` mode of exposing the paper: output straight film negative or resize output
+* `enlarger` mode of exposing the paper: output straight film negative or resize output. careful with 4x, it requires a lot of memory!
 * `filter m` when exposing the print paper, dial in this share of magenta filter
 * `filter y` when exposing the print paper, dial in this share of yellow filter
 * `tune m` fine tune the magenta filter. think of this as a red/green tint

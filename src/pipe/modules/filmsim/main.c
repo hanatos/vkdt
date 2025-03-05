@@ -1,7 +1,26 @@
 #include "modules/api.h"
 
-// TODO: introduce commit_params and adjust grain to roi
-// TODO: introduce modify_roi_out/in and respect the enlarger resize parameter
+void modify_roi_in(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{
+  const int pid = dt_module_get_param(module->so, dt_token("enlarger"));
+  const int par = dt_module_param_int(module, pid)[0];
+  int s = par < 2 ? 1 : par == 2 ? 2 : 4;
+  module->connector[0].roi.wd = module->connector[1].roi.wd / s;
+  module->connector[0].roi.ht = module->connector[1].roi.ht / s;
+}
+
+void modify_roi_out(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{
+  const int pid = dt_module_get_param(module->so, dt_token("enlarger"));
+  const int par = dt_module_param_int(module, pid)[0];
+  int s = par < 2 ? 1 : par == 2 ? 2 : 4;
+  module->connector[1].roi.full_wd = MIN(32768, module->connector[0].roi.full_wd * s);
+  module->connector[1].roi.full_ht = MIN(32768, module->connector[0].roi.full_ht * s);
+}
 
 dt_graph_run_t
 check_params(
@@ -29,11 +48,18 @@ check_params(
       ((float*)dt_module_param_float(module, pid_filter_y))[0] = wb[film][paper][3];
     }
   }
+  const int pid = dt_module_get_param(module->so, dt_token("enlarger"));
+  if(parid == pid)
+  { // output res changed?
+    int oldstr = *(int*)oldval;
+    int newstr = dt_module_param_int(module, parid)[0];
+    if((oldstr <  2 && newstr >= 2) ||
+       (oldstr >= 2 && newstr <  2))
+      return s_graph_run_all;
+  }
   // TODO look at align/main.c and copy the if-blur-radius changed logic
-  // TODO if output res changed, return s_graph_run_all
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms is fine
 }
-
 
 void
 create_nodes(
