@@ -148,10 +148,6 @@ expose_film(vec3 rgb, int film)
   // TODO gaussian blur / lens radius
   // TODO apply halation
   return params.ev_film * (log(2.0)/log(10.0)) + log(raw+1e-10) * (1.0/log(10.0));
-  // rgb = 100.0*abs(coeff.xxx);//pow(vec3(10.0), log_raw);
-  // imageStore(img_out, ipos, vec4(rgb, 1));
-  // return;
-  // rgb = texture(img_filmsim, vec2(0.5, get_tcy(0,0))).rgb;
 }
 
 vec3 // returns density_cmy;
@@ -211,7 +207,7 @@ develop_film(vec3 log_raw, int film, ivec2 ipos, float scale)
   density_cmy.b = texture(img_filmsim, vec2(tcx.b, tc.y)).b;
   density_cmy = mix(density_cmy, vec3(0.0), isnan(density_cmy));
 
-  if(scale < 10.0) density_cmy = add_grain(ipos, density_cmy, scale);
+  if(scale < 10.0 && params.grain > 0) density_cmy = add_grain(ipos, density_cmy, scale);
   return density_cmy;
 }
 

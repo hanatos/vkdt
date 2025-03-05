@@ -66,7 +66,6 @@ create_nodes(
   dt_connector_copy(graph, module, 0, id_part0, 0);
   dt_connector_copy(graph, module, 2, id_part0, 2);
   dt_connector_copy(graph, module, 3, id_part0, 3);
-  dt_connector_copy(graph, module, 0, id_part1, 0);
   dt_connector_copy(graph, module, 1, id_part1, 1);
   dt_connector_copy(graph, module, 2, id_part1, 2);
   dt_connector_copy(graph, module, 3, id_part1, 3);
