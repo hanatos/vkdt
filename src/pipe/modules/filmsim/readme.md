@@ -20,17 +20,117 @@ mkdir -p ~/.config/vkdt/data
 cp filmsim.lut ~/.config/vkdt/data
 ```
 
-and then wire an `i-lut` module with filename `data/filmsim.lut` to the `filmsim` input connector.
+and then wire an `i-lut` module with filename `data/filmsim.lut` to the
+`filmsim` input connector. this can be done automatically by applying the
+`filmsim.pst` preset.
 
 TODO
 * put documentation/nice example images from artic's post above
 * implement halation
 * map grain params to film iso values
 
+for self contained documentation, i'm summarising from [arctic's post](https://discuss.pixls.us/t/spectral-film-simulations-from-scratch/48209/1) here.
+
+## the true color of film negatives
+
+when researching film, the key takeaway is that the final colors depend heavily
+on the second stage of the imaging process, whether it's the scanner's color
+processing or the analog RA4 color reversal printing process. analog printing
+seemed like the most authentic way to define the look, especially since
+companies (primarily Kodak) spent decades refining it.
+
+there are nice book chapters on simulating the full analog pipeline of color
+photography [1,2,3]. film emulsions are quite sophisticated, relying on finely
+tuned chemistry with silver halides, several dye couplers, and a pinch of
+magic.
+
+for anyone interested in film manufacturing, check out the series of videos by
+SmarterEveryDay on Kodak ( How Does Kodak Make Film? series of 3, The Chemistry
+of Kodak Film, Kodak's Film Quality Control Process).
+
+## goal and motivation
+
+the goal is to simulate the entire analog photographic process, from film
+capture to the final print, using only the datasheets and basic knowledge.
+to capture the look of products from Kodak and Fujifilm starting
+from publicly available spectroscopic data. for example, Portra film and its
+matching paper are designed to deliver subtle hue shifts and perfect contrast
+for skin tones, while consumer films and paper are more saturated and
+versatile. how much of these characteristics can we recreate from scratch?
+
+while film simulation LUTs share similar goals, they often lack the flexibility
+to be fine-tuned. in contrast, a fully physically based pipeline can better
+reproduce the real-world versatility of the negative plus RA4 printing process
+by offering adjustable parameters to tailor the final look. naturally, this
+approach also brings along the inherent limitations of analog photography, so
+you need to appreciate (or be nostalgic for) the analog process to embrace
+these constraints.
+
+## negative and print exposure
+
+here are some test-strips to introduce the capability of the simulation. The
+overall imaging process is split in two steps: negative and print. two
+different exposures can be controlled, and color filters in the enlarger can
+balance the colors of the print. here are virtual scans of Kodak Gold 200 at
+different exposure compensations of the negative.
+
+<img src="two_uncles_negative_exposure_ramp_gold_200_crystal_archive.png" style="width:100%"/>
+
+the following strips are virtual prints on Fujifilm Crystal Archive Type II at
+different print exposures (and constant good negative exposure).
+
+<img src="two_uncles_print_exposure_ramp_gold_200_crystal_archive.png" style="width:100%"/>
+
+raw file taken from this Play Raw Two Taiwanese uncles playing chess, thank you
+@streetfighter.
+
+## grain
+
+the simulation builds three sub layers for each channel, imitating modern color
+negative films where each color layer is composed by 2-3 sublayers with
+different sensitivity to increase latitude. the stochastic properties of each
+layer and sublayers are imitated keeping into account that faster layers are
+more noisy, i.e. they have larger particles.
+
+<img src="grain_particle_area_ramp_portra_400_portra_endura.png" style="width:100%"/>
+
+these above are a few strips of Kodak Portra 400 printed on Kodak Portra Endura
+with vertical size of 1 mm. The average particle areas of the virtual silver
+halide particles, then converted in dye clouds, is changed. in first
+approximation, the area of the particles should be roughly proportional to the
+ISO. In consumer films particles are in the range 0.2-2 micrometer diameter,
+i.e. 0.03-3.2 micrometer squared.
+
+here is an example with higher magnification crops with Kodak Portra 400 and
+Kodak Portra Endura.
+
+<table><thead><tr>
+<th align="left">print</th>
+<th align="left">negative</th>
+</tr></thead>
+<tbody>
+<tr><td><img style="width:80%" src="print_016.png"/></td><td><img style="width:80%" src="neg_016.png"/></td></tr>
+<tr><td><img style="width:80%" src="print_004.png"/></td><td><img style="width:80%" src="neg_004.png"/></td></tr>
+<tr><td><img style="width:80%" src="print_001.png"/></td><td><img style="width:80%" src="neg_001.png"/></td></tr>
+</tbody></table>
+
+# saturation with DIR couplers
+
+the level of saturation of the negatives is controlled via developer inhibitor
+release couplers (DIR couplers). when substantial density is formed in one
+layer, DIR couplers are released and can inhibit the formation of density in
+nearby regions, both in the same layer and nearby layers. the diffusion in
+nearby layers of DIR couplers produces increased saturation (loss of density on
+the other channels, i.e. purer colors), also referred as interlayer effects.
+here are a couple of examples form signatureedits.com raw files, using Fujifilm
+C200 and Fujifilm Crystal Archive Type II.
+
+<img src="dir_couplers_ramp_car_fuji_c200_crystal_archive.png" style="width:100%"/>
+
 ## connectors
 
 * `input` scene referred linear rec2020 (after the colour module)
-* `output` the exposed, developed, and printed film simulation
+* `output` the exposed, developed, and printed film simulation (or negative)
 * `filmsim` the filmsim.lut with the film data
 * `spectra` wire data/spectra-em.lut, the spectral upsampling table for emission
 
