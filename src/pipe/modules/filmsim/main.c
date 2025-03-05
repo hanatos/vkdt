@@ -7,8 +7,11 @@ void modify_roi_in(
   const int pid = dt_module_get_param(module->so, dt_token("enlarger"));
   const int par = dt_module_param_int(module, pid)[0];
   int s = par < 2 ? 1 : par == 2 ? 2 : 4;
-  module->connector[0].roi.wd = module->connector[1].roi.wd / s;
-  module->connector[0].roi.ht = module->connector[1].roi.ht / s;
+
+  module->connector[1].roi.scale = module->connector[1].roi.full_wd/(float)module->connector[1].roi.wd;
+  module->connector[0].roi = module->connector[1].roi;
+  module->connector[0].roi.wd /= s;
+  module->connector[0].roi.ht /= s;
 }
 
 void modify_roi_out(
