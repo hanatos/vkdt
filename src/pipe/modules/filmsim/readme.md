@@ -3,8 +3,10 @@
 this is based on [agx emulsion](https://github.com/andreavolpato/agx-emulsion).
 for a nice introduction see [this post](https://discuss.pixls.us/t/spectral-film-simulations-from-scratch/48209/1).
 
-to run this, you need the `filmsim.lut` data file. to create it:
-
+to run this, you need the `filmsim.lut` data file. it is shipped with vkdt git
+and installed by default. the following steps are not necessary, but if you
+want to create it yourself (and maybe play with different data points), do
+this:
 ```
 cd
 git clone https://github.com/andreavolpato/agx-emulsion
@@ -20,7 +22,7 @@ mkdir -p ~/.config/vkdt/data
 cp filmsim.lut ~/.config/vkdt/data
 ```
 
-and then wire an `i-lut` module with filename `data/filmsim.lut` to the
+and in any case wire an `i-lut` module with filename `data/filmsim.lut` to the
 `filmsim` input connector. this can be done automatically by applying the
 `filmsim.pst` preset.
 
