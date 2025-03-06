@@ -368,6 +368,10 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
         graph->module[c->connected_mi].connector[c->connected_mc].flags |= c->flags;
         // make sure we use the same array size as the data source. this is when the array_length depends on roi_out
         c->array_length = graph->module[c->connected_mi].connector[c->connected_mc].array_length;
+        // now the output is sure about the exact type of data it wants to allocate. so we
+        // propagate that the other direction output->our input
+        c->format = graph->module[c->connected_mi].connector[c->connected_mc].format;
+        c->chan   = graph->module[c->connected_mi].connector[c->connected_mc].chan;
       }
     }
   }
