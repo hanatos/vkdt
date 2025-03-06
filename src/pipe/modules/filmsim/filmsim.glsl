@@ -131,7 +131,7 @@ expose_film(vec3 rgb, int film)
   {
     float pdf = 40.0;
     float lambda = 380 + l*10;
-    tc.x = (l+0.5)/256.0;
+    tc.x = (2*l+0.5)/256.0;
     float val = sigmoid_eval(coeff, lambda);
     // this upsamples *reflectances*, i.e. 111 is equal energy not D65
     // float val = colour_upsample(srgb, vec4(lambda)).x * sigmoid_eval(d65cf, lambda);
@@ -230,13 +230,13 @@ enlarger_expose_film_to_paper(vec3 density_cmy)
   {
     float lambda = 380.0 + l*10.0;
     vec2 tc = vec2(0.0, get_tcy(s_sensitivity, paper));
-    tc.x = (l+0.5) / 256.0;
+    tc.x = (2*l+0.5) / 256.0;
     vec3 log_sensitivity = texture(img_filmsim, tc).rgb;
     vec3 sensitivity = pow(vec3(10.0), log_sensitivity);
     sensitivity = mix(sensitivity, vec3(0.0), isnan(sensitivity));
 
     tc = vec2(0.0, get_tcy(s_dye_density, film));
-    tc.x = (l+0.5) / 256.0;
+    tc.x = (2*l+0.5) / 256.0;
     vec4 dye_density = texture(img_filmsim, tc);
     dye_density = mix(dye_density, vec4(0.0), isnan(dye_density));
     float density_spectral = dot(vec3(1), density_cmy * dye_density.xyz);
@@ -293,7 +293,7 @@ scan(vec3 density_cmy)
   for(int l=0;l<=40;l++)
   {
     float lambda = 380 + l*10;
-    vec4 dye_density = texture(img_filmsim, vec2((l+0.5) / 256.0,
+    vec4 dye_density = texture(img_filmsim, vec2((2*l+0.5) / 256.0,
           get_tcy(s_dye_density, params.enlarger > 0 ? paper : film)));
     dye_density = mix(dye_density, vec4(0.0), isnan(dye_density));
     float density_spectral = dot(vec3(1), density_cmy * dye_density.xyz);
