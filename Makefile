@@ -3,7 +3,7 @@
 # dispatches external builds and calls our main makefile in src.
 # also handles some global settings for compilers and debug flags.
 
-.PHONY:all src clean distclean bin install release cli
+.PHONY:all src clean distclean bin install release cli lut
 ifeq ($(OS),Windows_NT)
 include bin/config.mk.defaults.w64
 else
@@ -21,7 +21,7 @@ OLD_SHELL := $(SHELL)
 SHELL = $(warning [$@ ($?)])$(OLD_SHELL)
 export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR OLD_SHELL SHELL
 
-all: src bin
+all: src bin lut
 
 prefix?=/usr
 DESTDIR?=
@@ -53,7 +53,12 @@ ifeq ($(shell uname),Linux)
 endif
 endif
 
-install-mod: bin Makefile
+lut: bin/data/filmsim.lut
+bin/data/filmsim.lut: src/filmsim.lut.xz
+	tar xvJf src/filmsim.lut.xz  
+	mv filmsim.lut bin/data
+
+install-mod: bin Makefile lut
 	mkdir -p $(VKDTDIR)/modules
 	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
 	cp -rfL bin/data ${VKDTDIR}
