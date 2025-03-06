@@ -52,6 +52,8 @@ framebuffer_size_callback(GLFWwindow* w, int width, int height)
     dt_gui_recreate_swapchain(win);
     nk_glfw3_resize(w, win->width, win->height);
     dt_gui_init_fonts(); // actually we don't wan this here, but we assume content scale changes also changes framebuffer.
+    dt_rc_set_int(&vkdt.rc, "gui/wd", width);
+    dt_rc_set_int(&vkdt.rc, "gui/ht", height);
   }
 }
 
