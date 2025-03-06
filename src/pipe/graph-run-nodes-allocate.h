@@ -171,7 +171,6 @@ write_descriptor_sets(
             // this should be ensured during connection:
             assert(c->frames == 2); 
             assert(graph->node[c->connected_mi].connector[c->connected_mc].frames == 2);
-            assert((c->flags & s_conn_double_buffer) == 0);
           }
           dt_connector_image_t *img = dt_graph_connector_image(graph,
               node - graph->node, c - node->connector, k, frame);
