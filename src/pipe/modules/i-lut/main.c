@@ -38,7 +38,7 @@ read_header(
   dt_strexpand(pattern, strlen(pattern), filename, sizeof(filename), key, val);
   // fprintf(stderr, "[i-lut] %"PRItkn" loading `%s'!\n", dt_token_str(mod->inst), filename);
 
-  if(lut && !strcmp(lut->filename, filename))
+  if(lut && !lut->lst_filename && !strcmp(lut->filename, filename))
     return 0; // already loaded
   assert(lut); // this should be inited in init()
 
