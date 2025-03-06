@@ -13,8 +13,13 @@ the `rt` module uses hero wavelength spectral sampling for accurate colour repro
 
 * `output` the rendered beauty image
 * `blue`   blue noise texture as input lut, as those provided by [christoph](http://momentsingraphics.de/BlueNoise.html)
-* `tex`    an array connector for input textures, connect to a [i-jpglst](../i-jpglst/readme.md) module
+* `tex`    an array connector for input textures, connect to an i-jpglst or i-lut module
 * `aov`    an output buffer containing some *arbitary output variables* such as fake diffuse albedo or normals
+
+the `tex` connector expects an array of input textures, as the
+[i-jpglst](../i-jpglst/readme.md) module provides, or the
+[i-lut](../i-lut/readme.md) module if you pass a `.txt` file with a list of
+filenames.
 
 ## parameters
 this still changes so often.. be careful to trust this text.

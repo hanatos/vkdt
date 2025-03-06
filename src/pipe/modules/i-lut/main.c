@@ -13,14 +13,22 @@ typedef struct lutinput_buf_t
   dt_lut_header_t header;
   size_t data_begin;
   FILE *f;
+
+  // for array mode:
+  char        *lst_data;     // list file in one chunk
+  const char **lst_filename; // pointers to lines / filenames
+  int          lst_cnt;      // number of filenames in list
+  uint32_t    *lst_dim;      // individual dimensions of the images
 }
 lutinput_buf_t;
 
 static int 
 read_header(
     dt_module_t *mod,
+    uint32_t    *dim,
     const char  *pattern)
 {
+  if(dim) dim[0] = dim[1] = 0;
   lutinput_buf_t *lut = mod->data;
 
   char filename[PATH_MAX], flen[10];
@@ -52,6 +60,11 @@ read_header(
     mod->img_param.whitebalance[k] = 1.0f;
   }
   mod->img_param.filters = 0;
+  if(dim)
+  {
+    dim[0] = lut->header.wd;
+    dim[1] = lut->header.ht;
+  }
 
   snprintf(lut->filename, sizeof(lut->filename), "%s", filename);
   return 0;
@@ -95,6 +108,9 @@ void cleanup(dt_module_t *mod)
     if(lut->f) fclose(lut->f);
     lut->filename[0] = 0;
   }
+  if(lut->lst_filename) free(lut->lst_filename);
+  if(lut->lst_data)     free(lut->lst_data);
+  if(lut->lst_dim)      free(lut->lst_dim);
   free(lut);
   mod->data = 0;
 }
@@ -107,13 +123,68 @@ void modify_roi_out(
 {
   // load image if not happened yet
   const char *filename = dt_module_param_string(mod, 0);
-  if(read_header(mod, filename))
-  {
-    mod->connector[0].roi.full_wd = 32;
-    mod->connector[0].roi.full_ht = 32;
-    return;
-  }
   lutinput_buf_t *lut = mod->data;
+
+  int len = strlen(filename);
+  const char *c = filename + strlen(filename);
+  if(len > 4 && !strncmp(c-4, ".txt", 4))
+  { // this is not a lut but in fact a list of texture filenames as text.
+    // load list of images, keep number of files and the dimension of their images.
+    FILE *f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
+    if(!f) return;
+    fseek(f, 0, SEEK_END);
+    uint64_t size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if(lut->lst_data)     free(lut->lst_data);
+    if(lut->lst_dim)      free(lut->lst_dim);
+    if(lut->lst_filename) free(lut->lst_filename);
+    lut->lst_data = malloc(size);
+    fread(lut->lst_data, size, 1, f);
+    fclose(f);
+    int cnt = 0;
+    for(int i=0;i<size;i++)
+      if(lut->lst_data[i] == '\n') { lut->lst_data[i] = 0; cnt++; }
+
+    lut->lst_cnt = cnt;
+    lut->lst_dim = calloc(2*sizeof(uint32_t), cnt);
+    lut->lst_filename = calloc(sizeof(const char*), cnt+1);
+    lut->lst_filename[0] = lut->lst_data;
+    cnt = 0;
+    for(int i=0;i<size;i++)
+      if(lut->lst_data[i] == 0)
+        lut->lst_filename[++cnt] = lut->lst_data + i + 1;
+
+    // for each one image, open the header and find the size of the image
+    for(int i=0;i<lut->lst_cnt;i++)
+      read_header(mod, lut->lst_dim + 2*i, lut->lst_filename[i]);
+
+    uint32_t max_wd = 0, max_ht = 0;
+    for(int i=0;i<lut->lst_cnt;i++)
+    {
+      max_wd = MAX(max_wd, lut->lst_dim[2*i+0]);
+      max_ht = MAX(max_ht, lut->lst_dim[2*i+1]);
+    }
+    // lut->header holds last loaded file specs, will init channel config below
+    mod->connector[0].roi.full_wd = max_wd; // will be used to allocate staging buffer
+    mod->connector[0].roi.full_ht = max_ht;
+    mod->connector[0].roi.wd = max_wd;
+    mod->connector[0].roi.ht = max_ht;
+    mod->connector[0].roi.scale = 1;
+    mod->connector[0].array_length = cnt;
+    // instruct the connector that we have an array with different image resolution for every element:
+    mod->connector[0].array_dim = lut->lst_dim;
+  }
+  else
+  { // regular single lut file
+    if(read_header(mod, 0, filename))
+    {
+      mod->connector[0].roi.full_wd = 32;
+      mod->connector[0].roi.full_ht = 32;
+      return;
+    }
+    mod->connector[0].roi.full_wd = lut->header.wd;
+    mod->connector[0].roi.full_ht = lut->header.ht;
+  }
   // adjust output connector channels:
   if(lut->header.channels == 1) mod->connector[0].chan   = dt_token("r");
   if(lut->header.channels == 2) mod->connector[0].chan   = dt_token("rg");
@@ -126,8 +197,13 @@ void modify_roi_out(
   }
   if(dtype == 0) mod->connector[0].format = dt_token("f16");
   if(dtype == 1) mod->connector[0].format = dt_token("f32");
-  mod->connector[0].roi.full_wd = lut->header.wd;
-  mod->connector[0].roi.full_ht = lut->header.ht;
+  for(int k=0;k<4;k++)
+  {
+    mod->img_param.black[k]        = 0.0f;
+    mod->img_param.white[k]        = 1.0f;
+    mod->img_param.whitebalance[k] = 1.0f;
+  }
+  mod->img_param.filters = 0;
 }
 
 int read_source(
@@ -135,8 +211,16 @@ int read_source(
     void                    *mapped,
     dt_read_source_params_t *p)
 {
-  const char *filename = dt_module_param_string(mod, 0);
-  if(read_header(mod, filename)) return 1;
   lutinput_buf_t *lut = mod->data;
-  return read_plain(lut, mapped);
+  if(lut->lst_filename)
+  {
+    if(read_header(mod, 0, lut->lst_filename[p->a])) return 1;
+    return read_plain(lut, mapped);
+  }
+  else
+  {
+    const char *filename = dt_module_param_string(mod, 0);
+    if(read_header(mod, 0, filename)) return 1;
+    return read_plain(lut, mapped);
+  }
 }
