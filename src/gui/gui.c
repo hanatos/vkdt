@@ -92,8 +92,8 @@ dt_gui_win_init(dt_gui_win_t *win)
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
-  int wd = dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4);
-  int ht = dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4);
+  int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
+  int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   // glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
   glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
