@@ -256,7 +256,6 @@ int main(int argc, char *argv[])
   // start un-fullscreen on current monitor, we only know which one is that after
   // we created the window in dt_gui_init(). maybe should be a config option:
   g_fullscreen = 1;
-  toggle_fullscreen();
   dt_gui_recreate_swapchain(&vkdt.win);
   nk_glfw3_resize(vkdt.win.window, vkdt.win.width, vkdt.win.height);
   dt_gui_init_fonts();
@@ -383,6 +382,9 @@ int main(int argc, char *argv[])
 
     if(dt_gui_render() == VK_SUCCESS)
       dt_gui_present();
+
+    static int bs = 1;
+    if(bs) { toggle_fullscreen(); bs = 0; }
   }
   if(joystick_present) pthread_join(joystick_thread, 0);
 
@@ -392,6 +394,12 @@ int main(int argc, char *argv[])
 
   // leave whatever view we're still in:
   dt_view_switch(s_view_cnt);
+
+  // we have to trick the fullscreen resize to be too small depending on the content scale.
+  // if we do it next time on startup, there will be a content scale callback doing
+  // a framebuffer resize behind our back and make the window too large.
+  dt_rc_set_int(&vkdt.rc, "gui/wd", vkdt.win.width/vkdt.win.content_scale[0]);
+  dt_rc_set_int(&vkdt.rc, "gui/ht", vkdt.win.height/vkdt.win.content_scale[1]);
 
   threads_shutdown();
   threads_global_cleanup(); // join worker threads before killing their resources

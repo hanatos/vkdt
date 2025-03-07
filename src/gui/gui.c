@@ -52,8 +52,6 @@ framebuffer_size_callback(GLFWwindow* w, int width, int height)
     dt_gui_recreate_swapchain(win);
     nk_glfw3_resize(w, win->width, win->height);
     dt_gui_init_fonts(); // actually we don't wan this here, but we assume content scale changes also changes framebuffer.
-    dt_rc_set_int(&vkdt.rc, "gui/wd", width);
-    dt_rc_set_int(&vkdt.rc, "gui/ht", height);
   }
 }
 
@@ -92,6 +90,7 @@ dt_gui_win_init(dt_gui_win_t *win)
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
+  // in fact this doesn't matter, on startup we'll resize after the first present:
   int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
   int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
