@@ -150,6 +150,41 @@ expose_film(vec3 rgb, int film)
   return params.ev_film * (log(2.0)/log(10.0)) + log(raw+1e-10) * (1.0/log(10.0));
 }
 
+vec3 sigmoid(vec3 x)
+{
+  return 0.5 + 0.5 * x / sqrt(1.0+x*x);
+}
+
+vec3 sigmoid_ddx(vec3 x)
+{
+  return 0.5*pow(x*x+1.0, vec3(-3.0/2.0));
+}
+
+vec3 solve_f(vec3 e, vec3 ep, mat3 M)
+{
+  return e - ep - M * sigmoid(e);
+}
+
+vec3 solve_fp(vec3 e, vec3 ep, mat3 M)
+{
+  return vec3(1.0) - M * sigmoid_ddx(e);
+}
+
+vec3 newton_step(vec3 e, vec3 ep, mat3 M)
+{
+  return e - solve_f(e, ep, M)/solve_fp(e, ep, M);
+}
+
+mat3 coupler_matrix()
+{
+  mat3 M = mat3(6.0, 4.0, 1.0, 4.0, 6.0, 4.0, 1.0, 4.0, 6.0);
+  vec3 amount = vec3(0.1, 0.2, 0.5)*3;
+  M[0] *= 1.0/11.0 * amount.r * params.couplers;
+  M[1] *= 1.0/14.0 * amount.g * params.couplers;
+  M[2] *= 1.0/11.0 * amount.b * params.couplers;
+  return M;
+}
+
 vec3 // returns density_cmy;
 develop_film_compute_couplers(vec3 log_raw)
 { // develop film
@@ -162,28 +197,22 @@ develop_film_compute_couplers(vec3 log_raw)
   // note that this if at all only holds for *neutral* e (i.e. same channels)
   // other than agx-emulsion, this assumes the couplers are created relative to log exp e, not
   // an initial density (in the sense of a fixed point iteration or so)
-  mat3 M = mat3(6.0, 4.0, 1.0, 4.0, 6.0, 4.0, 1.0, 4.0, 6.0);
-  M[0] *= 1.0/11.0;
-  M[1] *= 1.0/14.0;
-  M[2] *= 1.0/11.0;
-  vec3 amount = vec3(0.1, 0.2, 0.5)*params.couplers;
-  M = M * mat3(amount.r, 0,0, 0, amount.g, 0, 0, 0, amount.b);
-  mat3 I = mat3(1.0);
+  mat3 M = coupler_matrix();
+#if 0
   // the coupler/inhibitor M*log_raw should diffuse spatially, so we
   // write it out here, split the kernel, blur, and come back in part1.comp
   return M * log_raw;
+#else
+  return M * sigmoid(log_raw);
+#endif
 }
 
 vec3 // returns new log_raw
 develop_film_correct_exposure(vec3 log_raw, vec3 coupler)
 {
   log_raw -= coupler;
-  mat3 M = mat3(6.0, 4.0, 1.0, 4.0, 6.0, 4.0, 1.0, 4.0, 6.0);
-  M[0] *= 1.0/11.0;
-  M[1] *= 1.0/14.0;
-  M[2] *= 1.0/11.0;
-  vec3 amount = vec3(0.1, 0.2, 0.5)*params.couplers;
-  M = M * mat3(amount.r, 0,0, 0, amount.g, 0, 0, 0, amount.b);
+  mat3 M = coupler_matrix();
+#if 0
   mat3 I = mat3(1.0);
   // then we need to evaluate D_0 at this location
   log_raw.r = (inverse(I-M)*log_raw.rrr).r;
@@ -191,6 +220,22 @@ develop_film_correct_exposure(vec3 log_raw, vec3 coupler)
   log_raw.b = (inverse(I-M)*log_raw.bbb).b;
   // now we went full circle and log_raw = log_raw (except for the colour that is, which is what was wanted)
   return log_raw;
+#else
+  vec3 result;
+  vec3 log_raw_corr = vec3(0.0);
+  for(int i=0;i<5;i++)
+    log_raw_corr = newton_step(log_raw_corr, log_raw.rrr, M);
+  result.r = log_raw_corr.r;
+  log_raw_corr = vec3(0.0);
+  for(int i=0;i<5;i++)
+    log_raw_corr = newton_step(log_raw_corr, log_raw.ggg, M);
+  result.g = log_raw_corr.g;
+  log_raw_corr = vec3(0.0);
+  for(int i=0;i<5;i++)
+    log_raw_corr = newton_step(log_raw_corr, log_raw.bbb, M);
+  result.b = log_raw_corr.b;
+  return result;
+#endif
 }
 
 vec3 // returns density_cmy
