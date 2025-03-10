@@ -77,7 +77,7 @@ vec3 add_grain(ivec2 ipos, vec3 density, float scale)
   float grain_size = params.grain_size;
   float density_max = 3.3;
   vec3 res = vec3(0.0);
-  uint seed = 123456789*ipos.x + 1333337*ipos.y;
+  uint seed = 123456789*ipos.x + 1333337*ipos.y + global.frame*100000;
   vec3 particle_scale_col = vec3(0.8, 1.0, 2.0);
   vec3 particle_scale_lay = vec3(2.5, 1.0, 0.5);
   for(int col=0;col<3;col++)
@@ -89,7 +89,7 @@ vec3 add_grain(ivec2 ipos, vec3 density, float scale)
       float npl = min(doff[layer], np);
       np -= npl;
       float c = 1.0/(particle_scale_col[col] * particle_scale_lay[layer]);//pow(2, layer);
-      vec2 tc = c/grain_size * 0.3*vec2(ipos + 1000*col);
+      vec2 tc = c/grain_size * 0.3*vec2(ipos + global.frame*131200 + 1000*col);
       // int r = int(grain_non_uniformity*noise(tc));
       int r = int(grain_non_uniformity*c*noise(tc));
       int n = int(n_grains_per_pixel*c*scale*scale);
