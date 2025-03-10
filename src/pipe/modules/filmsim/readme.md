@@ -3,31 +3,12 @@
 this is based on [agx emulsion](https://github.com/andreavolpato/agx-emulsion).
 for a nice introduction see [this post](https://discuss.pixls.us/t/spectral-film-simulations-from-scratch/48209/1).
 
-to run this, you need the `filmsim.lut` data file. it is shipped with vkdt git
-and installed by default. the following steps are not necessary, but if you
-want to create it yourself (and maybe play with different data points), do
-this:
-```
-cd
-git clone https://github.com/andreavolpato/agx-emulsion
-python -m venv agx
-source agx/bin/activate
-cd agx-emulsion
-pip install -r requirements.txt
-pip install -e .
-cd agx_emulsion/data/profiles
-wget https://raw.githubusercontent.com/hanatos/vkdt/refs/heads/master/src/pipe/modules/filmsim/mklut-profiles.py
-python ./mklut-profiles.py
-mkdir -p ~/.config/vkdt/data
-cp filmsim.lut ~/.config/vkdt/data
-```
-
-and in any case wire an `i-lut` module with filename `data/filmsim.lut` to the
-`filmsim` input connector. this can be done automatically by applying the
-`filmsim.pst` preset.
+this module is best activated by applying the `filmsim.pst` preset. this will
+take care of wiring the required input look up table files (shipped with the
+vkdt installation). if you want to wire yourself, connect `data/spectra-em.lut`
+and `data/filmsim.lut` to the `spectra` and `filmsim` connectors, respectively.
 
 TODO
-* put documentation/nice example images from artic's post above
 * implement halation
 * map grain params to film iso values
 
@@ -70,7 +51,9 @@ these constraints.
 
 ## negative and print exposure
 
-here are some test-strips to introduce the capability of the simulation. The
+parameters: set `enlarger` to `negative` to output the negative, `ev film` and `ev paper` are the negative exposure and print exposure
+
+here are some test-strips to introduce the capability of the simulation. the
 overall imaging process is split in two steps: negative and print. two
 different exposures can be controlled, and color filters in the enlarger can
 balance the colors of the print. here are virtual scans of Kodak Gold 200 at
@@ -88,6 +71,8 @@ raw file taken from this Play Raw Two Taiwanese uncles playing chess, thank you
 
 ## grain
 
+parameters: `grain` `size` `uniform`
+
 the simulation builds three sub layers for each channel, imitating modern color
 negative films where each color layer is composed by 2-3 sublayers with
 different sensitivity to increase latitude. the stochastic properties of each
@@ -100,11 +85,13 @@ these above are a few strips of Kodak Portra 400 printed on Kodak Portra Endura
 with vertical size of 1 mm. The average particle areas of the virtual silver
 halide particles, then converted in dye clouds, is changed. in first
 approximation, the area of the particles should be roughly proportional to the
-ISO. In consumer films particles are in the range 0.2-2 micrometer diameter,
+ISO. in consumer films particles are in the range 0.2-2 micrometer diameter,
 i.e. 0.03-3.2 micrometer squared.
 
 here is an example with higher magnification crops with Kodak Portra 400 and
 Kodak Portra Endura.
+
+parameter: set `enlarger` to `2x` or `4x` for magnification. beware of `4x`, it requires a looot of GPU memory!
 
 <table><thead><tr>
 <th align="left">print</th>
@@ -118,22 +105,48 @@ Kodak Portra Endura.
 
 # saturation with DIR couplers
 
+parameter: `couplers`
+
 the level of saturation of the negatives is controlled via developer inhibitor
 release couplers (DIR couplers). when substantial density is formed in one
 layer, DIR couplers are released and can inhibit the formation of density in
 nearby regions, both in the same layer and nearby layers. the diffusion in
 nearby layers of DIR couplers produces increased saturation (loss of density on
 the other channels, i.e. purer colors), also referred as interlayer effects.
-here are a couple of examples form signatureedits.com raw files, using Fujifilm
+here is an example using a signatureedits.com raw file, using Fujifilm
 C200 and Fujifilm Crystal Archive Type II.
 
 <img src="dir_couplers_ramp_car_fuji_c200_crystal_archive.png" style="width:100%"/>
+
+# the filmsim data
+
+to run this module, you need the `filmsim.lut` data file. it is shipped with
+vkdt git and installed by default. the following steps are not necessary, but
+if you want to create it yourself (and maybe play with different data points),
+do this:
+```
+cd
+git clone https://github.com/andreavolpato/agx-emulsion
+python -m venv agx
+source agx/bin/activate
+cd agx-emulsion
+pip install -r requirements.txt
+pip install -e .
+cd agx_emulsion/data/profiles
+wget https://raw.githubusercontent.com/hanatos/vkdt/refs/heads/master/src/pipe/modules/filmsim/mklut-profiles.py
+python ./mklut-profiles.py
+mkdir -p ~/.config/vkdt/data
+cp filmsim.lut ~/.config/vkdt/data
+```
+
+and in any case wire an `i-lut` module with filename `data/filmsim.lut` to the
+`filmsim` input connector.
 
 ## connectors
 
 * `input` scene referred linear rec2020 (after the colour module)
 * `output` the exposed, developed, and printed film simulation (or negative)
-* `filmsim` the filmsim.lut with the film data
+* `filmsim` wire data/filmsim.lut with the film data
 * `spectra` wire data/spectra-em.lut, the spectral upsampling table for emission
 
 ## parameters
