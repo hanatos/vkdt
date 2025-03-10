@@ -617,14 +617,14 @@ void render_darkroom()
     }
     else if(current_tab == 1)
     {
-      nk_layout_row_dynamic(ctx, row_height, 1);
+      nk_layout_row_dynamic(ctx, row_height, 2);
       if(nk_widget_is_hovered(ctx))
       {
         char hk[64];
         hk_get_hotkey_lib(hk_darkroom + s_hotkey_nodes_enter, hk, sizeof(hk));
         dt_tooltip("show node graph editor\n%s", hk);
       }
-      if(nk_button_label(ctx, "open node editor"))
+      if(nk_button_label(ctx, "node editor"))
         dt_view_switch(s_view_nodes);
       if(nk_widget_is_hovered(ctx))
       {
@@ -634,8 +634,19 @@ void render_darkroom()
         hk_get_hotkey_lib(hk_darkroom + s_hotkey_redo, hk2, sizeof(hk2));
         dt_tooltip("show edit history in left panel\n%s\n%s\n%s", hk0, hk1, hk2);
       }
-      if(nk_button_label(ctx, "toggle history panel"))
+      const int history_on = vkdt.wstate.history_view;
+      if(history_on)
+      {
+        nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+        nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.hover,  nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]));
+      }
+      if(nk_button_label(ctx, "history"))
         dt_gui_dr_toggle_history();
+      if(history_on)
+      {
+        nk_style_pop_style_item(&vkdt.ctx);
+        nk_style_pop_style_item(&vkdt.ctx);
+      }
       render_darkroom_full(filter_name, filter_inst);
     }
     else if(current_tab == 2)
