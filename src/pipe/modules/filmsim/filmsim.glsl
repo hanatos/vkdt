@@ -152,12 +152,17 @@ expose_film(vec3 rgb, int film)
 
 vec3 sigmoid(vec3 x)
 {
-  return 0.5 + 0.5 * x / sqrt(1.0+x*x);
+  // return 0.5 + 0.5 * x / sqrt(1.0+x*x);
+  const float b = 4.5;
+  return 0.5 + 0.5*x / pow(pow(abs(x), vec3(b)) + 1.0, vec3(1.0/b));
 }
 
 vec3 sigmoid_ddx(vec3 x)
 {
-  return 0.5*pow(x*x+1.0, vec3(-3.0/2.0));
+  // return 0.5*pow(x*x+1.0, vec3(-3.0/2.0));
+  const float b = 4.5;
+  vec3 xb = pow(abs(x), vec3(b));
+  return 1.0/(pow(xb + 1.0, vec3(1.0/b)) * (xb + 1.0) * 2.0);
 }
 
 vec3 solve_f(vec3 e, vec3 ep, mat3 M)
