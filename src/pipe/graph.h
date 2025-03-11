@@ -129,6 +129,7 @@ typedef struct dt_graph_t
   char                  searchpath[PATH_MAX];
   char                  basedir[PATH_MAX];// copy of the global search directory such that modules can access it
 
+  uint32_t              main_img_hash;
   dt_image_params_t     main_img_param;// will be copied over from the i-*:main module after modify_roi_out
 #ifdef DEBUG_MARKERS
   dt_stringpool_t       debug_markers; // store string names of vk objects here

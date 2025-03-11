@@ -5,6 +5,7 @@ layout(std140, set = 0, binding = 0) uniform global_t
 {
   int frame;
   int frame_cnt;
+  int hash;
 } global;
 layout(std140, set = 0, binding = 1) uniform params_t
 {

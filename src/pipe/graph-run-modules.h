@@ -1,5 +1,6 @@
 #pragma once
 #include "core/fs.h"
+#include "db/hash.h"
 
 static inline VkResult
 dt_graph_run_modules_upload_uniforms(
@@ -13,6 +14,7 @@ dt_graph_run_modules_upload_uniforms(
         graph->uniform_size, 0, (void**)&uniform_mem));
   ((uint32_t *)uniform_mem)[0] = graph->frame;
   ((uint32_t *)uniform_mem)[1] = graph->frame_cnt;
+  ((uint32_t *)uniform_mem)[2] = graph->main_img_hash;
 #define TRAVERSE_POST \
   dt_module_t *mod = arr+curr;\
   if(mod->so->commit_params)\
@@ -246,7 +248,11 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     // if this is the main input of the graph, remember the img_param
     // globally, so others can pick up maker/model:
     if(module->inst == dt_token("main") && dt_connector_output(module->connector))
+    {
       graph->main_img_param = module->img_param;
+      const char *str = dt_module_param_string(module, dt_module_get_param(module->so, dt_token("filename")));
+      graph->main_img_hash = str ? (uint32_t)hash64(str) : 0;
+    }
     // remember source name to pass on further
     if(module->connector[0].type == dt_token("source"))
       module->img_param.input_name = module->inst;
@@ -570,8 +576,9 @@ dt_graph_run_modules(
     }
     dt_raytrace_graph_cleanup(graph);
     graph->num_nodes = 0;
-    // we need two uint32, alignment is 64 bytes
-    graph->uniform_global_size = qvk.uniform_alignment; // global data, aligned
+    // we need three uint32, alignment is 64 bytes
+    // frame, frame_cnt, hash
+    graph->uniform_global_size = 2*qvk.uniform_alignment; // global data, aligned
     uint64_t uniform_offset = graph->uniform_global_size;
     // skip modules with uninited roi! (these are disconnected/dead code elimination cases)
     for(int i=cnt-1;i>=0;i--)
