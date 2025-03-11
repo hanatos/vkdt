@@ -6,6 +6,7 @@
 #include "gui/gui.h"
 #include "gui/view.h"
 #include "gui/render.h"
+#include "gui/api_gui.h"
 #include "gui/darkroom.h"
 #include "gui/view.h"
 #include "pipe/draw.h"
@@ -67,7 +68,9 @@ enum hotkey_names_t
   s_hotkey_upvote          = 24,
   s_hotkey_downvote        = 25,
   s_hotkey_reload_shaders  = 26,
-  s_hotkey_count           = 27,
+  s_hotkey_copy_hist       = 27,
+  s_hotkey_paste_hist      = 28,
+  s_hotkey_count           = 29,
 };
 
 static const int hk_darkroom_size = 128;
@@ -100,6 +103,8 @@ static hk_t hk_darkroom[128] = {
   {"upvote",          "increase star rating and go to next image",  {GLFW_KEY_F12}},
   {"downvote",        "decrease star rating and go to next image",  {GLFW_KEY_F9}},
   {"reload shaders",  "debug: reload shader code while running",    {}},
+  {"copy history",    "copy history from curren image",             {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_C}},
+  {"paste history",   "paste history to selected images",           {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_V}},
 };
 
 // used to communictate between the gui helper functions
@@ -213,6 +218,12 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     case s_hotkey_label_4: dt_gui_label_4(); break;
     case s_hotkey_label_5: dt_gui_label_5(); break;
     case s_hotkey_reload_shaders: dt_gui_dr_reload_shaders(); break;
+    case s_hotkey_copy_hist:
+      dt_gui_lt_copy();
+      break;
+    case s_hotkey_paste_hist:
+      dt_gui_lt_paste_history();
+      break;
     default:
      if(gui.hotkey >= s_hotkey_count && gui.hotkey < hk_darkroom_cnt) dt_keyaccel_exec(hk_darkroom[gui.hotkey].name);
      break;

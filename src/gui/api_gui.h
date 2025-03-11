@@ -56,6 +56,7 @@ static inline void
 dt_gui_lt_copy()
 {
   vkdt.wstate.copied_imgid = dt_db_current_imgid(&vkdt.db);
+  dt_gui_notification("copied image history to clipboard");
 }
 
 static inline void
@@ -86,12 +87,12 @@ dt_gui_lt_paste_history()
   // this only works if the copied source is "simple", i.e. cfg corresponds to exactly
   // one input raw file that is appearing under param:i-raw:main:filename.
   // it then copies the history to the selected images, replacing their filenames in the config.
+  char dst[PATH_MAX];
   const uint32_t *sel = dt_db_selection_get(&vkdt.db);
   for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
   {
     if(sel[i] == cid) continue; // don't copy to self
     dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
-    char dst[PATH_MAX];
     fs_realpath(filename, dst);
     FILE *fout = fopen(dst, "wb");
     if(fout)
@@ -115,17 +116,30 @@ dt_gui_lt_paste_history()
           fprintf(fout, "param:i-jpg:main:filename:%s\n", fn);
         else
           fprintf(fout, "param:i-raw:main:filename:%s\n", fn);
+        fn[len] = '.'; // put .cfg back
       }
       fclose(fout);
     }
   }
   free(buf);
   free(src);
-  dt_thumbnails_cache_list(
-      &vkdt.thumbnail_gen,
-      &vkdt.db,
-      sel, vkdt.db.selection_cnt,
-      &glfwPostEmptyEvent);
+  if(vkdt.view_mode == s_view_lighttable)
+  {
+    dt_thumbnails_cache_list(
+        &vkdt.thumbnail_gen,
+        &vkdt.db,
+        sel, vkdt.db.selection_cnt,
+        &glfwPostEmptyEvent);
+  }
+  else if(vkdt.view_mode == s_view_darkroom)
+  {
+    dt_graph_history_cleanup(&vkdt.graph_dev);
+    dt_graph_history_init(&vkdt.graph_dev);
+    if(dt_graph_read_config_ascii(&vkdt.graph_dev, dst))
+      dt_gui_notification("arrrggh!");
+    vkdt.graph_dev.runflags = s_graph_run_all;
+  }
+  dt_gui_notification("pasted image history");
 }
 
 static inline void
