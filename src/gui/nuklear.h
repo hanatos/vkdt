@@ -490,7 +490,7 @@ enum nk_heading         {NK_UP, NK_RIGHT, NK_DOWN, NK_LEFT};
 enum nk_button_behavior {NK_BUTTON_DEFAULT, NK_BUTTON_REPEATER};
 enum nk_modify          {NK_FIXED = nk_false, NK_MODIFIABLE = nk_true};
 enum nk_orientation     {NK_VERTICAL, NK_HORIZONTAL};
-enum nk_collapse_states {NK_MINIMIZED = nk_false, NK_MAXIMIZED = nk_true};
+enum nk_collapse_states {NK_MINIMIZED = nk_false, NK_MAXIMIZED = nk_true, NK_FORCE_MINIMIZED = 2, NK_FORCE_MAXIMIZED = 3};
 enum nk_show_states     {NK_HIDDEN = nk_false, NK_SHOWN = nk_true};
 enum nk_chart_type      {NK_CHART_LINES, NK_CHART_COLUMN, NK_CHART_MAX};
 enum nk_chart_event     {NK_CHART_HOVERING = 0x01, NK_CHART_CLICKED = 0x02};
@@ -22762,6 +22762,8 @@ nk_tree_base(struct nk_context *ctx, enum nk_tree_type type,
         state = nk_add_value(ctx, win, tree_hash, 0);
         *state = initial_state;
     }
+    if(initial_state == NK_FORCE_MINIMIZED) *state = NK_MINIMIZED;
+    if(initial_state == NK_FORCE_MAXIMIZED) *state = NK_MAXIMIZED;
     return nk_tree_state_base(ctx, type, img, title, (enum nk_collapse_states*)state);
 }
 NK_API nk_bool

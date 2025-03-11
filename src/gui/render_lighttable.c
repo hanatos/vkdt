@@ -1143,7 +1143,8 @@ void render_lighttable_right_panel()
 
   // ==============================================================
   // export selection
-  if(vkdt.db.selection_cnt > 0 && nk_tree_push(ctx, NK_TREE_TAB, "export selection", NK_MINIMIZED))
+  if(vkdt.db.selection_cnt > 0 && nk_tree_push(ctx, NK_TREE_TAB, "export selection", 
+        g_hotkey == s_hotkey_export ? NK_FORCE_MAXIMIZED : NK_MINIMIZED))
   {
     static dt_export_widget_t w = {0};
     dt_export(&w);
