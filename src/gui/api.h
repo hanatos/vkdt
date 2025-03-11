@@ -434,6 +434,18 @@ dt_gui_lt_duplicate()
   dt_gui_switch_collection(dir);
 }
 
+static inline void
+dt_gui_lt_zoom_in()
+{
+  vkdt.wstate.lighttable_images_per_row = MAX(2, vkdt.wstate.lighttable_images_per_row-1);
+}
+
+static inline void
+dt_gui_lt_zoom_out()
+{
+  vkdt.wstate.lighttable_images_per_row = MIN(16, vkdt.wstate.lighttable_images_per_row+1);
+}
+
 // this only takes care of in/out chain reconnections when a module is removed.
 // the module removal will take care of the rest.
 static inline int

@@ -45,6 +45,8 @@ static hk_t hk_lighttable[] = {
   {"label blue",    "toggle blue label",                {GLFW_KEY_F3}},
   {"label yellow",  "toggle yellow label",              {GLFW_KEY_F4}},
   {"label purple",  "toggle purple label",              {GLFW_KEY_F5}},
+  {"zoom in",       "decrease images per row",          {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_UP}},
+  {"zoom out",      "increase images per row",          {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_DOWN}},
 };
 typedef enum hotkey_names_t
 {
@@ -69,6 +71,8 @@ typedef enum hotkey_names_t
   s_hotkey_label_3       = 18,
   s_hotkey_label_4       = 19,
   s_hotkey_label_5       = 20,
+  s_hotkey_zoom_in       = 21,
+  s_hotkey_zoom_out      = 22,
 } hotkey_names_t;
 static int g_hotkey = -1; // to pass hotkey from handler to rendering. necessary for scrolling/export
 static int g_scroll_colid = -1; // to scroll to certain file name
@@ -120,6 +124,12 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
       break;
     case s_hotkey_append_preset:
       dt_gui_dr_preset_apply();
+      break;
+    case s_hotkey_zoom_in:
+      dt_gui_lt_zoom_in();
+      break;
+    case s_hotkey_zoom_out:
+      dt_gui_lt_zoom_out();
       break;
     default: break;
   }
