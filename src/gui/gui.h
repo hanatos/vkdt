@@ -113,6 +113,8 @@ typedef struct dt_gui_wstate_t
   int popup_appearing;          // set on the first frame a popup is shown
 
   int tab_state;                // state required to tab between tabbable widgets
+
+  int lighttable_images_per_row;// how many images per row in lighttable mode
 }
 dt_gui_wstate_t;
 

@@ -74,7 +74,6 @@ static int g_hotkey = -1; // to pass hotkey from handler to rendering. necessary
 static int g_scroll_colid = -1; // to scroll to certain file name
 static int g_scroll_offset = 0; // remember last offset for leave/reenter
 static int g_image_cursor = -1; // gui keyboard navigation in the center view, cursor
-static const int g_images_per_line = 6;
 
 void
 lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
@@ -144,12 +143,12 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
   else if(key == GLFW_KEY_UP)
   {
     if(g_image_cursor < 0) g_image_cursor = -2;
-    else if(g_image_cursor >= g_images_per_line) g_image_cursor -= g_images_per_line;
+    else if(g_image_cursor >= vkdt.wstate.lighttable_images_per_row) g_image_cursor -= vkdt.wstate.lighttable_images_per_row;
   }
   else if(key == GLFW_KEY_DOWN)
   {
     if(g_image_cursor < 0) g_image_cursor = -2;
-    else if(g_image_cursor < vkdt.db.collection_cnt - g_images_per_line) g_image_cursor += g_images_per_line;
+    else if(g_image_cursor < vkdt.db.collection_cnt - vkdt.wstate.lighttable_images_per_row) g_image_cursor += vkdt.wstate.lighttable_images_per_row;
   }
   else if(key == GLFW_KEY_LEFT)
   {
@@ -255,7 +254,7 @@ void render_lighttable_center()
     return;
   }
 
-  const int ipl = g_images_per_line;
+  const int ipl = vkdt.wstate.lighttable_images_per_row;
   const int border = 0.004 * vkdt.win.width;
   const int spacing = border/2;
   const int wd = vkdt.state.center_wd / ipl - border*2;
@@ -585,6 +584,11 @@ void render_lighttable_right_panel()
       dt_gui_recreate_swapchain(&vkdt.win);
       dt_gui_init_fonts();
     }
+
+    nk_tab_property(int, ctx, "#", 2, &vkdt.wstate.lighttable_images_per_row, 16, 1, 1);
+    dt_tooltip("how many images per row to display");
+    nk_label(ctx, "images/row", NK_TEXT_LEFT);
+
     nk_tree_pop(ctx);
   }
 
@@ -1318,6 +1322,7 @@ int lighttable_leave()
 {
   g_image_cursor = -1;
   dt_gamepadhelp_clear();
+  dt_rc_set_int(&vkdt.rc, "gui/images_per_line", vkdt.wstate.lighttable_images_per_row);
   return 0;
 }
 
@@ -1337,6 +1342,7 @@ int lighttable_enter()
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_left,      "move left");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_right,     "move right");
   vkdt.wstate.copied_imgid = -1u; // reset to invalid
+  vkdt.wstate.lighttable_images_per_row = dt_rc_get_int(&vkdt.rc, "gui/images_per_line", 6);
   return 0;
 }
 
@@ -1365,12 +1371,12 @@ void lighttable_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepads
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_UP))
   {
     if(g_image_cursor < 0) g_image_cursor = -2;
-    else if(g_image_cursor >= g_images_per_line) g_image_cursor -= g_images_per_line;
+    else if(g_image_cursor >= vkdt.wstate.lighttable_images_per_row) g_image_cursor -= vkdt.wstate.lighttable_images_per_row;
   }
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_DOWN))
   {
     if(g_image_cursor < 0) g_image_cursor = -2;
-    else if(g_image_cursor < vkdt.db.collection_cnt - g_images_per_line) g_image_cursor += g_images_per_line;
+    else if(g_image_cursor < vkdt.db.collection_cnt - vkdt.wstate.lighttable_images_per_row) g_image_cursor += vkdt.wstate.lighttable_images_per_row;
   }
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_LEFT))
   {

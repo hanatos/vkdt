@@ -297,7 +297,7 @@ int main(int argc, char *argv[])
   }
   if(!filename || fs_isdir_file(filename))
   {
-    vkdt.view_mode = s_view_lighttable;
+    vkdt.view_mode = -1;
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, filename);
     dt_view_switch(s_view_lighttable);
     dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
