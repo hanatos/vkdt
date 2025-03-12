@@ -1422,6 +1422,8 @@ render_darkroom_modals()
 static inline void
 dt_gui_set_lod(int lod)
 {
+  if(vkdt.wstate.lod == lod) return;
+  vkdt.wstate.lod = lod;
   // set graph output scale factor and
   // trigger complete pipeline rebuild
   const int mid = dt_module_get(&vkdt.graph_dev, dt_token("display"), dt_token("main"));
