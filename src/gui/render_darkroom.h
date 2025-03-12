@@ -1,6 +1,33 @@
 #pragma once
-// some drawing routines shared between node editor and darkroom mode
-static inline void widget_end()
+// some routines shared between node editor and darkroom mode
+
+static inline void
+dt_gui_set_lod(int lod)
+{
+  if(vkdt.wstate.lod == lod) return;
+  vkdt.wstate.lod = lod;
+  // set graph output scale factor and
+  // trigger complete pipeline rebuild
+  const int mid = dt_module_get(&vkdt.graph_dev, dt_token("display"), dt_token("main"));
+  if(mid < 0) return;
+  if(lod > 1)
+  {
+    vkdt.graph_dev.module[mid].connector[0].max_wd = vkdt.state.center_wd / (lod-1);
+    vkdt.graph_dev.module[mid].connector[0].max_ht = vkdt.state.center_ht / (lod-1);
+  }
+  else
+  {
+    vkdt.graph_dev.module[mid].connector[0].max_wd = 0;
+    vkdt.graph_dev.module[mid].connector[0].max_ht = 0;
+  }
+  vkdt.wstate.busy++;
+  vkdt.graph_dev.runflags = s_graph_run_all;
+  // reset view? would need to set zoom, too
+  dt_image_reset_zoom(&vkdt.wstate.img_widget);
+}
+
+static inline void
+widget_end()
 {
   if(!vkdt.wstate.grabbed)
   {
@@ -180,10 +207,15 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_fill_rect(nk_window_get_canvas(ctx), bar, 0, col);
 
 #ifdef ROTARY_ENCODER
-      if(nk_widget_is_hovered(ctx))
+      if(nk_input_is_mouse_hovering_rect(&ctx->input, bounds))
         if(gui.pgupdn != 0)
           *val = *val + gui.pgupdn * (param->widget.max - param->widget.min)/100.0;
 #endif
+      if(nk_input_is_mouse_hovering_rect(&ctx->input, bounds))
+      {
+        if(vkdt.wstate.interact_begin) dt_gui_set_lod(5);
+        if(vkdt.wstate.interact_end)   dt_gui_set_lod(1);
+      }
 
       if(*val != oldval) change = 1;
       if(change)
@@ -1417,28 +1449,4 @@ render_darkroom_modals()
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
   }
-}
-
-static inline void
-dt_gui_set_lod(int lod)
-{
-  if(vkdt.wstate.lod == lod) return;
-  vkdt.wstate.lod = lod;
-  // set graph output scale factor and
-  // trigger complete pipeline rebuild
-  const int mid = dt_module_get(&vkdt.graph_dev, dt_token("display"), dt_token("main"));
-  if(mid < 0) return;
-  if(lod > 1)
-  {
-    vkdt.graph_dev.module[mid].connector[0].max_wd = vkdt.state.center_wd / (lod-1);
-    vkdt.graph_dev.module[mid].connector[0].max_ht = vkdt.state.center_ht / (lod-1);
-  }
-  else
-  {
-    vkdt.graph_dev.module[mid].connector[0].max_wd = 0;
-    vkdt.graph_dev.module[mid].connector[0].max_ht = 0;
-  }
-  vkdt.graph_dev.runflags = s_graph_run_all;
-  // reset view? would need to set zoom, too
-  dt_image_reset_zoom(&vkdt.wstate.img_widget);
 }

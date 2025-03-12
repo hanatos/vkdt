@@ -362,6 +362,12 @@ int main(int argc, char *argv[])
 
     glfwWaitEvents();
 
+    // preserve these after nk_input_end:
+    vkdt.wstate.interact_begin = 0;
+    vkdt.wstate.interact_end   = 0;
+    if(vkdt.ctx.input.mouse.grab)   vkdt.wstate.interact_begin = 1;
+    if(vkdt.ctx.input.mouse.ungrab) vkdt.wstate.interact_end   = 1;
+
     nk_glfw3_input_end(&vkdt.ctx, vkdt.win.window, vkdt.session_type == 1);
     if(vkdt.win1.window)
       nk_glfw3_input_end(&vkdt.ctx1, vkdt.win1.window, vkdt.session_type == 1);

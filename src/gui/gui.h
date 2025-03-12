@@ -81,6 +81,8 @@ typedef struct dt_gui_wstate_t
   float    state[2100];
   size_t   mapped_size;
   float   *mapped;
+  int      interact_begin;      // marks the begin of a gui interaction (that might make lod changes necessary)
+  int      interact_end;        // end of interaction
   int      grabbed;             // module grabbed input (quake for instance)
   int      nk_active;           // nuklear wants input (typing into an edit field)
   int      nk_active_next;

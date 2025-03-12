@@ -905,6 +905,7 @@ darkroom_process()
       vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
       int full_rebuild = vkdt.graph_dev.runflags == s_graph_run_all; // XXX need to be more accurate!
       vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
+      vkdt.graph_dev.runflags = 0; // clear this here, running graph has a copy.
       vkdt.graph_dev.double_buffer ^= 1; // reset to the locked/already finished one
       if(full_rebuild) vkdt.graph_res = -1; // restart waiting for first good image
       running = 1;
@@ -922,13 +923,13 @@ darkroom_process()
     }
   }
   else // if grabbed
-  { // sync version
-    if((vkdt.graph_dev.runflags) || // stills and stopped animations
-       (vkdt.graph_dev.runflags && vkdt.state.anim_playing && advance)) // running animations only if frame advances
+  { // swap double buffers and run for grabbed animations
+    if(vkdt.graph_dev.runflags) // stills and stopped animations
     { // double buffered compute
       // this will wait for other run
       // process double_buffer, wait for double_buffer^1
       vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
+      vkdt.graph_dev.runflags = 0; // we started this
       VkSemaphoreWaitInfo wait_info = {
         .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
         .semaphoreCount = 1,
@@ -946,7 +947,6 @@ darkroom_process()
     if(md && memcmp(&old_roi, &md->connector[0].roi, sizeof(dt_roi_t))) // did the output roi change?
       dt_image_reset_zoom(&vkdt.wstate.img_widget);
   }
-  vkdt.graph_dev.runflags = 0; // we tried what we could, only re-run on explicit request (topology change, next frame)
 
   if(vkdt.state.anim_playing && advance)
   { // new frame for animations need new audio, too
