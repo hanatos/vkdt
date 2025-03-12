@@ -53,14 +53,14 @@ dt_gui_lt_toggle_select_all()
 }
 
 static inline void
-dt_gui_lt_copy()
+dt_gui_copy_history()
 {
   vkdt.wstate.copied_imgid = dt_db_current_imgid(&vkdt.db);
   dt_gui_notification("copied image history to clipboard");
 }
 
 static inline void
-dt_gui_lt_paste_history()
+dt_gui_paste_history()
 {
   if(vkdt.wstate.copied_imgid == -1u)
   {
@@ -151,7 +151,7 @@ dt_gui_dr_preset_create()
 }
 
 static inline void
-dt_gui_dr_preset_apply()
+dt_gui_preset_apply()
 {
   vkdt.wstate.popup = s_popup_apply_preset;
   vkdt.wstate.popup_appearing = 1;

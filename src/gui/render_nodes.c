@@ -125,7 +125,7 @@ void render_nodes_right_panel()
     dt_gui_dr_module_add();
   if(nk_button_label(ctx, "apply preset.."))
   {
-    dt_gui_dr_preset_apply();
+    dt_gui_preset_apply();
     nodes.do_layout = 1;           // presets may ship positions for newly added nodes
   }
   if(nk_button_label(ctx, "back to darkroom mode"))
@@ -310,7 +310,7 @@ void nodes_keyboard(GLFWwindow *window, int key, int scancode, int action, int m
   switch(hotkey)
   {
     case s_hotkey_apply_preset:
-      dt_gui_dr_preset_apply();
+      dt_gui_preset_apply();
       nodes.do_layout = 1;           // presets may ship positions for newly added nodes
       break;
     case s_hotkey_module_add:

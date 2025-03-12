@@ -181,7 +181,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       dt_gui_dr_preset_create();
       break;
     case s_hotkey_apply_preset:
-      dt_gui_dr_preset_apply();
+      dt_gui_preset_apply();
       break;
     case s_hotkey_show_history:
       dt_gui_dr_toggle_history();
@@ -219,10 +219,10 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     case s_hotkey_label_5: dt_gui_label_5(); break;
     case s_hotkey_reload_shaders: dt_gui_dr_reload_shaders(); break;
     case s_hotkey_copy_hist:
-      dt_gui_lt_copy();
+      dt_gui_copy_history();
       break;
     case s_hotkey_paste_hist:
-      dt_gui_lt_paste_history();
+      dt_gui_paste_history();
       break;
     default:
      if(gui.hotkey >= s_hotkey_count && gui.hotkey < hk_darkroom_cnt) dt_keyaccel_exec(hk_darkroom[gui.hotkey].name);
@@ -751,7 +751,7 @@ void render_darkroom()
           dt_tooltip("select preset from the list\n%s", hk);
         }
         if(nk_button_label(ctx, "apply preset"))
-          dt_gui_dr_preset_apply();
+          dt_gui_preset_apply();
         nk_tree_pop(ctx);
       }
     }

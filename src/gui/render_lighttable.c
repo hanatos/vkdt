@@ -117,13 +117,13 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
       g_hotkey = hotkey;
       break;
     case s_hotkey_copy_hist:
-      dt_gui_lt_copy();
+      dt_gui_copy_history();
       break;
     case s_hotkey_paste_hist:
-      dt_gui_lt_paste_history();
+      dt_gui_paste_history();
       break;
     case s_hotkey_append_preset:
-      dt_gui_dr_preset_apply();
+      dt_gui_preset_apply();
       break;
     case s_hotkey_zoom_in:
       dt_gui_lt_zoom_in();
@@ -875,17 +875,17 @@ void render_lighttable_right_panel()
     nk_layout_row_dynamic(ctx, row_height, 2);
 
     if(nk_button_label(ctx, "copy history stack"))
-      dt_gui_lt_copy();
+      dt_gui_copy_history();
 
     if(vkdt.wstate.copied_imgid != -1u)
     {
       if(nk_button_label(ctx, "paste history stack"))
-        dt_gui_lt_paste_history();
+        dt_gui_paste_history();
     }
     else nk_label(ctx, "", 0);
 
     if(nk_button_label(ctx, "append preset"))
-      dt_gui_dr_preset_apply();
+      dt_gui_preset_apply();
     nk_label(ctx, "", 0);
 
     // ==============================================================
