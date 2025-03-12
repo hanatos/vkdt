@@ -133,10 +133,9 @@ dt_gui_paste_history()
   }
   else if(vkdt.view_mode == s_view_darkroom)
   {
-    dt_graph_history_cleanup(&vkdt.graph_dev);
-    dt_graph_history_init(&vkdt.graph_dev);
     if(dt_graph_read_config_ascii(&vkdt.graph_dev, dst))
       dt_gui_notification("arrrggh!");
+    dt_graph_history_reset(&vkdt.graph_dev);
     vkdt.graph_dev.runflags = s_graph_run_all;
   }
   dt_gui_notification("pasted image history");
