@@ -201,6 +201,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
         vkdt.wstate.img_widget.scale;
       for(int i=0;i<2;i++)
       { // ui scaled roi wd * radius * stroke radius
+        vkdt.wstate.state[4] = vkdt.graph_dev.module[modid].connector[0].roi.wd;
         float r = vkdt.wstate.state[4] * vkdt.wstate.state[3] * radius;
         if(i >= 1) r *= hardness;
         for(int k=0;k<cnt;k++)
