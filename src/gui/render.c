@@ -144,8 +144,6 @@ void dt_gui_init_fonts()
 
 int dt_gui_init_nk()
 {
-  vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
-
   nk_init_default(&vkdt.ctx, 0);
   nk_glfw3_init(
       &vkdt.ctx,

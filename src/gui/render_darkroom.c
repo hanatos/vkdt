@@ -238,27 +238,6 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   }
 }
 
-void dt_gui_set_lod(int lod)
-{
-  // set graph output scale factor and
-  // trigger complete pipeline rebuild
-  const int mid = dt_module_get(&vkdt.graph_dev, dt_token("display"), dt_token("main"));
-  if(mid < 0) return;
-  if(lod > 1)
-  {
-    vkdt.graph_dev.module[mid].connector[0].max_wd = vkdt.state.center_wd / (lod-1);
-    vkdt.graph_dev.module[mid].connector[0].max_ht = vkdt.state.center_ht / (lod-1);
-  }
-  else
-  {
-    vkdt.graph_dev.module[mid].connector[0].max_wd = 0;
-    vkdt.graph_dev.module[mid].connector[0].max_ht = 0;
-  }
-  vkdt.graph_dev.runflags = s_graph_run_all;
-  // reset view? would need to set zoom, too
-  dt_image_reset_zoom(&vkdt.wstate.img_widget);
-}
-
 void render_darkroom_favourite()
 { // streamlined "favourite" ui
   dt_graph_t *graph = &vkdt.graph_dev;
@@ -1010,6 +989,7 @@ darkroom_process()
 int
 darkroom_enter()
 {
+  vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
   vkdt.state.anim_frame = 0;
   dt_gui_dr_anim_stop();
   dt_image_reset_zoom(&vkdt.wstate.img_widget);
@@ -1127,6 +1107,7 @@ darkroom_enter()
 int
 darkroom_leave()
 {
+  dt_rc_set_int(&vkdt.rc, "gui/lod", vkdt.wstate.lod);
   dt_gui_dr_anim_stop();
   char filename[1024];
   dt_db_image_path(&vkdt.db, dt_db_current_imgid(&vkdt.db), filename, sizeof(filename));
