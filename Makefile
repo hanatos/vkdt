@@ -57,6 +57,7 @@ lut: bin/data/filmsim.lut
 bin/data/filmsim.lut: src/filmsim.lut.xz
 	tar xvJf src/filmsim.lut.xz  
 	mv filmsim.lut bin/data
+	touch bin/data/filmsim.lut
 
 install-mod: bin Makefile lut
 	mkdir -p $(VKDTDIR)/modules
