@@ -86,7 +86,7 @@ typedef struct dt_gui_wstate_t
   int      grabbed;             // module grabbed input (quake for instance)
   int      nk_active;           // nuklear wants input (typing into an edit field)
   int      nk_active_next;
-  int      lod;
+  int      lod, lod_fine, lod_interact;
   uint32_t copied_imgid;        // imgid copied for copy/paste
   char    *module_names_buf;
   const char **module_names;

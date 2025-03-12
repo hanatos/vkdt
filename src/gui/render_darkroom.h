@@ -29,6 +29,7 @@ dt_gui_set_lod(int lod)
 static inline void
 widget_end()
 {
+  dt_gui_set_lod(vkdt.wstate.lod_fine);
   if(!vkdt.wstate.grabbed)
   {
     if(vkdt.wstate.active_widget_modid < 0) return; // all good already
@@ -212,9 +213,9 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           *val = *val + gui.pgupdn * (param->widget.max - param->widget.min)/100.0;
 #endif
       if(nk_input_is_mouse_hovering_rect(&ctx->input, bounds))
-      {
-        if(vkdt.wstate.interact_begin) dt_gui_set_lod(5);
-        if(vkdt.wstate.interact_end)   dt_gui_set_lod(1);
+      { // update lod, if user requested:
+        if(vkdt.wstate.interact_begin) dt_gui_set_lod(vkdt.wstate.lod_interact);
+        if(vkdt.wstate.interact_end)   dt_gui_set_lod(vkdt.wstate.lod_fine);
       }
 
       if(*val != oldval) change = 1;
@@ -979,6 +980,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       if(nk_button_label(ctx, string))
       {
         widget_end(); // if another one is still in progress, end that now
+        dt_gui_set_lod(vkdt.wstate.lod_interact);
         vkdt.wstate.state[0] = 1.0f; // abuse for radius
         vkdt.wstate.state[1] = 1.0f; // abuse for opacity
         vkdt.wstate.state[2] = 1.0f; // abuse for hardness

@@ -651,14 +651,14 @@ void render_darkroom()
           vkdt.wstate.show_perf_overlay ^= 1;
         nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
 
-        int resi = vkdt.wstate.lod;
-        nk_tab_property(int, ctx, "#", 1, &resi, 16, 1, 1);
-        if(resi != vkdt.wstate.lod)
-        {
-          vkdt.wstate.lod = resi;
-          dt_gui_set_lod(vkdt.wstate.lod);
-        }
+        dt_tooltip("level of detail: 1 means full res, any higher number will render on reduced resolution.");
+        nk_tab_property(int, ctx, "#", 1, &vkdt.wstate.lod_fine, 16, 1, 1);
+        dt_gui_set_lod(vkdt.wstate.lod_fine);
         nk_label(ctx, "level of detail", NK_TEXT_LEFT);
+
+        dt_tooltip("level of detail while dragging a slider, for instance. you can set this to higher/coarser than the lod above.");
+        nk_tab_property(int, ctx, "#", 1, &vkdt.wstate.lod_interact, 16, 1, 1);
+        nk_label(ctx, "dynamic LOD", NK_TEXT_LEFT);
         nk_tree_pop(ctx);
       }
 
@@ -989,7 +989,8 @@ darkroom_process()
 int
 darkroom_enter()
 {
-  vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
+  vkdt.wstate.lod_fine     = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
+  vkdt.wstate.lod_interact = dt_rc_get_int(&vkdt.rc, "gui/lod_interact", 1);
   vkdt.state.anim_frame = 0;
   dt_gui_dr_anim_stop();
   dt_image_reset_zoom(&vkdt.wstate.img_widget);
@@ -1107,7 +1108,8 @@ darkroom_enter()
 int
 darkroom_leave()
 {
-  dt_rc_set_int(&vkdt.rc, "gui/lod", vkdt.wstate.lod);
+  dt_rc_set_int(&vkdt.rc, "gui/lod",          vkdt.wstate.lod_fine);
+  dt_rc_set_int(&vkdt.rc, "gui/lod_interact", vkdt.wstate.lod_interact);
   dt_gui_dr_anim_stop();
   char filename[1024];
   dt_db_image_path(&vkdt.db, dt_db_current_imgid(&vkdt.db), filename, sizeof(filename));

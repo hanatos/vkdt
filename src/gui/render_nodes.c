@@ -254,7 +254,6 @@ void render_nodes_cleanup()
 
 int nodes_enter()
 {
-  vkdt.wstate.lod = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
   nodes.node_hovered_link = -1;
   nodes.do_layout = 1; // maybe overwrite uninited node positions
   // make sure we process once:
@@ -264,7 +263,6 @@ int nodes_enter()
 
 int nodes_leave()
 {
-  dt_rc_set_int(&vkdt.rc, "gui/lod", vkdt.wstate.lod);
   dt_node_editor_clear_selection(&nodes.nedit); // don't leave stray selection. leads to problems re-entering with another graph.
   return 0;
 }
