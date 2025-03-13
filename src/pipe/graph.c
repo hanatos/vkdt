@@ -231,6 +231,7 @@ dt_graph_cleanup(dt_graph_t *g)
   free(g->node);               g->node = 0;
   free(g->params_pool);        g->params_pool = 0;
   free(g->conn_image_pool);    g->conn_image_pool = 0;
+  g->num_modules = g->num_nodes = 0;
   for(int i=0;i<2;i++)
   {
     vkDestroyQueryPool(qvk.device, g->query[i].pool, 0);
