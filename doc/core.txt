@@ -1,1 +1,12 @@
 colour:1.0
+i-raw:1.0
+i-jpg:1.0
+i-mcraw:1.0
+i-exr:1.0
+i-lut:1.0
+filmcurv:1.0
+denoise:1.0
+hilite:1.0
+crop:1.0
+llap:1.0
+zones:1.0
