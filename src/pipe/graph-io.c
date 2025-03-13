@@ -168,7 +168,7 @@ read_connection_ascii(
 
   int modid0 = dt_module_get(graph, mod0, inst0);
   int modid1 = dt_module_get(graph, mod1, inst1);
-  if((mod0 != dt_token("-1") && modid0 <= -1) || modid1 <= -1 || modid0 >= graph->num_modules || modid1 >= graph->num_modules)
+  if((mod0 != dt_token("-1") && modid0 <= -1) || modid1 <= -1 || modid0 >= (int)graph->num_modules || modid1 >= (int)graph->num_modules)
   {
     dt_log(s_log_pipe, "[read connect] "
         "%"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn" %"PRItkn"",
