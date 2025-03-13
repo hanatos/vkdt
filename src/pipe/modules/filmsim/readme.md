@@ -161,8 +161,9 @@ and in any case wire an `i-lut` module with filename `data/filmsim.lut` to the
 * `size` scale the grain size
 * `uniform` uniformity of the grains as seen through the pixels. 1.0 means no variation at all
 * `enlarger` mode of exposing the paper: output straight film negative or resize output. careful with 4x, it requires a lot of memory!
-* `filter m` when exposing the print paper, dial in this share of magenta filter
-* `filter y` when exposing the print paper, dial in this share of yellow filter
+* `filter c` when exposing the print paper, dial in this share of cyan filter. this parameter is automatically filled by neutral optimisation
+* `filter m` when exposing the print paper, dial in this share of magenta filter. this parameter is automatically filled by neutral optimisation
+* `filter y` when exposing the print paper, dial in this share of yellow filter. this parameter is automatically filled by neutral optimisation
 * `tune m` fine tune the magenta filter. think of this as a red/green tint
 * `tune y` fine tune the yellow filter. think of this as a warm/cold white balance temperature
 * `couplers` amount of developer inhibitor release couplers (affects colourfulness and local contrast)
