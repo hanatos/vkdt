@@ -2,3 +2,5 @@ nspots:slider:0:24
 pad:hidden
 colour:rgb:0:1:nspots
 mode:combo:constant:replace colour picker
+wd:slider:1:4096
+ht:slider:1:4096

@@ -12,3 +12,6 @@ replacement for this module for static cases.
 
 * `nspots` number of colour spots (<=24)
 * `colour` one colour per spot
+* `mode` whether this module is used as a regular image buffer or as a colour picker replacement
+* `wd` the width of the output image buffer
+* `ht` the height of the output image buffer

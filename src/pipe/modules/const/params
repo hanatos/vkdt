@@ -2,3 +2,5 @@ nspots:int:1:1
 pad:int:3:0
 colour:float:96:1
 mode:int:1:0
+wd:int:1:1024
+ht:int:1:1024
