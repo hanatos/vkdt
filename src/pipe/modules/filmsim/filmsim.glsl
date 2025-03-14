@@ -88,7 +88,7 @@ vec3 add_grain(ivec2 ipos, vec3 density, float scale)
     { // from coarse to fine layers
       float npl = min(doff[layer], np);
       np -= npl;
-      float c = 1.0/(particle_scale_col[col] * particle_scale_lay[layer]);//pow(2, layer);
+      float c = 1.0/(particle_scale_col[col] * particle_scale_lay[layer]);
       vec2 tc = c/grain_size * 0.3*vec2(ipos + global.hash*0.000001 + global.frame*133.7 + 1000*col);
       // int r = int(grain_non_uniformity*noise(tc));
       int r = int(grain_non_uniformity*c*noise(tc));
@@ -99,7 +99,7 @@ vec3 add_grain(ivec2 ipos, vec3 density, float scale)
       // res[col] += density_max * (n+r)*p/float(n); // this is using the expected value of developed grains directly
       // res[col] += density_max * poisson(seed, (n+r)*p)/float(n); // simulates poisson, too bright
       // now simulate whether these grains actually turn:
-      res[col] += density_max * binom(seed, (n+r), p)/float(n); // looks broken too
+      res[col] += density_max * binom(seed, (n+r), p)/float(n);
     }
   }
   return res;
