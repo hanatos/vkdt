@@ -9,17 +9,60 @@ void main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
+#if 0
+  const float log_exp_min = -4.0;
+  const float log_exp_max =  4.0;
+  const int paper = s_paper_offset + params.paper;
+  const int film = params.film;
+  // vec2 tc = vec2(0.0, get_tcy(s_density_curve, paper));
+  // vec2 tc = vec2(0.0, get_tcy(s_sensitivity, paper));
+  vec2 tc = vec2(0.0, get_tcy(s_dye_density, film));
+  float x = (ipos.x+0.5) / float(imageSize(img_out).x);
+  // tc.x = clamp((params.gamma_paper*x - log_exp_min)/(log_exp_max-log_exp_min), 0.0, 1.0);
+  // tc.x = x; // density
+  tc.x = x* (80.0/256.0); // spectral
+  // rgb = texture(img_filmsim, tc).rgb;
+  // rgb /= 2.5; // density
+  // rgb = 0.1*pow(vec3(10.0), rgb); // sensitivity
+  // rgb = 0.2*(rgb+1.5); // log sensitivity
+  rgb = texture(img_filmsim, tc).gba; // dye density
+  imageStore(img_out, ipos, vec4(rgb, 1));
+  return;
+#endif
+
   vec3 log_raw = expose_film(rgb, params.film);
+#if 0 // DEBUG
+  rgb = pow(vec3(10.0), log_raw);
+  rgb = clamp(rgb, vec3(0), vec3(1));
+  imageStore(img_out, ipos, vec4(rgb, 1));
+  return;
+#endif
   if(params.couplers > 0.0)
   {
     vec3 coupler = develop_film_compute_couplers(log_raw);
     log_raw = develop_film_correct_exposure(log_raw, coupler);
   }
   vec3 density_cmy = develop_film(log_raw, params.film, ipos, 1.0);
+#if 0 // DEBUG
+  rgb = clamp(density_cmy, vec3(0), vec3(1));
+  imageStore(img_out, ipos, vec4(rgb, 1));
+  return;
+#endif
   if(params.enlarger > 0)
   {
     log_raw = enlarger_expose_film_to_paper(density_cmy);
+#if 0 // DEBUG
+  rgb = pow(vec3(10.0), log_raw);
+  rgb = clamp(rgb, vec3(0), vec3(1));
+  imageStore(img_out, ipos, vec4(rgb, 1));
+  return;
+#endif
     density_cmy = develop_print(log_raw);
+#if 0 // DEBUG
+  rgb = clamp(density_cmy, vec3(0), vec3(1));
+  imageStore(img_out, ipos, vec4(rgb, 1));
+  return;
+#endif
   }
   rgb = scan(density_cmy);
   imageStore(img_out, ipos, vec4(rgb, 1));

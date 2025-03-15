@@ -3,6 +3,9 @@
 // https://github.com/andreavolpato/agx-emulsion
 // so as derivative work i suppose this makes it GPL-v3
 
+// number of spectral samples/wavelengths when integrating
+#define SN 40
+
 int binom(inout uint seed, int n, float p)
 { // gaussian approximation, good for large n*p
   float u = n*p;
@@ -24,12 +27,12 @@ vec3 thorlabs_filters(float w)
   // without using negative weights (!!).
   // makes me think that somewhere else in the pipeline there might be something off.
   float cyan    = 0.93*smoothstep(345.0, 380.0, w)*(1.0-smoothstep(545.0, 590.0, w))+0.7*smoothstep(775.0,810,w);
-  // float magenta = 0.9*smoothstep(355.0, 380.0, w)*(1.0-smoothstep(475.0, 505.0, w));
-  float magenta = 0.9*smoothstep(355.0, 380.0, w)*(1.0-smoothstep(475.0, 525.0, w)); // XXX
+  float magenta = 0.9*smoothstep(355.0, 380.0, w)*(1.0-smoothstep(475.0, 505.0, w));
+  // float magenta = 0.9*smoothstep(355.0, 380.0, w)*(1.0-smoothstep(475.0, 525.0, w)); // XXX
   if(w > 550.0)
     magenta = 0.9*smoothstep(595.0, 645.0, w);
-  // float yellow  = 0.92*smoothstep(492.0, 542.0, w) + 0.2*(1.0-smoothstep(370, 390, w));
-  float yellow  = 0.92*smoothstep(475.0, 525.0, w) + 0.2*(1.0-smoothstep(370, 390, w)); // XXX
+  float yellow  = 0.92*smoothstep(492.0, 542.0, w) + 0.2*(1.0-smoothstep(370, 390, w));
+  // float yellow  = 0.92*smoothstep(475.0, 525.0, w) + 0.2*(1.0-smoothstep(370, 390, w)); // XXX
   return vec3(cyan, magenta, yellow);
 }
 
@@ -127,11 +130,11 @@ expose_film(vec3 rgb, int film)
   // vec3 srgb = M * rgb;
   vec2 tc = vec2(0, get_tcy(s_sensitivity, film));
   vec3 raw = vec3(0.0);
-  for(int l=0;l<=40;l++)
+  for(int l=0;l<=SN;l++)
   {
-    float pdf = 40.0;
-    float lambda = 380 + l*10;
-    tc.x = (2*l+0.5)/256.0;
+    float pdf = 2.0*(SN+1.0); // our integration is off by -1ev from agx, so 2.0 here
+    float lambda = 380.0 + l*400.0/SN;
+    tc.x = (l*80.0/SN+0.5)/256.0;
     float val = sigmoid_eval(coeff, lambda);
     // this upsamples *reflectances*, i.e. 111 is equal energy not D65
     // float val = colour_upsample(srgb, vec4(lambda)).x * sigmoid_eval(d65cf, lambda);
@@ -144,10 +147,9 @@ expose_film(vec3 rgb, int film)
     sensitivity = mix(sensitivity, vec3(0.0), isnan(sensitivity));
     raw += sensitivity * val * env / pdf;
   }
-  // TODO: the following two require to split the kernel and blur the intermediates:
-  // TODO gaussian blur / lens radius
-  // TODO apply halation
-  return params.ev_film * (log(2.0)/log(10.0)) + log(raw+1e-10) * (1.0/log(10.0));
+  // TODO apply halation // requires to split the kernel and blur
+  const float one_log10 = 0.43429448190325176, log2_log10 = 0.30102999566398114;
+  return params.ev_film * log2_log10 + log(raw+1e-10) * one_log10;
 }
 
 vec3 sigmoid(vec3 x)
@@ -246,15 +248,14 @@ develop_film_correct_exposure(vec3 log_raw, vec3 coupler)
 vec3 // returns density_cmy
 develop_film(vec3 log_raw, int film, ivec2 ipos, float scale)
 {
-  const float gamma_factor_film = params.gamma_film;
   const float log_exp_min = -4.0;
   const float log_exp_max =  4.0;
-  vec3 density_cmy;
   vec2 tc = vec2(0.0, get_tcy(s_density_curve, film));
-  vec3 tcx = clamp((gamma_factor_film*log_raw - log_exp_min)/(log_exp_max-log_exp_min), vec3(0.0), vec3(1.0));
-  density_cmy.r = texture(img_filmsim, vec2(tcx.r, tc.y)).r;
-  density_cmy.g = texture(img_filmsim, vec2(tcx.g, tc.y)).g;
-  density_cmy.b = texture(img_filmsim, vec2(tcx.b, tc.y)).b;
+  vec3 tcx = clamp((params.gamma_film*log_raw - log_exp_min)/(log_exp_max-log_exp_min), vec3(0.0), vec3(1.0));
+  vec3 density_cmy = vec3(
+      texture(img_filmsim, vec2(tcx.r, tc.y)).r,
+      texture(img_filmsim, vec2(tcx.g, tc.y)).g,
+      texture(img_filmsim, vec2(tcx.b, tc.y)).b);
   density_cmy = mix(density_cmy, vec3(0.0), isnan(density_cmy));
 
   if(scale < 10.0 && params.grain > 0) density_cmy = add_grain(ipos, density_cmy, scale);
@@ -274,27 +275,28 @@ enlarger_expose_film_to_paper(vec3 density_cmy)
   // vec4 coeff_m = fetch_coeff(vec3(1.0, -0.1, 2.0));
   // vec4 coeff_y = fetch_coeff(vec3(1.0, 0.3, 0.0));
   // coeff_c.w = coeff_m.w = coeff_y.w = 1.0; // we want reflectance/transmittance limited to 1.0 here
-  vec3 neutral = vec3(params.filter_c, params.filter_m + 0.1*params.tune_m, params.filter_y + 0.1*params.tune_y);
+  vec3 neutral = vec3(params.filter_c,
+      clamp(params.filter_m, 0, 1) + 0.1*params.tune_m,
+      clamp(params.filter_y, 0, 1) + 0.1*params.tune_y);
   neutral = clamp(neutral, vec3(0.0), vec3(1.0));
-  for(int l=0;l<=40;l++)
+  for(int l=0;l<=SN;l++)
   {
-    float lambda = 380.0 + l*10.0;
+    float lambda = 380.0 + l*400.0/SN;
     vec2 tc = vec2(0.0, get_tcy(s_sensitivity, paper));
-    tc.x = (2*l+0.5) / 256.0;
+    tc.x = (l*(80.0/SN)+0.5)/256.0;
     vec3 log_sensitivity = texture(img_filmsim, tc).rgb;
     vec3 sensitivity = pow(vec3(10.0), log_sensitivity);
     sensitivity = mix(sensitivity, vec3(0.0), isnan(sensitivity));
 
-    tc = vec2(0.0, get_tcy(s_dye_density, film));
-    tc.x = (2*l+0.5) / 256.0;
+    tc.y = get_tcy(s_dye_density, film);
     vec4 dye_density = texture(img_filmsim, tc);
-    dye_density = mix(dye_density, vec4(0.0), isnan(dye_density));
-    float density_spectral = dot(vec3(1), density_cmy * dye_density.xyz);
+    dye_density = mix(dye_density, vec4(1000000.0), isnan(dye_density));
+    float density_spectral = dot(density_cmy, dye_density.xyz);
     density_spectral += dye_density.w * dye_density_min_factor_film;
 
     // float illuminant = 0.001*colour_blackbody(vec4(lambda), 3200.0).x;
     // float illuminant = 0.03*colour_blackbody(vec4(lambda), 2200.0).x;
-    float illuminant = 0.002*colour_blackbody(vec4(lambda), 2856.0).x;
+    float illuminant = (0.002*40.0/SN)*colour_blackbody(vec4(lambda), 2856.0).x;
     // float illuminant = 5*sigmoid_eval(coeff_l, lambda);
 #if 1 // pretty coarse manual fit to thorlabs filters:
     vec3 enlarger = 100.0*mix(
@@ -314,7 +316,8 @@ enlarger_expose_film_to_paper(vec3 density_cmy)
     raw += sensitivity * light * pow(2.0, params.ev_paper);
     // TODO and the same yet again for the preflash
   }
-  return log(raw + 1e-10)*(1.0/log(10.0));
+  const float one_log10 = 0.43429448190325176;
+  return log(raw + 1e-10)*one_log10;
 }
 
 vec3 // return density_cmy
@@ -340,15 +343,16 @@ scan(vec3 density_cmy)
   vec4 coeff = fetch_coeff(d50);
   const int paper = s_paper_offset + params.paper;
   const int film  = params.film;
-  for(int l=0;l<=40;l++)
+  for(int l=0;l<=SN;l++)
   {
-    float lambda = 380 + l*10;
-    vec4 dye_density = texture(img_filmsim, vec2((2*l+0.5) / 256.0,
+    float lambda = 380.0 + l*400.0/SN;
+    vec4 dye_density = texture(img_filmsim, vec2((l*(80.0/SN)+0.5)/256.0,
           get_tcy(s_dye_density, params.enlarger > 0 ? paper : film)));
     dye_density = mix(dye_density, vec4(0.0), isnan(dye_density));
     float density_spectral = dot(vec3(1), density_cmy * dye_density.xyz);
-    density_spectral += dye_density.w * dye_density_min_factor_paper;
-    float scan_illuminant = 0.105*sigmoid_eval(coeff, lambda);
+    if(params.enlarger > 0) density_spectral += dye_density.w * dye_density_min_factor_paper;
+    else                    density_spectral += dye_density.w * dye_density_min_factor_film;
+    float scan_illuminant = (4.0/(SN+1.0))*sigmoid_eval(coeff, lambda);
     float light = pow(10.0, -density_spectral) * scan_illuminant;
     vec3 cmf = cmf_1931(lambda); // 1931 2 deg std observer, approximate version
     raw += light * cmf;
