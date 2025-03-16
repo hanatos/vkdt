@@ -153,10 +153,10 @@ and in any case wire an `i-lut` module with filename `data/filmsim.lut` to the
 
 * `film` the film id in the datafile
 * `ev film` exposure correction when exposing the film
-* `g film` gamma correction for exposing the film, use to adjust dynamic range
+* `g film` gamma correction for exposing the film, use to adjust dynamic range. hidden from gui by default
 * `paper` the paper id in the datafile
-* `ev paper` exposure correction when sensitising the paper
-* `g paper` gamma correction when sensitising the paper, affects dynamic range and contrast
+* `ev paper` exposure correction when sensitising the paper, affects shadows more than the film exposure
+* `g paper` gamma correction when sensitising the paper, affects dynamic range and contrast. hidden from gui by default
 * `grain` switch grain simulation on or off
 * `size` scale the grain size
 * `uniform` uniformity of the grains as seen through the pixels. 1.0 means no variation at all
