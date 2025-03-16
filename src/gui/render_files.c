@@ -457,6 +457,14 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
   }
 }
 
+void
+files_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
+{
+  // unselect keyboard nav entry so we can scroll freely
+  filebrowser.selected = 0;
+  filebrowser.selected_idx = -1;
+}
+
 void render_files_init()
 {
   hk_deserialise("files", hk_files, sizeof(hk_files)/sizeof(hk_files[0]));
