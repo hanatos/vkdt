@@ -515,7 +515,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     snprintf(string, sizeof(string), "%" PRItkn " %d", dt_token_str(param->name), num);
     if(num == 0) nk_layout_row_dynamic(ctx, row_height, 6);
     struct nk_color col = {val[0]*255, val[1]*255, val[2]*255, 0xff };
-    dt_tooltip(param->tooltip);
+    dt_tooltip("%s\n%g %g %g", param->tooltip, val[0], val[1], val[2]);
     nk_button_color(ctx, col);
   }
   else if(param->widget.type == dt_token("pers"))
