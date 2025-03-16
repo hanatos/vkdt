@@ -17,5 +17,5 @@ module after `negative` and `colour`.
 
 ## connectors
 
-* `input` the photographed/scanned negative
+* `input` the photographed/scanned negative, linear after the colour module
 * `output` the positive image
