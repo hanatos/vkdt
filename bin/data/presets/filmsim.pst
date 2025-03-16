@@ -11,3 +11,4 @@ connect:filmsim:01:output:hist:01:input
 connect:i-lut:filmsim:output:filmsim:01:filmsim
 connect:i-lut:spectem:output:filmsim:01:spectra
 connect:-1:-1:-1:filmcurv:01:input
+param:colour:01:white:1:1:1:1
