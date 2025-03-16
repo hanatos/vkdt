@@ -75,7 +75,7 @@ float noise(in vec2 p)
 vec3 add_grain(ivec2 ipos, vec3 density, float scale)
 {
   ipos = ivec2(vec2(ipos)*scale); // if not processing full size (scale = 1), adjust here
-  int n_grains_per_pixel = 1000; // from artic's python. starts to look very good!
+  int n_grains_per_pixel = 50; //1000; // from artic's python. starts to look very good!
   int grain_non_uniformity = int((1.0-params.grain_uniformity)*n_grains_per_pixel);
   float grain_size = params.grain_size;
   float density_max = 3.3;
@@ -86,6 +86,7 @@ vec3 add_grain(ivec2 ipos, vec3 density, float scale)
   for(int col=0;col<3;col++)
   {
     float np = density[col] / density_max; // expectation of normalised number of developed grains
+    float sat = clamp(1.5*np, 0, 1);
     vec3 doff = vec3(0.10, 0.20, 0.7);
     for(int layer=0;layer<3;layer++)
     { // from coarse to fine layers
@@ -93,16 +94,17 @@ vec3 add_grain(ivec2 ipos, vec3 density, float scale)
       np -= npl;
       float c = 1.0/(particle_scale_col[col] * particle_scale_lay[layer]);
       vec2 tc = c/grain_size * 0.3*vec2(ipos + global.hash*0.000001 + global.frame*133.7 + 1000*col);
-      // int r = int(grain_non_uniformity*noise(tc));
-      int r = int(grain_non_uniformity*c*noise(tc));
       int n = int(n_grains_per_pixel*c*scale*scale);
-      float p = npl;// / float(n);
+      // float sat = clamp(npl / doff[layer], 0, 1);
+      // int r = int(grain_non_uniformity*c*noise(tc)*1*sat);
+      int r = int(grain_non_uniformity*c*noise(tc)*4*max(0,sat-0.0)*max(0,1.0-sat));
+      // int nr = binom(seed, int(n/sat), sat);
+      int nr = max(0, n+r);
+      float p = npl;
       // if(layer!=2) res[col] += density_max * npl; else
-      // uint seed = n;//n_grains_per_pixel;
-      // res[col] += density_max * (n+r)*p/float(n); // this is using the expected value of developed grains directly
-      // res[col] += density_max * poisson(seed, (n+r)*p)/float(n); // simulates poisson, too bright
+      res[col] += density_max * nr*p/float(n); // this is using the expected value of developed grains directly
       // now simulate whether these grains actually turn:
-      res[col] += density_max * binom(seed, (n+r), p)/float(n);
+      // res[col] += density_max * binom(seed, nr, p)/float(n);
     }
   }
   return res;
@@ -348,7 +350,7 @@ scan(vec3 density_cmy)
     float lambda = 380.0 + l*400.0/SN;
     vec4 dye_density = texture(img_filmsim, vec2((l*(80.0/SN)+0.5)/256.0,
           get_tcy(s_dye_density, params.enlarger > 0 ? paper : film)));
-    dye_density = mix(dye_density, vec4(0.0), isnan(dye_density));
+    dye_density = mix(dye_density, vec4(1000000.0), isnan(dye_density));
     float density_spectral = dot(vec3(1), density_cmy * dye_density.xyz);
     if(params.enlarger > 0) density_spectral += dye_density.w * dye_density_min_factor_paper;
     else                    density_spectral += dye_density.w * dye_density_min_factor_film;

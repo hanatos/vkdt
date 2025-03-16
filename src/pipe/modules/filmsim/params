@@ -8,9 +8,9 @@ grain:int:1:0
 size:float:1:1.0
 uniform:float:1:0.7
 enlarger:int:1:1
-filter c:float:1:0.23802
-filter m:float:1:0.298188
-filter y:float:1:0.921476
+filter c:float:1:0.309582
+filter m:float:1:0.215934
+filter y:float:1:0.654139
 tune m:float:1:0.0
 tune y:float:1:0.0
 couplers:float:1:0.0
