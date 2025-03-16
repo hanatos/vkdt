@@ -19,3 +19,4 @@ module after `negative` and `colour`.
 
 * `input` the photographed/scanned negative, linear after the colour module
 * `output` the positive image
+* `dmin` optional input, connect a const module (converted from a colour picker picking the min film density) 

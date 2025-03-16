@@ -7,15 +7,27 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   vec4 Dmin;
 } params;
+layout(push_constant, std140) uniform push_t
+{
+  int have_Dmin;
+} push;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+layout(set = 1, binding = 2) uniform sampler2D img_dmin;
 
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  vec3 density = -log(params.Dmin.rgb / max(rgb, 1e-10));
-  rgb = 1.0 - exp(density);
+  vec3 Dmin = params.Dmin.rgb;
+  if(push.have_Dmin > 0)
+  { // picked colour
+    Dmin.r = texelFetch(img_dmin, ivec2(0, 0), 0).r;
+    Dmin.g = texelFetch(img_dmin, ivec2(0, 1), 0).r;
+    Dmin.b = texelFetch(img_dmin, ivec2(0, 2), 0).r;
+  }
+  vec3 density = log(Dmin/max(vec3(1e-10), rgb));
+  rgb = 1.0-exp(-density);
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
