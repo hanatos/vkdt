@@ -390,10 +390,10 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
   {
     case s_hotkey_focus_filter:
       w->focus_filter = 1;
-      break;
+      return;
     case s_hotkey_focus_path:
       w->focus_path = 1;
-      break;
+      return;
     default:;
   }
 
