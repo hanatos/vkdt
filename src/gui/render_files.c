@@ -15,12 +15,18 @@ static dt_filebrowser_widget_t filebrowser = {{0}};
 static hk_t hk_files[] = {
   {"focus filter",    "move the gui focus to the filter edit box",      {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_F}},
   {"focus path",      "move the gui focus to the path edit box",        {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_L}},
+  {"folder up",       "move up one folder in the file system hierarchy",{GLFW_KEY_BACKSPACE}},
+  {"folder down",     "descend into folder",                            {GLFW_KEY_SPACE}},
+  {"activate folder", "open selected folder in lighttable mode",        {GLFW_KEY_ENTER}},
 };
 
 enum hotkey_names_t
 { // for sane access in code
-  s_hotkey_focus_filter = 0,
-  s_hotkey_focus_path   = 1,
+  s_hotkey_focus_filter    = 0,
+  s_hotkey_focus_path      = 1,
+  s_hotkey_folder_up       = 2,
+  s_hotkey_folder_down     = 3,
+  s_hotkey_folder_activate = 4,
 };
 
 void set_cwd(const char *dir, int up)
@@ -377,6 +383,62 @@ files_mouse_button(GLFWwindow *window, int button, int action, int mods)
   }
 }
 
+
+static void folder_down()
+{
+  dt_filebrowser_widget_t *w = &filebrowser;
+  if(w->selected_isdir)
+  { // change cwd by appending to the string
+    int len = strnlen(w->cwd, sizeof(w->cwd));
+    char *c = w->cwd;
+    if(!strcmp(w->selected, ".."))
+    { // go up one dir
+      c += len;
+      *(--c) = 0;
+      while(c > w->cwd && (*c != '/' && *c != '\\')) *(c--) = 0;
+    }
+    else
+    { // append dir name
+      snprintf(c+len, sizeof(w->cwd)-len-1, "%s/", w->selected);
+    }
+    // and then clean up the dirent cache
+    dt_filebrowser_cleanup(w);
+  }
+}
+
+static void folder_up()
+{
+  dt_filebrowser_widget_t *w = &filebrowser;
+  int len = strnlen(w->cwd, sizeof(w->cwd));
+  char *c = w->cwd + len;
+  *(--c) = 0;
+  while(c > w->cwd && *c != '/') *(c--) = 0;
+  dt_filebrowser_cleanup(w);
+}
+
+static void folder_activate()
+{ // go to lighttable with new folder
+  int sel = !!filebrowser.selected; // store until all branches are though, it might change
+  int dir = filebrowser.selected_isdir;
+  if(sel)
+  { // open selected in lt without changing cwd
+    char newdir[PATH_MAX];
+    if(!strcmp(filebrowser.selected, ".."))
+      set_cwd(filebrowser.cwd, 1);
+    else if(filebrowser.selected_isdir &&
+        snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected) < (int)sizeof(newdir)-1)
+    {
+      dt_gui_switch_collection(newdir);
+      dt_view_switch(s_view_lighttable);
+    }
+  }
+  if(!sel || !dir)
+  {
+    dt_gui_switch_collection(filebrowser.cwd);
+    dt_view_switch(s_view_lighttable);
+  }
+}
+
 void
 files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
@@ -393,6 +455,15 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
       return;
     case s_hotkey_focus_path:
       w->focus_path = 1;
+      return;
+    case s_hotkey_folder_up:
+      folder_up();
+      return;
+    case s_hotkey_folder_down:
+      folder_down();
+      return;
+    case s_hotkey_folder_activate:
+      folder_activate();
       return;
     default:;
   }
@@ -411,60 +482,9 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
     w->selected_isdir = fs_isdir(w->cwd, w->ent+w->selected_idx);
     w->scroll_to_selected = 1;
   }
-  else if(action == GLFW_PRESS && key == GLFW_KEY_SPACE)
-  { // space bar to descend into directory in file browser
-    if(w->selected_isdir)
-    { // directory double-clicked
-      // change cwd by appending to the string
-      int len = strnlen(w->cwd, sizeof(w->cwd));
-      char *c = w->cwd;
-      if(!strcmp(w->selected, ".."))
-      { // go up one dir
-        c += len;
-        *(--c) = 0;
-        while(c > w->cwd && (*c != '/' && *c != '\\')) *(c--) = 0;
-      }
-      else
-      { // append dir name
-        snprintf(c+len, sizeof(w->cwd)-len-1, "%s/", w->selected);
-      }
-      // and then clean up the dirent cache
-      dt_filebrowser_cleanup(w);
-    }
-  }
   else if(action == GLFW_PRESS && key == GLFW_KEY_ESCAPE)
   { // escape to go back to light table
     dt_view_switch(s_view_lighttable);
-  }
-  else if(action == GLFW_PRESS && key == GLFW_KEY_BACKSPACE)
-  { // backspace to go up once
-    int len = strnlen(w->cwd, sizeof(w->cwd));
-    char *c = w->cwd + len;
-    *(--c) = 0;
-    while(c > w->cwd && *c != '/') *(c--) = 0;
-    dt_filebrowser_cleanup(w);
-  }
-  else if(action == GLFW_PRESS && key == GLFW_KEY_ENTER)
-  { // enter to go to lighttable with new folder
-    int sel = !!filebrowser.selected; // store until all branches are though, it might change
-    int dir = filebrowser.selected_isdir;
-    if(sel)
-    { // open selected in lt without changing cwd
-      char newdir[PATH_MAX];
-      if(!strcmp(filebrowser.selected, ".."))
-        set_cwd(filebrowser.cwd, 1);
-      else if(filebrowser.selected_isdir &&
-          snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected) < (int)sizeof(newdir)-1)
-      {
-        dt_gui_switch_collection(newdir);
-        dt_view_switch(s_view_lighttable);
-      }
-    }
-    if(!sel || !dir)
-    {
-      dt_gui_switch_collection(filebrowser.cwd);
-      dt_view_switch(s_view_lighttable);
-    }
   }
 }
 
