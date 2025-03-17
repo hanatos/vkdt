@@ -72,16 +72,6 @@ double loss(double *p, void *data)
   return f;
 }
 
-static uint64_t seed = 90011; // random prime number
-static inline double
-xrand()
-{ // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
-  seed ^= seed << 13;
-  seed ^= seed >> 17;
-  seed ^= seed << 5;
-  return seed / 4294967296.0;
-}
-
 void evaluate_J(double *p, double *J, int m, int n, void *data)
 {
   double p2[m], f1[n], f2[n];
@@ -196,6 +186,9 @@ init_param(
     dt_log(s_log_err|s_log_pipe, "only supporting float params now %"PRItkn, dt_token_str(parm));
     return 3;
   }
+  dat->mod[p] = name;
+  dat->mid[p] = inst;
+  dat->pid[p] = parm;
   dat->par[p] = (float *)(graph->module[modid].param + pui->offset);
   dat->cnt[p] = pui->cnt;
     dt_log(s_log_cli, "initing param[%d] module:instance:param %"PRItkn":%"PRItkn":%"PRItkn,
@@ -238,6 +231,8 @@ int main(int argc, char *argv[])
     { optimiser = 1; adam_eps = atof(argv[++i]); adam_beta1 = atof(argv[++i]); adam_beta2 = atof(argv[++i]); adam_alpha = atof(argv[++i]); }
     else if(!strcmp(argv[i], "--nelder-mead"))
       optimiser = 2;
+    else if(!strcmp(argv[i], "--bogosearch"))
+      optimiser = 3;
     else if(!strcmp(argv[i], "--config"))
     { config_start = i+1; break; }
   }
@@ -311,10 +306,7 @@ int main(int argc, char *argv[])
     int k=0;
     for(int i=1;i<dat.param_cnt;i++)
     {
-      int modid = -1;
-      for(int m=0;m<dat.graph.num_modules;m++)
-        if(dat.graph.module[m].name == dat.mod[i] && dat.graph.module[m].inst == dat.mid[i])
-        { modid = m; break; }
+      int modid = dt_module_get(&dat.graph, dat.mod[i], dat.mid[i]);
       if(modid < 0) break;
       int pid = dt_module_get_param(dat.graph.module[modid].so, dat.pid[i]);
       if(pid < 0) break;
@@ -322,8 +314,9 @@ int main(int argc, char *argv[])
       if(!param) break;
       for(int j=0;j<dat.cnt[i];j++)
       {
-        lb[k]   = param->widget.min;
-        ub[k++] = param->widget.max;
+        lb[k] = param->widget.min;
+        ub[k] = param->widget.max;
+        k++;
       }
     }
   }
@@ -356,6 +349,10 @@ int main(int argc, char *argv[])
   else if(optimiser == 2)
   {
     resid = dt_nelder_mead(p, num_params, 20000, loss, lb, ub, &dat, &user_abort);
+  }
+  else if(optimiser == 3)
+  {
+    resid = dt_bogosearch(p, num_params, 20000, loss, lb, ub, &dat, &user_abort);
   }
 
   fprintf(stderr, "post-opt params: ");

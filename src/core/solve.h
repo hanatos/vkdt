@@ -8,6 +8,8 @@
 #include <math.h>
 #include <float.h>
 
+#include "../tools/clut/src/xrand.h"
+
 // conjugate gradient solve:
 static inline double
 dt_conj_grad(const double *A, const double *b, double *x, const int m)
@@ -333,7 +335,7 @@ dt_nelder_mead(
         for(int k=0;k<dim;k++) contracted[k] = contraction_coeff * simplex[max_index][k] + (1.0 - contraction_coeff) * centroid[k];
         Float contracted_value = objective(contracted, data);
         if(contracted_value < simplex_value[max_index])
-        { // ceplace the worst vertex by the contracted point if it makes an improvement
+        { // replace the worst vertex by the contracted point if it makes an improvement
           memcpy(simplex[max_index], contracted, sizeof(Float)*dim);
           simplex_value[max_index] = contracted_value;
         }
@@ -356,15 +358,18 @@ dt_nelder_mead(
       }
     }
 
-    // clamp values
     for(uint32_t j = 0; j != dim+1; j++)
+    { // clamp values
       for(uint32_t k = 0; k != dim; k++)
         simplex[j][k] = CLAMP(simplex[j][k], lb[k], ub[k]);
+      simplex_value[j] = objective(simplex[j], data);
+    }
 
     if(i > it_best_changed + 50)
     { // ineffective, at least it aborts early
       it_best_changed = i;
-      if(restarts++ > 4) break;
+      if(restarts++ > 0) break;
+#if 0
       memcpy(simplex[0], best, sizeof(Float)*dim);
       for(uint32_t j = 0; j != dim+1; j++)
       {
@@ -372,6 +377,7 @@ dt_nelder_mead(
           simplex[j][k] = (best[k] + simplex[j][k])*0.5;
         simplex[j][j] += 0.05*restarts;
       }
+#endif
     }
   }
   for(uint32_t j = 0; j < dim + 1; j++)
@@ -390,6 +396,46 @@ dt_nelder_mead(
   free(expanded);
   free(contracted);
   free(best);
+  fprintf(stderr, "\n");
   return best_value;
 }
-#undef Float
+
+// bogus random search, meant to find potentially useful initial values for actual optimisers
+static inline double
+dt_bogosearch(
+    double        *param,        // initial parameter vector, will be overwritten with result
+    int            dim,          // dimensionality of the problem, i.e. number of parameters
+    const int      num_it,       // number of iterations
+    double       (*objective)(double *param, void *data),
+    const double  *lb,           // m lower bound constraints
+    const double  *ub,           // m upper bound constraints
+    void          *data,         // data pointer passed to objective function
+    int           *user_abort)   // check within iteration whether we should abort, if not null
+{
+  double best_loss = DBL_MAX;
+  double *best = malloc(sizeof(double)*dim);
+  double *curr = malloc(sizeof(double)*dim);
+  double tmp;
+  for(int i=0;i<num_it;i++)
+  {
+    if(user_abort && *user_abort) break;
+    if(xrand() < 0.5)
+      for(int j=0;j<dim;j++)
+        curr[j] = lb[j] + (ub[j]-lb[j])*xrand();
+    else
+      for(int j=0;j<dim;j++)
+        curr[j] = lb[j] + (ub[j]-lb[j])*modf((curr[j] - lb[j])/(ub[j]-lb[j]) + 0.004*(0.5-xrand()), &tmp);
+    double loss = objective(curr, data);
+    if(loss < best_loss)
+    {
+      memcpy(best, curr, sizeof(double)*dim);
+      best_loss = loss;
+    }
+    if((i % 10) == 0) fprintf(stderr, "\r[bogo search] %d/%d best value %g", i, num_it, best_loss);
+  }
+  memcpy(param, best, sizeof(double)*dim);
+  free(best);
+  free(curr);
+  fprintf(stderr, "\n");
+  return best_loss;
+}
