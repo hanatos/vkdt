@@ -93,7 +93,7 @@ create_nodes(
       "filmsim", "read",  "*",    "*",    dt_no_roi,
       "spectra", "read",  "*",    "*",    dt_no_roi,
       "exp",     "write", "rgba", "f16", &module->connector[0].roi);
-  float scale = module->connector[0].roi.full_wd / (float)iwd;
+  float scale = module->connector[0].roi.full_wd / (float)owd;
   int pc[] = { *(int*)&scale };
   const int id_part1 = dt_node_add(graph, module, "filmsim", "part1", owd, oht, 1, sizeof(pc), pc, 5,
       "exp",     "read",  "*",    "*",    dt_no_roi,
