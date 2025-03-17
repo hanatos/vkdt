@@ -553,7 +553,7 @@ int main(int argc, char *argv[])
     }
     else // optimiser == 3
     {
-      resid = dt_nelder_mead(cfa_param, 3*cfa_num_coeff, num_it, objective, 0, 0);
+      resid = dt_nelder_mead(cfa_param, 3*cfa_num_coeff, num_it, objective, lb, ub, 0, 0);
     }
   }
 
