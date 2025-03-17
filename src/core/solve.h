@@ -239,6 +239,8 @@ dt_nelder_mead(
     int            dim,          // dimensionality of the problem, i.e. number of parameters
     const int      num_it,       // number of iterations
     Float        (*objective)(Float *param, void *data),
+    const double  *lb,           // m lower bound constraints
+    const double  *ub,           // m upper bound constraints
     void          *data,         // data pointer passed to objective function
     int           *user_abort)   // check within iteration whether we should abort, if not null
 {
@@ -355,14 +357,12 @@ dt_nelder_mead(
     }
 
     // clamp values
-    float lb[] = { 0, 0, 0, -4 };
-    float ub[] = { 1, 1, 1,  4 };
     for(uint32_t j = 0; j != dim+1; j++)
       for(uint32_t k = 0; k != dim; k++)
-          simplex[j][k] = CLAMP(simplex[j][k], lb[k], ub[k]);
+        simplex[j][k] = CLAMP(simplex[j][k], lb[k], ub[k]);
 
     if(i > it_best_changed + 50)
-    {
+    { // ineffective, at least it aborts early
       it_best_changed = i;
       if(restarts++ > 4) break;
       memcpy(simplex[0], best, sizeof(Float)*dim);

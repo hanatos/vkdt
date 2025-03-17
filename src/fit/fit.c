@@ -304,12 +304,29 @@ int main(int argc, char *argv[])
   dt_graph_run(&dat.graph, s_graph_run_all); // run once to init nodes
 
   // init lower and upper bounds
-  // XXX TODO init from params.ui bounds (but nelder mead for instance ignores this anyways)
   double lb[num_params], ub[num_params];
-  for(int i=0;i<num_params;i++) lb[i] = 0;//-DBL_MAX;
-  for(int i=0;i<num_params;i++) ub[i] = 1;// DBL_MAX;
-  lb[3] = -4;
-  ub[3] =  4;
+  for(int i=0;i<num_params;i++) lb[i] = -DBL_MAX;
+  for(int i=0;i<num_params;i++) ub[i] =  DBL_MAX;
+  {
+    int k=0;
+    for(int i=1;i<dat.param_cnt;i++)
+    {
+      int modid = -1;
+      for(int m=0;m<dat.graph.num_modules;m++)
+        if(dat.graph.module[m].name == dat.mod[i] && dat.graph.module[m].inst == dat.mid[i])
+        { modid = m; break; }
+      if(modid < 0) break;
+      int pid = dt_module_get_param(dat.graph.module[modid].so, dat.pid[i]);
+      if(pid < 0) break;
+      const dt_ui_param_t *param = dat.graph.module[modid].so->param[pid];
+      if(!param) break;
+      for(int j=0;j<dat.cnt[i];j++)
+      {
+        lb[k]   = param->widget.min;
+        ub[k++] = param->widget.max;
+      }
+    }
+  }
 
   if(optimiser == 1)
     fprintf(stderr, "using the adam optimiser with eps %g beta1 %g beta2 %g alpha %g\n",
@@ -338,7 +355,7 @@ int main(int argc, char *argv[])
   }
   else if(optimiser == 2)
   {
-    resid = dt_nelder_mead(p, num_params, 20000, loss, &dat, &user_abort);
+    resid = dt_nelder_mead(p, num_params, 20000, loss, lb, ub, &dat, &user_abort);
   }
 
   fprintf(stderr, "post-opt params: ");
