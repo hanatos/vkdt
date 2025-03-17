@@ -379,7 +379,7 @@ void render_lighttable_center()
       }
       else
       { // no modifier, select exactly this image:
-        if(dt_db_selection_contains(&vkdt.db, i) ||
+        if(dt_db_selection_contains(&vkdt.db, i) &&
            nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, row))
         {
           dt_view_switch(s_view_darkroom);
