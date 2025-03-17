@@ -178,7 +178,7 @@ hk_edit(hk_t *hk, size_t num)
   nk_layout_row_dynamic(&vkdt.ctx, total_space.h-3*row_height, 1);
   if(nk_group_begin(&vkdt.ctx, "hotkey list", 0))
   {
-    nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
+    nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
     for(int i=0;i<num;i++)
     {
       char lib[128];
@@ -187,6 +187,7 @@ hk_edit(hk_t *hk, size_t num)
         selected = i;
       if(selected == i) hk[i].sel = 1;
       else hk[i].sel = 0;
+      nk_label(&vkdt.ctx, hk[i].lib, NK_TEXT_LEFT);
     }
     nk_group_end(&vkdt.ctx);
   }
