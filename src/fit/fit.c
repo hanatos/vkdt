@@ -42,7 +42,10 @@ void evaluate_f(double *p, double *f, int m, int n, void *data)
   opt_dat_t *dat = data;
   for(int i=1;i<dat->param_cnt;i++) // [0] is the target parameter array
     for(int j=0;j<dat->cnt[i];j++)
+    {
+      // fprintf(stderr, "p %d = %f\n", j, *p);
       dat->par[i][j] = *(p++);
+    }
 
   // apply animation as stochastic gradient descent:
   dat->graph.frame = frame;
@@ -303,8 +306,10 @@ int main(int argc, char *argv[])
   // init lower and upper bounds
   // XXX TODO init from params.ui bounds (but nelder mead for instance ignores this anyways)
   double lb[num_params], ub[num_params];
-  for(int i=0;i<num_params;i++) lb[i] = -DBL_MAX;
-  for(int i=0;i<num_params;i++) ub[i] =  DBL_MAX;
+  for(int i=0;i<num_params;i++) lb[i] = 0;//-DBL_MAX;
+  for(int i=0;i<num_params;i++) ub[i] = 1;// DBL_MAX;
+  lb[3] = -4;
+  ub[3] =  4;
 
   if(optimiser == 1)
     fprintf(stderr, "using the adam optimiser with eps %g beta1 %g beta2 %g alpha %g\n",

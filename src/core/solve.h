@@ -267,6 +267,8 @@ dt_nelder_mead(
   Float *best = malloc(sizeof(Float)*dim);
   memcpy(best, simplex[0], sizeof(Float)*dim);
   Float best_value = simplex_value[0];
+  int it_best_changed = 0;
+  int restarts = 0;
   for(uint32_t i = 0; i < num_it; i++)
   { // Find indices of minimal and maximal value
     fprintf(stderr, "\r[nelder mead] %d/%d best value %g", i, num_it, best_value);
@@ -303,6 +305,8 @@ dt_nelder_mead(
         { // If the reflected value is the best yet, we should not lose it
           memcpy(best, reflected, sizeof(Float)*dim);
           best_value = reflected_value;
+          it_best_changed = i;
+          restarts = 0;
         }
       }
       else
@@ -347,6 +351,26 @@ dt_nelder_mead(
       { // At least two vertices are worse than the reflected point, so we replace the worst vertex by it
         memcpy(simplex[max_index], reflected, sizeof(Float)*dim);
         simplex_value[max_index] = reflected_value;
+      }
+    }
+
+    // clamp values
+    float lb[] = { 0, 0, 0, -4 };
+    float ub[] = { 1, 1, 1,  4 };
+    for(uint32_t j = 0; j != dim+1; j++)
+      for(uint32_t k = 0; k != dim; k++)
+          simplex[j][k] = CLAMP(simplex[j][k], lb[k], ub[k]);
+
+    if(i > it_best_changed + 50)
+    {
+      it_best_changed = i;
+      if(restarts++ > 4) break;
+      memcpy(simplex[0], best, sizeof(Float)*dim);
+      for(uint32_t j = 0; j != dim+1; j++)
+      {
+        for(uint32_t k = 0; k != dim; k++)
+          simplex[j][k] = (best[k] + simplex[j][k])*0.5;
+        simplex[j][j] += 0.05*restarts;
       }
     }
   }

@@ -6,9 +6,14 @@ import numpy as np
 import struct
 
 film_stocks = [
+    'kodak_ektar_100_auc',
+    'kodak_portra_160_auc',
     'kodak_portra_400_auc',
-    'kodak_ultramax_400_auc',
+    'kodak_portra_800_auc',
+    'kodak_portra_800_push1_auc',
+    'kodak_portra_800_push2_auc',
     'kodak_gold_200_auc',
+    'kodak_ultramax_400_auc',
     'kodak_vision3_50d_uc',
     'fujifilm_pro_400h_auc',
     'fujifilm_xtra_400_auc',
@@ -20,9 +25,12 @@ print_papers = [
     'kodak_supra_endura_uc',
     'kodak_portra_endura_uc',
     'fujifilm_crystal_archive_typeii_uc',
+    'kodak_2383_uc',
+    'kodak_2393_uc',
 ]
 
 # start lut files:
+print('number of film stocks/paper offset:', len(film_stocks))
 num_films = len(film_stocks) + len(print_papers)
 f_lut = open("filmsim.lut", "wb")  # unified all data in 0..255, padded with zeros
 header = struct.pack('<iHBBii', 1234, 2, 4, 1, 256, 3*num_films)

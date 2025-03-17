@@ -4,9 +4,14 @@
 #!/bin/bash
 
 films=(
+kodak_ektar_100,
+kodak_portra_160,
 kodak_portra_400,
-kodak_ultramax_400,
+kodak_portra_800,
+kodak_portra_800_push1,
+kodak_portra_800_push2,
 kodak_gold_200,
+kodak_ultramax_400,
 kodak_vision3_50d,
 fujifilm_pro_400h,
 fujifilm_xtra_400,
@@ -18,7 +23,9 @@ kodak_endura_premier,
 kodak_ektacolor_edge,
 kodak_supra_endura,
 kodak_portra_endura,
-fujifilm_crystal_archive_typeii
+fujifilm_crystal_archive_typeii,
+kodak_2383,
+kodak_2393
 )
 
 n_films=${#films[@]}
@@ -89,232 +96,533 @@ rm neutral-opt.cfg
 
 
 // ev paper, filter c, filter m, filter y
-const float wb[7][5][4] = {
+const float wb[12][7][4] = {
 {
-{ // kodak_portra_400, kodak_endura_premier, 0 0
-0.00699365,
-0.396077,
-0.529183,
-0.574811,
+{ // kodak_ektar_100, kodak_endura_premier, 0 0
+-0.623097,
+0.16794,
+0.712424,
+0.568937,
 },
-{ // kodak_portra_400, kodak_ektacolor_edge, 0 1
-0.087641,
-0.052736,
-0.483395,
-0.676435,
+{ // kodak_ektar_100, kodak_ektacolor_edge, 0 1
+-0.0443718,
+-0.840577,
+0.779218,
+0.749267,
 },
-{ // kodak_portra_400, kodak_supra_endura, 0 2
-0.269684,
-0.29932,
-0.248754,
-0.617898,
+{ // kodak_ektar_100, kodak_supra_endura, 0 2
+-0.109708,
+0.367826,
+0.612318,
+0.582693,
 },
-{ // kodak_portra_400, kodak_portra_endura, 0 3
-0.313001,
-0.309582,
-0.215934,
-0.654139,
+{ // kodak_ektar_100, kodak_portra_endura, 0 3
+-0.312273,
+0.278943,
+0.609599,
+0.482964,
 },
-{ // kodak_portra_400, fujifilm_crystal_archive_typeii 0 4
--0.200516,
-0.306316,
-0.620905,
-0.833555,
+{ // kodak_ektar_100, fujifilm_crystal_archive_typeii, 0 4
+-1.06032,
+-0.36649,
+0.733656,
+0.816754,
 },
+{ // kodak_ektar_100, kodak_2383, 0 5
+1.05046,
+-0.0407466,
+-0.89808,
+0.723661,
 },
-{
-{ // kodak_ultramax_400, kodak_endura_premier, 1 0
--0.123286,
-0.354877,
-0.563153,
-0.525946,
-},
-{ // kodak_ultramax_400, kodak_ektacolor_edge, 1 1
-0.239858,
-0.142094,
-0.592852,
-0.695573,
-},
-{ // kodak_ultramax_400, kodak_supra_endura, 1 2
-0.170887,
-0.215829,
-0.530179,
-0.431472,
-},
-{ // kodak_ultramax_400, kodak_portra_endura, 1 3
-0.142147,
-0.191155,
-0.488207,
-0.460619,
-},
-{ // kodak_ultramax_400, fujifilm_crystal_archive_typeii 1 4
--0.240884,
-0.301742,
-0.661446,
-0.834737,
+{ // kodak_ektar_100, kodak_2393 0 6
+1.25462,
+-0.0680704,
+-0.210485,
+-0.975853,
 },
 },
 {
-{ // kodak_gold_200, kodak_endura_premier, 2 0
-  // these are manual fits, the fitter diverged!
--1.0,
-0.35,
-0.61,
-0.62,
+{ // kodak_portra_160, kodak_endura_premier, 1 0
+-0.591695,
+0.538961,
+0.716726,
+0.720176,
 },
-{ // kodak_gold_200, kodak_ektacolor_edge, 2 1
--0.280617,
-0.340392,
-0.621981,
-0.754127,
+{ // kodak_portra_160, kodak_ektacolor_edge, 1 1
+-0.618352,
+0.189899,
+0.686998,
+0.761224,
 },
-{ // kodak_gold_200, kodak_supra_endura, 2 2
--0.128867,
-0.477608,
-0.546256,
-0.641303,
+{ // kodak_portra_160, kodak_supra_endura, 1 2
+-0.485879,
+0.526196,
+0.45218,
+0.704981,
 },
-{ // kodak_gold_200, kodak_portra_endura, 2 3
--0.102635,
-0.477539,
-0.520916,
-0.671371,
+{ // kodak_portra_160, kodak_portra_endura, 1 3
+-0.488358,
+0.522908,
+0.481735,
+0.678704,
 },
-{ // kodak_gold_200, fujifilm_crystal_archive_typeii 2 4
--0.717953,
-0.492752,
-0.693373,
-0.866559,
+{ // kodak_portra_160, fujifilm_crystal_archive_typeii, 1 4
+-1.60136,
+0.196981,
+0.632653,
+0.818262,
 },
+{ // kodak_portra_160, kodak_2383, 1 5
+1.11192,
+-0.112561,
+-1.27698,
+0.823231,
 },
-{
-{ // kodak_vision3_50d, kodak_endura_premier, 3 0
--0.765306,
-0.881921,
-0.842748,
-0.852113,
-},
-{ // kodak_vision3_50d, kodak_ektacolor_edge, 3 1
--0.314154,
-0.835425,
-0.845245,
-0.898589,
-},
-{ // kodak_vision3_50d, kodak_supra_endura, 3 2
--1.22984,
-0.732848,
-0.617217,
-0.709978,
-},
-{ // kodak_vision3_50d, kodak_portra_endura, 3 3
--1.41769,
-0.6926,
-0.556401,
-0.69386,
-},
-{ // kodak_vision3_50d, fujifilm_crystal_archive_typeii 3 4
--2.11138,
-0.811137,
-0.732425,
-0.838512,
+{ // kodak_portra_160, kodak_2393 1 6
+1.51359,
+-0.61248,
+-1.05662,
+0.451714,
 },
 },
 {
-{ // fujifilm_pro_400h, kodak_endura_premier, 4 0
--0.651918,
-0.834284,
-0.849318,
-0.857086,
+{ // kodak_portra_400, kodak_endura_premier, 2 0
+-0.161131,
+0.331107,
+0.478833,
+0.421749,
 },
-{ // fujifilm_pro_400h, kodak_ektacolor_edge, 4 1
--1.11418,
-0.65586,
-0.762971,
-0.84092,
+{ // kodak_portra_400, kodak_ektacolor_edge, 2 1
+-0.016982,
+0.0264629,
+0.472291,
+0.556619,
 },
-{ // fujifilm_pro_400h, kodak_supra_endura, 4 2
--0.511815,
-0.755681,
-0.733036,
-0.791419,
+{ // kodak_portra_400, kodak_supra_endura, 2 2
+0.0832539,
+0.325584,
+0.142418,
+0.50147,
 },
-{ // fujifilm_pro_400h, kodak_portra_endura, 4 3
--0.725746,
-0.713532,
-0.684352,
-0.775558,
+{ // kodak_portra_400, kodak_portra_endura, 2 3
+0.0709945,
+0.312984,
+0.194188,
+0.452699,
 },
-{ // fujifilm_pro_400h, fujifilm_crystal_archive_typeii 4 4
--0.803884,
-0.826065,
-0.860774,
-0.911789,
+{ // kodak_portra_400, fujifilm_crystal_archive_typeii, 2 4
+-0.441771,
+0.299416,
+0.552803,
+0.773445,
 },
+{ // kodak_portra_400, kodak_2383, 2 5
+2.45004,
+0.762797,
+-2.75052,
+0.803557,
 },
-{
-{ // fujifilm_xtra_400, kodak_endura_premier, 5 0
--1.0678,
-0.740945,
-0.819096,
-0.842749,
-},
-{ // fujifilm_xtra_400, kodak_ektacolor_edge, 5 1
--0.884338,
-0.66984,
-0.813851,
-0.885717,
-},
-{ // fujifilm_xtra_400, kodak_supra_endura, 5 2
--0.616647,
-0.677943,
-0.758602,
-0.82082,
-},
-{ // fujifilm_xtra_400, kodak_portra_endura, 5 3
--0.521949,
-0.691088,
-0.756911,
-0.842784,
-},
-{ // fujifilm_xtra_400, fujifilm_crystal_archive_typeii 5 4
-  // XXX this failed to fit, these are manual values:
--2.0,
-0.61,
-0.72,
-0.83,
+{ // kodak_portra_400, kodak_2393 2 6
+2.6236,
+-0.738371,
+-0.312288,
+-3.00168,
 },
 },
 {
-{ // fujifilm_c200 kodak_endura_premier, 6 0
-  // XXX manual fit too:
-  -1.0,
-  0.60,
-  0.78,
-  0.88,
+{ // kodak_portra_800, kodak_endura_premier, 3 0
+0.0277704,
+0.0848163,
+0.461891,
+0.534407,
 },
-{ // fujifilm_c200 kodak_ektacolor_edge, 6 1
--0.74875,
-0.591629,
-0.815323,
-0.907511,
+{ // kodak_portra_800, kodak_ektacolor_edge, 3 1
+0.740078,
+-0.309753,
+0.610841,
+0.74845,
 },
-{ // fujifilm_c200 kodak_supra_endura, 6 2
--0.747033,
-0.566397,
-0.704189,
-0.837844,
+{ // kodak_portra_800, kodak_supra_endura, 3 2
+0.208222,
+0.0763475,
+0.355129,
+0.39047,
 },
-{ // fujifilm_c200 kodak_portra_endura, 6 3
--0.776817,
-0.549381,
-0.683236,
-0.845641,
+{ // kodak_portra_800, kodak_portra_endura, 3 3
+0.233971,
+0.0789039,
+0.410307,
+0.347083,
 },
-{ // fujifilm_c200 fujifilm_crystal_archive_typeii 6 4
--0.283022,
-0.848336,
-0.919038,
-0.969356,
+{ // kodak_portra_800, fujifilm_crystal_archive_typeii, 3 4
+-0.192895,
+-0.0931695,
+0.5632,
+0.829602,
+},
+{ // kodak_portra_800, kodak_2383, 3 5
+2.65739,
+-0.945938,
+-2.48473,
+0.828016,
+},
+{ // kodak_portra_800, kodak_2393 3 6
+2.94596,
+-0.418544,
+-2.53791,
+-0.950223,
+},
+},
+{
+{ // kodak_portra_800_push1, kodak_endura_premier, 4 0
+0.657117,
+-0.594731,
+0.411008,
+0.547005,
+},
+{ // kodak_portra_800_push1, kodak_ektacolor_edge, 4 1
+1.50231,
+-1.76932,
+0.603363,
+0.773882,
+},
+{ // kodak_portra_800_push1, kodak_supra_endura, 4 2
+0.846418,
+-0.559014,
+0.305578,
+0.421919,
+},
+{ // kodak_portra_800_push1, kodak_portra_endura, 4 3
+0.872871,
+-0.667586,
+0.364784,
+0.380937,
+},
+{ // kodak_portra_800_push1, fujifilm_crystal_archive_typeii, 4 4
+0.607463,
+-2.19129,
+0.569723,
+0.851057,
+},
+{ // kodak_portra_800_push1, kodak_2383, 4 5
+3.11282,
+-2.84036,
+-2.21389,
+1.27805,
+},
+{ // kodak_portra_800_push1, kodak_2393 4 6
+3.86107,
+-1.1096,
+-2.47867,
+-0.736048,
+},
+},
+{
+{ // kodak_portra_800_push2, kodak_endura_premier, 5 0
+0.815253,
+-0.647031,
+0.269195,
+0.533543,
+},
+{ // kodak_portra_800_push2, kodak_ektacolor_edge, 5 1
+1.66096,
+-1.0856,
+0.504594,
+0.765882,
+},
+{ // kodak_portra_800_push2, kodak_supra_endura, 5 2
+1.00826,
+-0.675395,
+0.184183,
+0.408728,
+},
+{ // kodak_portra_800_push2, kodak_portra_endura, 5 3
+1.04202,
+-1.15731,
+0.255867,
+0.369212,
+},
+{ // kodak_portra_800_push2, fujifilm_crystal_archive_typeii, 5 4
+0.805677,
+-1.88766,
+0.477929,
+0.851235,
+},
+{ // kodak_portra_800_push2, kodak_2383, 5 5
+3.83457,
+1.34741,
+-11.6091,
+1.13043,
+},
+{ // kodak_portra_800_push2, kodak_2393 5 6
+4.34032,
+-3.61793,
+-2.51076,
+0.584423,
+},
+},
+{
+{ // kodak_gold_200, kodak_endura_premier, 6 0
+-0.818901,
+0.447151,
+0.471904,
+0.587466,
+},
+{ // kodak_gold_200, kodak_ektacolor_edge, 6 1
+-0.481023,
+0.277421,
+0.524458,
+0.717344,
+},
+{ // kodak_gold_200, kodak_supra_endura, 6 2
+-0.41206,
+0.462,
+0.354342,
+0.591998,
+},
+{ // kodak_gold_200, kodak_portra_endura, 6 3
+-0.392213,
+0.465181,
+0.401526,
+0.561674,
+},
+{ // kodak_gold_200, fujifilm_crystal_archive_typeii, 6 4
+-0.914402,
+0.496976,
+0.597533,
+0.855751,
+},
+{ // kodak_gold_200, kodak_2383, 6 5
+3.02329,
+-1.06073,
+-5.29479,
+0.866186,
+},
+{ // kodak_gold_200, kodak_2393 6 6
+1.68728,
+-1.19629,
+-0.374637,
+-0.141905,
+},
+},
+{
+{ // kodak_ultramax_400, kodak_endura_premier, 7 0
+-0.159649,
+0.338808,
+0.508605,
+0.47757,
+},
+{ // kodak_ultramax_400, kodak_ektacolor_edge, 7 1
+-0.0810909,
+-0.114891,
+0.482799,
+0.580616,
+},
+{ // kodak_ultramax_400, kodak_supra_endura, 7 2
+0.0226156,
+0.262532,
+0.413345,
+0.338134,
+},
+{ // kodak_ultramax_400, kodak_portra_endura, 7 3
+0.0115057,
+0.251297,
+0.457472,
+0.274348,
+},
+{ // kodak_ultramax_400, fujifilm_crystal_archive_typeii, 7 4
+-0.476646,
+0.295226,
+0.566362,
+0.799382,
+},
+{ // kodak_ultramax_400, kodak_2383, 7 5
+2.51341,
+-0.508614,
+-2.8218,
+0.801217,
+},
+{ // kodak_ultramax_400, kodak_2393 7 6
+2.53764,
+-0.711951,
+-2.03226,
+-0.223276,
+},
+},
+{
+{ // kodak_vision3_50d, kodak_endura_premier, 8 0
+-1.23055,
+0.841758,
+0.75872,
+0.795734,
+},
+{ // kodak_vision3_50d, kodak_ektacolor_edge, 8 1
+-1.52603,
+0.744843,
+0.675624,
+0.787277,
+},
+{ // kodak_vision3_50d, kodak_supra_endura, 8 2
+-0.199752,
+0.168889,
+0.61016,
+0.772691,
+},
+{ // kodak_vision3_50d, kodak_portra_endura, 8 3
+-1.20419,
+0.776944,
+0.567256,
+0.695088,
+},
+{ // kodak_vision3_50d, fujifilm_crystal_archive_typeii, 8 4
+-0.771453,
+0.169676,
+0.805382,
+0.914311,
+},
+{ // kodak_vision3_50d, kodak_2383, 8 5
+0.90978,
+-0.621141,
+-0.757164,
+0.830713,
+},
+{ // kodak_vision3_50d, kodak_2393 8 6
+0.886502,
+0.620043,
+-0.782411,
+0.586746,
+},
+},
+{
+{ // fujifilm_pro_400h, kodak_endura_premier, 9 0
+-1.63794,
+0.635326,
+0.68212,
+0.725711,
+},
+{ // fujifilm_pro_400h, kodak_ektacolor_edge, 9 1
+-1.2566,
+0.582527,
+0.723896,
+0.817562,
+},
+{ // fujifilm_pro_400h, kodak_supra_endura, 9 2
+-2.76064,
+-0.860691,
+0.20591,
+0.125542,
+},
+{ // fujifilm_pro_400h, kodak_portra_endura, 9 3
+-0.943351,
+0.679107,
+0.620167,
+0.704801,
+},
+{ // fujifilm_pro_400h, fujifilm_crystal_archive_typeii, 9 4
+-1.41894,
+0.784149,
+0.806832,
+0.91364,
+},
+{ // fujifilm_pro_400h, kodak_2383, 9 5
+1.78597,
+-2.57877,
+0.421503,
+0.900002,
+},
+{ // fujifilm_pro_400h, kodak_2393 9 6
+0.886083,
+0.3609,
+-0.873923,
+0.583108,
+},
+},
+{
+{ // fujifilm_xtra_400, kodak_endura_premier, 10 0
+-0.325969,
+-0.0735463,
+0.770637,
+0.794361,
+},
+{ // fujifilm_xtra_400, kodak_ektacolor_edge, 10 1
+-1.08716,
+0.694027,
+0.747737,
+0.814185,
+},
+{ // fujifilm_xtra_400, kodak_supra_endura, 10 2
+-0.129539,
+0.827842,
+0.765487,
+0.825621,
+},
+{ // fujifilm_xtra_400, kodak_portra_endura, 10 3
+-1.01906,
+0.691441,
+0.660968,
+0.657436,
+},
+{ // fujifilm_xtra_400, fujifilm_crystal_archive_typeii, 10 4
+-0.742265,
+0.135334,
+0.799592,
+0.905637,
+},
+{ // fujifilm_xtra_400, kodak_2383, 10 5
+1.38166,
+-0.556567,
+-0.48684,
+0.839807,
+},
+{ // fujifilm_xtra_400, kodak_2393 10 6
+0.888444,
+0.4248,
+-0.573271,
+0.507448,
+},
+},
+{
+{ // fujifilm_c200 kodak_endura_premier, 11 0
+-1.41077,
+0.518482,
+0.722599,
+0.802219,
+},
+{ // fujifilm_c200 kodak_ektacolor_edge, 11 1
+-1.10266,
+0.424929,
+0.749747,
+0.862379,
+},
+{ // fujifilm_c200 kodak_supra_endura, 11 2
+-0.836505,
+0.540956,
+0.625133,
+0.810032,
+},
+{ // fujifilm_c200 kodak_portra_endura, 11 3
+-0.894234,
+0.522575,
+0.634095,
+0.785788,
+},
+{ // fujifilm_c200 fujifilm_crystal_archive_typeii, 11 4
+-0.903424,
+0.692681,
+0.854759,
+0.448075,
+},
+{ // fujifilm_c200 kodak_2383, 11 5
+0.318079,
+-0.19496,
+-0.202835,
+0.879131,
+},
+{ // fujifilm_c200 kodak_2393 11 6
+0.853924,
+-0.292624,
+-0.437379,
+0.647999,
 },
 },
 };

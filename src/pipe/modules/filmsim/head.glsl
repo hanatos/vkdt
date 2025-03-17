@@ -32,7 +32,7 @@ layout(set = 1, binding = 2) uniform sampler2D img_filmsim;
 layout(set = 1, binding = 3) uniform sampler2D img_coeff;   // spectral upsampling for emission
 #include "shared/upsample.glsl"
 
-const int s_paper_offset = 7; // first paper in data list/lut
+const int s_paper_offset = 12; // first paper in data list/lut
 const float dye_density_min_factor_film  = 1.0;
 const float dye_density_min_factor_paper = 0.4;
 #include "filmsim.glsl"
