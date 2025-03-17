@@ -440,21 +440,24 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
   }
   else if(action == GLFW_PRESS && key == GLFW_KEY_ENTER)
   { // enter to go to lighttable with new folder
-    if(filebrowser.selected)
+    int sel = !!filebrowser.selected; // store until all branches are though, it might change
+    int dir = filebrowser.selected_isdir;
+    if(sel)
     { // open selected in lt without changing cwd
       char newdir[PATH_MAX];
       if(!strcmp(filebrowser.selected, ".."))
         set_cwd(filebrowser.cwd, 1);
-      else
+      else if(filebrowser.selected_isdir &&
+          snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected) < (int)sizeof(newdir)-1)
       {
-        if(filebrowser.selected_isdir)
-        {
-          if(snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected) < (int)sizeof(newdir)-1)
-            dt_gui_switch_collection(newdir);
-        }
-        else dt_gui_switch_collection(filebrowser.cwd);
+        dt_gui_switch_collection(newdir);
         dt_view_switch(s_view_lighttable);
       }
+    }
+    if(!sel || !dir)
+    {
+      dt_gui_switch_collection(filebrowser.cwd);
+      dt_view_switch(s_view_lighttable);
     }
   }
 }
