@@ -396,12 +396,14 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
     w->selected_idx = CLAMP(w->selected_idx - 1, 0, w->ent_cnt-1);
     w->selected = w->ent[w->selected_idx].d_name;
     w->selected_isdir = fs_isdir(w->cwd, w->ent+w->selected_idx);
+    w->scroll_to_selected = 1;
   }
   else if((action == GLFW_PRESS || action == GLFW_REPEAT) && key == GLFW_KEY_DOWN)
   { // down arrow: select entry below
     w->selected_idx = CLAMP(w->selected_idx + 1, 0, w->ent_cnt-1);
     w->selected = w->ent[w->selected_idx].d_name;
     w->selected_isdir = fs_isdir(w->cwd, w->ent+w->selected_idx);
+    w->scroll_to_selected = 1;
   }
   else if(action == GLFW_PRESS && key == GLFW_KEY_SPACE)
   { // space bar to descend into directory in file browser
@@ -457,13 +459,7 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
   }
 }
 
-void
-files_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
-{
-  // unselect keyboard nav entry so we can scroll freely
-  filebrowser.selected = 0;
-  filebrowser.selected_idx = -1;
-}
+void files_mouse_scrolled(GLFWwindow *window, double xoff, double yoff) { }
 
 void render_files_init()
 {
@@ -474,3 +470,26 @@ void render_files_cleanup()
 {
   hk_serialise("files", hk_files, sizeof(hk_files)/sizeof(hk_files[0]));
 }
+
+int
+files_enter()
+{
+  filebrowser.scroll_to_selected = 1;
+  dt_gamepadhelp_set(dt_gamepadhelp_ps,              "toggle this help");
+  // dt_gamepadhelp_set(dt_gamepadhelp_button_square,   "plus L1/R1: switch panel");
+  // dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "back to lighttable without changing folders");
+  // dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "enter lighttable for highlighted folder");
+  // dt_gamepadhelp_set(dt_gamepadhelp_button_cross,    "navigate to highlighted folder");
+  // dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L,  "scroll view");
+  // dt_gamepadhelp_set(dt_gamepadhelp_arrow_up,        "select entry one up");
+  // dt_gamepadhelp_set(dt_gamepadhelp_arrow_down,      "select entry one down");
+  return 0;
+}
+
+int
+files_leave()
+{
+  dt_gamepadhelp_clear();
+  return 0;
+}
+

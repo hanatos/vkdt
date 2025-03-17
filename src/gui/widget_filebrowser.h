@@ -18,6 +18,7 @@ typedef struct dt_filebrowser_widget_t
 
   int focus_filter;        // signal we want gui focus
   int focus_path;
+  int scroll_to_selected;  // keyboard navigation needs scrolling to selected entry
 }
 dt_filebrowser_widget_t;
 
@@ -40,7 +41,7 @@ dt_filebrowser_cleanup(
   w->selected_idx = -1;
   w->selected = 0;
   w->selected_isdir = 0;
-  w->focus_filter = w->focus_path = 0;
+  w->focus_filter = w->focus_path = w->scroll_to_selected = 0;
 }
 
 static int dt_filebrowser_sort_dir_first(const void *aa, const void *bb, void *cw)
@@ -176,7 +177,7 @@ dt_filebrowser(
   struct nk_rect content = nk_window_get_content_region(&vkdt.ctx);
   for(int i=0;i<w->ent_cnt;i++)
   {
-    if(i == w->selected_idx)
+    if(i == w->selected_idx && w->scroll_to_selected)
     {
       struct nk_rect row = nk_widget_bounds(&vkdt.ctx);
       if(row.y < content.y) // scrolled out of top with key nav
@@ -201,5 +202,6 @@ dt_filebrowser(
   nk_style_pop_vec2(ctx);
   nk_style_pop_vec2(ctx);
   if(scroll_to >= 0) nk_group_set_scroll(ctx, "scroll files", 0, scroll_to);
+  w->scroll_to_selected = 0;
   nk_group_end(ctx);
 }
