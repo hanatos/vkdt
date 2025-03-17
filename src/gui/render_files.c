@@ -343,29 +343,35 @@ files_mouse_button(GLFWwindow *window, int button, int action, int mods)
   dt_filebrowser_widget_t *w = &filebrowser;
   if(action == GLFW_RELEASE)
   { // double clicked a selected thing?
-    static double beg = 0;
-    double end = dt_time();
-    double diff_ms = 1000.0*(end-beg);
-    beg = end;
-    if(diff_ms > 2 && diff_ms < 500)
+    double mx, my;
+    dt_view_get_cursor_pos(window, &mx, &my);
+    if(mx > vkdt.state.center_x && mx < vkdt.state.center_x+vkdt.state.center_wd &&
+       my > vkdt.state.center_y && my < vkdt.state.center_y+vkdt.state.center_ht)
     {
-      if(w->selected && w->selected_isdir)
-      { // directory double-clicked
-        // change cwd by appending to the string
-        int len = strnlen(w->cwd, sizeof(w->cwd));
-        char *c = w->cwd;
-        if(!strcmp(w->selected, ".."))
-        { // go up one dir
-          c += len;
-          *(--c) = 0;
-          while(c > w->cwd && (*c != '/' && *c != '\\')) *(c--) = 0;
+      static double beg = 0;
+      double end = dt_time();
+      double diff_ms = 1000.0*(end-beg);
+      beg = end;
+      if(diff_ms > 2 && diff_ms < 500)
+      {
+        if(w->selected && w->selected_isdir)
+        { // directory double-clicked
+          // change cwd by appending to the string
+          int len = strnlen(w->cwd, sizeof(w->cwd));
+          char *c = w->cwd;
+          if(!strcmp(w->selected, ".."))
+          { // go up one dir
+            c += len;
+            *(--c) = 0;
+            while(c > w->cwd && (*c != '/' && *c != '\\')) *(c--) = 0;
+          }
+          else
+          { // append dir name
+            snprintf(c+len, sizeof(w->cwd)-len-1, "%s/", w->selected);
+          }
+          // and then clean up the dirent cache
+          dt_filebrowser_cleanup(w);
         }
-        else
-        { // append dir name
-          snprintf(c+len, sizeof(w->cwd)-len-1, "%s/", w->selected);
-        }
-        // and then clean up the dirent cache
-        dt_filebrowser_cleanup(w);
       }
     }
   }
