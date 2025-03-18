@@ -1,4 +1,5 @@
 #include "modules/api.h"
+#include "wb.h"
 
 void modify_roi_in(
     dt_graph_t  *graph,
@@ -25,6 +26,25 @@ void modify_roi_out(
   module->connector[1].roi.full_ht = MIN(32768, module->connector[0].roi.full_ht * s);
 }
 
+void commit_params(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{
+  int film   = dt_module_param_int(module, 0)[0];
+  int paper  = dt_module_param_int(module, 3)[0];
+  int pid_ev_paper = dt_module_get_param(module->so, dt_token("ev paper"));
+  int pid_filter_c = dt_module_get_param(module->so, dt_token("filter c"));
+  int pid_filter_m = dt_module_get_param(module->so, dt_token("filter m"));
+  int pid_filter_y = dt_module_get_param(module->so, dt_token("filter y"));
+  if(dt_module_param_float(module, pid_filter_c)[0] == -1.0)
+  { // secret flag to signal "we want auto wb please"
+    ((float*)dt_module_param_float(module, pid_ev_paper))[0] = wb[film][paper][0];
+    ((float*)dt_module_param_float(module, pid_filter_c))[0] = wb[film][paper][1];
+    ((float*)dt_module_param_float(module, pid_filter_m))[0] = wb[film][paper][2];
+    ((float*)dt_module_param_float(module, pid_filter_y))[0] = wb[film][paper][3];
+  }
+}
+
 dt_graph_run_t
 check_params(
     dt_module_t *module,
@@ -32,7 +52,6 @@ check_params(
     uint32_t     num,
     void        *oldval)
 {
-#include "wb.h"
   if(parid == 0 || parid == 3)
   { // film or paper changed, update the pre-optimised wb coeffs
     int oldstr = *(int*)oldval;
