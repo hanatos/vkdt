@@ -25967,8 +25967,13 @@ nk_knob_behavior(nk_flags *state, struct nk_input *in,
         /* convert -pi -> pi range to 0.0 -> 1.0 */
         angle = (angle + NK_PI) / (NK_PI * 2);
 
-        /* click to closest step */
-        knob_value = knob_min + ( (int)(angle * knob_steps + (knob_step / 2)) ) * knob_step;
+        float dx = in->mouse.pos.x - origin.x, dy = in->mouse.pos.y - origin.y;
+        if(dx*dx+dy*dy < bounds.w*bounds.w * 25.0)
+        { /* click to closest step only if mouse pointer is close */
+          if(dx*dx+dy*dy > bounds.w*bounds.w)
+            knob_value = knob_min + ( (int)(angle * knob_steps + (knob_step / 2)) ) * knob_step;
+        }
+        else knob_value = knob_min + ( angle * knob_steps + (knob_step / 2.0f) ) * knob_step;
         knob_value = NK_CLAMP(knob_min, knob_value, knob_max);
     }
 
