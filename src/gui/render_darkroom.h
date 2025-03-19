@@ -293,6 +293,17 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         int N = 40;\
         float phi = (3.0f/2.0f*M_PI-dead_angle/2.0f*M_PI/180.0f), delta_phi = (2.0f*M_PI - dead_angle*M_PI/180.0f)/N,\
               r0 = 0.3*vkdt.state.panel_wd, r1 = 0.4*vkdt.state.panel_wd;\
+        struct nk_rect valrect = {c[0]-bounds.w, c[1]+0.3*vkdt.state.panel_wd,\
+            2*bounds.w, bounds.h};\
+        nk_fill_rect(cmd, valrect, bounds.h*0.4, (struct nk_color){0,0,0,0xff});\
+        valrect.x += 0.1*bounds.h; valrect.y += 0.1*bounds.h;\
+        char valstr[15];\
+        snprintf(valstr, sizeof(valstr), "%4.4f", VAL);\
+        nk_draw_text(cmd, valrect,\
+            valstr, strlen(valstr),\
+            &dt_gui_get_font(0)->handle,\
+            (struct nk_color){0,0,0,0xff},\
+            (struct nk_color){0xff,0xff,0xff,0xff});\
         for(int k=0;k<=N;k++)\
         {\
           if(k==N) {\
@@ -316,7 +327,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_label(ctx, "hue", NK_TEXT_RIGHT);
       nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
       struct nk_rect bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/200.0, NK_DOWN, dead_angle); // H
+      nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // H
       nk_style_pop_color(ctx);
       DECORATE(hsv.r, hsv2rgb((k+0.5)/N, 1.0, 1.0), 0.18f);
       ROTARY_KNOB(hsv.r, 1.0);
@@ -325,7 +336,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_label(ctx, "col", NK_TEXT_RIGHT);
       nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 1.0)));
       bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &hsv.g, 1.0, 1.0/200.0, NK_DOWN, 60.0f); // S
+      nk_knob_float(ctx, 0.0, &hsv.g, 1.0, 1.0/100.0, NK_DOWN, 60.0f); // S
       nk_style_pop_color(ctx);
       DECORATE(hsv.g, hsv2rgb(hsv.r, (k+0.5)/N, 1.0), 1.0f);
       ROTARY_KNOB(hsv.g, 1.0);
@@ -334,7 +345,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_label(ctx, "lit", NK_TEXT_RIGHT);
       // nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, hsv.b)));
       bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &hsv.b, 2.0, 1.0/200.0, NK_DOWN, 60.0f); // V
+      nk_knob_float(ctx, 0.0, &hsv.b, 2.0, 1.0/100.0, NK_DOWN, 60.0f); // V
       // nk_style_pop_color(ctx);
       DECORATE(hsv.b/2.0, hsv2rgb(hsv.r, hsv.g, 2.0*(k+0.5)/N), 1.0f);
       ROTARY_KNOB(hsv.b, 2.0);
