@@ -1,7 +1,8 @@
+process:combo:rgb to print:rgb to negative:negative to print
 film:combo:kodak ektar 100:kodak portra 160:kodak portra 400:kodak portra 800:kodak portra 800 push 1:kodak portra 800 push 2:kodak gold 200:kodak ultramax 400:kodak vision3 50d:fujifilm pro 400h:fujifilm xtra 400:fujifilm c200
 ev film:slider:-5:5
 g film:hidden
-group:enlarger:100
+group:process:101
 paper:combo:kodak endura premier:kodak ektacolor edge:kodak supra endura:kodak portra endura:fujifilm crystal archive type ii:kodak 2383:kodak 2393
 ev paper:slider:-5:5
 g paper:hidden
@@ -11,8 +12,8 @@ group:grain:1
 size:slider:0.5:2.0
 uniform:slider:0:1.0
 group:-1:0
-enlarger:combo:output negative:1x resolution:2x resolution:4x resolution
-group:enlarger:100
+enlarge:combo:1x resolution:2x resolution:4x resolution
+group:process:101
 filter c:hidden
 filter m:hidden
 filter y:hidden

@@ -9,6 +9,7 @@ layout(std140, set = 0, binding = 0) uniform global_t
 } global;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
+  int   process;
   int   film;
   float ev_film;
   float gamma_film;
@@ -18,7 +19,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int   grain;
   float grain_size;
   float grain_uniformity;
-  int   enlarger;
+  int   enlarge;
   float filter_c;
   float filter_m;
   float filter_y;

@@ -349,10 +349,10 @@ scan(vec3 density_cmy)
   {
     float lambda = 380.0 + l*400.0/SN;
     vec4 dye_density = texture(img_filmsim, vec2((l*(80.0/SN)+0.5)/256.0,
-          get_tcy(s_dye_density, params.enlarger > 0 ? paper : film)));
+          get_tcy(s_dye_density, params.process != 1 ? paper : film)));
     dye_density = mix(dye_density, vec4(1000000.0), isnan(dye_density));
     float density_spectral = dot(vec3(1), density_cmy * dye_density.xyz);
-    if(params.enlarger > 0) density_spectral += dye_density.w * dye_density_min_factor_paper;
+    if(params.process != 1) density_spectral += dye_density.w * dye_density_min_factor_paper;
     else                    density_spectral += dye_density.w * dye_density_min_factor_film;
     float scan_illuminant = (4.0/(SN+1.0))*sigmoid_eval(coeff, lambda);
     float light = pow(10.0, -density_spectral) * scan_illuminant;

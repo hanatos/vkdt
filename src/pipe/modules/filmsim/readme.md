@@ -51,7 +51,7 @@ these constraints.
 
 ## negative and print exposure
 
-parameters: set `enlarger` to `negative` to output the negative, `ev film` and `ev paper` are the negative exposure and print exposure
+parameters: set `process` to `rgb to negative` to output the negative, `ev film` and `ev paper` are the negative exposure and print exposure
 
 here are some test-strips to introduce the capability of the simulation. the
 overall imaging process is split in two steps: negative and print. two
@@ -91,7 +91,7 @@ i.e. 0.03-3.2 micrometer squared.
 here is an example with higher magnification crops with Kodak Portra 400 and
 Kodak Portra Endura.
 
-parameter: set `enlarger` to `2x` or `4x` for magnification. beware of `4x`, it requires a looot of GPU memory!
+parameter: set `enlarge` to `2x` or `4x` for magnification. beware of `4x`, it requires a looot of GPU memory!
 
 <table><thead><tr>
 <th align="left">print</th>
@@ -151,6 +151,7 @@ and in any case wire an `i-lut` module with filename `data/filmsim.lut` to the
 
 ## parameters
 
+* `process` determine the input and the output of the processing done here
 * `film` the film id in the datafile
 * `ev film` exposure correction when exposing the film
 * `g film` gamma correction for exposing the film, use to adjust dynamic range. hidden from gui by default
@@ -160,8 +161,8 @@ and in any case wire an `i-lut` module with filename `data/filmsim.lut` to the
 * `grain` switch grain simulation on or off
 * `size` scale the grain size
 * `uniform` uniformity of the grains as seen through the pixels. 1.0 means no variation at all
-* `enlarger` mode of exposing the paper: output straight film negative or resize output. careful with 4x, it requires a lot of memory!
-* `filter c` when exposing the print paper, dial in this share of cyan filter. this parameter is automatically filled by neutral optimisation
+* `enlarge` resize the image when exposing the paper: careful with 4x, it requires a lot of memory!
+* `filter c` when exposing the print paper, dial in this share of cyan filter. this parameter is automatically filled by neutral optimisation. set to -1 to fill filter cmy with auto white balance weights for the current film and paper
 * `filter m` when exposing the print paper, dial in this share of magenta filter. this parameter is automatically filled by neutral optimisation
 * `filter y` when exposing the print paper, dial in this share of yellow filter. this parameter is automatically filled by neutral optimisation
 * `tune m` fine tune the magenta filter. think of this as a red/green tint

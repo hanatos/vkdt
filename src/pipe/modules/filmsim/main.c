@@ -5,9 +5,9 @@ void modify_roi_in(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  const int pid = dt_module_get_param(module->so, dt_token("enlarger"));
+  const int pid = dt_module_get_param(module->so, dt_token("enlarge"));
   const int par = dt_module_param_int(module, pid)[0];
-  int s = par < 2 ? 1 : par == 2 ? 2 : 4;
+  int s = par == 0 ? 1 : par == 1 ? 2 : 4;
 
   module->connector[1].roi.scale = module->connector[1].roi.full_wd/(float)module->connector[1].roi.wd;
   module->connector[0].roi = module->connector[1].roi;
@@ -19,9 +19,9 @@ void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  const int pid = dt_module_get_param(module->so, dt_token("enlarger"));
+  const int pid = dt_module_get_param(module->so, dt_token("enlarge"));
   const int par = dt_module_param_int(module, pid)[0];
-  int s = par < 2 ? 1 : par == 2 ? 2 : 4;
+  int s = par == 0 ? 1 : par == 1 ? 2 : 4;
   module->connector[1].roi.full_wd = MIN(32768, module->connector[0].roi.full_wd * s);
   module->connector[1].roi.full_ht = MIN(32768, module->connector[0].roi.full_ht * s);
 }
@@ -30,8 +30,8 @@ void commit_params(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  int film   = dt_module_param_int(module, 0)[0];
-  int paper  = dt_module_param_int(module, 3)[0];
+  int film   = dt_module_param_int(module, 1)[0];
+  int paper  = dt_module_param_int(module, 4)[0];
   int pid_ev_paper = dt_module_get_param(module->so, dt_token("ev paper"));
   int pid_filter_c = dt_module_get_param(module->so, dt_token("filter c"));
   int pid_filter_m = dt_module_get_param(module->so, dt_token("filter m"));
@@ -56,8 +56,8 @@ check_params(
   { // film or paper changed, update the pre-optimised wb coeffs
     int oldstr = *(int*)oldval;
     int newstr = dt_module_param_int(module, parid)[0];
-    int film   = dt_module_param_int(module, 0)[0];
-    int paper  = dt_module_param_int(module, 3)[0];
+    int film   = dt_module_param_int(module, 1)[0];
+    int paper  = dt_module_param_int(module, 4)[0];
     if(oldstr != newstr)
     {
       int pid_ev_paper = dt_module_get_param(module->so, dt_token("ev paper"));
@@ -70,14 +70,12 @@ check_params(
       ((float*)dt_module_param_float(module, pid_filter_y))[0] = wb[film][paper][3];
     }
   }
-  const int pid = dt_module_get_param(module->so, dt_token("enlarger"));
+  const int pid = dt_module_get_param(module->so, dt_token("enlarge"));
   if(parid == pid)
   { // output res changed?
     int oldstr = *(int*)oldval;
     int newstr = dt_module_param_int(module, parid)[0];
-    if((oldstr <  2 && newstr >= 2) ||
-       (oldstr >= 2 && newstr <  2))
-      return s_graph_run_all;
+    if(oldstr != newstr) return s_graph_run_all;
   }
   // TODO look at align/main.c and copy the if-blur-radius changed logic
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms is fine
