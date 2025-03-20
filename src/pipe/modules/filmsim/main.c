@@ -30,8 +30,10 @@ void commit_params(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  int film   = dt_module_param_int(module, 1)[0];
-  int paper  = dt_module_param_int(module, 4)[0];
+  int pid_f = dt_module_get_param(module->so, dt_token("film"));
+  int pid_p = dt_module_get_param(module->so, dt_token("paper"));
+  int film  = dt_module_param_int(module, pid_f)[0];
+  int paper = dt_module_param_int(module, pid_p)[0];
   int pid_ev_paper = dt_module_get_param(module->so, dt_token("ev paper"));
   int pid_filter_c = dt_module_get_param(module->so, dt_token("filter c"));
   int pid_filter_m = dt_module_get_param(module->so, dt_token("filter m"));
@@ -52,12 +54,14 @@ check_params(
     uint32_t     num,
     void        *oldval)
 {
-  if(parid == 0 || parid == 3)
+  int pid_f = dt_module_get_param(module->so, dt_token("film"));
+  int pid_p = dt_module_get_param(module->so, dt_token("paper"));
+  if(parid == pid_f || parid == pid_p)
   { // film or paper changed, update the pre-optimised wb coeffs
     int oldstr = *(int*)oldval;
     int newstr = dt_module_param_int(module, parid)[0];
-    int film   = dt_module_param_int(module, 1)[0];
-    int paper  = dt_module_param_int(module, 4)[0];
+    int film  = dt_module_param_int(module, pid_f)[0];
+    int paper = dt_module_param_int(module, pid_p)[0];
     if(oldstr != newstr)
     {
       int pid_ev_paper = dt_module_get_param(module->so, dt_token("ev paper"));
