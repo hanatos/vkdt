@@ -47,8 +47,10 @@ vec2 hash(in ivec2 p)  // this hash is not production ready, please
 
 float noise(in vec2 p)
 {
-  ivec2 i = ivec2(floor(p));
-  vec2 f = fract(p);
+  float c = 0.98006, s = 0.198669;
+  mat2 R = mat2(c,s,-s,c);
+  ivec2 i = ivec2(floor(R*p));
+  vec2 f = fract(R*p);
 
   // quintic interpolation
   vec2 u = f*f*f*(f*(f*6.0-15.0)+10.0);
