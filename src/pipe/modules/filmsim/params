@@ -2,7 +2,7 @@ process:int:1:0
 film:int:1:2
 ev film:float:1:0
 g film:float:1:1.0
-couplers:float:1:0.0
+couplers:float:1:0.5
 paper:int:1:3
 ev paper:float:1:0
 g paper:float:1:1.0
