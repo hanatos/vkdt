@@ -267,13 +267,56 @@ develop_film(vec3 log_raw, int film, ivec2 ipos, float scale)
 }
 
 vec3 // returns log raw
+enlarger_expose_negative_to_paper(vec3 rgb)
+{ // enlarger: expose scanned transmittances of negative to print paper
+  vec3 raw = vec3(0.0);
+  const int paper = s_paper_offset + params.paper;
+  vec3 neutral = vec3(params.filter_c,
+      clamp(params.filter_m, 0, 1) + 0.1*params.tune_m,
+      clamp(params.filter_y, 0, 1) + 0.1*params.tune_y);
+  neutral = clamp(neutral, vec3(0.0), vec3(1.0));
+  vec4 coeff = fetch_coeff(rgb);
+  for(int l=0;l<=SN;l++)
+  {
+    float lambda = 380.0 + l*400.0/SN;
+    vec2 tc = vec2(0.0, get_tcy(s_sensitivity, paper));
+    tc.x = (l*(80.0/SN)+0.5)/256.0;
+    vec3 log_sensitivity = texture(img_filmsim, tc).rgb;
+    vec3 sensitivity = pow(vec3(10.0), log_sensitivity);
+    sensitivity = mix(sensitivity, vec3(0.0), isnan(sensitivity));
+
+    float transmittance = sigmoid_eval(coeff, lambda);
+
+    float illuminant = (0.002*40.0/SN)*colour_blackbody(vec4(lambda), 2856.0).x;
+#if 1 // pretty coarse manual fit to thorlabs filters:
+    vec3 enlarger = 100.0*mix(
+      vec3(1.0),
+      thorlabs_filters(lambda),
+      neutral);
+#else
+    // lamp filters are transmittances 0..100%
+    vec3 enlarger = 100.0*mix(
+      vec3(1.0),
+      vec3(sigmoid_eval(coeff_c, lambda), sigmoid_eval(coeff_m, lambda), sigmoid_eval(coeff_y, lambda)),
+      neutral);
+#endif
+    float print_illuminant = enlarger.x*enlarger.y*enlarger.z * illuminant;
+    float light = transmittance * print_illuminant;
+    raw += sensitivity * light * pow(2.0, params.ev_paper);
+    // TODO and the same yet again for the preflash
+  }
+  const float one_log10 = 0.43429448190325176;
+  return log(raw + 1e-10)*one_log10;
+}
+
+vec3 // returns log raw
 enlarger_expose_film_to_paper(vec3 density_cmy)
 { // enlarger: expose film to print paper
   vec3 raw = vec3(0.0);
   const int film  = params.film;
   const int paper = s_paper_offset + params.paper;
-  // vec3 thungsten = vec3(1.0985, 1.0000, 0.3558); // 2856K
-  // vec4 coeff_l = fetch_coeff(XYZ_to_rec2020(thungsten));
+  // vec3 tungsten = vec3(1.0985, 1.0000, 0.3558); // 2856K
+  // vec4 coeff_l = fetch_coeff(XYZ_to_rec2020(tungsten));
   // sigmoidal transmission filters for cmy:
   // vec4 coeff_c = fetch_coeff(vec3(0.153, 1.0, 0.5));
   // vec4 coeff_m = fetch_coeff(vec3(1.0, -0.1, 2.0));

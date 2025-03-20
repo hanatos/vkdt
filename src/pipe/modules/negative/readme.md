@@ -11,6 +11,10 @@ to change exposure and for other artistic changes to colours. for further
 refinement of the image, you may want to use the [`grade`](../grade/readme.md)
 module after `negative` and `colour`.
 
+note that this is just a quick hacky inversion that requires tweaking of curves
+afterwards. for a more sophisticated way to print your scanned negatives, please
+see the [`filmsim` module](../filmsim/readme.md).
+
 ## parameters
 
 * `Dmin` the minimum density of the film

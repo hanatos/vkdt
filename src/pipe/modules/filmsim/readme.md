@@ -51,7 +51,8 @@ these constraints.
 
 ## negative and print exposure
 
-parameters: set `process` to `rgb to negative` to output the negative, `ev film` and `ev paper` are the negative exposure and print exposure
+parameters: set `process` to `expose and scan negative` to output the negative,
+`ev film` and `ev paper` are the negative exposure and print exposure
 
 here are some test-strips to introduce the capability of the simulation. the
 overall imaging process is split in two steps: negative and print. two
@@ -151,7 +152,7 @@ and in any case wire an `i-lut` module with filename `data/filmsim.lut` to the
 
 ## parameters
 
-* `process` determine the input and the output of the processing done here
+* `process` determine the input and the output of the processing done here: (0) input raw image and output print on paper, (1) input raw image and output virtual negative, (2) input scan of real film negative and output virtual print on paper.
 * `film` the film id in the datafile
 * `ev film` exposure correction when exposing the film
 * `g film` gamma correction for exposing the film, use to adjust dynamic range. hidden from gui by default

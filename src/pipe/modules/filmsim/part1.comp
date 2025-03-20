@@ -13,7 +13,11 @@ void main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   vec3 coupler = texture(img_coupler, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
-  vec3 log_raw = texture(img_in, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
+  vec3 log_raw;
+  if(push.scale != 1.0)
+    log_raw = sample_catmull_rom(img_in, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
+  else
+    log_raw = texture(img_in, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
 
   log_raw = develop_film_correct_exposure(log_raw, coupler);
   vec3 density_cmy = develop_film(log_raw, params.film, ipos, push.scale);

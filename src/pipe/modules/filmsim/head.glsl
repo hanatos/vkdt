@@ -13,6 +13,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int   film;
   float ev_film;
   float gamma_film;
+  float couplers;
   int   paper;
   float ev_paper;
   float gamma_paper;
@@ -25,7 +26,6 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float filter_y;
   float tune_m;
   float tune_y;
-  float couplers;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;

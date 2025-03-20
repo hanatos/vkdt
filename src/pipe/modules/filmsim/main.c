@@ -92,20 +92,26 @@ create_nodes(
 {
   int iwd = module->connector[0].roi.wd;
   int iht = module->connector[0].roi.ht;
-#if 0 // TODO: if no resize and no couplers, use the monolithic kernel w/o global memory copy!
-  float scale = module->connector[0].roi.full_wd / (float)iwd;
-  int pc[] = { *(int*)&scale };
-  const int id_main = dt_node_add(graph, module, "filmsim", "main", iwd, iht, 1,
-      sizeof(pc), pc, 4,
-      "input",   "read",  "*",    "*",    dt_no_roi,
-      "out",     "write", "rgba", "f16", &module->connector[0].roi,
-      "filmsim", "read",  "*",    "*",    dt_no_roi,
-      "spectra", "read",  "*",    "*",    dt_no_roi);
-  dt_connector_copy(graph, module, 0, id_main, 0);
-  dt_connector_copy(graph, module, 1, id_main, 1);
-  dt_connector_copy(graph, module, 2, id_main, 2);
-  dt_connector_copy(graph, module, 3, id_main, 3);
-#else
+  int pid_process = dt_module_get_param(module->so, dt_token("process"));
+  int process = dt_module_param_int(module, pid_process)[0];
+  if(process == 2)
+  { // print a scanned negative as input
+    // TODO: if no resize and no couplers, use the monolithic kernel w/o global memory copy!
+    float scale = module->connector[0].roi.full_wd / (float)iwd;
+    int pc[] = { *(int*)&scale };
+    const int id_main = dt_node_add(graph, module, "filmsim", "main", iwd, iht, 1,
+        sizeof(pc), pc, 4,
+        "input",   "read",  "*",    "*",    dt_no_roi,
+        "out",     "write", "rgba", "f16", &module->connector[0].roi,
+        "filmsim", "read",  "*",    "*",    dt_no_roi,
+        "spectra", "read",  "*",    "*",    dt_no_roi);
+    dt_connector_copy(graph, module, 0, id_main, 0);
+    dt_connector_copy(graph, module, 1, id_main, 1);
+    dt_connector_copy(graph, module, 2, id_main, 2);
+    dt_connector_copy(graph, module, 3, id_main, 3);
+    return;
+  }
+
   int owd = module->connector[1].roi.wd;
   int oht = module->connector[1].roi.ht;
   const int id_part0 = dt_node_add(graph, module, "filmsim", "part0", iwd, iht, 1, 0, 0, 5,
@@ -133,5 +139,4 @@ create_nodes(
   dt_connector_copy(graph, module, 2, id_part1, 2);
   dt_connector_copy(graph, module, 3, id_part1, 3);
   CONN(dt_node_connect_named(graph, id_part0, "exp", id_part1, "exp"));
-#endif
 }
