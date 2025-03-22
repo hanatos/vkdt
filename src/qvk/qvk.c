@@ -28,7 +28,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <ctype.h>
 #include <assert.h>
 #ifndef NDEBUG
-#ifdef __linux__
+#ifdef __GLIBC__
 #include <execinfo.h>
 #endif
 #endif
@@ -97,7 +97,7 @@ vk_debug_callback(
   if(strncmp(callback_data->pMessage, "Device Extension", sizeof(*"Device Extension"))) // avoid excessive spam
   dt_log(s_log_qvk, "validation layer: %s", callback_data->pMessage);
 #ifndef NDEBUG
-#ifdef __linux__
+#ifdef __GLIBC__
   if(severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
   {
     // void *const buf[100];
