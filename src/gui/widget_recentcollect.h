@@ -65,10 +65,10 @@ recently_used_collections_draw(
   char str[100];
   int len = sizeof(str);
   char date[10] = {0}, desc[100];
-  sscanf(last, "%8s_%99[^&]s", date, desc);
+  int scanned = sscanf(last, "%8s_%99[^&]s", date, desc);
   char *c = str;
   int off;
-  if(isdigit(date[0]) && isdigit(date[1]) && isdigit(date[2]) && isdigit(date[3]))
+  if(scanned == 2 && isdigit(date[0]) && isdigit(date[1]) && isdigit(date[2]) && isdigit(date[3]))
     off = snprintf(c, len, "%.4s %s", date, desc);
   else
   {
