@@ -2,12 +2,12 @@ process:combo:expose film and print:expose and scan negative:print negative
 group:process:102
 film:combo:kodak ektar 100:kodak portra 160:kodak portra 400:kodak portra 800:kodak portra 800 push 1:kodak portra 800 push 2:kodak gold 200:kodak ultramax 400:kodak vision3 50d:fujifilm pro 400h:fujifilm xtra 400:fujifilm c200
 ev film:slider:-5:5
-g film:hidden
+g film:slider:0:2
 couplers:slider:0.0:1.0
 group:process:101
 paper:combo:kodak endura premier:kodak ektacolor edge:kodak supra endura:kodak portra endura:fujifilm crystal archive type ii:kodak 2383:kodak 2393
 ev paper:slider:-5:5
-g paper:hidden
+g paper:slider:0:2
 group:process:102
 grain:combo:digi clean:simulate grain
 group:grain:1
