@@ -91,46 +91,46 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
   {
     case s_hotkey_duplicate:
       dt_gui_lt_duplicate();
-      break;
-    case s_hotkey_rate_0: dt_gui_rate_0(); break;
-    case s_hotkey_rate_1: dt_gui_rate_1(); break;
-    case s_hotkey_rate_2: dt_gui_rate_2(); break;
-    case s_hotkey_rate_3: dt_gui_rate_3(); break;
-    case s_hotkey_rate_4: dt_gui_rate_4(); break;
-    case s_hotkey_rate_5: dt_gui_rate_5(); break;
-    case s_hotkey_label_1: dt_gui_label_1(); break;
-    case s_hotkey_label_2: dt_gui_label_2(); break;
-    case s_hotkey_label_3: dt_gui_label_3(); break;
-    case s_hotkey_label_4: dt_gui_label_4(); break;
-    case s_hotkey_label_5: dt_gui_label_5(); break;
+      return;
+    case s_hotkey_rate_0: dt_gui_rate_0(); return;
+    case s_hotkey_rate_1: dt_gui_rate_1(); return;
+    case s_hotkey_rate_2: dt_gui_rate_2(); return;
+    case s_hotkey_rate_3: dt_gui_rate_3(); return;
+    case s_hotkey_rate_4: dt_gui_rate_4(); return;
+    case s_hotkey_rate_5: dt_gui_rate_5(); return;
+    case s_hotkey_label_1: dt_gui_label_1(); return;
+    case s_hotkey_label_2: dt_gui_label_2(); return;
+    case s_hotkey_label_3: dt_gui_label_3(); return;
+    case s_hotkey_label_4: dt_gui_label_4(); return;
+    case s_hotkey_label_5: dt_gui_label_5(); return;
     case s_hotkey_assign_tag:
       dt_gui_lt_assign_tag();
-      break;
+      return;
     case s_hotkey_select_all:
       dt_gui_lt_toggle_select_all();
-      break;
+      return;
     case s_hotkey_export: // handled during rendering
     case s_hotkey_scroll_cur:
     case s_hotkey_scroll_end:
     case s_hotkey_scroll_top:
       g_image_cursor = -1;
       g_hotkey = hotkey;
-      break;
+      return;
     case s_hotkey_copy_hist:
       dt_gui_copy_history();
-      break;
+      return;
     case s_hotkey_paste_hist:
       dt_gui_paste_history();
-      break;
+      return;
     case s_hotkey_append_preset:
       dt_gui_preset_apply();
-      break;
+      return;
     case s_hotkey_zoom_in:
       dt_gui_lt_zoom_in();
-      break;
+      return;
     case s_hotkey_zoom_out:
       dt_gui_lt_zoom_out();
-      break;
+      return;
     default: break;
   }
 
