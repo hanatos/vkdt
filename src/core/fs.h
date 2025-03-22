@@ -387,8 +387,34 @@ fs_realpath(const char *path, char *resolved_path)
     free(ret2);
   }
   return ret;
-#else
+#elif defined(__GLIBC__)
+  // For a nonexistent file, a glibc GNU extension will fill in resolved_path
   return realpath(path, resolved_path);
+#else
+  // If we only have POSIX realpath available we need to emulate the GNU extension behavior,
+  // but only for the case where the file may or may not exist but the parent does exist.
+  char *ret = realpath(path, resolved_path);
+  if(ret != NULL)
+    return ret;
+  if(resolved_path != NULL)
+  {
+    // Caller wants resolved_path set even if the file doesn't exist. Output empty string
+    // unless the parent does exist
+    resolved_path[0] = 0;
+    if(errno == ENOENT)
+    {
+      // The file doesn't exist but maybe the parent does
+      char parent[PATH_MAX];
+      snprintf(parent, PATH_MAX, "%s", path);
+      if(!fs_dirname(parent))
+        strcpy(parent, ".");
+      char *realparent = realpath(parent, NULL);
+      if(realparent != NULL)
+        snprintf(resolved_path, PATH_MAX, "%s/%s", realparent, fs_basename((char *)path));
+      free(realparent);
+    }
+  }
+  return NULL;
 #endif
 }
 
