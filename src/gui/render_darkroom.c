@@ -916,7 +916,7 @@ darkroom_process()
       VkResult res = vkGetSemaphoreCounterValue(qvk.device, vkdt.graph_dev.semaphore_process, &value);
       if(res == VK_SUCCESS && value >= vkdt.graph_dev.process_dbuffer[vkdt.graph_dev.double_buffer^1])
       {
-        if(vkdt.graph_res == -1) vkdt.graph_res = VK_SUCCESS; // let display know it's now good to show
+        if(vkdt.graph_res == -1) vkdt.graph_res = VK_SUCCESS; // let display now it's now good to show
         running = 0;
         vkdt.graph_dev.double_buffer ^= 1; // flip double buffer frame
       }
@@ -1050,18 +1050,22 @@ darkroom_enter()
   vkdt.graph_dev.active_module = dt_module_get(&vkdt.graph_dev, gui.active_module, gui.active_instance);
   if(vkdt.graph_dev.active_module >= 0)
   { // if we don't find it, this will be -1
-    int cid = dt_module_get_connector(vkdt.graph_dev.module+vkdt.graph_dev.active_module, dt_token("dspy"));
-    if(cid >= 0)
-    { // connect dspy
-      int mid = dt_module_add(&vkdt.graph_dev, dt_token("display"), dt_token("dspy"));
-      if(mid >= 0)
-      {
-        dt_module_connect(&vkdt.graph_dev, vkdt.graph_dev.active_module, cid, mid, 0); // reconnect
-        const float pwf = 0.2; // probably make a config param
-        const float pwd = pwf * (16.0/9.0) * vkdt.win.height;
-        vkdt.graph_dev.module[mid].connector[0].max_wd = pwd;
-        vkdt.graph_dev.module[mid].connector[0].max_ht = (2.0/3.2) * pwd;
-        vkdt.graph_dev.runflags = s_graph_run_all;
+    int iid = dt_module_get_connector(vkdt.graph_dev.module+vkdt.graph_dev.active_module, dt_token("input"));
+    if(iid >= 0 && dt_connected(vkdt.graph_dev.module[vkdt.graph_dev.active_module].connector+iid))
+    { // only automatically connect dspy if we think the module is on the graph
+      int cid = dt_module_get_connector(vkdt.graph_dev.module+vkdt.graph_dev.active_module, dt_token("dspy"));
+      if(cid >= 0)
+      { // connect dspy
+        int mid = dt_module_add(&vkdt.graph_dev, dt_token("display"), dt_token("dspy"));
+        if(mid >= 0)
+        {
+          dt_module_connect(&vkdt.graph_dev, vkdt.graph_dev.active_module, cid, mid, 0); // reconnect
+          const float pwf = 0.2; // probably make a config param
+          const float pwd = pwf * (16.0/9.0) * vkdt.win.height;
+          vkdt.graph_dev.module[mid].connector[0].max_wd = pwd;
+          vkdt.graph_dev.module[mid].connector[0].max_ht = (2.0/3.2) * pwd;
+          vkdt.graph_dev.runflags = s_graph_run_all;
+        }
       }
     }
   }
