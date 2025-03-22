@@ -25,7 +25,7 @@ static inline void sort(void *base, size_t nmemb, size_t size, sort_compare_t *c
   qsort_r(base, nmemb, size, &w, sort_wrap_compare);
 #elif defined(_WIN64)
   qsort_s(base, nmemb, size, sort_wrap_compare, &w);
-#elif defined(__linux__) && defined(_GNU_SOURCE) && !defined(__ANDROID_NDK__)
+#elif defined(__linux__) && defined(_GNU_SOURCE) && !defined(__BIONIC__)
   qsort_r(base, nmemb, size, compare, data);
 #else
   sort_r(base, nmemb, size, compare, data);
