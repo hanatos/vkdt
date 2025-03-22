@@ -152,16 +152,19 @@ and in any case wire an `i-lut` module with filename `data/filmsim.lut` to the
 
 ## parameters
 
+this module has a lot of parameters. they are grouped into film options (first
+block) and print paper options (second block).
+
 * `process` determine the input and the output of the processing done here: (0) input raw image and output print on paper, (1) input raw image and output virtual negative, (2) input scan of real film negative and output virtual print on paper.
 * `film` the film id in the datafile
 * `ev film` exposure correction when exposing the film
 * `g film` gamma correction for exposing the film, use to adjust dynamic range. hidden from gui by default
-* `paper` the paper id in the datafile
-* `ev paper` exposure correction when sensitising the paper, affects shadows more than the film exposure
-* `g paper` gamma correction when sensitising the paper, affects dynamic range and contrast. hidden from gui by default
 * `grain` switch grain simulation on or off
 * `size` scale the grain size
 * `uniform` uniformity of the grains as seen through the pixels. 1.0 means no variation at all
+* `paper` the paper id in the datafile
+* `ev paper` exposure correction when sensitising the paper, affects shadows more than the film exposure
+* `g paper` gamma correction when sensitising the paper, affects dynamic range and contrast. hidden from gui by default
 * `enlarge` resize the image when exposing the paper: careful with 4x, it requires a lot of memory!
 * `filter c` when exposing the print paper, dial in this share of cyan filter. this parameter is automatically filled by neutral optimisation. set to -1 to fill filter cmy with auto white balance weights for the current film and paper
 * `filter m` when exposing the print paper, dial in this share of magenta filter. this parameter is automatically filled by neutral optimisation

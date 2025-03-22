@@ -174,10 +174,16 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     count = param->cnt; // if we know nothing else, we use all elements
   else
     count = CLAMP(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.cntid)[0], 0, param->cnt);
-  for(int num=0;num<count;num++)
-  {
   const float ratio[] = {0.7f, 0.3f};
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+  if(param->separator)
+  {
+    nk_layout_row_dynamic(ctx, row_height/2, 1);
+    nk_label(ctx, "", 0);
+  }
+
+  for(int num=0;num<count;num++)
+  {
   char string[256];
   // const float halfw = (0.66*vkdt.state.panel_wd - ctx.style.tab.padding.x)/2;
   char str[10] = { 0 };

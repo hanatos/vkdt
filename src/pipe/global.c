@@ -41,6 +41,7 @@ static inline dt_ui_param_t*
 read_param_config_ascii(
     char *line)
 {
+  if(!strncmp(line, "---", 3)) return (dt_ui_param_t *)-1u;
   // params come in this format:
   // tkn:tkn:int:float
   // name:type:cnt:defval
@@ -50,6 +51,7 @@ read_param_config_ascii(
   int cnt = dt_read_int(line, &line);
   // TODO: sanity check and clamp?
   dt_ui_param_t *p = malloc(sizeof(*p) + dt_ui_param_size(type, cnt));
+  p->separator = 0;
   p->name = name;
   p->type = type;
   p->cnt = cnt;
@@ -133,11 +135,21 @@ dt_module_so_load(
   }
   else
   {
+    dt_ui_param_t *tmp = 0;
+    int sep = 0;
     while(!feof(f))
     {
       fscanf(f, "%8191[^\n]", line);
       if(fgetc(f) == EOF) break; // read \n
-      mod->param[i++] = read_param_config_ascii(line);
+      tmp = read_param_config_ascii(line);
+      if(tmp == (dt_ui_param_t *)-1u)
+        sep = 1;
+      else
+      {
+        tmp->separator = sep;
+        sep = 0;
+        mod->param[i++] = tmp;
+      }
       if(i > sizeof(mod->param)/sizeof(mod->param[0])) break;
     }
     mod->num_params = i;

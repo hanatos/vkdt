@@ -14,12 +14,12 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float ev_film;
   float gamma_film;
   float couplers;
-  int   paper;
-  float ev_paper;
-  float gamma_paper;
   int   grain;
   float grain_size;
   float grain_uniformity;
+  int   paper;
+  float ev_paper;
+  float gamma_paper;
   int   enlarge;
   float filter_c;
   float filter_m;
