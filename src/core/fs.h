@@ -184,6 +184,7 @@ fs_basedir(
   fs_dirname(basedir);
   char mod[PATH_MAX];
   snprintf(mod, sizeof(mod), "%s/darkroom.ui", basedir);
+#ifdef __GLIBC__
   if(access(mod, F_OK))
   { // no darkroom.ui file and probably also lacking the rest. try dlopen/dso path:
     void *handle = dlopen("libvkdt.so", RTLD_LAZY);
@@ -195,6 +196,7 @@ fs_basedir(
       dlclose(handle);
     }
   }
+#endif
 #elif defined(__FreeBSD__)
   int mib_procpath[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
   size_t len_procpath = maxlen;
