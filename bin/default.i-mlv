@@ -5,7 +5,7 @@ module:demosaic:01
 module:colour:01
 module:filmcurv:01
 module:crop:01
-module:f2srgb:main
+module:colenc:main
 module:o-bc1:main
 connect:i-mlv:main:output:denoise:01:input
 connect:denoise:01:output:hilite:01:input
@@ -13,7 +13,9 @@ connect:hilite:01:output:demosaic:01:input
 connect:demosaic:01:output:crop:01:input
 connect:crop:01:output:colour:01:input
 connect:colour:01:output:filmcurv:01:input
-connect:filmcurv:01:output:f2srgb:main:input
-connect:f2srgb:main:output:o-bc1:main:input
+connect:filmcurv:01:output:colenc:main:input
+connect:colenc:main:output:o-bc1:main:input
 param:colour:01:exposure:0
-param:f2srgb:main:usemat:0
+# rec2020 primaries with sRGB curve:
+param:colenc:main:prim:2
+param:colenc:main:trc:2

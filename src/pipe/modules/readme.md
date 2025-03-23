@@ -104,7 +104,6 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [blend: masked frame blending](./blend/readme.md)
 * [cnngenin: generate random input for neural network training](./cnngenin/readme.md)
 * [format: change texture format (number of channels and data type)](./format/readme.md)
-* [f2srgb: convert linear floating point data to 8-bit sRGB for output](./f2srgb/readme.md)
 * [kpn-t: kernel prediction neural network for denoising, training](./kpn-t/readme.md)
 * [mv2rot: estimate rotation + translation from motion vectors](./mv2rot/readme.md)
 * [resize: add ability to resize buffers](./resize/readme.md)

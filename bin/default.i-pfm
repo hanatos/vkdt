@@ -3,14 +3,14 @@ module:colour:01
 module:resize:01
 module:filmcurv:01
 module:llap:01
-module:f2srgb:main
+module:colenc:main
 module:o-bc1:main
 connect:i-pfm:main:output:resize:01:input
 connect:resize:01:output:colour:01:input
 connect:colour:01:output:filmcurv:01:input
 connect:filmcurv:01:output:llap:01:input
-connect:llap:01:output:f2srgb:main:input
-connect:f2srgb:main:output:o-bc1:main:input
+connect:llap:01:output:colenc:main:input
+connect:colenc:main:output:o-bc1:main:input
 param:colour:01:exposure:0
 # default to XYZ input (0 would be rec2020)
 param:colour:01:matrix:2
@@ -27,4 +27,6 @@ param:llap:01:sigma:0.12
 param:llap:01:shadows:1
 param:llap:01:hilights:1
 param:llap:01:clarity:0.2
-param:f2srgb:main:usemat:0
+# rec2020 primaries with sRGB curve:
+param:colenc:main:prim:2
+param:colenc:main:trc:2
