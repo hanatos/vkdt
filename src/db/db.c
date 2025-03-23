@@ -599,6 +599,30 @@ void dt_db_remove_selected_images(
   dt_db_update_collection(db);
 }
 
+void dt_db_reset_to_defaults(
+    const char *fn) // obtain full file name by calling dt_db_image_path, also resolve symlinks by using fs_realpath first
+{
+  char fullfn[PATH_MAX]; // store away full config path
+  snprintf(fullfn, sizeof(fullfn), "%s", fn);
+  int len = strlen(fullfn); // we'll work with the full file name, symlinks do not work
+  assert(len > 4);
+  fullfn[len-4] = 0; // cut away ".cfg"
+  // cut away directory part and potential _XX duplicate id
+  if(fullfn[len-7] == '_' && isdigit(fullfn[len-5]) && isdigit(fullfn[len-6]))
+    fullfn[len-7] = 0;
+  dt_token_t input_module = dt_graph_default_input_module(fullfn);
+  char defcfg[PATH_MAX+30];
+  snprintf(defcfg, sizeof(defcfg), "%s/default-darkroom.%" PRItkn, dt_pipe.basedir, dt_token_str(input_module));
+  fs_copy(fn, defcfg);
+  FILE *f = fopen(fn, "ab");
+  if(f)
+  {
+    char *c = fs_basename(fullfn);
+    fprintf(f, "param:%"PRItkn":main:filename:%s\n", dt_token_str(input_module), c);
+    fclose(f);
+  }
+}
+
 void dt_db_duplicate_selected_images(dt_db_t *db)
 {
   char fn[PATH_MAX+200], fullfn[PATH_MAX];
@@ -624,22 +648,7 @@ void dt_db_duplicate_selected_images(dt_db_t *db)
     dt_log(s_log_db, "creating duplicate `%s'", fn);
     if(!dt_db_image_path(db, db->selection[i], fullfn, sizeof(fullfn)) && fs_copy(fn, fullfn))
     { // that went wrong, try to copy default config:
-      int len = strlen(fullfn); // we'll work with the full file name, symlinks do not work
-      assert(len > 4);
-      fullfn[len-4] = 0; // cut away ".cfg"
-      dt_token_t input_module = dt_graph_default_input_module(fullfn);
-      char defcfg[PATH_MAX+30];
-      snprintf(defcfg, sizeof(defcfg), "%s/default-darkroom.%" PRItkn, dt_pipe.basedir, dt_token_str(input_module));
-      fs_copy(fn, defcfg);
-      FILE *f = fopen(fn, "ab");
-      if(f)
-      { // cut away directory part and potential _XX duplicate id
-        if(fullfn[len-7] == '_' && isdigit(fullfn[len-5]) && isdigit(fullfn[len-6]))
-          fullfn[len-7] = 0;
-        char *c = fs_basename(fullfn);
-        fprintf(f, "param:%"PRItkn":main:filename:%s\n", dt_token_str(input_module), c);
-        fclose(f);
-      }
+      dt_db_reset_to_defaults(fn);
     }
 next:;
   }

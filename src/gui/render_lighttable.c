@@ -925,7 +925,7 @@ void render_lighttable_right_panel()
       {
         dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
         fs_realpath(filename, realname);
-        unlink(realname);
+        dt_db_reset_to_defaults(realname);
         dt_thumbnails_invalidate(&vkdt.thumbnail_gen, filename);
       }
       dt_gui_label_unset(s_image_label_video);
