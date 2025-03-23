@@ -5,6 +5,7 @@ dt_graph_default_input_module(
     const char *filename) // main file, not the .cfg (will strip .cfg if present)
 {
   // XXX remember to also look at the copy/paste history stack routine (TODO: unify this)
+  // XXX dt_gui_paste_history in gui/api_gui.h
   int len = strlen(filename);
   if(len <= 4) return 0;
   int off = 4;
@@ -17,6 +18,8 @@ dt_graph_default_input_module(
     return dt_token("i-jpg");
   if(!strncasecmp(filename+len-off, ".exr", 4))
     return dt_token("i-exr");
+  if(!strncasecmp(filename+len-off, ".hdr", 4))
+    return dt_token("i-hdr");
   if(!strncasecmp(filename+len-off, ".mov", 4) ||
      !strncasecmp(filename+len-off, ".mp4", 4))
     return dt_token("i-vid");

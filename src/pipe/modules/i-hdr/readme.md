@@ -1,4 +1,4 @@
-# i-hdr: greg ward's rgb+exponend high dynamic range format
+# i-hdr: greg ward's rgb+exponent high dynamic range format
 
 this reads `.hdr` files, i.e. rgbe high dynamic range floating
 point maps.

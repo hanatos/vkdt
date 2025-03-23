@@ -12,6 +12,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 
 * [i-bc1: input module for bc1-compressed thumbnails](./i-bc1/readme.md)
 * [i-exr: input openexr images](./i-exr/readme.md)
+* [i-hdr: greg ward's rgbe hdr images](./i-hdr/readme.md)
 * [i-jpg: jpg input module](./i-jpg/readme.md)
 * [i-jpglst: input a longer list of jpg as an array connector](./i-jpglst/readme.md)
 * [i-lut: half float lut input module](./i-lut/readme.md)
@@ -117,7 +118,6 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [quake: the 1996 game ray traced based on QSS](./quake/readme.md)
 * [rt: real-time ray tracing](./rt/readme.md)
 * [spheres: shadertoy demo ported for testing](./spheres/readme.md)
-* [sss: sub surface scattering testbed](./sss/readme.md)
 * [svgf: spatiotemporal variance guided filtering](./svgf/readme.md)
 
 **internal use**

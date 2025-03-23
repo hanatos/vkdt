@@ -1,5 +1,0 @@
-spp:slider:1:200
-theta:slider:0:1.52
-albedo:slider:0.0:1.0
-mu_t:slider:0.01:300.0
-g:slider:-1:1
