@@ -110,7 +110,6 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [mv2rot: estimate rotation + translation from motion vectors](./mv2rot/readme.md)
 * [resize: add ability to resize buffers](./resize/readme.md)
 * [resnet: gmic convolutional neural network](./resnet/readme.md)
-* [srgb2f: convert sRGB input to linear rec2020 floating point](./srgb2f/readme.md)
 
 **3d rendering**
 
