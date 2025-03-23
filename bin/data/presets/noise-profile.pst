@@ -1,3 +1,9 @@
+# use this preset to quickly profile the noise characteristics of the current 
+# image without running an external profiling step. see [noise
+# reduction/profiling](../noise-profiling/readme.md) for more information.
+# the preset allows you to measure noise model parameters, estimate the validity
+# of the fit by inspecting a diagram, and provides buttons to install the created
+# profile as well as to remove the modules from the processing graph again.
 module:rawhist:np
 module:nprof:np
 module:display:view0

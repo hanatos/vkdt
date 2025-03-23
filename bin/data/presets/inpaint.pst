@@ -1,3 +1,7 @@
+# this preset is for inpainting, i.e. removing small distracting
+# objects such as poles, power lines, etc. it works by smooth
+# extension of the image into masked areas that are drawn by brush strokes.
+# works best for smooth surroundings such as skies or out of focus regions.
 module:inpaint:inpaint
 module:draw:inpaint
 connect:draw:inpaint:output:inpaint:inpaint:mask

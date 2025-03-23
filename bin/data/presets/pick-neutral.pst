@@ -1,4 +1,4 @@
-# spot white balance for skin tones.
+# spot white balance for neutral D65 white.
 # assumes colour input comes directly from crop
 module:pick:01
 connect:crop:01:output:pick:01:input

@@ -1,3 +1,9 @@
+# this uses hand drawn brush strokes and the wavelet module
+# to achieve a frequency-based smoothing of the image. this is
+# useful for skin retouching, when you want to remove low-frequency
+# blemishes but leave in the high-frequency skin detail. see [pat's
+# old tutorial](https://pixls.us/articles/skin-retouching-with-wavelet-decompose/)
+# for some context.
 module:wavelet:retouch
 module:draw:retouch
 connect:draw:retouch:output:wavelet:retouch:mask

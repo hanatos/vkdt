@@ -1,1 +1,3 @@
+# set D65 white balance on the colour module (this is pass-through)
+# this is just a convenience preset, you can set the white values to 1 for the same effect.
 param:colour:01:white:1:1:1:0

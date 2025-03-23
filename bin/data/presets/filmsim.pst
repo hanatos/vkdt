@@ -1,5 +1,6 @@
 # put spectral analog film simulation into the default pipeline
 # instead of filmcurve and local contrast.
+# see the [filmsim module](../../../src/pipe/modules/filmsim/readme.md).
 module:filmsim:01
 module:i-lut:filmsim
 module:i-lut:spectem

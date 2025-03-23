@@ -1,6 +1,6 @@
 # preset to use an input colour lookup table which has been generated
 # by vkdt-mkclut from spectral sensitivity curves. assumes the standard
-# `colour` module is on the graph.
+# `colour` module is on the graph. see [characterising the colour response of your camera](../colour-input/readme.md)
 module:i-lut:clut
 connect:i-lut:clut:output:colour:01:clut
 param:colour:01:matrix:4

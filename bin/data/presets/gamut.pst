@@ -1,6 +1,8 @@
 # this preset uses look up tables to drive hue-constant saturation
 # changes in the `colour` module. it connects two luts which are created
 # during the build process and assumes a `01` instance of the `colour` module.
+# this is essential for hue-preserving tweaks of colourfulness and preservation
+# of the validity of colour coordinates (inside spectral locus).
 module:i-lut:abney
 module:i-lut:spectra
 connect:i-lut:abney:output:colour:01:abney

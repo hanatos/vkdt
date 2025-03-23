@@ -1,7 +1,9 @@
-# this preset adds support for the  ColorChecker  colour target
+# this preset adds support for the ColorChecker colour target.
+# the use case is you have a picture of a ColorChecker and want to use it for colour correction.
 # it adds the colour picker locations and reference values to ciediag, colour, and pick modules
 # to enable the rbf colour correction, press the 'import' button in the colour module
 # after applying this preset. then copy/paste the settings of the colour module to other images
+# in the same shoot.
 # preset created by `vkdt scanin`
 module:pick:target
 connect:colour:01:output:pick:target:input
