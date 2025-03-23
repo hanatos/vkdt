@@ -47,7 +47,6 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [rawhist: raw histogram with estimated noise levels](./rawhist/readme.md)
 * [test10b: render a gradient prone to banding to test 10 bit displays and dithering](./test10b/readme.md)
 * [vis: convert linear input to srgb colour ramp for visualisation](./vis/readme.md)
-* [y2rgb: visualise first channel in grey scale](./y2rgb/readme.md)
 
 **raw processing**
 
