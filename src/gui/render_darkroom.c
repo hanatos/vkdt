@@ -249,9 +249,31 @@ void render_darkroom_favourite()
   modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
   for(int i=0;i<vkdt.fav_cnt;i++)
-  { // arg. can we please do that without n^2 every redraw?
-    for(int32_t m=0;m<cnt;m++)
+  {
+    if(vkdt.fav_modid[i] == -1)
     {
+      const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
+      int pst = vkdt.fav_parid[i];
+      if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
+      char *preset = vkdt.fav_preset_name[pst];
+      nk_layout_row_dynamic(&vkdt.ctx, row_height, 4);
+      dt_tooltip("apply preset");
+      if(nk_button_label(&vkdt.ctx, preset))
+      {
+        char filename[512];
+        snprintf(filename, sizeof(filename), "%s/presets/%s.pst", dt_pipe.homedir, preset);
+        uint32_t err_lno = render_darkroom_apply_preset(filename);
+        if(err_lno == -1u)
+        {
+          snprintf(filename, sizeof(filename), "%s/data/presets/%s.pst", dt_pipe.basedir, preset);
+          err_lno = render_darkroom_apply_preset(filename);
+        }
+        if(err_lno)
+          dt_gui_notification("failed to read preset %s line %u", filename, err_lno);
+      }
+    }
+    else for(int32_t m=0;m<cnt;m++)
+    { // arg. can we please do that without n^2 every redraw?
       if(modid[m] == vkdt.fav_modid[i])
       {
         render_darkroom_widget(vkdt.fav_modid[i], vkdt.fav_parid[i], 1);

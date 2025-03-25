@@ -1240,6 +1240,38 @@ static inline void render_darkroom_widgets(
   }
 }
 
+static inline uint32_t
+render_darkroom_apply_preset(
+    const char *filename) // full path to .pst file
+{
+  FILE *f = fopen(filename, "rb");
+  uint32_t lno = -1u;
+  if(f)
+  {
+    char line[300000];
+    while(!feof(f))
+    {
+      fscanf(f, "%299999[^\n]", line);
+      if(fgetc(f) == EOF) break; // read \n
+      lno++;
+      // > 0 are warnings, < 0 are fatal, 0 is success
+      if(dt_graph_read_config_line(&vkdt.graph_dev, line) < 0) goto error;
+      dt_graph_history_line(&vkdt.graph_dev, line);
+    }
+    fclose(f);
+    for(int m=0;m<vkdt.graph_dev.num_modules;m++) dt_module_keyframe_post_update(vkdt.graph_dev.module+m);
+    vkdt.graph_dev.runflags = s_graph_run_all;
+    dt_image_reset_zoom(&vkdt.wstate.img_widget);
+    return 0u;
+  }
+  else
+  {
+error:
+    if(f) fclose(f);
+    return lno;
+  }
+}
+
 static inline void
 render_darkroom_modals()
 {
@@ -1438,31 +1470,9 @@ render_darkroom_modals()
       if(ok) vkdt.wstate.popup = 0;
       if(ok == 1)
       {
-        FILE *f = fopen(filename, "rb");
-        uint32_t lno = 0;
-        if(f)
-        {
-          char line[300000];
-          while(!feof(f))
-          {
-            fscanf(f, "%299999[^\n]", line);
-            if(fgetc(f) == EOF) break; // read \n
-            lno++;
-            // > 0 are warnings, < 0 are fatal, 0 is success
-            if(dt_graph_read_config_line(&vkdt.graph_dev, line) < 0) goto error;
-            dt_graph_history_line(&vkdt.graph_dev, line);
-          }
-          fclose(f);
-          for(int m=0;m<vkdt.graph_dev.num_modules;m++) dt_module_keyframe_post_update(vkdt.graph_dev.module+m);
-          vkdt.graph_dev.runflags = s_graph_run_all;
-          dt_image_reset_zoom(&vkdt.wstate.img_widget);
-        }
-        else
-        {
-  error:
-          if(f) fclose(f);
-          dt_gui_notification("failed to read %s line %d", filename, lno);
-        }
+        uint32_t err_lno = render_darkroom_apply_preset(filename);
+        if(err_lno)
+          dt_gui_notification("failed to read %s line %u", filename, err_lno);
       } // end if ok == 1
     }
     else vkdt.wstate.popup = 0;
