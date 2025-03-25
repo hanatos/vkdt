@@ -841,7 +841,6 @@ dt_gui_read_favs(
       if(colon) colon[0] = 0;
       mod  = UINT64_MAX;
       parm = pst++;
-      fprintf(stderr, "got preset in favs file, %d %s\n", pst, line);
     }
     else
     {
