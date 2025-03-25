@@ -42,6 +42,7 @@ read_header(
     return 0; // already loaded
   assert(lut); // this should be inited in init()
 
+  if(lut->f) fclose(lut->f);
   lut->f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
   if(!lut->f) goto error;
 
