@@ -304,12 +304,6 @@ void render_lighttable_center()
         g_scroll_colid = -1;
       }
     }
-    if(row.y + row.h <= content.y ||
-       row.y > content.y + content.h)
-    { // add dummy for invisible thumbnails
-      nk_label(&vkdt.ctx, "", 0);
-      continue;
-    }
     if(row.y - vkdt.ctx.current->scrollbar.y > content.y + 10*content.h) break; // okay this list is really long
 
     // precache
@@ -319,6 +313,13 @@ void render_lighttable_center()
           &vkdt.db,
           vkdt.db.collection,
           i, MIN(vkdt.db.collection_cnt, i+ipl));
+
+    if(row.y + row.h <= content.y ||
+       row.y > content.y + content.h)
+    { // add dummy for invisible thumbnails
+      nk_label(&vkdt.ctx, "", 0);
+      continue;
+    }
 
     // set cursor to first visible image if it wasn't set before:
     if(g_image_cursor == -2) g_image_cursor = i;
