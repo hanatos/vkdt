@@ -139,6 +139,9 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       dt_gui_ungrab_mouse();
       p.type = -1; // disconnect event
       dt_gui_dr_unset_fullscreen_view();
+      // if this came from a camera button, we want to record the new camera in history:
+      if(vkdt.wstate.active_widget_modid >= 0)
+        dt_graph_history_append(&vkdt.graph_dev, vkdt.wstate.active_widget_modid, vkdt.wstate.active_widget_parid, 2.0);
     }
     if(vkdt.wstate.active_widget_modid >= 0)
     {
