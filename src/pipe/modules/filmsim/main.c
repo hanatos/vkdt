@@ -74,9 +74,10 @@ check_params(
       ((float*)dt_module_param_float(module, pid_filter_y))[0] = wb[film][paper][3];
     }
   }
-  const int pid = dt_module_get_param(module->so, dt_token("enlarge"));
-  if(parid == pid)
-  { // output res changed?
+  const int pid_en = dt_module_get_param(module->so, dt_token("enlarge"));
+  const int pid_pc = dt_module_get_param(module->so, dt_token("process"));
+  if(parid == pid_en || parid == pid_pc)
+  { // output res or process changed (affects kernel config)
     int oldstr = *(int*)oldval;
     int newstr = dt_module_param_int(module, parid)[0];
     if(oldstr != newstr) return s_graph_run_all;
