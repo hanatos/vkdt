@@ -176,8 +176,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     count = CLAMP(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.cntid)[0], 0, param->cnt);
   const float ratio[] = {0.7f, 0.3f};
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
-  if(param->separator)
-  {
+  if(param->widget.sep)
+  { // draw separator before widget
     nk_layout_row_dynamic(ctx, row_height/2, 1);
     nk_label(ctx, "", 0);
   }

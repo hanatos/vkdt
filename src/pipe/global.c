@@ -41,7 +41,6 @@ static inline dt_ui_param_t*
 read_param_config_ascii(
     char *line)
 {
-  if(!strncmp(line, "---", 3)) return (dt_ui_param_t *)-1u;
   // params come in this format:
   // tkn:tkn:int:float
   // name:type:cnt:defval
@@ -51,7 +50,6 @@ read_param_config_ascii(
   int cnt = dt_read_int(line, &line);
   // TODO: sanity check and clamp?
   dt_ui_param_t *p = malloc(sizeof(*p) + dt_ui_param_size(type, cnt));
-  p->separator = 0;
   p->name = name;
   p->type = type;
   p->cnt = cnt;
@@ -135,21 +133,11 @@ dt_module_so_load(
   }
   else
   {
-    dt_ui_param_t *tmp = 0;
-    int sep = 0;
     while(!feof(f))
     {
       fscanf(f, "%8191[^\n]", line);
       if(fgetc(f) == EOF) break; // read \n
-      tmp = read_param_config_ascii(line);
-      if(tmp == (dt_ui_param_t *)-1u)
-        sep = 1;
-      else
-      {
-        tmp->separator = sep;
-        sep = 0;
-        mod->param[i++] = tmp;
-      }
+      mod->param[i++] = read_param_config_ascii(line);
       if(i > sizeof(mod->param)/sizeof(mod->param[0])) break;
     }
     mod->num_params = i;
@@ -188,8 +176,11 @@ dt_module_so_load(
     // where param-name refers to an integer parameter which sets the mode.
     // if mode >= 100, it hides the following params for param-name=mode-100
     // if tkn==-1, the group resets to all visible.
+    // a line "---" can be used before a widget definition to insert a separator space
+    // before this widget in the ui.
     int grpid = -1;
     int mode = 0;
+    int have_sep = 0;
     while(!feof(f))
     {
       fscanf(f, "%8191[^\n]", line);
@@ -197,6 +188,11 @@ dt_module_so_load(
       if(fgetc(f) == EOF) break; // read \n
       dt_token_t parm = dt_read_token(b, &b);
       dt_token_t type = dt_read_token(b, &b);
+      if(parm == dt_token("---"))
+      { // next line's ui definition has a pre-separator
+        have_sep = 1;
+        continue;
+      }
       float min = 0.0f, max = 0.0f;
       void *data = 0;
       if(parm == dt_token("group"))
@@ -264,8 +260,10 @@ dt_module_so_load(
         .grpid = grpid,
         .mode  = mode,
         .cntid = cntid,
+        .sep   = have_sep,
         .data  = data,
       };
+      have_sep = 0;
     }
     fclose(f);
   }
