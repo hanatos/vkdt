@@ -1,0 +1,4 @@
+x:float:8:0:1
+y:float:8:0:1
+cnt:int:1:2
+sel:int:1:-1

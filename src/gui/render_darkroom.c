@@ -839,6 +839,18 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
 void
 darkroom_mouse_position(GLFWwindow* window, double x, double y)
 {
+  if(vkdt.graph_dev.active_module >= 0)
+  { // pass on mouse events on dspy window
+    dt_module_t *mod = vkdt.graph_dev.module + vkdt.graph_dev.active_module;
+    struct nk_rect b = vkdt.wstate.active_dspy_bound;
+    dt_module_input_event_t p = {
+      .type = 2,
+      .x = CLAMP((x-b.x)/b.w, 0, 1),
+      .y = CLAMP(1.0-(y-b.y)/b.h, 0, 1),
+    };
+    if(mod->so->input) // always send to active module, just clamp coordinates
+      vkdt.graph_dev.runflags |= mod->so->input(mod, &p);
+  }
   if(vkdt.wstate.grabbed)
   {
     dt_module_input_event_t p = {

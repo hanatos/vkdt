@@ -1,0 +1,99 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  vec4 x0, x1;
+  vec4 y0, y1;
+  int  cnt;
+  int  sel;
+} params;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+layout(set = 1, binding = 2) uniform writeonly image2D img_dspy;
+
+// TODO
+// * catmull rom interpolation (option)
+// * three curves, for rgb (+one for Y?)
+// * extrapolation to left and right (gamma?)
+// * histogram in bg
+// * other modes? oklab hue vs hue vs all combinations
+
+float curve_x(int i)
+{
+  if(i == 0) return params.x0.x;
+  if(i == 1) return params.x0.y;
+  if(i == 2) return params.x0.z;
+  if(i == 3) return params.x0.w;
+  if(i == 4) return params.x1.x;
+  if(i == 5) return params.x1.y;
+  if(i == 6) return params.x1.z;
+  if(i == 7) return params.x1.w;
+}
+
+float curve_y(int i)
+{
+  if(i == 0) return params.y0.x;
+  if(i == 1) return params.y0.y;
+  if(i == 2) return params.y0.z;
+  if(i == 3) return params.y0.w;
+  if(i == 4) return params.y1.x;
+  if(i == 5) return params.y1.y;
+  if(i == 6) return params.y1.z;
+  if(i == 7) return params.y1.w;
+}
+
+float curve_eval(float x, out float ddx)
+{
+  float x0 = curve_x(0);
+  float y0 = curve_y(0);
+  float x1, y1;
+  if(x <= x0) return y0; // TODO extend somehow with slope/fitted gamma
+  for(int i=1;i<params.cnt;i++)
+  {
+    x1 = curve_x(i);
+    y1 = curve_y(i);
+    if(x <= x1)
+    {
+      ddx = (y1-y0)/(x1-x0);
+      return mix(y0, y1, (x-x0)/(x1-x0));
+    }
+    x0 = x1;
+    y0 = y1;
+  }
+  return y1; // TODO extend somehow with slope/fitted gamma
+}
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  imageStore(img_out, ipos, vec4(rgb, 1));
+
+  if(any(greaterThanEqual(ipos, imageSize(img_dspy)))) return;
+  vec4 col_crv = vec4(0, 0, 0, 1);
+  float of0 = 0;//0.1; // extend range outside [0,1]?
+  float off = of0 * imageSize(img_dspy).x;
+  float x = ipos.x/float(imageSize(img_dspy).x - off);
+  float ddx;
+  float y = curve_eval(x, ddx);
+  const float w = 2.0; // stroke width
+  float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
+  float d = abs((1.0+of0-y) * (1.0-of0) * imageSize(img_dspy).y - ipos.y);
+  col_crv = max(col_crv, 0.2 * vec4(vec3(smoothstep(t, 0.0, d)), 1));
+  // draw selected point
+  off = of0 * imageSize(img_dspy).y;
+  y = 1.0-ipos.y/float(imageSize(img_dspy).y - off);
+  for(int i=0;i<params.cnt;i++)
+  {
+    vec2 dist = vec2(x,y)-vec2(curve_x(i),curve_y(i));
+    d = dot(dist,dist);
+    float rad = params.sel == i ? 0.03 : 0.02;
+    if(d < rad*rad)
+      col_crv = max(col_crv, 0.2 * vec4(vec3(smoothstep(rad, 0.0, d)), 1));
+  }
+  imageStore(img_dspy, ipos, col_crv);
+}
