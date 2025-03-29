@@ -5,6 +5,7 @@
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
+  vec4 abcd[8];
   vec4 x0, x1;
   vec4 y0, y1;
   int  cnt;
@@ -15,7 +16,6 @@ layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 layout(set = 1, binding = 2) uniform writeonly image2D img_dspy;
 
 // TODO
-// * catmull rom interpolation (option)
 // * three curves, for rgb (+one for Y?)
 // * extrapolation to left and right (gamma?)
 // * histogram in bg
@@ -46,11 +46,35 @@ float curve_y(int i)
 }
 
 float curve_eval(float x, out float ddx)
+{ // cubic spline
+  float x0 = curve_x(0);
+  float y0 = curve_y(0);
+  float x1, y1;
+  if(x <= x0) return y0; // TODO fixed slope ddx0
+  for(int i=0;i<params.cnt-1;i++)
+  {
+    x1 = curve_x(i+1);
+    y1 = curve_y(i+1);
+    if(x <= x1)
+    {
+      ddx = (y1-y0)/(x1-x0);
+      x -= x0;
+      vec4 p = vec4(1, x, x*x, x*x*x);
+      return dot(params.abcd[i], p);
+    }
+    x0 = x1;
+    y0 = y1;
+  }
+  return y1; // TODO fixed slope ddxn
+}
+
+#if 0 // linear
+float curve_eval(float x, out float ddx)
 {
   float x0 = curve_x(0);
   float y0 = curve_y(0);
   float x1, y1;
-  if(x <= x0) return y0; // TODO extend somehow with slope/fitted gamma
+  if(x <= x0) return y0;
   for(int i=1;i<params.cnt;i++)
   {
     x1 = curve_x(i);
@@ -63,8 +87,9 @@ float curve_eval(float x, out float ddx)
     x0 = x1;
     y0 = y1;
   }
-  return y1; // TODO extend somehow with slope/fitted gamma
+  return y1;
 }
+#endif
 
 void main()
 {
