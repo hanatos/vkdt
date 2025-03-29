@@ -76,6 +76,7 @@ typedef struct dt_gui_wstate_t
   int      active_widget_parid; // parameter id
   int      active_widget_parnm; // number of parameter (if multi count)
   int      active_widget_parsz; // size of parameter to copy
+  struct nk_rect active_dspy_bound;
   int      selected;
   float    aspect;
   float    state[2100];

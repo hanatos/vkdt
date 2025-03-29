@@ -1229,6 +1229,7 @@ static inline void render_darkroom_widgets(
         nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));
         nk_layout_row(ctx, NK_DYNAMIC, ht, 3, ratio);
         nk_label(ctx, "", 0);
+        vkdt.wstate.active_dspy_bound = nk_widget_bounds(ctx);
         struct nk_image img = nk_image_ptr(out_dspy->dset[display_frame]);
         nk_image(ctx, img);
         nk_label(ctx, "", 0);
