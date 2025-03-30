@@ -13,6 +13,7 @@ any kind on top of the changes directly reflected by the curves.
 ## parameters
 
 * `channel` show r,g, or b curve for editing in the dspy widget
+* `mode` choose to which channel to apply curves to
 * `ddr0` the slope of the curve before the leftmost control vertex
 * `ddg0` the slope of the curve before the leftmost control vertex
 * `ddb0` the slope of the curve before the leftmost control vertex

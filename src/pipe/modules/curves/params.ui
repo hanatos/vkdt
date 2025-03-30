@@ -11,6 +11,8 @@ sel:hidden
 abcdr:hidden
 abcdg:hidden
 abcdb:hidden
+mode:combo:rgb:luminance
+group:mode:0
 channel:combo:red:green:blue
 group:channel:0
 ddr0:slider:-1:1

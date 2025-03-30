@@ -16,6 +16,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4 yb0, yb1;
   int  cntr, cntg, cntb;
   int  sel;
+  int  mode;
   int  chan;
   float ddr0, ddrn;
   float ddg0, ddgn;
@@ -31,8 +32,8 @@ void main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
   float ddx;
-  rgb.r = curve_eval(0, rgb.r, ddx);
-  rgb.g = curve_eval(1, rgb.g, ddx);
-  rgb.b = curve_eval(2, rgb.b, ddx);
+  rgb.r = curve_eval(params.mode == 1 ? params.chan : 0, rgb.r, ddx);
+  rgb.g = curve_eval(params.mode == 1 ? params.chan : 1, rgb.g, ddx);
+  rgb.b = curve_eval(params.mode == 1 ? params.chan : 2, rgb.b, ddx);
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

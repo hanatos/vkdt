@@ -11,6 +11,7 @@ cntr:int:1:2
 cntg:int:1:2
 cntb:int:1:2
 sel:int:1:-1
+mode:int:1:0
 channel:int:1:0
 ddr0:float:1:1
 ddrn:float:1:1

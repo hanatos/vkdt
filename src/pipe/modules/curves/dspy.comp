@@ -16,6 +16,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4 yb0, yb1;
   int  cntr, cntg, cntb;
   int  sel;
+  int  mode;
   int  chan;
   float ddr0, ddrn;
   float ddg0, ddgn;
@@ -37,15 +38,18 @@ void main()
   const float h = 0.25*log(1.0+100000.0*histogram[int(clamp(tc.x*hist_size, 0, hist_size-1))]/float(histogram[hist_size]))-1.0;
   if(1.0-tc.y < h)
   {
-    vec3 col = vec3(params.chan==0?0.3:0.1,params.chan==1?0.3:0.1,params.chan==2?0.3:0.1);
+    vec3 col = params.mode == 1 ? vec3(0.3) :
+      vec3(params.chan==0?0.3:0.1,params.chan==1?0.3:0.1,params.chan==2?0.3:0.1);
     rgba = vec4(col, 1.0);
     // if(params.mode == 1) rgba.rgb = hsv2rgb(vec3(tc.x, 0.5, 0.5));
   }
 
   for(int c=0;c<3;c++)
   { // draw all three curves
+    if(params.mode == 1) // luminance
+      c = params.chan;
     const int cnt = c == 0 ? params.cntr : c == 1 ? params.cntg : params.cntb;
-    vec3 col = vec3(c==0?0.9:0.1,c==1?0.9:0.1,c==2?0.9:0.1);
+    vec3 col = params.mode == 1 ? vec3(0.9) : vec3(c==0?0.9:0.1,c==1?0.9:0.1,c==2?0.9:0.1);
     float of0 = 0;//0.1; // extend range outside [0,1]?
     float off = of0 * imageSize(img_dspy).x;
     float x = ipos.x/float(imageSize(img_dspy).x - off);
@@ -68,6 +72,8 @@ void main()
           rgba = max(rgba, 0.5 * vec4(vec3(smoothstep(rad, 0.0, d)), 1));
       }
     }
+    if(params.mode == 1) // luminance
+      break;
   }
   imageStore(img_dspy, ipos, rgba);
 }
