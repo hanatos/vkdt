@@ -1,0 +1,73 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  vec4 abcdr[8];
+  vec4 abcdg[8];
+  vec4 abcdb[8];
+  vec4 xr0, xr1;
+  vec4 xg0, xg1;
+  vec4 xb0, xb1;
+  vec4 yr0, yr1;
+  vec4 yg0, yg1;
+  vec4 yb0, yb1;
+  int  cntr, cntg, cntb;
+  int  sel;
+  int  chan;
+  float ddr0, ddrn;
+  float ddg0, ddgn;
+  float ddb0, ddbn;
+} params;
+layout(set = 1, binding = 0, std430) buffer buf_hist { uint  histogram[]; };
+layout(set = 1, binding = 1) uniform writeonly image2D img_dspy;
+#include "spline.glsl"
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_dspy)))) return;
+
+  // draw histogram
+  const uint hist_size = 256;
+  vec4 rgba = vec4(0.05,0.05,0.05,1);
+  vec2 tc = (ipos+0.5) / vec2(imageSize(img_dspy));
+  const float h = 0.25*log(1.0+100000.0*histogram[int(clamp(tc.x*hist_size, 0, hist_size-1))]/float(histogram[hist_size]))-1.0;
+  if(1.0-tc.y < h)
+  {
+    vec3 col = vec3(params.chan==0?0.3:0.1,params.chan==1?0.3:0.1,params.chan==2?0.3:0.1);
+    rgba = vec4(col, 1.0);
+    // if(params.mode == 1) rgba.rgb = hsv2rgb(vec3(tc.x, 0.5, 0.5));
+  }
+
+  for(int c=0;c<3;c++)
+  { // draw all three curves
+    const int cnt = c == 0 ? params.cntr : c == 1 ? params.cntg : params.cntb;
+    vec3 col = vec3(c==0?0.9:0.1,c==1?0.9:0.1,c==2?0.9:0.1);
+    float of0 = 0;//0.1; // extend range outside [0,1]?
+    float off = of0 * imageSize(img_dspy).x;
+    float x = ipos.x/float(imageSize(img_dspy).x - off);
+    float ddx;
+    float y = curve_eval(c, x, ddx);
+    const float w = c == params.chan ? 5.0 : 2.0; // stroke width
+    float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
+    float d = abs((1.0+of0-y) * (1.0-of0) * imageSize(img_dspy).y - ipos.y);
+    rgba = max(rgba , vec4(col, 0.2) * vec4(vec3(smoothstep(t, 0.0, d)), 1));
+    if(c == params.chan)
+    { // draw (selected) points
+      off = of0 * imageSize(img_dspy).y;
+      y = 1.0-ipos.y/float(imageSize(img_dspy).y - off);
+      for(int i=0;i<cnt;i++)
+      {
+        vec2 dist = vec2(x,y)-vec2(curve_x(c, i), curve_y(c, i));
+        d = dot(dist,dist);
+        float rad = params.sel == i ? 0.03 : 0.02;
+        if(d < rad*rad)
+          rgba = max(rgba, 0.5 * vec4(vec3(smoothstep(rad, 0.0, d)), 1));
+      }
+    }
+  }
+  imageStore(img_dspy, ipos, rgba);
+}
