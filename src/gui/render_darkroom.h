@@ -97,7 +97,7 @@ static inline void render_perf_overlay()
   nk_stroke_line(buf, px, py, px+sx, py, 4.0, bgcol);
   nk_stroke_line(buf, px, py+sy, px+sx, py+sy, 4.0, bgcol);
   nk_stroke_line(buf, px, py+(1-16.0/100.0)*sy, px+sx, py+(1-16.0/100.0)*sy, 4.0, bgcol);
-  nk_draw_text(buf, (struct nk_rect){px, py, sx,sy}, overlay, strlen(overlay), &dt_gui_get_font(2)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, col);
+  nk_draw_text(buf, (struct nk_rect){px, py, sx,sy}, overlay, strlen(overlay), nk_glfw3_font(2), (struct nk_color){0x77,0x77,0x77,0xff}, col);
   values_offset = (values_offset + 1) & nvmask;
 }
 
@@ -307,7 +307,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         snprintf(valstr, sizeof(valstr), "%4.4f", VAL);\
         nk_draw_text(cmd, valrect,\
             valstr, strlen(valstr),\
-            &dt_gui_get_font(0)->handle,\
+            nk_glfw3_font(0),\
             (struct nk_color){0,0,0,0xff},\
             (struct nk_color){0xff,0xff,0xff,0xff});\
         for(int k=0;k<=N;k++)\
@@ -1132,7 +1132,6 @@ static inline void render_darkroom_widgets(
         "temporarily disable this module without disconnecting it from the graph.\n"
         "this is just a convenience A/B switch in the ui and will not affect your\n"
         "processing history, lighttable thumbnail, or export.");
-    nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
     struct nk_rect box = nk_widget_bounds(ctx);
     nk_label(ctx, module->disabled ? "\ue612" : "\ue836", NK_TEXT_CENTERED);
     // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
@@ -1166,11 +1165,11 @@ static inline void render_darkroom_widgets(
   {
     dt_tooltip("this module cannot be disabled automatically because\n"
                "it does not implement a simple input -> output chain");
-    nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
     nk_label(ctx, "\ue15b", NK_TEXT_CENTERED);
   }
-  nk_label(ctx, active ? "\ue5cf" : "\ue5cc", NK_TEXT_CENTERED);
-  nk_style_pop_font(ctx);
+  // nk_label(ctx, active ? "\ue5cf" : "\ue5cc", NK_TEXT_CENTERED);
+  // nk_label(ctx, active ? "\ue5e0" : "\ue5e1", NK_TEXT_CENTERED);
+  nk_label(ctx, active ? "\ue5df" : "\ue5c5", NK_TEXT_CENTERED);
   nk_label(ctx, name, NK_TEXT_LEFT);
   // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
   const struct nk_input *in = (vkdt.ctx.current->layout->flags & NK_WINDOW_ROM) ? 0 : &ctx->input;

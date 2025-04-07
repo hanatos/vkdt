@@ -368,7 +368,7 @@ dt_image(
   {
     snprintf(scaletext, sizeof(scaletext), "%d%%", (int)(w->scale*100.0));
     nk_draw_text(buf, (struct nk_rect){w->win_x+0.9*w->win_w,w->win_y+0.05*w->win_h, 0.5*w->win_w, 0.05*w->win_h},
-        scaletext, strlen(scaletext), &dt_gui_get_font(0)->handle, (struct nk_color){0}, (struct nk_color){0xff,0xff,0xff,0xff});
+        scaletext, strlen(scaletext), nk_glfw3_font(0), (struct nk_color){0}, (struct nk_color){0xff,0xff,0xff,0xff});
   }
   // now the controls:
   if(events) dt_image_events(ctx, w, hover, main, disp);

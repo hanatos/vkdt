@@ -7,7 +7,7 @@
 // will steal whatever is needed from global qvk struct.
 int dt_gui_init_nk();
 
-// initialise and upload fonts for current window height
+// initialise and upload font. returns 0 on success.
 void dt_gui_init_fonts();
 
 // tear down nuklear and free resources
@@ -62,7 +62,4 @@ static inline int dt_gui_input_blocked()
 {
   return vkdt.wstate.popup | vkdt.wstate.grabbed | vkdt.wstate.nk_active;
 }
-
-struct nk_font;
-struct nk_font* dt_gui_get_font(int which); // 0 small, 1 medium, 2 large, 3 material symbols
 void dt_gamepadhelp();

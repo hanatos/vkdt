@@ -12,6 +12,7 @@ layout(push_constant) uniform push_t
   float maxval;
   int winposx;
   int borderx;
+  float strength; // font strength
 } pc;
 
 float rand(inout uint x)
@@ -22,31 +23,27 @@ float rand(inout uint x)
   return x / 4294967296.0;
 }
 
+float median(float r, float g, float b)
+{
+  return max(min(r, g), min(max(r, g), b));
+}
+
 void main()
 {
   vec4 tex = texture(img, in_uv);
   if(pc.strength > 0)
   { // render msdf font
     float sigDist = median(tex.r, tex.g, tex.b) - 1.0 + pc.strength;
-    // TODO uhm what's this?
-    sigDist *= dot(vec2(4.0/1024.0), 0.5/fwidth(in_uv));
-    // XXX anti aliasing / blending post gamma looks terrible:
+    // TODO might need to adjust that to screen res, not texture res?
+    sigDist *= dot(vec2(6.0/1024.0), 0.5/fwidth(in_uv));
     // float opacity = clamp(sigDist + 0.5, 0.0, 1.0);
-    float opacity = smoothstep(0.0, 1.0, sigDist + 0.5);
-    // tex = mix(vec4(0.0), in_colour, opacity);
-    tex /= 255;
-    tex.a = 1;
+    float opacity = smoothstep(0.0, 1.0, sigDist + 0.5); // we're blending post gamma, this looks better
+    tex = mix(vec4(in_colour.rgb, 0.0), in_colour, opacity);
   }
   else if(pc.strength < 0) tex = in_colour;
   else tex = in_colour * tex;
 
   // convert linear rec2020 to profile
-  vec4 tex = texture(img, in_uv);
-  // font sdf experiment. for images with a=1 it does nothing.
-  const float smoothing = 0.5;
-  tex.a = smoothstep(0.5 - smoothing, 0.5 + smoothing, tex.a);
-  tex = in_colour * tex;
-
   mat3 rec2020_to_dspy;
   vec3 gamma;
   if(gl_FragCoord.x + pc.winposx < pc.borderx)

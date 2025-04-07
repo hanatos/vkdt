@@ -87,22 +87,35 @@ read_style_colours(struct nk_context *ctx)
   nk_style_from_table(ctx, vkdt.style.colour);
 }
 
-static struct nk_font *g_font[4] = {0}; // remember to add an image sampler in gui.c if adding more fonts!
-struct nk_font *dt_gui_get_font(int which)
-{
-  return g_font[which];
-}
-
 void dt_gui_init_fonts()
 {
   static float curr_fontsize = 0.0f;
-  char tmp[PATH_MAX+100] = {0};
   float scalex, scaley;
   dt_gui_content_scale(vkdt.win.window, &scalex, &scaley); // win1 has to go along
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-  float fontsize = MAX(5, floorf(19 * dpi_scale * scaley));
+  // fontsize scales the EM square
+  float fontsize = MAX(5, floorf(17 * dpi_scale * scaley));
   if(fontsize == curr_fontsize) return;
+
+  if(curr_fontsize == 0.0f)
+  {
+    const char *fontfile = dt_rc_get(&vkdt.rc, "gui/msdffont", "font");
+    threads_mutex_lock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
+    int ret = nk_glfw3_font_load(fontfile, fontsize,
+        vkdt.win.command_buffer[vkdt.win.frame_index%DT_GUI_MAX_IMAGES],
+        qvk.queue[qvk.qid[s_queue_graphics]].queue);
+    threads_mutex_unlock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
+    nk_style_set_font(&vkdt.ctx, nk_glfw3_font(0));
+    if(ret)
+      dt_log(s_log_err|s_log_gui, "will not be able to display text! please find the missing font file!");
+  }
+  // maybe already loaded, anyways set font sizes
+  nk_glfw3_font(0)->height = fontsize;
+  nk_glfw3_font(1)->height = floorf(1.5*fontsize);
+  nk_glfw3_font(2)->height = 2*fontsize;
   curr_fontsize = fontsize;
+
+#if 0
   const char *fontfile = dt_rc_get(&vkdt.rc, "gui/font", "Roboto-Regular.ttf");
   if(fontfile[0] != '/')
     snprintf(tmp, sizeof(tmp), "%s/data/%s", dt_pipe.basedir, fontfile);
@@ -140,6 +153,7 @@ void dt_gui_init_fonts()
   /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
   /*nk_style_set_font(ctx, &droid->handle);*/
   nk_style_set_font(&vkdt.ctx, &g_font[0]->handle);
+#endif
 }
 
 int dt_gui_init_nk()
@@ -383,9 +397,7 @@ void dt_gamepadhelp()
       rect.w = rect.x + 300;
       rect.h = rect.y + 300;
       rect.y -= 0.03*vkdt.state.center_ht;
-      nk_draw_text(buf, rect, g_gamepadhelp.help[g_gamepadhelp.sp][k], strlen(g_gamepadhelp.help[g_gamepadhelp.sp][k]), &dt_gui_get_font(1)->handle, nk_rgb(0,0,0), nk_rgb(255,255,255));
-      // rect.y -= 0.03*vkdt.state.center_ht;
-      // nk_draw_text(buf, rect, dt_gamepadhelp_input_str[k], strlen(dt_gamepadhelp_input_str[k]), &dt_gui_get_font(1)->handle, nk_rgb(0,0,0), nk_rgb(255,255,255));
+      nk_draw_text(buf, rect, g_gamepadhelp.help[g_gamepadhelp.sp][k], strlen(g_gamepadhelp.help[g_gamepadhelp.sp][k]), nk_glfw3_font(1), nk_rgb(0,0,0), nk_rgb(255,255,255));
     }
   }
 }

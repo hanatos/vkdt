@@ -247,7 +247,6 @@ void render_lighttable_center()
 
   if(vkdt.db.collection_cnt == 0)
   {
-    // nk_style_push_font(&vkdt.ctx, &dt_gui_get_font(1)->handle);
     nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_ht/5, 1);
     nk_label(&vkdt.ctx, "", 0);
     nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_ht/3, 3);
@@ -257,7 +256,6 @@ void render_lighttable_center()
         "try to relax the filter in the right panel in the `collect' expander. "
         "to open another directory press escape to go to the file browser.", vkdt.db.dirname, vkdt.db.image_cnt);
     nk_label(&vkdt.ctx, "", 0);
-    // nk_style_pop_font(&vkdt.ctx);
     NK_UPDATE_ACTIVE;
     nk_end(&vkdt.ctx);
     nk_style_pop_style_item(&vkdt.ctx);
@@ -435,7 +433,7 @@ render_lighttable_header()
     nk_layout_row_dynamic(&vkdt.ctx, 0.93*vkdt.state.center_y, 1);
     struct nk_rect bounds = nk_widget_bounds(&vkdt.ctx);
     nk_label(&vkdt.ctx, "", 0);
-    nk_style_push_font(&vkdt.ctx, &dt_gui_get_font(2)->handle);
+    nk_style_push_font(&vkdt.ctx, nk_glfw3_font(2));
     recently_used_collections_draw(bounds, vkdt.db.dirname, &vkdt.db.collection_filter);
     nk_style_pop_font(&vkdt.ctx);
   }
@@ -636,10 +634,8 @@ void render_lighttable_right_panel()
     ctx->style.combo.sym_hover  = old1;
     ctx->style.combo.sym_active = old2;
     resi = ft->active & (1<<s_prop_rating) ? CLAMP(ft->rating, 0, 5) : 0;
-    nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
     resi = nk_combo_string(ctx, "\ue836\0\ue838\0\ue838\ue838\0\ue838\ue838\ue838\0\ue838\ue838\ue838\ue838\0\ue838\ue838\ue838\ue838\ue838\0\0", resi, 0xffff, row_height, size);
 
-    nk_style_pop_font(ctx);
     if(resi != ft->rating) 
     {
       if(resi == 0) ft->active &= ~(1<<s_prop_rating);
@@ -1178,7 +1174,7 @@ void render_lighttable_right_panel()
         nk_prog(ctx, 100*progress, 100, nk_false);
         char text[50];
         snprintf(text, sizeof(text), "%d%%", (int)(100.0*progress));
-        nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
+        nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
         if(nk_button_label(ctx, "abort")) job[k].abort = 1;
         // technically a race condition on frame_cnt being inited by graph
         // loading during the async job. do we care?
@@ -1187,7 +1183,7 @@ void render_lighttable_right_panel()
           bb = nk_widget_bounds(ctx);
           nk_prog(ctx, job[k].graph.frame, job[k].graph.frame_cnt, nk_false);
           snprintf(text, sizeof(text), "frame %d/%d", job[k].graph.frame, job[k].graph.frame_cnt);
-          nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
+          nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
           nk_label(ctx, "", 0);
         }
       }

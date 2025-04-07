@@ -14,7 +14,7 @@ dt_tooltip(const char *fmt, ...)
   char text[512];
   if(fmt && fmt[0] && nk_widget_is_hovered(&vkdt.ctx))
   {
-    nk_style_push_font(&vkdt.ctx, &dt_gui_get_font(0)->handle);
+    nk_style_push_font(&vkdt.ctx, nk_glfw3_font(0));
     va_list args;
     va_start(args, fmt);
     vsnprintf(text, sizeof(text), fmt, args);
@@ -22,7 +22,7 @@ dt_tooltip(const char *fmt, ...)
     text[sizeof(text)-1]=0;
     char *c = text;
     int len = strlen(text);
-    struct nk_user_font *font = &dt_gui_get_font(0)->handle;
+    struct nk_user_font *font = nk_glfw3_font(0);
     float w = font->width(font->userdata, font->height, text, len) + vkdt.ctx.style.tab.padding.x*2;
     if(nk_tooltip_begin(&vkdt.ctx, MIN(w, vkdt.state.panel_wd)))
     {

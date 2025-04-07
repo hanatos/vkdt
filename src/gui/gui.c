@@ -51,7 +51,7 @@ framebuffer_size_callback(GLFWwindow* w, int width, int height)
     win->width = width; win->height = height;
     dt_gui_recreate_swapchain(win);
     nk_glfw3_resize(w, win->width, win->height);
-    dt_gui_init_fonts(); // actually we don't wan this here, but we assume content scale changes also changes framebuffer.
+    dt_gui_init_fonts(); // actually we don't want this here, but we assume content scale changes also changes framebuffer.
   }
 }
 
@@ -1008,7 +1008,7 @@ void dt_gui_win1_open()
   nk_init_default(&vkdt.ctx1, 0);
   nk_style_default(&vkdt.ctx1);
   nk_style_from_table(&vkdt.ctx1, vkdt.style.colour);
-  nk_style_set_font(&vkdt.ctx1, &dt_gui_get_font(0)->handle);
+  nk_style_set_font(&vkdt.ctx1, nk_glfw3_font(0));
   nk_glfw3_win1_open(&vkdt.ctx1, vkdt.win1.render_pass, vkdt.win1.window, 
       vkdt.win1.num_swap_chain_images * 2560*1024,
       vkdt.win1.num_swap_chain_images * 640*1024);

@@ -281,7 +281,7 @@ dt_node_editor(
   }
   // set font size to something scaled by zoom:
   static struct nk_user_font font;
-  font = dt_gui_get_font(0)->handle;
+  font = *nk_glfw3_font(0);
   font.height *= nedit->zoom;
   nk_style_push_font(ctx, &font);
   nk_style_push_vec2(ctx, &vkdt.ctx.style.tab.padding, nk_vec2(vkdt.ctx.style.tab.padding.x*nedit->zoom, vkdt.ctx.style.tab.padding.y*nedit->zoom));
@@ -312,7 +312,7 @@ dt_node_editor(
     if(mid2 < graph->num_modules && module == nedit->selected) continue; // skip 1st time we iterate over this module
     const int mid = module - graph->module; // fix index
 
-    const float mod_wd = 7*dt_gui_get_font(0)->handle.height;
+    const float mod_wd = 7*nk_glfw3_font(0)->height;
     struct nk_rect module_bounds = nk_rect(nedit->dpi_scale*module->gui_x, nedit->dpi_scale*module->gui_y, mod_wd, 0);
     struct nk_vec2 lbb_min = dt_node_world_to_view(nedit, nk_vec2(nedit->dpi_scale*module->gui_x, nedit->dpi_scale*module->gui_y));
     struct nk_vec2 lbb_max = dt_node_world_to_view(nedit, nk_vec2(nedit->dpi_scale*module->gui_x + module_bounds.w, nedit->dpi_scale*module->gui_y));
@@ -414,7 +414,7 @@ dt_node_editor(
         if(mido >= 0)
         { // draw link to output if we are connected
           dt_module_t *mo = graph->module + mido;
-          const float mod_wd = 7*dt_gui_get_font(0)->handle.height;
+          const float mod_wd = 7*nk_glfw3_font(0)->height;
           struct nk_rect mo_bounds = nk_rect(nedit->dpi_scale*mo->gui_x, nedit->dpi_scale*mo->gui_y, mod_wd, row_height * (mo->num_connectors + 3));
           struct nk_vec2 l0 = nk_layout_space_to_screen(ctx,
               dt_node_world_to_view(nedit,
@@ -501,7 +501,7 @@ dt_node_editor(
       nk_layout_row_dynamic(ctx, row_height, 1);
       for(int c=0;c<module->num_connectors;c++)
       {
-        nk_style_push_font(ctx, &dt_gui_get_font(0)->handle);
+        nk_style_push_font(ctx, nk_glfw3_font(0));
         dt_tooltip("format: %" PRItkn ":%" PRItkn "\n%s%s\n%d x %d %s",
             dt_token_str(module->connector[c].chan),
             dt_token_str(module->connector[c].format),

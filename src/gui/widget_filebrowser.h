@@ -113,10 +113,10 @@ dt_filebrowser(
     }
   }
 
-  nk_style_push_font(ctx, &dt_gui_get_font(2)->handle);
+  nk_style_push_font(ctx, nk_glfw3_font(2));
   float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   nk_layout_row_dynamic(ctx, row_height, 2);
-  nk_style_push_font(ctx, &dt_gui_get_font(0)->handle);
+  nk_style_push_font(ctx, nk_glfw3_font(0));
   dt_tooltip("current working directory.\nedit to taste and press enter to change");
   nk_style_pop_font(ctx);
   if(w->focus_path) nk_edit_focus(ctx, 0);
@@ -128,7 +128,7 @@ dt_filebrowser(
     nk_edit_unfocus(ctx); // make keyboard nav in list below work
     dt_filebrowser_cleanup(w);
   }
-  nk_style_push_font(ctx, &dt_gui_get_font(0)->handle);
+  nk_style_push_font(ctx, nk_glfw3_font(0));
   dt_tooltip("filter the displayed filenames.\ntype a search string and press enter to apply");
   nk_style_pop_font(ctx);
   if(w->focus_filter) nk_edit_focus(ctx, 0);
@@ -172,7 +172,7 @@ dt_filebrowser(
   struct nk_rect total_space = nk_window_get_content_region(&vkdt.ctx);
   nk_layout_row_dynamic(ctx, total_space.h-2*row_height, 1);
   nk_group_begin(ctx, "scroll files", 0);
-  nk_style_push_font(ctx, &dt_gui_get_font(1)->handle);
+  nk_style_push_font(ctx, nk_glfw3_font(1));
   nk_layout_row_dynamic(ctx, row_height, 1);
   struct nk_rect content = nk_window_get_content_region(&vkdt.ctx);
   for(int i=0;i<w->ent_cnt;i++)

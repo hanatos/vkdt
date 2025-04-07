@@ -17,7 +17,10 @@ int main(int argc, char *argv[])
   int datatype = header.datatype;
   int is_ssbo = 0;
   if(datatype >= dt_lut_header_ssbo_f16) { is_ssbo = 1; datatype -= dt_lut_header_ssbo_f16; }
-  size_t sz = datatype == dt_lut_header_f16 ? sizeof(uint16_t) : sizeof(float);
+  size_t sz =
+    datatype == dt_lut_header_f16 ? sizeof(uint16_t) :
+    datatype == dt_lut_header_ui8 ? sizeof(uint8_t)  :
+    sizeof(float);
   fprintf(stderr, "lut with %d x %d with %d channels at %zu bytes per %s channel\n",
       header.wd, header.ht, header.channels, sz, is_ssbo ? "ssbo" : "colour");
   sz *= header.wd * (uint64_t)header.ht * (uint64_t)header.channels;

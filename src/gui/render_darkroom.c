@@ -563,7 +563,6 @@ void render_darkroom()
       const float ratio[] = {0.1f, 0.9f};
       nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
       dt_tooltip("play/pause the animation");
-      nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
       if(vkdt.state.anim_playing)
       {
         if(nk_button_label(ctx, "\ue047"))
@@ -571,7 +570,6 @@ void render_darkroom()
       }
       else if(nk_button_label(ctx, "\ue037"))
         dt_gui_dr_anim_start();
-      nk_style_pop_font(ctx);
       if(nk_widget_is_hovered(ctx))
       {
         char hk[64];
@@ -594,7 +592,7 @@ void render_darkroom()
       }
       char text[50];
       snprintf(text, sizeof(text), "frame %d/%d", vkdt.state.anim_frame, vkdt.state.anim_max_frame);
-      nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
+      nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
     }
 
     // tabs for module/params controls:

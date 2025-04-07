@@ -176,7 +176,7 @@ void render_nodes()
 
     float scalex, scaley;
     dt_gui_content_scale(vkdt.win.window, &scalex, &scaley);
-    const float nodew = 10*dt_gui_get_font(0)->handle.height;
+    const float nodew = 10*nk_glfw3_font(0)->height;
     const float nodey = vkdt.state.center_ht * 0.3;
 
     int vpos = nodey;
