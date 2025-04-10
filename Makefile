@@ -53,11 +53,11 @@ ifeq ($(shell uname),Linux)
 endif
 endif
 
-lut: bin/data/filmsim.lut
-bin/data/filmsim.lut: src/filmsim.lut.xz
-	tar xvJf src/filmsim.lut.xz  
-	mv filmsim.lut bin/data
-	touch bin/data/filmsim.lut
+lut: bin/data/filmsim.lut bin/data/font_metrics.lut bin/data/font_msdf.lut
+bin/data/%.lut: src/%.lut.xz
+	tar xvJf $<
+	mv $(@:bin/data/%=%) bin/data
+	touch $@
 
 install-mod: bin Makefile lut
 	mkdir -p $(VKDTDIR)/modules
