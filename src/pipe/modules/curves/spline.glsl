@@ -1,3 +1,12 @@
+float e2l(float v)
+{
+  return params.edit > 0 ? v*v : v;
+}
+float l2e(float v)
+{
+  return params.edit > 0 ? sqrt(v) : v;
+}
+
 vec4 abcd(int c, int i)
 {
   if(c == 0) return params.abcdr[i];

@@ -21,6 +21,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float ddr0, ddrn;
   float ddg0, ddgn;
   float ddb0, ddbn;
+  int  edit;
 } params;
 layout(set = 1, binding = 0, std430) buffer buf_hist { uint  histogram[]; };
 layout(set = 1, binding = 1) uniform writeonly image2D img_dspy;
@@ -54,7 +55,10 @@ void main()
     float off = of0 * imageSize(img_dspy).x;
     float x = ipos.x/float(imageSize(img_dspy).x - off);
     float ddx;
-    float y = curve_eval(c, x, ddx);
+    float yl = curve_eval(c, e2l(x), ddx);
+    float y = l2e(yl);
+    if(params.edit > 0)
+      ddx *= 1.0/(2.0*sqrt(yl)) * 2.0 * x; // compensate for e2l and l2e
     const float w = c == params.chan ? 5.0 : 2.0; // stroke width
     float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
     float d = abs((1.0+of0-y) * (1.0-of0) * imageSize(img_dspy).y - ipos.y);
@@ -65,7 +69,7 @@ void main()
       y = 1.0-ipos.y/float(imageSize(img_dspy).y - off);
       for(int i=0;i<cnt;i++)
       {
-        vec2 dist = vec2(x,y)-vec2(curve_x(c, i), curve_y(c, i));
+        vec2 dist = vec2(x,y)-vec2(l2e(curve_x(c, i)), l2e(curve_y(c, i)));
         d = dot(dist,dist);
         float rad = params.sel == i ? 0.03 : 0.02;
         if(d < rad*rad)

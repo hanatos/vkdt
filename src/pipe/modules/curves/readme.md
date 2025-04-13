@@ -20,6 +20,7 @@ any kind on top of the changes directly reflected by the curves.
 * `ddrn` the slope of the curve after the rightmost control vertex
 * `ddgn` the slope of the curve after the rightmost control vertex
 * `ddbn` the slope of the curve after the rightmost control vertex
+* `edit` edit linear values or in some gamma corrected space that gives more control over blacks. this only affects the ui.
 
 ## connectors
 

@@ -23,3 +23,5 @@ ddgn:slider:-1:1
 group:channel:2
 ddb0:slider:-1:1
 ddbn:slider:-1:1
+group:-1:-1
+edit:combo:linear:gamma space

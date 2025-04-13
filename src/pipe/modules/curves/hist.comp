@@ -24,7 +24,9 @@ layout(std140, set = 0, binding = 1) uniform params_t {
   float ddr0, ddrn;
   float ddg0, ddgn;
   float ddb0, ddbn;
+  int  edit;
 } params;
+#include "spline.glsl"
 const uint hist_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
 shared uint[hist_size] local_hist;
 shared uint count;
@@ -36,6 +38,7 @@ uint get_bin(vec3 rgb)
   else if(params.chan == 1) l = rgb.g;
   else if(params.chan == 2) l = rgb.b;
   // else if(params.chan == 0) l = luminance_rec2020(rgb);
+  l = l2e(l);
   uint bin = uint(hist_size * l + 0.5);
   return clamp(bin, 0, hist_size - 1);
 }

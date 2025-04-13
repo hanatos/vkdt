@@ -1,5 +1,12 @@
 #include "modules/api.h"
 
+// returns "edit space" from linear value, for more control in blacks for linear rgb
+static inline float
+edit_to_linear(float v)
+{
+  return v*v;
+}
+
 void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *module)
@@ -84,7 +91,9 @@ input(
   int *p_cnt = (int   *)dt_module_param_int  (mod, dt_module_get_param(mod->so, par[3*channel+0]));
   float *p_x = (float *)dt_module_param_float(mod, dt_module_get_param(mod->so, par[3*channel+1]));
   float *p_y = (float *)dt_module_param_float(mod, dt_module_get_param(mod->so, par[3*channel+2]));
+  int edit = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("edit")))[0];
 
+#define E2L(V) (edit ? edit_to_linear(V) : (V))
   static int active = -1;
   if(p->type == 1)
   { // mouse button
@@ -101,8 +110,8 @@ input(
           p_x[i+1] = p_x[i];
           p_y[i+1] = p_y[i];
         }
-        p_x[j] = p->x;
-        p_y[j] = p->y;
+        p_x[j] = E2L(p->x);
+        p_y[j] = E2L(p->y);
         p_cnt[0] = CLAMP(p_cnt[0]+1,0,8);
         active = p_sel[0] = j;
       }
@@ -125,8 +134,8 @@ input(
     { // move active point around
       float mx = active > 0          ? p_x[active-1]+1e-3f : 0.0f;
       float Mx = active < p_cnt[0]-1 ? p_x[active+1]-1e-3f : 1.0f;
-      p_x[active] = CLAMP(p->x, mx, Mx);
-      p_y[active] = p->y;
+      p_x[active] = CLAMP(E2L(p->x), mx, Mx);
+      p_y[active] = E2L(p->y);
       return s_graph_run_record_cmd_buf;
     }
     else
@@ -134,12 +143,13 @@ input(
       int old = p_sel[0];
       p_sel[0] = -1;
       for(int i=0;i<p_cnt[0];i++)
-        if(fabs(p->x - p_x[i]) < 0.05 && fabs(p->y - p_y[i]) < 0.05)
+        if(fabs(E2L(p->x) - p_x[i]) < 0.05 && fabs(E2L(p->y) - p_y[i]) < 0.05)
           p_sel[0] = i;
       if(old != p_sel[0]) return s_graph_run_record_cmd_buf;
     }
   }
   return 0;
+#undef E2L
 }
 
 void
