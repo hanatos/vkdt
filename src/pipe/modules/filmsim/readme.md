@@ -143,6 +143,20 @@ cp filmsim.lut ~/.config/vkdt/data
 and in any case wire an `i-lut` module with filename `data/filmsim.lut` to the
 `filmsim` input connector.
 
+to update the film stock to new upstream data from agx-emulsion,
+a few steps are necessary:
+
+* the new stock needs to be listed at the top of `mklut-profiles.py` before running the python script,
+* `params.ui` should list the film and paper entries in te same order as in the script,
+* the precomputed white balance values for the enlarger filters have to be computed for the new stock. see the top of `wb.h` for instructions on how to run the optimiser.
+
+finally, the new `filmsim.lut` needs to be checked into git, which is done by creating
+the compressed version and moving it to the `src/` directory:
+```
+tar cvJf filmsim.lut.xz filmsim.lut
+mv filmsim.lut src/
+```
+
 ## connectors
 
 * `input` scene referred linear rec2020 (after the colour module)
