@@ -148,7 +148,8 @@ a few steps are necessary:
 
 * the new stock needs to be listed at the top of `mklut-profiles.py` before running the python script,
 * `params.ui` should list the film and paper entries in te same order as in the script,
-* the precomputed white balance values for the enlarger filters have to be computed for the new stock. see the top of `wb.h` for instructions on how to run the optimiser.
+* the precomputed white balance values for the enlarger filters have to be computed for the new stock. see the top of `wb.h` for instructions on how to run the optimiser,
+* if the total number of film stock changed, this needs to be reflected in `head.glsl`, the line `const int s_paper_offset = 15; // first paper in data list/lut` has to be the number of films (because the papers come right after that in the same file).
 
 finally, the new `filmsim.lut` needs to be checked into git, which is done by creating
 the compressed version and moving it to the `src/` directory:
