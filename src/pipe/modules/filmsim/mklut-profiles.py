@@ -97,4 +97,4 @@ for f in film_stocks:
           dens[i][2],
           1)
       f_lut.write(px)
-f_lut.close();
+f_lut.close()
