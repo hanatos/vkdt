@@ -78,6 +78,10 @@ packages from github nightly ci.
 
 ### current changelog
 
+big features:
+* [spectral film simulation](../src/pipe/modules/filmsim/readme.md)
+* [msdf fonts](./howto/fonts/readme.md)
+
 ## diverge branches
 
 on the master branch, delete the changelog (to be filled with new features which
