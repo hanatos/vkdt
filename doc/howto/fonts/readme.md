@@ -29,6 +29,7 @@ bin/msdf-atlas-gen -size 64 -yorigin top -type msdf -format png -imageout atlas.
 TODO for larger expanders, try
 0xe5df -> 0xe5e1
 0xe5c5 -> 0xe5e0
+TODO also font alignment material icons vs our text could be optimised (need ascender?)
 
 replace the `-chars` entries by your custom codepoint ranges. the material icon
 codepoints are needed for vkdt's ui rendering:

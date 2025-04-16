@@ -43,7 +43,7 @@ void main()
     // float g = length(vec2(dx,dy))*0.70710678118; // sqrt(2)/2
     // float opacity = smoothstep(-g, g, dist);
     //
-    dist *= dot(vec2(2.0/textureSize(img, 0).x), 0.5/fwidth(in_uv));
+    dist *= dot(vec2(1.0/textureSize(img, 0)), 1.0/fwidth(in_uv));
     // float opacity = clamp(dist + 0.5, 0.0, 1.0);
     float opacity = smoothstep(0.0, 1.0, dist + 0.5); // we're blending post gamma, this looks better
     tex = mix(vec4(in_colour.rgb, 0.0), in_colour, opacity);
