@@ -33,10 +33,19 @@ void main()
   vec4 tex = texture(img, in_uv);
   if(pc.strength > 0)
   { // render msdf font
-    float sigDist = median(tex.r, tex.g, tex.b) - 1.0 + pc.strength;
-    sigDist *= dot(vec2(3.0/textureSize(img, 0).x), 0.5/fwidth(in_uv));
-    // float opacity = clamp(sigDist + 0.5, 0.0, 1.0);
-    float opacity = smoothstep(0.0, 1.0, sigDist + 0.5); // we're blending post gamma, this looks better
+    float dist = median(tex.r, tex.g, tex.b) - 1.0 + pc.strength;
+    //
+    // dist = dist / fwidth(dist);
+    // float opacity = clamp(dist + 0.5, 0.0, 1.0);
+    //
+    // float dx = dFdx(dist);
+    // float dy = dFdy(dist);
+    // float g = length(vec2(dx,dy))*0.70710678118; // sqrt(2)/2
+    // float opacity = smoothstep(-g, g, dist);
+    //
+    dist *= dot(vec2(2.0/textureSize(img, 0).x), 0.5/fwidth(in_uv));
+    // float opacity = clamp(dist + 0.5, 0.0, 1.0);
+    float opacity = smoothstep(0.0, 1.0, dist + 0.5); // we're blending post gamma, this looks better
     tex = mix(vec4(in_colour.rgb, 0.0), in_colour, opacity);
   }
   else if(pc.strength < 0) tex = in_colour;
