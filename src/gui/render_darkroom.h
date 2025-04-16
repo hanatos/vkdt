@@ -1172,7 +1172,7 @@ static inline void render_darkroom_widgets(
   }
   // nk_label(ctx, active ? "\ue5cf" : "\ue5cc", NK_TEXT_CENTERED);
   // nk_label(ctx, active ? "\ue5e0" : "\ue5e1", NK_TEXT_CENTERED);
-  nk_label(ctx, active ? "\ue5df" : "\ue5c5", NK_TEXT_CENTERED);
+  nk_label(ctx, active ? "\ue5c5" : "\ue5df", NK_TEXT_CENTERED);
   nk_label(ctx, name, NK_TEXT_LEFT);
   // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
   const struct nk_input *in = (vkdt.ctx.current->layout->flags & NK_WINDOW_ROM) ? 0 : &ctx->input;
