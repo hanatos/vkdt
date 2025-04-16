@@ -937,6 +937,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           dt_module_input_event_t p = { .type = -1 };
           if(modid >= 0 && mod->so->input) mod->so->input(mod, &p);
           widget_end();
+          dt_gui_dr_anim_stop();
         }
       }
       else
@@ -954,6 +955,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           dt_gui_dr_set_fullscreen_view();
           if(modid >= 0)
             if(mod->so->input) mod->so->input(mod, &p);
+          dt_gui_dr_anim_start();
         }
         if(nk_button_label(ctx, "grab input"))
         {
@@ -966,6 +968,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           dt_gui_grab_mouse();
           if(modid >= 0)
             if(mod->so->input) mod->so->input(mod, &p);
+          dt_gui_dr_anim_start();
         }
       }
     }

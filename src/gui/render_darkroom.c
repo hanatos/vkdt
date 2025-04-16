@@ -142,6 +142,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       // if this came from a camera button, we want to record the new camera in history:
       if(vkdt.wstate.active_widget_modid >= 0)
         dt_graph_history_append(&vkdt.graph_dev, vkdt.wstate.active_widget_modid, vkdt.wstate.active_widget_parid, 2.0);
+      dt_gui_dr_anim_stop();
     }
     if(vkdt.wstate.active_widget_modid >= 0)
     {
