@@ -61,7 +61,7 @@ bin/data/%.lut: src/%.lut.xz
 
 install-mod: bin Makefile lut
 	mkdir -p $(VKDTDIR)/modules
-	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
+	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --exclude='*' bin/modules/ ${VKDTDIR}/modules/
 	cp -rfL bin/data ${VKDTDIR}
 	cp -rfL bin/default* ${VKDTDIR}
 
