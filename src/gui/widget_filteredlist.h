@@ -26,7 +26,7 @@ dt_tooltip(const char *fmt, ...)
     float w = font->width(font->userdata, font->height, text, len) + vkdt.ctx.style.tab.padding.x*2;
     if(nk_tooltip_begin(&vkdt.ctx, MIN(w, vkdt.state.panel_wd)))
     {
-      nk_layout_row_static(&vkdt.ctx, vkdt.ctx.style.font->height, MIN(w, vkdt.state.panel_wd), 1);
+      nk_layout_row_static(&vkdt.ctx, font->height, MIN(w, vkdt.state.panel_wd), 1);
       while(c < text + len)
       {
         char *cc = c;
