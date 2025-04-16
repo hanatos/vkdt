@@ -283,12 +283,24 @@ dt_node_editor(
   static struct nk_user_font font;
   font = *nk_glfw3_font(0);
   font.height *= nedit->zoom;
-  nk_style_push_font(ctx, &font);
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.tab.padding, nk_vec2(vkdt.ctx.style.tab.padding.x*nedit->zoom, vkdt.ctx.style.tab.padding.y*nedit->zoom));
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.padding, nk_vec2(vkdt.ctx.style.window.header.padding.x*nedit->zoom, vkdt.ctx.style.window.header.padding.y*nedit->zoom));
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.spacing, nk_vec2(vkdt.ctx.style.window.header.spacing.x*nedit->zoom, vkdt.ctx.style.window.header.spacing.y*nedit->zoom));
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.padding, nk_vec2(vkdt.ctx.style.window.padding.x*nedit->zoom, vkdt.ctx.style.window.padding.y*nedit->zoom));
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.spacing, nk_vec2(vkdt.ctx.style.window.spacing.x*nedit->zoom, vkdt.ctx.style.window.spacing.y*nedit->zoom));
+#define STYLE_LARGE do {\
+  nk_style_push_font(ctx, &font);\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.tab.padding, nk_vec2(vkdt.ctx.style.tab.padding.x*nedit->zoom, vkdt.ctx.style.tab.padding.y*nedit->zoom));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.padding, nk_vec2(vkdt.ctx.style.window.header.padding.x*nedit->zoom, vkdt.ctx.style.window.header.padding.y*nedit->zoom));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.spacing, nk_vec2(vkdt.ctx.style.window.header.spacing.x*nedit->zoom, vkdt.ctx.style.window.header.spacing.y*nedit->zoom));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.padding, nk_vec2(vkdt.ctx.style.window.padding.x*nedit->zoom, vkdt.ctx.style.window.padding.y*nedit->zoom));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.spacing, nk_vec2(vkdt.ctx.style.window.spacing.x*nedit->zoom, vkdt.ctx.style.window.spacing.y*nedit->zoom));\
+  } while(0)
+#define STYLE_POP do {\
+  nk_style_pop_vec2(ctx);\
+  nk_style_pop_vec2(ctx);\
+  nk_style_pop_vec2(ctx);\
+  nk_style_pop_vec2(ctx);\
+  nk_style_pop_vec2(ctx);\
+  nk_style_pop_font(ctx);\
+  } while(0)
+
+  STYLE_LARGE;
 
   // row height is view space, i.e. already scaled for display
   float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
@@ -501,7 +513,7 @@ dt_node_editor(
       nk_layout_row_dynamic(ctx, row_height, 1);
       for(int c=0;c<module->num_connectors;c++)
       {
-        nk_style_push_font(ctx, nk_glfw3_font(0));
+        STYLE_POP;
         dt_tooltip("format: %" PRItkn ":%" PRItkn "\n%s%s\n%d x %d %s",
             dt_token_str(module->connector[c].chan),
             dt_token_str(module->connector[c].format),
@@ -513,7 +525,7 @@ dt_node_editor(
             graph->node[module->connector[c].associated_i].connector[module->connector[c].associated_c].frames > 1 ?
             "double buffered" : "");
         snprintf(str, sizeof(str), "%"PRItkn, dt_token_str(module->connector[c].name));
-        nk_style_pop_font(ctx);
+        STYLE_LARGE;
         nk_label(ctx, str, dt_connector_output(module->connector+c) ? NK_TEXT_RIGHT : NK_TEXT_LEFT);
       }
       nk_group_end(ctx);
@@ -569,12 +581,7 @@ dt_node_editor(
   nedit->add_pos_x = pos.x/nedit->dpi_scale;
   nedit->add_pos_y = pos.y/nedit->dpi_scale;
 
-  nk_style_pop_vec2(ctx);
-  nk_style_pop_vec2(ctx);
-  nk_style_pop_vec2(ctx);
-  nk_style_pop_vec2(ctx);
-  nk_style_pop_vec2(ctx);
-  nk_style_pop_font(ctx);
+  STYLE_POP;
   row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
 
   nk_layout_space_end(ctx);
