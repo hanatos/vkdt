@@ -34,8 +34,7 @@ void main()
   if(pc.strength > 0)
   { // render msdf font
     float sigDist = median(tex.r, tex.g, tex.b) - 1.0 + pc.strength;
-    // TODO might need to adjust that to screen res, not texture res?
-    sigDist *= dot(vec2(6.0/1024.0), 0.5/fwidth(in_uv));
+    sigDist *= dot(vec2(3.0/textureSize(img, 0).x), 0.5/fwidth(in_uv));
     // float opacity = clamp(sigDist + 0.5, 0.0, 1.0);
     float opacity = smoothstep(0.0, 1.0, sigDist + 0.5); // we're blending post gamma, this looks better
     tex = mix(vec4(in_colour.rgb, 0.0), in_colour, opacity);
