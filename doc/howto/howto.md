@@ -21,6 +21,7 @@ this folder lists quick instructions on a few special topics:
 
 ## customisation
 
+* [how to load custom fonts/non-ascii glyphs](./fonts/readme.md)
 * [how to customise metadata display](./metadata/readme.md)
 * [how to manage presets](./presets/readme.md)
 * [how to find similar modules to darktable](./dt/readme.md)
