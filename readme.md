@@ -27,6 +27,7 @@ targets, such as the main view and histograms.
 * [minimally invasive folder-based image database](src/db/readme.md)
 * [command line utility](src/cli/readme.md)
 * [real time magic lantern raw video (mlv) processing](src/pipe/modules/i-mlv/readme.md)
+* [GPU decoder for MotionCam raw video](src/pipe/modules/i-mcraw/readme.md)
 * [10-bit display output](src/pipe/modules/test10b/readme.md)
 * [automatic parameter optimisation](src/fit/readme.md), for instance to fit vignetting
 * [heavy handed processing](src/pipe/modules/kpn-t/readme.md) at almost realistic speeds
