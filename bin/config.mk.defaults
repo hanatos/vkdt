@@ -21,7 +21,7 @@ export VKDT_JPEG_CFLAGS VKDT_JPEG_LDFLAGS
 # rawspeed  (c++):
 # VKDT_USE_RAWINPUT=1
 # rawler (requires rust, check if we have it):
-VKDT_USE_RAWINPUT=$(eval VKDT_USE_RAWINPUT := $$(shell rustc --version && echo 2 || echo 0))
+VKDT_USE_RAWINPUT=$(eval VKDT_USE_RAWINPUT := $$(shell rustc --version &>/dev/null && echo 2 || echo 0))$(VKDT_USE_RAWINPUT)
 export VKDT_USE_RAWINPUT
 
 CMAKE=cmake
@@ -54,7 +54,7 @@ export VKDT_USE_MLV
 
 # to play the audio that comes with the mlv video, vkdt uses
 # alsa. this introduces an asound dependency. disable here:
-VKDT_USE_ALSA=$(eval VKDT_USE_ALSA := $$(shell pkg-config --libs alsa && echo 1 || echo 0))
+VKDT_USE_ALSA=$(eval VKDT_USE_ALSA := $$(shell pkg-config --libs alsa && echo 1 || echo 0))$(VKDT_USE_ALSA)
 export VKDT_USE_ALSA
 VKDT_ALSA_CFLAGS=$(eval VKDT_ALSA_CFLAGS := $$(shell pkg-config --cflags alsa))$(VKDT_ALSA_CFLAGS)
 VKDT_ALSA_LDFLAGS=$(eval VKDT_ALSA_LDFLAGS := $$(shell pkg-config --libs alsa))$(VKDT_ALSA_LDFLAGS)
@@ -69,7 +69,7 @@ export VKDT_USE_MCRAW
 # video streams, we depend on these libraries
 # note that vkdt requires ffmpeg version > 5 (6 is first good)
 FFMPEG_VERSION=$(shell ffmpeg -version | head -1 | cut -f 3 -d' ' | cut -d. -f1|tr -d 'n')
-VKDT_USE_FFMPEG=$(eval VKDT_USE_FFMPEG := $$(shell [ $(FFMPEG_VERSION) -gt 5 ] && echo 1 || echo 0))
+VKDT_USE_FFMPEG=$(eval VKDT_USE_FFMPEG := $$(shell [ $(FFMPEG_VERSION) -gt 5 ] && echo 1 || echo 0))$(VKDT_USE_FFMPEG)
 export VKDT_USE_FFMPEG
 VKDT_AV_CFLAGS=$(eval VKDT_AV_CFLAGS := $$(shell pkg-config --cflags libavformat --cflags libavcodec --cflags libswresample))$(VKDT_AV_CFLAGS)
 VKDT_AV_LDFLAGS=$(eval VKDT_AV_LDFLAGS := $$(shell pkg-config --libs libavformat --libs libavcodec --libs libswresample))$(VKDT_AV_LDFLAGS)

@@ -25,12 +25,6 @@ MaterialIcons-Regular.ttf for the ui. then generate the font atlas
 ```
 bin/msdf-atlas-gen -size 64 -yorigin top -type msdf -format png -imageout atlas.png -csv metrics.csv -font Roboto-Regular.ttf -chars "[' ','~']" -fontscale 1 -and -font MaterialIcons-Regular.ttf -chars 0xe01f,0xe020,0xe034,0xe037,0xe042,0xe044,0xe045,0xe047,0xe15b,0xe5c5,0xe5df,0xe612,0xe836,0xe838 -fontscale 1
 ```
-
-TODO for larger expanders, try
-0xe5df -> 0xe5e1
-0xe5c5 -> 0xe5e0
-TODO also font alignment material icons vs our text could be optimised (need ascender?)
-
 replace the `-chars` entries by your custom codepoint ranges. the material icon
 codepoints are needed for vkdt's ui rendering:
 ```
