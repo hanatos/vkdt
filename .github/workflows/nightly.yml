@@ -260,6 +260,8 @@ jobs:
           cd ${INSTALL_PREFIX}/usr/lib
           # find and copy required libraries
           ldd vkdt/vkdt.exe | grep '/ucrt64/bin/' | awk '{print($1)}' > dllhell
+          find vkdt/ -name "*lib*.so" -exec ldd {} \; | grep '/ucrt64/bin/' | awk '{print($1)}' | sort | uniq >> dllhell
+# for i in $(cat dllhell); do cp /ucrt64/bin/${i} vkdt/; done
           zip -r vkdt-rawler-${{ env.VERSION }}-${{ env.SYSTEM }}.zip vkdt/
       - name: package upload
         if: ${{ success() }}
