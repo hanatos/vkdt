@@ -115,6 +115,13 @@ jobs:
           cd ..
           echo "VKDT_USE_PENTABLET=1" >> bin/config.mk
           echo "export VKDT_USE_PENTABLET" >> bin/config.mk
+      - name: update config.mk for rawler
+        if: matrix.raw.backend == 'rawler'
+        run: |
+          cat >> bin/config.mk << 'EOF'
+          VKDT_USE_RAWINPUT=2
+          export VKDT_USE_RAWINPUT
+          EOF
       - name: update config.mk for rawspeed
         if: matrix.raw.backend == 'rawspeed'
         run: |
