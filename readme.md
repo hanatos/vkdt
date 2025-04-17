@@ -46,6 +46,7 @@ which you can use to try out/run on any linux distro, for instance:
 ```
   nix-shell -p vkdt
 ```
+and if you're on arch, there is a vkdt-git package in aur.
 
 
 ## build instructions
