@@ -20,8 +20,8 @@ export VKDT_JPEG_CFLAGS VKDT_JPEG_LDFLAGS
 # VKDT_USE_RAWINPUT=0
 # rawspeed  (c++):
 # VKDT_USE_RAWINPUT=1
-# rawler (rust):
-VKDT_USE_RAWINPUT=2
+# rawler (requires rust, check if we have it):
+VKDT_USE_RAWINPUT=$(eval VKDT_USE_RAWINPUT := $$(shell rustc --version && echo 2 || echo 0))
 export VKDT_USE_RAWINPUT
 
 CMAKE=cmake
