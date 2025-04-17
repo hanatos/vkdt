@@ -196,6 +196,7 @@ jobs:
           install: >-
             git
             rsync
+            findutils
             make
             zip
             unzip
@@ -206,7 +207,6 @@ jobs:
             gcc-libs:p
             dlfcn:p
             glfw:p
-            findutils:p
             ffmpeg:p
             vulkan-devel:p
             glslang:p
