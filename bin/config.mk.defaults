@@ -54,7 +54,7 @@ export VKDT_USE_MLV
 
 # to play the audio that comes with the mlv video, vkdt uses
 # alsa. this introduces an asound dependency. disable here:
-VKDT_USE_ALSA=1
+VKDT_USE_ALSA=$(eval VKDT_USE_ALSA := $$(shell pkg-config --libs alsa && echo 1 || echo 0))
 export VKDT_USE_ALSA
 VKDT_ALSA_CFLAGS=$(eval VKDT_ALSA_CFLAGS := $$(shell pkg-config --cflags alsa))$(VKDT_ALSA_CFLAGS)
 VKDT_ALSA_LDFLAGS=$(eval VKDT_ALSA_LDFLAGS := $$(shell pkg-config --libs alsa))$(VKDT_ALSA_LDFLAGS)
