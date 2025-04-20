@@ -11,6 +11,7 @@ to generate the required `.lut` files for vkdt, do the following:
 build msdf-atlas-gen without the agonizing bloat or micr0soft tracking:
 ```
 git clone --recursive https://github.com/Chlumsky/msdf-atlas-gen
+cd msdf-atlas-gen
 # the following two are not needed if you cloned recursively:
 git submodule init
 git submodule update -f

@@ -886,9 +886,10 @@ void dt_font_query_glyph(
     nk_rune next_codepoint)
 {
   int idx = dt_font_glyph(&glfw.dtfont, codepoint);
-  // numbers come to us in EM units
-  const float sx = font_height;
-  const float sy = font_height;
+  // numbers come to us in EM units, font_height in nk is line height (asc+desc)
+  const float inv_lineheight = codepoint <= 126 ? 0.853 : 1.0; // TODO read from font metrics
+  const float sx = 0.853*font_height;
+  const float sy = 0.853*font_height;
   const float pad_scr_x = 0;
   const float pad_scr_y = pad_scr_x;
   const dt_font_glyph_t *g = glfw.dtfont.glyph + idx;
