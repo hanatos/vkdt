@@ -887,24 +887,19 @@ void dt_font_query_glyph(
 {
   int idx = dt_font_glyph(&glfw.dtfont, codepoint);
   // numbers come to us in EM units, font_height in nk is line height (asc+desc)
-  const float inv_lineheight = codepoint <= 126 ? 0.853 : 1.0; // TODO read from font metrics
-  const float sx = 0.853*font_height;
-  const float sy = 0.853*font_height;
-  const float pad_scr_x = 0;
-  const float pad_scr_y = pad_scr_x;
   const dt_font_glyph_t *g = glfw.dtfont.glyph + idx;
-  glyph->offset.x = sx*g->pbox_x - pad_scr_x;
-  glyph->offset.y = sy + sy*g->pbox_y - pad_scr_y;
-  glyph->width    = sx*g->pbox_w + 2*pad_scr_x;
-  glyph->height   = sy*g->pbox_h + 2*pad_scr_y;
+  const float sx = g->height_to_em*font_height;
+  const float sy = g->height_to_em*font_height;
+  glyph->offset.x = sx*g->pbox_x;
+  glyph->offset.y = sy + sy*g->pbox_y;
+  glyph->width    = sx*g->pbox_w;
+  glyph->height   = sy*g->pbox_h;
   glyph->xadvance = sx*g->advance;
   // these are atlas texture uv coordinates
-  // texture space padding:
-  const float padding = 0.0f;
-  glyph->uv[0].x = g->tbox_x + padding;
-  glyph->uv[0].y = g->tbox_y + padding;
-  glyph->uv[1].x = g->tbox_x + g->tbox_w - padding;
-  glyph->uv[1].y = g->tbox_y + g->tbox_h - padding;
+  glyph->uv[0].x = g->tbox_x;
+  glyph->uv[0].y = g->tbox_y;
+  glyph->uv[1].x = g->tbox_x + g->tbox_w;
+  glyph->uv[1].y = g->tbox_y + g->tbox_h;
 }
 
 NK_API struct nk_user_font *nk_glfw3_font(

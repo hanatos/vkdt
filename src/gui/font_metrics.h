@@ -11,7 +11,7 @@ dt_font_cmap_entry_t;
 
 typedef struct dt_font_glyph_t
 { // geometry of one glyph
-  float advance;
+  float advance, height_to_em;
   float pbox_x, pbox_y, pbox_w, pbox_h;
   float tbox_x, tbox_y, tbox_w, tbox_h;
 }
@@ -29,9 +29,7 @@ dt_font_t;
 typedef struct dt_font_metrics_t
 {
   uint32_t codepoint;
-  float advance;
-  float pbox_x, pbox_y, pbox_w, pbox_h;
-  float tbox_x, tbox_y, tbox_w, tbox_h;
+  dt_font_glyph_t g;
 }
 dt_font_metrics_t;
 
@@ -80,10 +78,12 @@ hell:
     {
       data[i] = (dt_font_metrics_t){
         .codepoint = i,
+        .g = {
         .advance = 1.0,
+        .height_to_em = 1.0,
         .tbox_x = 0, .tbox_y = 0, .tbox_w = 1, .tbox_h = 1,
         .pbox_x = 0, .pbox_y = 0, .pbox_w = 1, .pbox_h = 1,
-      };
+      }};
     }
   }
   f->glyph_cnt = header.wd;
@@ -110,7 +110,7 @@ hell:
       e.glyph_idx_beg += e.codepoint_end - e.codepoint_beg;
       e.codepoint_beg = cur;
     }
-    memcpy(&f->glyph[g++], &data[i-1].advance, sizeof(dt_font_glyph_t));
+    memcpy(&f->glyph[g++], &data[i-1].g, sizeof(dt_font_glyph_t));
   }
 }
 
