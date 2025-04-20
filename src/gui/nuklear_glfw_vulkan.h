@@ -872,7 +872,10 @@ float dt_font_text_width(nk_handle handle, float height, const char *text, int t
     glyph_len = nk_utf_decode(text + pos, &codepoint, text_len - pos);
     if(!glyph_len) break;
     // TODO query kern table if appropriate
-    text_width += height * glfw.dtfont.glyph[dt_font_glyph(&glfw.dtfont, codepoint)].advance;
+    int idx = dt_font_glyph(&glfw.dtfont, codepoint);
+    const dt_font_glyph_t *g = glfw.dtfont.glyph + idx;
+    const float sx = g->height_to_em*height;
+    text_width += sx * g->advance;
     pos += glyph_len;
   }
   return text_width;
