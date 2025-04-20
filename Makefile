@@ -16,10 +16,10 @@ endif
 sinclude bin/config.mk
 
 # dr dobb's idea about makefile debugging:
-OLD_SHELL := $(SHELL)
+# OLD_SHELL := $(SHELL)
 # SHELL = $(warning [$@ ($^) ($?)])$(OLD_SHELL)
-SHELL = $(warning [$@ ($?)])$(OLD_SHELL)
-export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR OLD_SHELL SHELL
+# SHELL = $(warning [$@ ($?)])$(OLD_SHELL)
+export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR # OLD_SHELL SHELL
 
 all: src bin lut
 
