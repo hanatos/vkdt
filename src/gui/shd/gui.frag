@@ -44,9 +44,10 @@ void main()
     // float opacity = smoothstep(-g, g, dist);
     //
     // minification has some overblur issues, clamp that early, erring on the aliasing side
-    dist *= clamp(dot(vec2(1.0/textureSize(img, 0)), 1.0/fwidth(in_uv)), 0.75, 1000.0);
+    dist *= clamp(dot(vec2(1.0/textureSize(img, 0)), 1.0/fwidth(in_uv)), 1.0, 1000.0);
     // float opacity = clamp(dist + 0.5, 0.0, 1.0);
     float opacity = smoothstep(0.0, 1.0, dist + 0.5); // we're blending post gamma, this looks better
+    if(opacity < 1.0/256.0) opacity = 0.0; // pull down to straight zero to avoid stupid rounding/fog artifacts
     tex = mix(vec4(in_colour.rgb, 0.0), in_colour, opacity);
   }
   else if(pc.strength < 0) tex = in_colour;

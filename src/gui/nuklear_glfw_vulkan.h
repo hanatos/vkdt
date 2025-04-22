@@ -201,7 +201,7 @@ nk_glfw3_create_sampler()
     .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
     .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
     .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-    .mipLodBias = 0.0f,
+    .mipLodBias = .0f,
     .compareEnable = VK_FALSE,
     .compareOp = VK_COMPARE_OP_ALWAYS,
     .minLod = 0.0f,

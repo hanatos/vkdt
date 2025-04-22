@@ -24,7 +24,7 @@ make -j20
 copy a ttf/otf of your choice into the `build/` directory, as well as
 MaterialIcons-Regular.ttf for the ui. then generate the font atlas
 ```
-bin/msdf-atlas-gen -size 64 -yorigin top -type msdf -format png -imageout atlas.png -json metrics.json -font Roboto-Regular.ttf -chars "[' ','~']" -fontscale 1 -and -font MaterialIcons-Regular.ttf -chars 0xe01f,0xe020,0xe034,0xe037,0xe042,0xe044,0xe045,0xe047,0xe15b,0xe5e0,0xe5e1,0xe612,0xe836,0xe838 -fontscale 1
+bin/msdf-atlas-gen -outerpxpadding 2 -size 64 -yorigin top -type msdf -format png -imageout atlas.png -json metrics.json -font Roboto-Regular.ttf -chars "[' ','~']" -fontscale 1 -and -font MaterialIcons-Regular.ttf -chars 0xe01f,0xe020,0xe034,0xe037,0xe042,0xe044,0xe045,0xe047,0xe15b,0xe5e0,0xe5e1,0xe612,0xe836,0xe838 -fontscale 1
 ```
 replace the `-chars` entries by your custom codepoint ranges. the material icon
 codepoints are needed for vkdt's ui rendering:
