@@ -496,7 +496,8 @@ dt_node_editor(
     if(nk_group_begin(ctx, str, NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE))
     {
       if(!disabled && nk_input_is_mouse_hovering_rect(in, bb)) mouse_over_something = 1;
-      if(!disabled && nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, bb, nk_true))
+      if(!disabled && nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, bb, nk_true) &&
+          nk_input_is_mouse_hovering_rect(in, nk_window_get_bounds(ctx)))
       {
         if((mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid] == 0 &&
             glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_CONTROL) != GLFW_PRESS &&
