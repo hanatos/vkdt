@@ -205,7 +205,7 @@ nk_glfw3_create_sampler()
     .compareEnable = VK_FALSE,
     .compareOp = VK_COMPARE_OP_ALWAYS,
     .minLod = 0.0f,
-    .maxLod = 0.0f,
+    .maxLod = 10.0f,
     .borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
   };
   return vkCreateSampler(glfw.logical_device, &sampler_info, NULL, &glfw.sampler);
@@ -602,7 +602,6 @@ nk_glfw3_device_upload_atlas(
     VkCommandBufferBeginInfo begin_info;
     VkImageMemoryBarrier image_memory_barrier;
     VkBufferImageCopy buffer_copy_region;
-    VkImageMemoryBarrier image_shader_memory_barrier;
     VkFence fence;
     VkFenceCreateInfo fence_create;
     VkSubmitInfo submit_info;
@@ -620,7 +619,8 @@ nk_glfw3_device_upload_atlas(
     image_info.extent.width = (uint32_t)width;
     image_info.extent.height = (uint32_t)height;
     image_info.extent.depth = 1;
-    image_info.mipLevels = 1;
+    const int mip_levels = 4;
+    image_info.mipLevels = mip_levels;
     image_info.arrayLayers = 1;
     image_info.samples = VK_SAMPLE_COUNT_1_BIT;
     image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -708,7 +708,7 @@ nk_glfw3_device_upload_atlas(
     image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     image_memory_barrier.subresourceRange.aspectMask =
         VK_IMAGE_ASPECT_COLOR_BIT;
-    image_memory_barrier.subresourceRange.levelCount = 1;
+    image_memory_barrier.subresourceRange.levelCount = mip_levels;
     image_memory_barrier.subresourceRange.layerCount = 1;
     image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
@@ -727,25 +727,75 @@ nk_glfw3_device_upload_atlas(
         cmd, staging_buffer.buffer, glfw.font_image,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffer_copy_region);
 
-    memset(&image_shader_memory_barrier, 0, sizeof(VkImageMemoryBarrier));
-    image_shader_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    image_shader_memory_barrier.image = glfw.font_image;
-    image_shader_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    image_shader_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    image_shader_memory_barrier.oldLayout =
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    image_shader_memory_barrier.newLayout =
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    image_shader_memory_barrier.subresourceRange.aspectMask =
-        VK_IMAGE_ASPECT_COLOR_BIT;
-    image_shader_memory_barrier.subresourceRange.levelCount = 1;
-    image_shader_memory_barrier.subresourceRange.layerCount = 1;
-    image_shader_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-    image_shader_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+  VkImageMemoryBarrier barrier = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .image = glfw.font_image,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .subresourceRange.baseArrayLayer = 0,
+    .subresourceRange.layerCount = 1,
+    .subresourceRange.levelCount = 1,
+    .subresourceRange.baseMipLevel = 0,
+  };
 
-    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0,
-                         NULL, 1, &image_shader_memory_barrier);
+  for (uint32_t i = 1; i < mip_levels; i++)
+  {
+    barrier.subresourceRange.baseMipLevel = i - 1;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    vkCmdPipelineBarrier(cmd,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+        0, NULL,
+        0, NULL,
+        1, &barrier);
+    VkImageBlit blit = {
+      .srcOffsets = {{ 0, 0, 0 }, { width, height, 1 }},
+      .srcSubresource = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .mipLevel = i - 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+      },
+      .dstOffsets = {{ 0, 0, 0 }, { width > 1 ? width / 2 : 1, height > 1 ? height / 2 : 1, 1 }},
+      .dstSubresource = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .mipLevel = i,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+      },
+    };
+    vkCmdBlitImage(cmd,
+        glfw.font_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        glfw.font_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1, &blit,
+        VK_FILTER_LINEAR);
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(cmd,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+        0, NULL,
+        0, NULL,
+        1, &barrier);
+    if(width  > 1) width  /= 2;
+    if(height > 1) height /= 2;
+  }
+  barrier.subresourceRange.baseMipLevel = mip_levels - 1;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+  vkCmdPipelineBarrier(cmd,
+      VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+      0, NULL,
+      0, NULL,
+      1, &barrier);
 
     result = vkEndCommandBuffer(cmd);
     if(result != VK_SUCCESS) return 0;
@@ -779,7 +829,7 @@ nk_glfw3_device_upload_atlas(
     image_view_info.format = image_info.format;
     image_view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     image_view_info.subresourceRange.layerCount = 1;
-    image_view_info.subresourceRange.levelCount = 1;
+    image_view_info.subresourceRange.levelCount = mip_levels;
 
     result = vkCreateImageView(glfw.logical_device, &image_view_info, NULL,
                                &glfw.font_image_view);
