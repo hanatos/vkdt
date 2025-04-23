@@ -16,7 +16,7 @@ typedef struct XYZ_t
 {
   char name[4];    // = "XYZ "
   uint8_t pad[4];  // = 0
-  uint32_t val[3]; // x,y,z, as unorm
+  int32_t val[3];  // x,y,z
 }
 XYZ_t;
 
