@@ -41,6 +41,13 @@ uint16_t le16(uint16_t be)
 
 int main(int argc, char* argv[])
 {
+  if(argc < 2)
+  {
+    fprintf(stderr, "usage: vkdt read-icc your-display.icc\n");
+    fprintf(stderr, "writes display.profile files for colour management\n");
+    fprintf(stderr, "install these by copying to ~/.config/vkdt/display.DP-1, for instance.\n");
+    exit(1);
+  }
   const char *tagid[] = { "rXYZ", "gXYZ", "bXYZ", "rTRC", "gTRC", "bTRC"};
 #define num_tags (sizeof(tagid)/sizeof(tagid[0]))
   icc_tag_t tag[num_tags] = {0};
@@ -48,6 +55,11 @@ int main(int argc, char* argv[])
   curve_t curv[num_tags] = {0};
 
   FILE *f = fopen(argv[1], "rb");
+  if(!f)
+  {
+    fprintf(stderr, "could not open %s!\n", argv[1]);
+    exit(2);
+  }
   fseek(f, 0, SEEK_END);
   size_t bufsiz = ftell(f);
   fseek(f, 0, SEEK_SET);
@@ -87,6 +99,7 @@ int main(int argc, char* argv[])
       }
     }
   }
+  free(buf);
 
   for(int t=0;t<num_tags;t++)
   {
@@ -123,6 +136,11 @@ int main(int argc, char* argv[])
         rec2020_to_display[3*k+i] += pcs_to_display[3 * k + j] * rec2020_to_pcs[3 * j + i];
 
   f = fopen("display.profile", "wb");
+  if(!f)
+  {
+    fprintf(stderr, "could not open display.profile for writing!\n");
+    exit(3);
+  }
   fprintf(f, "%f %f %f\n", 1.0/gamma[0], 1.0/gamma[1], 1.0/gamma[2]);
   fprintf(f, "%f %f %f\n", rec2020_to_display[0], rec2020_to_display[1], rec2020_to_display[2]);
   fprintf(f, "%f %f %f\n", rec2020_to_display[3], rec2020_to_display[4], rec2020_to_display[5]);
