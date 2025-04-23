@@ -68,7 +68,6 @@ int main(int argc, char* argv[])
         // TODO: make sure tag.size == sizeof(XYZ_t)
         tag[t].offset = le32(tag[t].offset);
         tag[t].size   = le32(tag[t].size);
-        fprintf(stderr, "found tag %.4s, offset = %u\n", buf+i, tag[t].offset);
         if(!memcmp(buf+tag[t].offset, "XYZ ", 4))
         {
           memcpy(xyz+t, buf+tag[t].offset, sizeof(XYZ_t));
@@ -92,22 +91,17 @@ int main(int argc, char* argv[])
   for(int t=0;t<num_tags;t++)
   {
     if(!memcmp(xyz[t].name, "XYZ ", 4))
-    {
       fprintf(stdout, "tag %.4s %g %g %g\n", tag[t].name,
           xyz[t].val[0]/0x1.0p16,
           xyz[t].val[1]/0x1.0p16,
           xyz[t].val[2]/0x1.0p16);
-    }
     else
-    {
-      fprintf(stdout, "tag %.4s %g\n", tag[t].name,
-          curv[t].val[0]/0x1.0p16);
-    }
+      fprintf(stdout, "tag %.4s %g\n", tag[t].name, curv[t].val[0]/0x1.0p8);
   }
   float gamma[] = { 
-          curv[3].val[0]/0x1.0p16,
-          curv[4].val[0]/0x1.0p16,
-          curv[5].val[0]/0x1.0p16};
+          curv[3].val[0]/0x1.0p8,
+          curv[4].val[0]/0x1.0p8,
+          curv[5].val[0]/0x1.0p8};
 
   // now get rec2020 to display matrix:
   // data extracted from ITU-R_BT2020(beta).icc available at https://www.color.org/chardata/rgb/BT2020.xalter
