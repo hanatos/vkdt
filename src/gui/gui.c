@@ -24,6 +24,7 @@ style_to_state()
   vkdt.style.panel_width_frac = 0.2f;
   const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * vkdt.win.height;
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
+  // XXX FIXME bring in line with render.c init fonts!
   const float fontsize = 2.0f * vkdt.win.content_scale[1] * 19 * dpi_scale; // 2x fontsize: heading
   float border = MAX(fontsize * 1.1, 4);
   border = MIN(border, (vkdt.win.width  - pwd)/2);

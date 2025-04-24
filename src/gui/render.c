@@ -84,6 +84,7 @@ read_style_colours(struct nk_context *ctx)
     if(idx >= 0) vkdt.style.colour[idx] = nk_rgba(rgba[0], rgba[1], rgba[2], rgba[3]);
   }
   // init from this table
+  // TODO: this sets the padding etc as well, but it seems fixed size in pixels
   nk_style_from_table(ctx, vkdt.style.colour);
 }
 
