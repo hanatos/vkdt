@@ -252,6 +252,7 @@ void render_darkroom_favourite()
   assert(cnt < (int32_t)(sizeof(modid)/sizeof(modid[0])));\
   modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
+  int is_pst = 0;
   for(int i=0;i<vkdt.fav_cnt;i++)
   {
     if(vkdt.fav_modid[i] == -1)
@@ -260,9 +261,9 @@ void render_darkroom_favourite()
       int pst = vkdt.fav_parid[i];
       if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
       char *preset = vkdt.fav_preset_name[pst];
-      nk_layout_row_dynamic(&vkdt.ctx, row_height, 4);
-      dt_tooltip("apply preset");
-      if(nk_button_label(&vkdt.ctx, preset))
+      if(!is_pst++) nk_layout_row_dynamic(&vkdt.ctx, row_height, 4);
+      dt_tooltip("apply preset %s", vkdt.fav_preset_name[pst]);
+      if(nk_button_label(&vkdt.ctx, vkdt.fav_preset_desc[pst]))
       {
         char filename[512];
         snprintf(filename, sizeof(filename), "%s/presets/%s.pst", dt_pipe.homedir, preset);
@@ -278,6 +279,7 @@ void render_darkroom_favourite()
     }
     else for(int32_t m=0;m<cnt;m++)
     { // arg. can we please do that without n^2 every redraw?
+      is_pst = 0;
       if(modid[m] == vkdt.fav_modid[i])
       {
         render_darkroom_widget(vkdt.fav_modid[i], vkdt.fav_parid[i], 1);

@@ -835,8 +835,11 @@ dt_gui_read_favs(
     if(mod == dt_token("preset"))
     {
       if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
-      snprintf(vkdt.fav_preset_name[pst], sizeof(vkdt.fav_preset_name[0]), "%s", line);
-      char *colon = strstr(vkdt.fav_preset_name[pst], ":");
+      snprintf(vkdt.fav_preset_desc[pst], sizeof(vkdt.fav_preset_desc[0]), "%s", line);
+      char *colon = strstr(vkdt.fav_preset_desc[pst], ":");
+      if(colon) colon[0] = 0;
+      if(colon) snprintf(vkdt.fav_preset_name[pst], sizeof(vkdt.fav_preset_name[0]), "%s", colon+1);
+      colon = strstr(vkdt.fav_preset_name[pst], ":");
       if(colon) colon[0] = 0;
       mod  = UINT64_MAX;
       parm = pst++;
@@ -870,7 +873,8 @@ dt_gui_write_favs(
   for(int k=0;k<vkdt.fav_file_cnt;k++)
   {
     if(vkdt.fav_file_modid[k] == UINT64_MAX)
-      fprintf(f, "preset:%s\n", vkdt.fav_preset_name[vkdt.fav_file_parid[k]]);
+      fprintf(f, "preset:%s:%s\n", vkdt.fav_preset_desc[vkdt.fav_file_parid[k]],
+          vkdt.fav_preset_name[vkdt.fav_file_parid[k]]);
 
     else
       fprintf(f, "%"PRItkn":%"PRItkn":%"PRItkn"\n", dt_token_str(vkdt.fav_file_modid[k]), dt_token_str(vkdt.fav_file_insid[k]), dt_token_str(vkdt.fav_file_parid[k]));
