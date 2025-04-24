@@ -84,18 +84,15 @@ read_style_colours(struct nk_context *ctx)
     if(idx >= 0) vkdt.style.colour[idx] = nk_rgba(rgba[0], rgba[1], rgba[2], rgba[3]);
   }
   // init from this table
-  // TODO: this sets the padding etc as well, but it seems fixed size in pixels
   nk_style_from_table(ctx, vkdt.style.colour);
 }
 
 void dt_gui_init_fonts()
 {
+  dt_gui_style_to_state(); // compute vkdt.style.fontsize based on scale factors/dpi settings
   static float curr_fontsize = 0.0f;
-  float scalex, scaley;
-  dt_gui_content_scale(vkdt.win.window, &scalex, &scaley); // win1 has to go along
-  const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-  // fontsize scales the EM square
-  float fontsize = MAX(5, floorf(17 * dpi_scale * scaley));
+  // fontsize represents font height, internally it scales the EM square (font will convert these measures)
+  float fontsize = vkdt.style.fontsize;
   if(fontsize == curr_fontsize) return;
 
   if(curr_fontsize == 0.0f)
@@ -115,46 +112,8 @@ void dt_gui_init_fonts()
   nk_glfw3_font(1)->height = floorf(1.5*fontsize);
   nk_glfw3_font(2)->height = 2*fontsize;
   curr_fontsize = fontsize;
-
-#if 0
-  const char *fontfile = dt_rc_get(&vkdt.rc, "gui/font", "Roboto-Regular.ttf");
-  if(fontfile[0] != '/')
-    snprintf(tmp, sizeof(tmp), "%s/data/%s", dt_pipe.basedir, fontfile);
-  else
-    snprintf(tmp, sizeof(tmp), "%s", fontfile);
-
-  struct nk_font_atlas *atlas;
-  if(g_font[0]) nk_glfw3_font_cleanup();
-  nk_glfw3_font_stash_begin(&atlas);
-  struct nk_font_config cfg = nk_font_config(fontsize);
-  cfg.oversample_h = 3;
-  cfg.oversample_v = 1;
-  g_font[0] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, &cfg);
-  g_font[1] = nk_font_atlas_add_from_file(atlas, tmp, floorf(1.5*fontsize), 0);
-  g_font[2] = nk_font_atlas_add_from_file(atlas, tmp, 2*fontsize, 0);
-  snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
-  cfg.oversample_h = 3;
-  cfg.oversample_v = 1;
-  static nk_rune ranges_icons[] = {
-    0xe01f, 0xe048, // play pause
-    0xe15b, 0xe15c, // stuff for disabled button
-    0xe5cc, 0xe5d0, // expander e5cc e5cf
-    0xe612, 0xe613,
-    0xe836, 0xe839, // star in material icons
-    0,
-  };
-  cfg.range = ranges_icons;
-  cfg.size = fontsize;
-  cfg.fallback_glyph = 0xe15b;
-  g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, &cfg);
-
-  threads_mutex_lock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
-  nk_glfw3_font_stash_end(&vkdt.ctx, vkdt.win.command_buffer[vkdt.win.frame_index%DT_GUI_MAX_IMAGES], qvk.queue[qvk.qid[s_queue_graphics]].queue);
-  threads_mutex_unlock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
-  /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
-  /*nk_style_set_font(ctx, &droid->handle);*/
-  nk_style_set_font(&vkdt.ctx, &g_font[0]->handle);
-#endif
+  // update padding to match fontsize
+  nk_style_from_table(&vkdt.ctx, vkdt.style.colour);
 }
 
 int dt_gui_init_nk()

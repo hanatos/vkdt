@@ -36,6 +36,7 @@ typedef struct dt_gui_style_t
 #define NK_COLOR_DT_BACKGROUND    (NK_COLOR_COUNT+3)
   float panel_width_frac;   // width of the side panel as fraction of the total window width
   float border_frac;        // width of border between image and panel
+  float fontsize;           // font height in pixels
   struct nk_color colour[NK_COLOR_COUNT+4];
 }
 dt_gui_style_t;
@@ -251,6 +252,9 @@ void dt_gui_win1_open();
 
 // close secondary window
 void dt_gui_win1_close();
+
+// init style variables / padding based on fontsize / colours from text file
+void dt_gui_style_to_state();
 
 // this is only a shorthand for the direct access to vkdt.win*.content_scale
 // selecting the right one based on the glfw window. this is otherwise

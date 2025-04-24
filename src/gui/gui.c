@@ -18,15 +18,14 @@
 #include <dirent.h>
 #include <inttypes.h>
 
-static void
-style_to_state()
+void
+dt_gui_style_to_state()
 {
   vkdt.style.panel_width_frac = 0.2f;
   const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * vkdt.win.height;
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-  // XXX FIXME bring in line with render.c init fonts!
-  const float fontsize = 2.0f * vkdt.win.content_scale[1] * 19 * dpi_scale; // 2x fontsize: heading
-  float border = MAX(fontsize * 1.1, 4);
+  vkdt.style.fontsize = MAX(5, floorf(20 * vkdt.win.content_scale[1] * dpi_scale));
+  float border = MAX(vkdt.style.fontsize * 2 * 1.1, 4); // enough for large 2x font + border
   border = MIN(border, (vkdt.win.width  - pwd)/2);
   border = MIN(border,  vkdt.win.height/2);
   // TODO clamp to sane values, in case our min size request is ignored
@@ -52,7 +51,6 @@ framebuffer_size_callback(GLFWwindow* w, int width, int height)
     win->width = width; win->height = height;
     dt_gui_recreate_swapchain(win);
     nk_glfw3_resize(w, win->width, win->height);
-    dt_gui_init_fonts(); // actually we don't want this here, but we assume content scale changes also changes framebuffer.
   }
 }
 
@@ -76,13 +74,13 @@ void window_content_scale_callback(GLFWwindow* w, float xscale, float yscale)
   {
     vkdt.win.content_scale[0] = xscale;
     vkdt.win.content_scale[1] = yscale;
-    // would like to trigger a font re-render, unfortunately this here doesn't happen in sync with swapchain creation.
   }
   else
   {
     vkdt.win1.content_scale[0] = xscale;
     vkdt.win1.content_scale[1] = yscale;
   }
+  dt_gui_init_fonts(); // content scale scales fonts
 }
 
 static inline void
@@ -449,7 +447,7 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
   if(win->render_pass)
     vkDestroyRenderPass(qvk.device, win->render_pass, 0);
   QVKR(dt_gui_create_swapchain(win));
-  style_to_state();
+  dt_gui_style_to_state();
 
   // create the render pass
   VkAttachmentDescription attachment_desc = {
