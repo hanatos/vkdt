@@ -94,6 +94,8 @@ packages from github nightly ci.
 * keyframed brush strokes
 * vkdt-rendered logo
 * improved wayland support (better than x11)
+* [i-lut](../src/pipe/modules/i-lut/readme.md) now supports lists of input files
+* removed some old modules
 
 #### new modules
 * [rgb curves](../src/pipe/modules/curves/readme.md) simple per-channel curve widget
