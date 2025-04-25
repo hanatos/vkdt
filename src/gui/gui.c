@@ -25,7 +25,7 @@ dt_gui_style_to_state()
   const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * vkdt.win.height;
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
   vkdt.style.fontsize = MAX(5, floorf(20 * vkdt.win.content_scale[1] * dpi_scale));
-  float border = MAX(vkdt.style.fontsize * 2 * 1.1, 4); // enough for large 2x font + border
+  float border = MAX(vkdt.style.fontsize * 2 * 1.25, 4); // enough for large 2x font + border
   border = MIN(border, (vkdt.win.width  - pwd)/2);
   border = MIN(border,  vkdt.win.height/2);
   // TODO clamp to sane values, in case our min size request is ignored
