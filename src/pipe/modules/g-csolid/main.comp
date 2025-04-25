@@ -46,9 +46,9 @@ bool decode_vert(
 vec3 v_to_ws(in vec2 p, bool back)
 {
   // bring in line with 2d drawing:
-  vec3 p0 = vec3(p.x, 0, -p.y);
-  float a = 4; // increase this to make the grafitti tighter. lower will blow it up
-  p0.y = sqrt(max(1.0-p0.z*p0.z*a*a, 0.0))/a;
+  vec3 p0 = vec3(2*p.x, 0, -p.y);
+  float a = 15; // increase this to make the grafitti tighter. lower will blow it up
+  p0.y = 0;//sqrt(max(1.0-p0.z*p0.z*a*a, 0.0))/a;
   if(back) p0.y = -p0.y;
   return p0;
 }
@@ -67,7 +67,8 @@ void compute_ring(
   { // some rotating up vector:
     // vec3 up = vec3(0, sin(global.frame/100.0), cos(global.frame/100.0));
     // TODO: make a param to be passed in as keyframe..
-    vec3 up = vec3(0, sin(s), cos(s)); // XXX s + param something
+    float twist = 0.6*s;// + global.frame / 100.0;
+    vec3 up = vec3(0, sin(twist), cos(twist)); // XXX s + param something
     vec3 w = normalize(p2-p0);
     vec3 u = normalize(cross(w, up));
     M = mat3(u, cross(u, w), w);

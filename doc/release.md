@@ -78,9 +78,31 @@ packages from github nightly ci.
 
 ### current changelog
 
-big features:
+#### big features:
 * [spectral film simulation](../src/pipe/modules/filmsim/readme.md)
 * [msdf fonts](./howto/fonts/readme.md)
+* quick access preset buttons in customisable favourites tab
+* arch aur package `vkdt-git`
+* rewrote `vkdt read-icc` in c to reduce dependencies for packaging
+* filtered minification for display (improved grain/noise inspection)
+* introduce [core and beta modules](./core.md) for backward compatibility guarantees
+* rgb knobs / oklab widget (see `frame` or `grade` module for an example)
+* ui fixes and polish
+* android compile fixes (thanks paolo!)
+* dynamic lod (option to render low res when dragging sliders/drawing masks)
+* keyframe interpolation modes (ease-in, ease-out, ..)
+* keyframed brush strokes
+* vkdt-rendered logo
+* improved wayland support (better than x11)
+
+#### new modules
+* [rgb curves](../src/pipe/modules/curves/readme.md) simple per-channel curve widget
+* [o-copy](../src/pipe/modules/o-copy/readme.md) to copy raw images on export
+* [jddcnn](../src/pipe/modules/jddcnn/readme.md) experimental joint demosaicing and denoising based on a CNN
+* [g-csolid](../src/pipe/modules/g-csolid/readme.md) convert drawn brush strokes to 3d geometry
+* [bvh](../src/pipe/modules/bvh/readme.md) 3d geometry sink for ray tracing
+* [i-obj](../src/pipe/modules/i-obj/readme.md) 3d geometry source
+
 
 ## diverge branches
 
