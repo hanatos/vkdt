@@ -22,6 +22,7 @@ void
 dt_gui_style_to_state()
 {
   vkdt.style.panel_width_frac = 0.2f;
+  vkdt.style.border_frac = 0.05f;
   const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * vkdt.win.height;
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
   vkdt.style.fontsize = MAX(5, floorf(20 * vkdt.win.content_scale[1] * dpi_scale));
