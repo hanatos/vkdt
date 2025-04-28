@@ -57,7 +57,7 @@ style_name_to_colour(const char *name)
 }
 
 static inline void
-read_style_colours(struct nk_context *ctx)
+read_style_colours(struct nk_context *ctx, int hdr)
 {
   // set default colours
   nk_style_default(ctx);
@@ -81,6 +81,14 @@ read_style_colours(struct nk_context *ctx)
     if(!name[0]) break;
     fgetc(f);
     int idx = style_name_to_colour(name);
+    if(hdr) for(int i=0;i<3;i++)
+    {
+      float v = powf(rgba[i] / 256.0f, 1.0/2.2);
+      const float a = 0.17883277, b = /*1.0 - 4.0*a =*/ 0.28466892, c = /*0.5 - a*log(4.0*a) =*/ 0.55991073;
+      // zscale says:
+      v = v <= 0.5f ? v*v/3.0 : (expf((v-c)/a) + b)/12.0f;
+      rgba[i] = (int)(256.0f*v);
+    }
     if(idx >= 0) vkdt.style.colour[idx] = nk_rgba(rgba[0], rgba[1], rgba[2], rgba[3]);
   }
   // init from this table
@@ -127,7 +135,8 @@ int dt_gui_init_nk()
       vkdt.win.num_swap_chain_images * 2560*1024,
       vkdt.win.num_swap_chain_images * 640*1024);
 
-  read_style_colours(&vkdt.ctx);
+  int hdr = 1; // TODO runtime switch
+  read_style_colours(&vkdt.ctx, hdr);
 
   nk_buffer_init_default(&vkdt.global_buf);
   nk_command_buffer_init(&vkdt.global_cmd, &vkdt.global_buf, NK_CLIPPING_OFF);
@@ -143,12 +152,12 @@ int dt_gui_init_nk()
     int xpos0, xpos1, ypos;
     glfwGetMonitorPos(monitors[0], &xpos0, &ypos);
     glfwGetMonitorPos(monitors[MIN(monitors_cnt-1, 1)], &xpos1, &ypos);
-    float gamma0[] = {0}; // 0 means use sRGB TRC
+    float gamma0[] = {0, 0, 0}; // 0 means use sRGB TRC
     float rec2020_to_dspy0[] = { // to linear sRGB D65
        1.66022709, -0.58754775, -0.07283832,
       -0.12455356,  1.13292608, -0.0083496,
       -0.01815511, -0.100603  ,  1.11899813 };
-    float gamma1[] = {0};
+    float gamma1[] = {0, 0, 0};
     float rec2020_to_dspy1[] = { // to linear sRGB D65
        1.66022709, -0.58754775, -0.07283832,
       -0.12455356,  1.13292608, -0.0083496,

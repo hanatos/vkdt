@@ -148,7 +148,6 @@ vec3 decode_colour(vec3 rgb)
   }
   else if(params.trc == 5) // HLG
   {
-    const float r = 1.0; // reference white
     const float a = 0.17883277, b = /*1.0 - 4.0*a =*/ 0.28466892, c = /*0.5 - a*log(4.0*a) =*/ 0.55991073;
     // zscale says:
     rgb = mix((exp((rgb-c)/a) + b)/12.0, rgb*rgb/3.0, lessThanEqual(rgb, vec3(0.5)));
