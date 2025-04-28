@@ -960,7 +960,6 @@ darkroom_process()
        (!running && vkdt.graph_dev.runflags && vkdt.state.anim_playing && advance)) // running animations only if frame advances
     { // double buffered async compute
       vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
-      int full_rebuild = vkdt.graph_dev.runflags == s_graph_run_all; // XXX need to be more accurate!
       vkdt.graph_res[vkdt.graph_dev.double_buffer] =
         dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
       vkdt.graph_dev.runflags = 0; // clear this here, running graph has a copy.
