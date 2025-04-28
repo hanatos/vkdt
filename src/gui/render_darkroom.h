@@ -1213,13 +1213,13 @@ static inline void render_darkroom_widgets(
   }
   if(active)
   {
+    const int display_frame = vkdt.graph_dev.double_buffer % 2;
     if(graph->active_module == curr &&
         dt_module_get_connector(arr+curr, dt_token("dspy")) >= 0)
     {
       dt_node_t *out_dspy = dt_graph_get_display(graph, dt_token("dspy"));
-      if(out_dspy && vkdt.graph_res == VK_SUCCESS)
+      if(out_dspy && vkdt.graph_res[display_frame] == VK_SUCCESS)
       {
-        const int display_frame = vkdt.graph_dev.double_buffer % 2;
         struct nk_rect row = nk_layout_widget_bounds(ctx);
         float iwd = out_dspy->connector[0].roi.wd;
         float iht = out_dspy->connector[0].roi.ht;

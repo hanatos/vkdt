@@ -182,7 +182,7 @@ dt_gui_win_init_vk(dt_gui_win_t *win)
 int dt_gui_init()
 {
   memset(&vkdt, 0, sizeof(vkdt));
-  vkdt.graph_res = -1;
+  vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE;
   const char *session_type = getenv("XDG_SESSION_TYPE");
   if     (!session_type)                    vkdt.session_type = -1;
   else if(!strcmp(session_type, "x11"))     vkdt.session_type =  0;
@@ -612,7 +612,7 @@ dt_gui_win_render(struct nk_context *ctx, dt_gui_win_t *win)
 
   // submit command buffer
   vkCmdEndRenderPass(win->command_buffer[i]);
-  const int len = vkdt.graph_res == VK_SUCCESS ? 2 : 1;
+  const int len = vkdt.graph_res[vkdt.graph_dev.double_buffer] == VK_SUCCESS ? 2 : 1;
   VkPipelineStageFlags wait_stage[] = { 
     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT|VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, };

@@ -170,7 +170,7 @@ typedef struct dt_gui_t
   dt_gui_state_t   state;
   dt_gui_wstate_t  wstate;
 
-  VkResult         graph_res;     // result of last run
+  VkResult         graph_res[2];  // result of last run/double pumped
   dt_graph_t       graph_dev;     // processing graph
 
   dt_db_t          db;            // image list and current query

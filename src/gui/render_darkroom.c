@@ -333,6 +333,7 @@ void render_darkroom()
   int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
   int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
   struct nk_rect bounds = {win_x, win_y, win_w, win_h};
+  const int display_frame = vkdt.graph_dev.double_buffer % 2;
   if(!dt_gui_input_blocked() && nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
   {
     dt_view_switch(s_view_lighttable);
@@ -367,7 +368,7 @@ void render_darkroom()
 #undef SMOOTH
       }
 #endif
-      if(vkdt.graph_res == VK_SUCCESS)
+      if(vkdt.graph_res[display_frame] == VK_SUCCESS)
       {
         int events = !vkdt.wstate.grabbed && !disabled;
         // center view has on-canvas widgets (but only if there *is* an image):
@@ -508,9 +509,8 @@ void render_darkroom()
   if(!vkdt.wstate.fullscreen_view && nk_begin(ctx, "darkroom panel right", bounds, (disabled ? NK_WINDOW_NO_INPUT : 0)))
   { // right panel
     // draw histogram image:
-    const int display_frame = vkdt.graph_dev.double_buffer % 2;
     dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
-    if(out_hist && vkdt.graph_res == VK_SUCCESS && out_hist->dset[display_frame])
+    if(out_hist && vkdt.graph_res[display_frame] == VK_SUCCESS && out_hist->dset[display_frame])
     {
       int wd = vkdt.state.panel_wd;
       int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
@@ -520,7 +520,7 @@ void render_darkroom()
     }
 
     dt_node_t *out_view0 = dt_graph_get_display(&vkdt.graph_dev, dt_token("view0"));
-    if(out_view0 && vkdt.graph_res == VK_SUCCESS && out_view0->dset[display_frame])
+    if(out_view0 && vkdt.graph_res[display_frame] == VK_SUCCESS && out_view0->dset[display_frame])
     {
       float iwd = out_view0->connector[0].roi.wd;
       float iht = out_view0->connector[0].roi.ht;
@@ -952,18 +952,19 @@ darkroom_process()
   { // async graph compute vs. sync cpu + gui rendering
     // graph->double_buffer points to the buffer currently locked for render/display
     // set graph_res = -1 initially (when entering dr mode) so we won't draw before it finished processing
-    static int running = 0;
-    if(vkdt.graph_res == -1) running = 1; // when entering dr mode graph_res is -1 and it will kick off 0 as running
+    static int running = 0; // 1-double buffer is still running on gpu, has not been swapped in yet
+    if(vkdt.graph_res[vkdt.graph_dev.double_buffer^1] == -1)
+      running = 1; // when entering dr mode graph_res is -1 and it will kick off 0 as running
 
     if((!running && vkdt.graph_dev.runflags) || // stills and stopped animations
        (!running && vkdt.graph_dev.runflags && vkdt.state.anim_playing && advance)) // running animations only if frame advances
     { // double buffered async compute
       vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
       int full_rebuild = vkdt.graph_dev.runflags == s_graph_run_all; // XXX need to be more accurate!
-      vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
+      vkdt.graph_res[vkdt.graph_dev.double_buffer] =
+        dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
       vkdt.graph_dev.runflags = 0; // clear this here, running graph has a copy.
       vkdt.graph_dev.double_buffer ^= 1; // reset to the locked/already finished one
-      if(full_rebuild) vkdt.graph_res = -1; // restart waiting for first good image
       running = 1;
     }
     if(running)
@@ -972,7 +973,8 @@ darkroom_process()
       VkResult res = vkGetSemaphoreCounterValue(qvk.device, vkdt.graph_dev.semaphore_process, &value);
       if(res == VK_SUCCESS && value >= vkdt.graph_dev.process_dbuffer[vkdt.graph_dev.double_buffer^1])
       {
-        if(vkdt.graph_res == -1) vkdt.graph_res = VK_SUCCESS; // let display now it's now good to show
+        if(vkdt.graph_res[vkdt.graph_dev.double_buffer^1] == -1)
+          vkdt.graph_res[vkdt.graph_dev.double_buffer^1] = VK_SUCCESS; // let display now it's now good to show
         running = 0;
         vkdt.graph_dev.double_buffer ^= 1; // flip double buffer frame
       }
@@ -984,7 +986,8 @@ darkroom_process()
     { // double buffered compute
       // this will wait for other run
       // process double_buffer, wait for double_buffer^1
-      vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
+      vkdt.graph_res[vkdt.graph_dev.double_buffer] =
+        dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
       vkdt.graph_dev.runflags = 0; // we started this
       VkSemaphoreWaitInfo wait_info = {
         .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
@@ -1126,10 +1129,13 @@ darkroom_enter()
     }
   }
 
-  if((vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, s_graph_run_all & ~s_graph_run_wait_done)) != VK_SUCCESS)
+  vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
+  if((vkdt.graph_res[vkdt.graph_dev.double_buffer] =
+        dt_graph_run(&vkdt.graph_dev, s_graph_run_all & ~s_graph_run_wait_done)) != VK_SUCCESS)
     dt_gui_notification("running the graph failed (%s)!",
-        qvk_result_to_string(vkdt.graph_res));
-  if(vkdt.graph_res == VK_SUCCESS) vkdt.graph_res = -1;
+        qvk_result_to_string(vkdt.graph_res[vkdt.graph_dev.double_buffer]));
+  if(vkdt.graph_res[vkdt.graph_dev.double_buffer] == VK_SUCCESS)
+    vkdt.graph_res[vkdt.graph_dev.double_buffer] = -1;
   vkdt.graph_dev.double_buffer = 1; // we are rendering to 0, make sure the display code uses this dset after swapping
 
   // nodes are only constructed after running once
@@ -1196,7 +1202,7 @@ darkroom_leave()
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
   dt_graph_history_cleanup(&vkdt.graph_dev);
-  vkdt.graph_res = VK_INCOMPLETE; // invalidate
+  vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
   dt_gamepadhelp_clear();
   dt_gui_write_favs("darkroom.ui");
   return 0;
