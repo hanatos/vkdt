@@ -1132,8 +1132,8 @@ static inline void render_darkroom_widgets(
   if(module->so->has_inout_chain)
   {
     dt_tooltip(module->disabled ? "re-enable this module" :
-        "temporarily disable this module without disconnecting it from the graph.\n"
-        "this is just a convenience A/B switch in the ui and will not affect your\n"
+        "temporarily disable this module without disconnecting it from the graph. "
+        "this is just a convenience A/B switch in the ui and will not affect your "
         "processing history, lighttable thumbnail, or export.");
     struct nk_rect box = nk_widget_bounds(ctx);
     nk_label(ctx, module->disabled ? "\ue612" : "\ue836", NK_TEXT_CENTERED);

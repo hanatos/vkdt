@@ -84,9 +84,23 @@ read_style_colours(struct nk_context *ctx, int hdr)
     if(hdr) for(int i=0;i<3;i++)
     {
       float v = powf(rgba[i] / 256.0f, 1.0/2.2);
-      const float a = 0.17883277, b = /*1.0 - 4.0*a =*/ 0.28466892, c = /*0.5 - a*log(4.0*a) =*/ 0.55991073;
+      // HLG
+      // const float a = 0.17883277, b = /*1.0 - 4.0*a =*/ 0.28466892, c = /*0.5 - a*log(4.0*a) =*/ 0.55991073;
       // zscale says:
-      v = v <= 0.5f ? v*v/3.0 : (expf((v-c)/a) + b)/12.0f;
+      // v = v <= 0.5f ? v*v/3.0 : (expf((v-c)/a) + b)/12.0f;
+      // PQ eotf
+      const float avg_nits = 70.0;
+      const float m1 = 1305.0/8192.0;
+      const float m2 = 2523.0/32.0;
+      const float c1 = 107.0/128.0;
+      const float c2 = 2413.0/128.0;
+      const float c3 = 2392.0/128.0;
+      const float xpow = powf(fmaxf(0.0f, v), 1.0f/m2);
+      const float num = fmaxf(xpow - c1, 0.0f);
+      const float den = fmaxf(c2 - c3 * xpow, 1e-10f);
+      // need to stop this down (*0.5) because our 8bit colours don't do hdr. it would all be saturated
+      // and disappear in the brightest 255 we can still see.
+      v = 0.5f * avg_nits * powf(num/den, 1.0f/m1);
       rgba[i] = (int)(256.0f*v);
     }
     if(idx >= 0) vkdt.style.colour[idx] = nk_rgba(rgba[0], rgba[1], rgba[2], rgba[3]);

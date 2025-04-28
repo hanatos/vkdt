@@ -347,7 +347,8 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
         // to ask for pass through behaviour (and if there was it would be ignored downstream, see above)
         // fts
         // XXX probably want VK_COLOR_SPACE_HDR10_HLG_EXT or VK_COLOR_SPACE_HDR10_ST2084_EXT for hdr here
-        win->surf_format.colorSpace = VK_COLOR_SPACE_HDR10_HLG_EXT;
+        // win->surf_format.colorSpace = VK_COLOR_SPACE_HDR10_HLG_EXT;
+        win->surf_format.colorSpace = VK_COLOR_SPACE_HDR10_ST2084_EXT;
         dt_log(s_log_qvk, "using %s and colour space %d",
             qvk_format_to_string(win->surf_format.format), win->surf_format.colorSpace);
         goto out;

@@ -80,8 +80,22 @@ void main()
     tex.rgb = mix(tex.rgb * 12.92, pow(tex.rgb, vec3(1.0/2.4))*(1+0.055)-0.055, lessThanEqual(tex.rgb, vec3(0.0031308)));
   else if(gamma.x == -1.0)
   { // HLG for hdr output
-    const float a = 0.17883277, b = 1.0-4.0*a, c = 0.5 - a*log(4.0*a);
-    tex.rgb = mix(sqrt(3.0*tex.rgb), a*log(12.0*tex.rgb-b) + c, greaterThan(tex.rgb, vec3(1.0/12.0)));
+    // const float a = 0.17883277, b = 1.0-4.0*a, c = 0.5 - a*log(4.0*a);
+    // tex.rgb = mix(sqrt(3.0*tex.rgb), a*log(12.0*tex.rgb-b) + c, greaterThan(tex.rgb, vec3(1.0/12.0)));
+    // PQ oetf
+    const float c3 = 2392.0/128.0;
+    const float c2 = 2413.0/128.0;
+    const float c1 = c3-c2+1.0;
+    const float m1 = 1305.0/8192.0;
+    const float m2 = 2523.0/32.0;
+    // zimg says:
+    // More stable arrangement that avoids some cancellation error.
+    const float inv_avg_nits = 1.0/70.0;
+    tex.rgb = max(vec3(0.0), inv_avg_nits*tex.rgb);
+    tex.rgb = pow(tex.rgb, vec3(m1));
+    vec3 num = (c1 - 1.0) + (c2 - c3) * tex.rgb;
+    vec3 den = 1.0 + c3 * tex.rgb;
+    tex.rgb = pow(1.0 + num / den, vec3(m2));
   }
 
   // dithering:
