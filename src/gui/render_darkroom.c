@@ -1108,8 +1108,15 @@ darkroom_enter()
   vkdt.graph_dev.active_module = dt_module_get(&vkdt.graph_dev, gui.active_module, gui.active_instance);
   if(vkdt.graph_dev.active_module >= 0)
   { // if we don't find it, this will be -1
-    int iid = dt_module_get_connector(vkdt.graph_dev.module+vkdt.graph_dev.active_module, dt_token("input"));
-    if(iid >= 0 && dt_connected(vkdt.graph_dev.module[vkdt.graph_dev.active_module].connector+iid))
+    // make sure this thing is on the current graph
+    int active_on_graph = 0;
+    dt_graph_t *graph = &vkdt.graph_dev;
+    dt_module_t *const arr = graph->module;
+    const int arr_cnt = graph->num_modules;
+#define TRAVERSE_POST if(curr == vkdt.graph_dev.active_module) active_on_graph=1;
+#include "pipe/graph-traverse.inc"
+#undef TRAVERSE_POST
+    if(active_on_graph)
     { // only automatically connect dspy if we think the module is on the graph
       int cid = dt_module_get_connector(vkdt.graph_dev.module+vkdt.graph_dev.active_module, dt_token("dspy"));
       if(cid >= 0)
@@ -1126,6 +1133,7 @@ darkroom_enter()
         }
       }
     }
+    else vkdt.graph_dev.active_module = -1;
   }
 
   vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
