@@ -129,6 +129,7 @@ typedef struct qvk_t
   int                         float_atomics_supported;
   int                         coopmat_supported;
   int                         blit_supported;
+  int                         hdr;
 }
 qvk_t;
 
@@ -149,5 +150,5 @@ _VK_EXTENSION_LIST
 
 // global initialisation. pick device by that name if it is not null,
 // same for the direct id if it is not negative (use for multiple identical devices)
-VkResult qvk_init(const char *preferred_device_name, int preferred_device_id, int window);
+VkResult qvk_init(const char *preferred_device_name, int preferred_device_id, int window, int hdr);
 VkResult qvk_cleanup();

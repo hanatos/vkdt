@@ -49,10 +49,13 @@ const char *vk_requested_layers[] = {
 #endif
 };
 
-const char *vk_requested_instance_extensions[] = {
+const char *vk_hdr_instance_extensions[] = {
   // colour management:
   VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
   //VK_EXT_HDR_METADATA_EXTENSION_NAME, ???
+};
+
+const char *vk_requested_instance_extensions[] = {
   // debugging:
   VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
   VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
@@ -144,15 +147,20 @@ qvkDestroyDebugUtilsMessengerEXT(
 
 // this function works without gui and consequently does not init glfw
 VkResult
-qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
+qvk_init(const char *preferred_device_name, int preferred_device_id, int window, int hdr)
 {
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
 
   /* instance extensions */
-  int num_inst_ext_combined = qvk.num_glfw_extensions + LENGTH(vk_requested_instance_extensions);
+  int num_inst_ext_combined = qvk.num_glfw_extensions +
+    LENGTH(vk_requested_instance_extensions) +
+    hdr ?
+    LENGTH(vk_hdr_instance_extensions) : 0;
   char **ext = alloca(sizeof(char *) * num_inst_ext_combined);
   memcpy(ext, qvk.glfw_extensions, qvk.num_glfw_extensions * sizeof(*qvk.glfw_extensions));
   memcpy(ext + qvk.num_glfw_extensions, vk_requested_instance_extensions, sizeof(vk_requested_instance_extensions));
+  if(hdr)
+    memcpy(ext + qvk.num_glfw_extensions + LENGTH(vk_requested_instance_extensions), vk_hdr_instance_extensions, sizeof(vk_hdr_instance_extensions));
 
   get_vk_extension_list(NULL, &qvk.num_extensions, &qvk.extensions);
 
