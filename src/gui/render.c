@@ -149,8 +149,7 @@ int dt_gui_init_nk()
       vkdt.win.num_swap_chain_images * 2560*1024,
       vkdt.win.num_swap_chain_images * 640*1024);
 
-  int hdr = 1; // TODO runtime switch
-  read_style_colours(&vkdt.ctx, hdr);
+  read_style_colours(&vkdt.ctx, qvk.hdr);
 
   nk_buffer_init_default(&vkdt.global_buf);
   nk_command_buffer_init(&vkdt.global_cmd, &vkdt.global_buf, NK_CLIPPING_OFF);
@@ -222,9 +221,16 @@ int dt_gui_init_nk()
       memcpy(rec2020_to_dspy1, rec2020_to_dspy0, sizeof(rec2020_to_dspy0));
       memcpy(gamma1, gamma0, sizeof(gamma0));
     }
-    // TODO: if hdr runtime switch:
-    gamma0[0] = gamma0[1] = gamma0[2] = -1.0; // HLG
-    gamma1[0] = gamma1[1] = gamma1[2] = -1.0;
+    if(qvk.hdr)
+    { // running on hdr monitor
+      gamma0[0] = gamma0[1] = gamma0[2] = -1.0; // PQ
+      gamma1[0] = gamma1[1] = gamma1[2] = -1.0;
+      // TODO: check window colour space against HDR10 ST2084/BT2020?
+      memset(rec2020_to_dspy0, 0, sizeof(rec2020_to_dspy0));
+      memset(rec2020_to_dspy1, 0, sizeof(rec2020_to_dspy1));
+      rec2020_to_dspy0[0] = rec2020_to_dspy0[4] = rec2020_to_dspy0[8] = 
+      rec2020_to_dspy1[0] = rec2020_to_dspy1[4] = rec2020_to_dspy1[8] = 1.0f;
+    }
     nk_glfw3_setup_display_colour_management(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
   }
 

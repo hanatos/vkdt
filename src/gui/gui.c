@@ -192,6 +192,13 @@ int dt_gui_init()
   vkdt.session_type = 666;
 #endif
 
+  const char *hdr_wsi = getenv("ENABLE_HDR_WSI");
+  int hdr = 0;
+  if     (!hdr_wsi)              hdr = 0;
+  else if(!strcmp(hdr_wsi, "1")) hdr = 1;
+  if(hdr) dt_log(s_log_gui, "running in hdr mode");
+  else    dt_log(s_log_gui, "running in sdr mode");
+
   if(!glfwInit())
   {
     const char* description;
@@ -251,7 +258,7 @@ int dt_gui_init()
   const char *gpu_name = dt_rc_get(&vkdt.rc, "qvk/device_name", "null");
   if(!strcmp(gpu_name, "null")) gpu_name = 0;
   int gpu_id = dt_rc_get_int(&vkdt.rc, "qvk/device_id", -1);
-  if(qvk_init(gpu_name, gpu_id, 1))
+  if(qvk_init(gpu_name, gpu_id, 1, hdr))
   {
     dt_log(s_log_err|s_log_gui, "init vulkan failed");
     return 1;
@@ -332,28 +339,28 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
     VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM,
     VK_FORMAT_R8G8B8_UNORM, VK_FORMAT_B8G8R8_UNORM,
   };
+  VkColorSpaceKHR acceptable_colorspace[] = {
+    // VK_COLOR_SPACE_HDR10_HLG_EXT, // does not work in hyprland
+    VK_COLOR_SPACE_HDR10_ST2084_EXT, // pq does.
+    // VK_COLOR_SPACE_PASS_THROUGH_EXT, // is what we want for custom cm
+    VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, // is what we get
+  };
 
-  for(int i = 0; i < LENGTH(acceptable_formats); i++) {
-    for(int j = 0; j < num_formats; j++)
-      if(acceptable_formats[i] == avail_surface_formats[j].format) {
-        win->surf_format = avail_surface_formats[j];
-        // please don't mess with our colour management.
-        // see https://github.com/KhronosGroup/Vulkan-Docs/issues/2307
-        // but apparently they will figure it out eventually.
-        // it appears until then the default behaviour might be already what we need.
-        // in fact it seems the situation is even worse. if i try to do this:
-        // qvk.surf_format.colorSpace = VK_COLOR_SPACE_PASS_THROUGH_EXT;
-        // the validation layers shout at me. this means there seems to be *no* way
-        // to ask for pass through behaviour (and if there was it would be ignored downstream, see above)
-        // fts
-        // XXX probably want VK_COLOR_SPACE_HDR10_HLG_EXT or VK_COLOR_SPACE_HDR10_ST2084_EXT for hdr here
-        // win->surf_format.colorSpace = VK_COLOR_SPACE_HDR10_HLG_EXT;
-        win->surf_format.colorSpace = VK_COLOR_SPACE_HDR10_ST2084_EXT;
-        dt_log(s_log_qvk, "using %s and colour space %d",
-            qvk_format_to_string(win->surf_format.format), win->surf_format.colorSpace);
-        goto out;
-      }
+  for(int j = 0; j < num_formats; j++)
+  {
+    for(int i = 0; i < LENGTH(acceptable_formats); i++)
+      if(acceptable_formats[i] == avail_surface_formats[j].format)
+        for(int k = 0; k < LENGTH(acceptable_colorspace); k++)
+          if(acceptable_colorspace[k] == avail_surface_formats[j].colorSpace)
+          {
+            win->surf_format = avail_surface_formats[j];
+            dt_log(s_log_qvk, "using %s and colour space %d",
+                qvk_format_to_string(win->surf_format.format), win->surf_format.colorSpace);
+            goto out;
+          }
   }
+  dt_log(s_log_qvk|s_log_err, "could not find a suitable surface format!");
+  return VK_INCOMPLETE;
 out:;
 
   uint32_t num_present_modes = 0;
@@ -494,8 +501,6 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
   };
   QVKR(vkCreateRenderPass(qvk.device, &info, 0, &win->render_pass));
 
-  // XXX TODO need to pass new render pass to nk/glfw3?
-
   // create framebuffers
   VkImageView attachment[1] = {};
   VkFramebufferCreateInfo fb_create_info = {
@@ -547,8 +552,8 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
     .maxFrameAverageLightLevel = 70.0f,
   };
   PFN_vkSetHdrMetadataEXT func = (PFN_vkSetHdrMetadataEXT)vkGetInstanceProcAddr(qvk.instance, "vkSetHdrMetadataEXT");
-  if(func)
-  func(
+  if(qvk.hdr && func)
+    func(
       qvk.device,
       1,
       &win->swap_chain,
