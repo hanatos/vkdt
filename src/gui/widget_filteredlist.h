@@ -23,28 +23,32 @@ dt_tooltip(const char *fmt, ...)
     char *c = text;
     int len = strlen(text);
     struct nk_user_font *font = nk_glfw3_font(0);
-    float w = font->width(font->userdata, font->height, text, len) + vkdt.ctx.style.tab.padding.x*2;
+    const float pad = vkdt.ctx.style.window.tooltip_padding.x*2;
+    float w = font->width(font->userdata, font->height, text, len) + 1.5*pad;
     if(nk_tooltip_begin(&vkdt.ctx, MIN(w, vkdt.state.panel_wd)))
     {
-      nk_layout_row_static(&vkdt.ctx, font->height, MIN(w, vkdt.state.panel_wd), 1);
+      nk_layout_row_static(&vkdt.ctx, font->height, MIN(w, vkdt.state.panel_wd)-pad, 1);
       while(c < text + len)
       {
-        char *cc = c;
-        for(;*cc!='\n'&&cc<text+len;cc++)
+        char *bp = c;
+        for(char *cc=c;*cc!='\n'&&cc<text+len;cc++)
         {
           if(*cc==' ')
           {
             float w = font->width(font->userdata, font->height, c, cc-c);
-            if(w > 0.8*vkdt.state.panel_wd)
+            if(w > vkdt.state.panel_wd-pad)
             {
-              *cc = '\n';
+              if(bp > text) *bp = '\n';
               break;
             }
+            bp = cc;
           }
+          else if(cc==text+len-1) bp = cc;
+          else if(cc[1]=='\n') bp = cc+1;
         }
-        if(*cc == '\n') *cc = 0;
+        if(*bp == '\n') *bp = 0;
         nk_label(&vkdt.ctx, c, NK_TEXT_LEFT);
-        c = cc+1;
+        c = bp+1;
       }
       nk_tooltip_end(&vkdt.ctx);
     }
