@@ -346,11 +346,10 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
     VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, // is what we get
   };
 
-  for(int j = 0; j < num_formats; j++)
-  {
-    for(int i = 0; i < LENGTH(acceptable_formats); i++)
-      if(acceptable_formats[i] == avail_surface_formats[j].format)
-        for(int k = 0; k < LENGTH(acceptable_colorspace); k++)
+  for(int i = 0; i < LENGTH(acceptable_formats); i++)
+    for(int k = 0; k < LENGTH(acceptable_colorspace); k++)
+      for(int j = 0; j < num_formats; j++)
+        if(acceptable_formats[i] == avail_surface_formats[j].format)
           if(acceptable_colorspace[k] == avail_surface_formats[j].colorSpace)
           {
             win->surf_format = avail_surface_formats[j];
@@ -358,7 +357,6 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
                 qvk_format_to_string(win->surf_format.format), win->surf_format.colorSpace);
             goto out;
           }
-  }
   dt_log(s_log_qvk|s_log_err, "could not find a suitable surface format!");
   return VK_INCOMPLETE;
 out:;

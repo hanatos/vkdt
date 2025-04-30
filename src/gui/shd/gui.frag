@@ -77,7 +77,7 @@ void main()
   if(gamma.x > 0)
     tex.rgb = pow(tex.rgb, vec3(gamma));
   else if(gamma.x == 0) // sRGB TRC
-    tex.rgb = mix(tex.rgb * 12.92, pow(tex.rgb, vec3(1.0/2.4))*(1+0.055)-0.055, lessThanEqual(tex.rgb, vec3(0.0031308)));
+    tex.rgb = mix(tex.rgb * 12.92, pow(tex.rgb, vec3(1.0/2.4))*1.055-0.055, greaterThan(tex.rgb, vec3(0.0031308)));
   else if(gamma.x == -1.0)
   { // HLG for hdr output
     // const float a = 0.17883277, b = 1.0-4.0*a, c = 0.5 - a*log(4.0*a);
