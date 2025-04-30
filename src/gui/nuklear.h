@@ -12739,7 +12739,7 @@ nk_panel_get_padding(const struct nk_style *style, enum nk_panel_type type)
     case NK_PANEL_CONTEXTUAL: return style->window.contextual_padding;
     case NK_PANEL_COMBO: return style->window.combo_padding;
     case NK_PANEL_MENU: return style->window.menu_padding;
-    case NK_PANEL_TOOLTIP: return style->window.menu_padding;}
+    case NK_PANEL_TOOLTIP: return style->window.tooltip_padding;}
 }
 NK_LIB float
 nk_panel_get_border(const struct nk_style *style, nk_flags flags,
@@ -12754,7 +12754,7 @@ nk_panel_get_border(const struct nk_style *style, nk_flags flags,
         case NK_PANEL_CONTEXTUAL: return style->window.contextual_border;
         case NK_PANEL_COMBO: return style->window.combo_border;
         case NK_PANEL_MENU: return style->window.menu_border;
-        case NK_PANEL_TOOLTIP: return style->window.menu_border;
+        case NK_PANEL_TOOLTIP: return style->window.tooltip_border;
     }} else return 0;
 }
 NK_LIB struct nk_color
@@ -12768,7 +12768,7 @@ nk_panel_get_border_color(const struct nk_style *style, enum nk_panel_type type)
     case NK_PANEL_CONTEXTUAL: return style->window.contextual_border_color;
     case NK_PANEL_COMBO: return style->window.combo_border_color;
     case NK_PANEL_MENU: return style->window.menu_border_color;
-    case NK_PANEL_TOOLTIP: return style->window.menu_border_color;}
+    case NK_PANEL_TOOLTIP: return style->window.tooltip_border_color;}
 }
 NK_LIB nk_bool
 nk_panel_is_sub(enum nk_panel_type type)
@@ -13063,8 +13063,8 @@ nk_panel_end(struct nk_context *ctx)
 
         /* fill top empty space */
         empty_space.x = window->bounds.x;
-        empty_space.y = layout->bounds.y;
-        empty_space.h = panel_padding.y;
+        empty_space.y = layout->bounds.y - layout->border;
+        empty_space.h = panel_padding.y  + layout->border;
         empty_space.w = window->bounds.w;
         nk_fill_rect(out, empty_space, 0, style->window.background);
 
