@@ -196,8 +196,8 @@ int dt_gui_init()
   int hdr = 0;
   if     (!hdr_wsi)              hdr = 0;
   else if(!strcmp(hdr_wsi, "1")) hdr = 1;
-  if(hdr) dt_log(s_log_gui, "running in hdr mode");
-  else    dt_log(s_log_gui, "running in sdr mode");
+  if(hdr) dt_log(s_log_gui, "running in HDR mode");
+  else    dt_log(s_log_gui, "running in SDR mode, set ENABLE_HDR_WSI=1 to enable HDR");
 
   if(!glfwInit())
   {

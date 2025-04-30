@@ -184,7 +184,11 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     {
       dt_log(s_log_qvk|s_log_err, "error %s executing vkCreateInstance!", qvk_result_to_string(res));
       if(res == VK_ERROR_LAYER_NOT_PRESENT)
+#ifdef QVK_ENABLE_VALIDATION
         dt_log(s_log_qvk|s_log_err, "did you install the vulkan validation layer package?");
+#else
+        dt_log(s_log_qvk|s_log_err, "are you trying to run in HDR mode and the compositor lacks support?");
+#endif
       return res;
     }
   }
