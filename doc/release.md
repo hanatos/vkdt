@@ -81,6 +81,8 @@ packages from github nightly ci.
 #### big features:
 * [spectral film simulation](../src/pipe/modules/filmsim/readme.md)
 * [msdf fonts](./howto/fonts/readme.md)
+* hdr support, if you use wayland and the compositor does it, try
+  `ENABLE_HDR_WSI=1 vdkt`
 * quick access preset buttons in customisable favourites tab
 * arch aur package `vkdt-git`
 * rewrote `vkdt read-icc` in c to reduce dependencies for packaging
