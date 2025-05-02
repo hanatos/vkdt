@@ -1,0 +1,10 @@
+module:i-lut:main
+module:resize:01
+module:colenc:01
+module:o-bc1:main
+connect:i-lut:main:output:resize:01:input
+connect:resize:01:output:colenc:01:input
+connect:colenc:01:output:o-bc1:main:input
+# rec2020 primaries with sRGB curve:
+param:colenc:01:prim:2
+param:colenc:01:trc:2

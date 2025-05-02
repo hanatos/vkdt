@@ -149,6 +149,8 @@ dt_db_accept_filename(
          !strcasecmp(f2, ".dng") ||
          !strcasecmp(f2, ".raf") ||
          !strcasecmp(f2, ".rw2") ||
+         !strcasecmp(f2, ".lut") || // vkdt luts
+         !strcasecmp(f2, ".bc1") || // vkdt thumbnails
          !strcasecmp(f2, ".pfm") || // floating point dumps
          !strcasecmp(f2, ".jpg") || // jpg images
          !strcasecmp(f2, ".exr") || // openexr

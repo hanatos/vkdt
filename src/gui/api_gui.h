@@ -112,6 +112,10 @@ dt_gui_paste_history()
           fprintf(fout, "param:i-pfm:main:filename:%s\n", fn);
         else if(len > 4 && !strncasecmp(fn+len-4, ".exr", 4))
           fprintf(fout, "param:i-exr:main:filename:%s\n", fn);
+        else if(len > 4 && !strncasecmp(fn+len-4, ".lut", 4))
+          fprintf(fout, "param:i-lut:main:filename:%s\n", fn);
+        else if(len > 4 && !strncasecmp(fn+len-4, ".bc1", 4))
+          fprintf(fout, "param:i-bc1:main:filename:%s\n", fn);
         else if(len > 4 && !strncasecmp(fn+len-4, ".jpg", 4))
           fprintf(fout, "param:i-jpg:main:filename:%s\n", fn);
         else

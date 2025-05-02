@@ -1,0 +1,13 @@
+module:i-bc1:main
+module:colour:01
+module:resize:01
+module:colenc:01
+module:o-bc1:main
+connect:i-bc1:main:output:resize:01:input
+connect:resize:01:output:colour:01:input
+connect:colour:01:output:colenc:01:input
+connect:colenc:01:output:o-bc1:main:input
+param:colour:01:matrix:1
+# rec2020 primaries with sRGB curve:
+param:colenc:01:prim:2
+param:colenc:01:trc:2
