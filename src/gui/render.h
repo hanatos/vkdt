@@ -10,6 +10,9 @@ int dt_gui_init_nk();
 // initialise and upload font. returns 0 on success.
 void dt_gui_init_fonts();
 
+// re-init colour management/hdr flags on new swapchain
+void dt_gui_update_cm();
+
 // tear down nuklear and free resources
 void dt_gui_cleanup_nk();
 

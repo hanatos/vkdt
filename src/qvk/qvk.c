@@ -42,19 +42,6 @@ qvk_t qvk =
 _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
-const char *vk_requested_layers[] = {
-  "VK_LAYER_hdr_wsi",
-#ifdef QVK_ENABLE_VALIDATION
-  "VK_LAYER_KHRONOS_validation",
-#endif
-};
-
-const char *vk_hdr_instance_extensions[] = {
-  // colour management:
-  VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
-  //VK_EXT_HDR_METADATA_EXTENSION_NAME, ???
-};
-
 const char *vk_requested_instance_extensions[] = {
   // debugging:
   VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
@@ -147,10 +134,17 @@ qvkDestroyDebugUtilsMessengerEXT(
 
 // this function works without gui and consequently does not init glfw
 VkResult
-qvk_init(const char *preferred_device_name, int preferred_device_id, int window, int hdr)
+qvk_init(const char *preferred_device_name, int preferred_device_id, int window, int enable_hdr_wsi)
 {
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
 
+  const char *vk_hdr_instance_extensions[] = {
+    // colour management:
+    VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
+    //VK_EXT_HDR_METADATA_EXTENSION_NAME, ??? we just grab the function pointer
+  };
+
+  int hdr = 1;
   /* instance extensions */
   int num_inst_ext_combined = qvk.num_glfw_extensions +
     LENGTH(vk_requested_instance_extensions) +
@@ -161,16 +155,23 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   memcpy(ext + qvk.num_glfw_extensions, vk_requested_instance_extensions, sizeof(vk_requested_instance_extensions));
   if(hdr)
     memcpy(ext + qvk.num_glfw_extensions + LENGTH(vk_requested_instance_extensions), vk_hdr_instance_extensions, sizeof(vk_hdr_instance_extensions));
-  qvk.hdr = hdr;
 
   get_vk_extension_list(NULL, &qvk.num_extensions, &qvk.extensions);
+
+  const char *vk_requested_layers[] = {
+#ifdef QVK_ENABLE_VALIDATION
+    "VK_LAYER_KHRONOS_validation",
+#endif
+    "VK_LAYER_hdr_wsi",
+  };
+  int num_layers = LENGTH(vk_requested_layers) + (enable_hdr_wsi ? 0 : -1);
 
   /* create instance */
   VkInstanceCreateInfo inst_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
     .pApplicationInfo        = &vk_app_info,
-    .enabledLayerCount       = hdr ? LENGTH(vk_requested_layers) : 0,
-    .ppEnabledLayerNames     = hdr ? vk_requested_layers : 0,
+    .enabledLayerCount       = num_layers,
+    .ppEnabledLayerNames     = num_layers ? vk_requested_layers : 0,
     .enabledExtensionCount   = num_inst_ext_combined,
     .ppEnabledExtensionNames = (const char * const*)ext,
 #ifdef __APPLE__

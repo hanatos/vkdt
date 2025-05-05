@@ -138,43 +138,35 @@ void dt_gui_init_fonts()
   nk_style_from_table(&vkdt.ctx, vkdt.style.colour);
 }
 
-int dt_gui_init_nk()
+// TODO pull out into function to be called after swapchain *re-*creation: (not the first time)
+// TODO depends on window/ctx
+void dt_gui_update_cm()
 {
-  nk_init_default(&vkdt.ctx, 0);
-  nk_glfw3_init(
-      &vkdt.ctx,
-      vkdt.win.render_pass,
-      vkdt.win.window,
-      qvk.device, qvk.physical_device,
-      vkdt.win.num_swap_chain_images * 2560*1024,
-      vkdt.win.num_swap_chain_images * 640*1024);
+  int hdr = (vkdt.win.surf_format.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT);
+  read_style_colours(&vkdt.ctx, hdr);
 
-  read_style_colours(&vkdt.ctx, qvk.hdr);
-
-  nk_buffer_init_default(&vkdt.global_buf);
-  nk_command_buffer_init(&vkdt.global_cmd, &vkdt.global_buf, NK_CLIPPING_OFF);
-
-  char tmp[PATH_MAX+100] = {0};
-  {
-    int monitors_cnt;
-    GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
+  int monitors_cnt;
+  GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
+  const char *name0 = glfwGetMonitorName(monitors[0]);
+  const char *name1 = glfwGetMonitorName(monitors[MIN(monitors_cnt-1, 1)]);
+  int xpos0, xpos1, ypos;
+  glfwGetMonitorPos(monitors[0], &xpos0, &ypos);
+  glfwGetMonitorPos(monitors[MIN(monitors_cnt-1, 1)], &xpos1, &ypos);
+  float gamma0[] = {0, 0, 0}; // 0 means use sRGB TRC
+  float rec2020_to_dspy0[] = { // to linear sRGB D65
+     1.66022709, -0.58754775, -0.07283832,
+    -0.12455356,  1.13292608, -0.0083496,
+    -0.01815511, -0.100603  ,  1.11899813 };
+  float gamma1[] = {0, 0, 0};
+  float rec2020_to_dspy1[] = { // to linear sRGB D65
+     1.66022709, -0.58754775, -0.07283832,
+    -0.12455356,  1.13292608, -0.0083496,
+    -0.01815511, -0.100603  ,  1.11899813 };
+  if(vkdt.win.surf_format.colorSpace != VK_COLOR_SPACE_HDR10_ST2084_EXT)
+  { // fake cm for sdr monitors:
     if(monitors_cnt > 2)
       dt_log(s_log_gui, "you have more than 2 monitors attached! only the first two will be colour managed!");
-    const char *name0 = glfwGetMonitorName(monitors[0]);
-    const char *name1 = glfwGetMonitorName(monitors[MIN(monitors_cnt-1, 1)]);
-    int xpos0, xpos1, ypos;
-    glfwGetMonitorPos(monitors[0], &xpos0, &ypos);
-    glfwGetMonitorPos(monitors[MIN(monitors_cnt-1, 1)], &xpos1, &ypos);
-    float gamma0[] = {0, 0, 0}; // 0 means use sRGB TRC
-    float rec2020_to_dspy0[] = { // to linear sRGB D65
-       1.66022709, -0.58754775, -0.07283832,
-      -0.12455356,  1.13292608, -0.0083496,
-      -0.01815511, -0.100603  ,  1.11899813 };
-    float gamma1[] = {0, 0, 0};
-    float rec2020_to_dspy1[] = { // to linear sRGB D65
-       1.66022709, -0.58754775, -0.07283832,
-      -0.12455356,  1.13292608, -0.0083496,
-      -0.01815511, -0.100603  ,  1.11899813 };
+    char tmp[PATH_MAX+100] = {0};
     snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.homedir, name0);
     FILE *f = fopen(tmp, "r");
     if(!f)
@@ -212,27 +204,43 @@ int dt_gui_init_nk()
       }
       else dt_log(s_log_gui, "no display profile file display.%s, using sRGB!", name1);
     }
-    int bitdepth = 8; // the display output will be dithered according to this
-    if(vkdt.win.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
-       vkdt.win.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
-      bitdepth = 10;
-    if(monitors_cnt < 2 || xpos1 == 0)
-    {
-      memcpy(rec2020_to_dspy1, rec2020_to_dspy0, sizeof(rec2020_to_dspy0));
-      memcpy(gamma1, gamma0, sizeof(gamma0));
-    }
-    if(qvk.hdr)
-    { // running on hdr monitor
-      gamma0[0] = gamma0[1] = gamma0[2] = -1.0; // PQ
-      gamma1[0] = gamma1[1] = gamma1[2] = -1.0;
-      // TODO: check window colour space against HDR10 ST2084/BT2020?
-      memset(rec2020_to_dspy0, 0, sizeof(rec2020_to_dspy0));
-      memset(rec2020_to_dspy1, 0, sizeof(rec2020_to_dspy1));
-      rec2020_to_dspy0[0] = rec2020_to_dspy0[4] = rec2020_to_dspy0[8] = 
-      rec2020_to_dspy1[0] = rec2020_to_dspy1[4] = rec2020_to_dspy1[8] = 1.0f;
-    }
-    nk_glfw3_setup_display_colour_management(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
   }
+  int bitdepth = 8; // the display output will be dithered according to this
+  if(vkdt.win.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
+     vkdt.win.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
+    bitdepth = 10;
+  if(monitors_cnt < 2 || xpos1 == 0)
+  {
+    memcpy(rec2020_to_dspy1, rec2020_to_dspy0, sizeof(rec2020_to_dspy0));
+    memcpy(gamma1, gamma0, sizeof(gamma0));
+  }
+  if(vkdt.win.surf_format.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT)
+  { // running on hdr monitor
+    gamma0[0] = gamma0[1] = gamma0[2] = -1.0; // PQ
+    gamma1[0] = gamma1[1] = gamma1[2] = -1.0;
+    memset(rec2020_to_dspy0, 0, sizeof(rec2020_to_dspy0));
+    memset(rec2020_to_dspy1, 0, sizeof(rec2020_to_dspy1));
+    rec2020_to_dspy0[0] = rec2020_to_dspy0[4] = rec2020_to_dspy0[8] = 
+    rec2020_to_dspy1[0] = rec2020_to_dspy1[4] = rec2020_to_dspy1[8] = 1.0f;
+  }
+  nk_glfw3_setup_display_colour_management(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
+}
+
+int dt_gui_init_nk()
+{
+  nk_init_default(&vkdt.ctx, 0);
+  nk_glfw3_init(
+      &vkdt.ctx,
+      vkdt.win.render_pass,
+      vkdt.win.window,
+      qvk.device, qvk.physical_device,
+      vkdt.win.num_swap_chain_images * 2560*1024,
+      vkdt.win.num_swap_chain_images * 640*1024);
+
+  dt_gui_update_cm();
+
+  nk_buffer_init_default(&vkdt.global_buf);
+  nk_command_buffer_init(&vkdt.global_cmd, &vkdt.global_buf, NK_CLIPPING_OFF);
 
   // prepare list of potential modules for ui selection:
   vkdt.wstate.module_names_buf = (char *)calloc(9, dt_pipe.num_modules+1);

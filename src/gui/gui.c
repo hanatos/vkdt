@@ -193,11 +193,10 @@ int dt_gui_init()
 #endif
 
   const char *hdr_wsi = getenv("ENABLE_HDR_WSI");
-  int hdr = 0;
-  if     (!hdr_wsi)              hdr = 0;
-  else if(!strcmp(hdr_wsi, "1")) hdr = 1;
-  if(hdr) dt_log(s_log_gui, "running in HDR mode");
-  else    dt_log(s_log_gui, "running in SDR mode, set ENABLE_HDR_WSI=1 to enable HDR");
+  int enable_hdr_wsi = 0;
+  if     (!hdr_wsi)              enable_hdr_wsi = 0;
+  else if(!strcmp(hdr_wsi, "1")) enable_hdr_wsi = 1;
+  if(enable_hdr_wsi) dt_log(s_log_gui, "attempting to load HDR WSI aux layer");
 
   if(!glfwInit())
   {
@@ -258,7 +257,7 @@ int dt_gui_init()
   const char *gpu_name = dt_rc_get(&vkdt.rc, "qvk/device_name", "null");
   if(!strcmp(gpu_name, "null")) gpu_name = 0;
   int gpu_id = dt_rc_get_int(&vkdt.rc, "qvk/device_id", -1);
-  if(qvk_init(gpu_name, gpu_id, 1, hdr))
+  if(qvk_init(gpu_name, gpu_id, 1, enable_hdr_wsi))
   {
     dt_log(s_log_err|s_log_gui, "init vulkan failed");
     return 1;
@@ -328,10 +327,9 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
   VkSurfaceFormatKHR *avail_surface_formats = alloca(sizeof(VkSurfaceFormatKHR) * num_formats);
   vkGetPhysicalDeviceSurfaceFormatsKHR(qvk.physical_device, win->surface, &num_formats, avail_surface_formats);
 
-  dt_log(s_log_qvk, "available surface formats:");
-  for(int i = 0; i < num_formats; i++)
-    dt_log(s_log_qvk, qvk_format_to_string(avail_surface_formats[i].format));
-
+  // dt_log(s_log_gui, "available surface formats:");
+  // for(int i = 0; i < num_formats; i++)
+  //   dt_log(s_log_gui, qvk_format_to_string(avail_surface_formats[i].format));
 
   VkFormat acceptable_formats[] = {
     // VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB,
@@ -353,11 +351,11 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
           if(acceptable_colorspace[k] == avail_surface_formats[j].colorSpace)
           {
             win->surf_format = avail_surface_formats[j];
-            dt_log(s_log_qvk, "using %s and colour space %d",
-                qvk_format_to_string(win->surf_format.format), win->surf_format.colorSpace);
+            dt_log(s_log_gui, "using %s and colour space %s",
+                qvk_format_to_string(win->surf_format.format), qvk_colourspace_to_string(win->surf_format.colorSpace));
             goto out;
           }
-  dt_log(s_log_qvk|s_log_err, "could not find a suitable surface format!");
+  dt_log(s_log_gui|s_log_err, "could not find a suitable surface format!");
   return VK_INCOMPLETE;
 out:;
 
