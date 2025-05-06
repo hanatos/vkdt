@@ -1,0 +1,232 @@
+// markov chain path guiding:
+// Lucas Alber, Johannes Hanika, and Carsten Dachsbacher.
+// Real-time Markov chain path guiding for global illumination and single scattering.
+// Proc. ACM Comput. Graph. Interact. Tech., 8(1), 2025. 
+#version 460
+#extension GL_GOOGLE_include_directive              : enable
+#extension GL_EXT_ray_tracing                       : enable
+#extension GL_EXT_ray_query                         : enable
+#extension GL_EXT_ray_tracing_position_fetch        : enable
+#extension GL_EXT_shader_explicit_arithmetic_types  : enable
+#extension GL_EXT_nonuniform_qualifier              : enable
+#extension GL_EXT_control_flow_attributes           : enable
+#extension GL_KHR_shader_subgroup_ballot            : enable
+#extension GL_KHR_shader_subgroup_arithmetic        : enable
+
+// TODO replace by vkdt versions:
+#include "merian-shaders/camera.glsl"
+#include "merian-shaders/random.glsl"
+#include "merian-shaders/normal_encode.glsl"
+#include "merian-shaders/raytrace.glsl"
+#include "merian-shaders/bsdf_diffuse.glsl"
+#include "merian-shaders/grid.glsl"
+#include "merian-shaders/color/colors_yuv.glsl"
+#include "merian-shaders/color/colors_oklch.glsl"
+#include "merian-shaders/hash.glsl"
+#include "merian-shaders/bsdf_ggx.glsl"
+#include "merian-shaders/bsdf_microfacet.glsl"
+
+uint rng_state;
+vec2 moments;
+vec3 irr;
+
+// TODO replace:
+#include "../config.h"
+#include "layout.glsl"
+
+#include "light_cache.glsl"
+#include "mc.glsl"
+
+// TODO: bring in line with ours:
+#include "raytrace.glsl"
+
+// XXX todo: maybe we want a special gbuf pass to compute directly that, so we don't have to fill it again from our gbuf structs?
+// XXX we have: mat_state_t (ns, sampled colours+roughness), gbuf_t (ng, st, mat uints straight outta rt), dn buf (depth + ns)
+// XXX how would we access prev pos? needs support in prepare_intersection and buf_vtx_prev. dn buf should have prev pos.
+// TODO this one here is used for the ray tracing interface in merian. replace by our interface and carry on?
+struct Hit {
+    vec3 pos;
+    vec3 prev_pos;
+    vec3 wi;
+    vec3 normal;
+    uint enc_geonormal;
+
+    // Material
+    f16vec3 albedo;
+    float16_t roughness;
+};
+#define pixel ivec2(gl_GlobalInvocationID)
+#define resolution ivec2(imageSize(img_irradiance))
+#define first_hit hits[gbuffer_index(pixel, resolution)]
+
+void main()
+{
+  rng_state = pcg4d16(uvec4(pixel, params.frame, SEED));
+  moments = vec2(0);
+  irr = vec3(0);
+
+  if (any(greaterThanEqual(first_hit.albedo, f16vec3(1e-7)))) for (int s = 0; s < SURFACE_SPP; s++)
+  {
+    Hit current_hit = first_hit;
+
+    // Camera throughput encoded in albedo
+    vec3 current_throughput = vec3(1);
+    vec3 f = vec3(0);
+    float p = 1.0;
+
+    for (int segment = 1; segment < MAX_PATH_LENGTH; segment++)
+    {
+      vec3 wo;
+      float wodotn;
+      float wo_p = 0;
+
+#if MERIAN_QUAKE_REFERENCE_MODE == 1
+      wo = bsdf_ggx_diffuse_mix_sample(current_hit.wi, current_hit.normal, bsdf_ggx_roughness_to_alpha(current_hit.roughness), XorShift32Vec3(rng_state));
+      wodotn = dot(wo, current_hit.normal);
+      if (wodotn <= 1e-3 || dot(wo, geo_decode_normal(current_hit.enc_geonormal)) <= 1e-3)
+        break;
+      wo_p = bsdf_ggx_diffuse_mix_pdf(current_hit.wi, wo, current_hit.normal, bsdf_ggx_roughness_to_alpha(current_hit.roughness));
+#else
+
+      MCState mc_state;
+      uint mc_buffer_index;
+
+      // SAMPLE NEXT OUTGOING DIRECTION
+      float score_sum = 0;
+      {
+        float scores[MC_SAMPLES];
+        vec4 vmfs[MC_SAMPLES];
+        {
+          [[unroll]] for (int i = 0; i < MC_SAMPLES; i++)
+          {
+            const bool adaptive_grid = XorShift32(rng_state) < MC_SAMPLES_ADAPTIVE_PROB;
+
+            uint buffer_index, hash;
+            if (adaptive_grid)
+              mc_adaptive_buffer_index(s == 0 ? current_hit.prev_pos : current_hit.pos, current_hit.normal, buffer_index, hash);
+            else
+              mc_static_buffer_index(s == 0 ? current_hit.prev_pos : current_hit.pos, buffer_index, hash);
+
+            MCState state = mc_states[buffer_index];
+
+            if (adaptive_grid)
+              mc_adaptive_finalize_load(state, hash);
+            else
+              mc_static_finalize_load(state, hash, current_hit.pos, current_hit.normal);
+
+            scores[i] = state.sum_w;
+            score_sum += state.sum_w;
+            vmfs[i] = mc_state_get_vmf(state, current_hit.pos);
+            if (XorShift32(rng_state) < scores[i] / score_sum)
+            {
+              // we use here that comparison with NaN is false, that happens if candidate_score == 0 and sum == 0; 
+              mc_state = state;
+              mc_buffer_index = buffer_index;
+              wo = vmf_sample(vmfs[i].xyz, vmfs[i].w, XorShift32Vec2(rng_state));
+            }
+          }
+        }
+
+        if (score_sum == 0 || XorShift32(rng_state) < SURF_BSDF_P)
+        {
+          // BSDF Sampling
+          wo = bsdf_ggx_diffuse_mix_sample(current_hit.wi, current_hit.normal, bsdf_ggx_roughness_to_alpha(current_hit.roughness), XorShift32Vec3(rng_state));
+          mc_state = mc_state_new();
+        } // else {VMF Sampling // wo = set above }
+      wodotn = dot(wo, current_hit.normal);
+
+      // ray is below geometric surface
+      if (wodotn <= 1e-3 || dot(wo, geo_decode_normal(current_hit.enc_geonormal)) <= 1e-3)
+        break;
+
+      // Multiple importance sampling
+      [[unroll]] for (int i = 0; i < MC_SAMPLES; i++)
+      {
+        // score_sum > 0 ? results in black artifacts
+        wo_p += (scores[i] > 0 ? scores[i] * (vmf_pdf(wo, vmfs[i].xyz, vmfs[i].w)) / score_sum : 0);
+      }
+      wo_p = (score_sum > 0 ? SURF_BSDF_P : 1.0) * bsdf_ggx_diffuse_mix_pdf(current_hit.wi, wo, current_hit.normal, bsdf_ggx_roughness_to_alpha(current_hit.roughness)) + (1 - SURF_BSDF_P) * wo_p;
+
+      }
+#endif
+
+      // TRACE RAY TO NEXT SURFACE
+      Hit next_hit;
+      next_hit.wi = wo;
+      // Pull back the ray such that it cannot excape through corners (and to prevent self collision)
+      next_hit.pos = current_hit.pos - current_hit.wi * 1e-3;
+      f16vec3 incident = f16vec3(0); // contains throughput already
+      f16vec3 throughput = f16vec3(1);
+      trace_ray(throughput, incident, next_hit);
+      // Full GI (infinite diffuse bounces)
+      const f16vec3 lc_incident = any(greaterThan(incident, f16vec3(0))) || (USE_LIGHT_CACHE_TAIL == 0 && MAX_PATH_LENGTH == 2) ? incident : throughput * light_cache_get(next_hit.pos, next_hit.normal).rgb;
+
+      // EVALUATE BSDF
+      // without albedo (added below to skip first albedo)
+      const float microfacet_bsdf = bsdf_ggx_diffuse_mix_times_wodotn(current_hit.wi, wo, current_hit.normal, bsdf_ggx_roughness_to_alpha(current_hit.roughness), 0.02);
+
+      current_throughput *= microfacet_bsdf;
+#if USE_LIGHT_CACHE_TAIL == 1 
+      f = current_throughput * (segment < MAX_PATH_LENGTH - 1 ? incident : lc_incident);
+#else
+      f = current_throughput * incident;
+#endif
+      p *= wo_p;
+      current_throughput *= throughput;
+
+      // UPDATE MARKOV CHAIN and LIGHT_CACHE
+#if MERIAN_QUAKE_REFERENCE_MODE != 1
+      {
+        // multiply albedo?
+        const float mc_f = yuv_luminance(lc_incident * microfacet_bsdf / wo_p);
+        if (!isinf(mc_f) && !isnan(mc_f))
+        {
+          light_cache_update(current_hit.pos, current_hit.normal, lc_incident * bsdf_diffuse_eval(current_hit.albedo) * wodotn / max(wo_p, 10));
+
+          if (XorShift32(rng_state) * score_sum < mc_f * MC_SAMPLES)
+          {
+            // == XorShift32(rng_state) < mc_f / (score_sum / MC_SAMPLES)
+            mc_state_add_sample(mc_state, current_hit.pos, mc_f, next_hit.pos, (next_hit.pos - next_hit.prev_pos) / TIME_DIFF);
+            mc_static_save(mc_state, current_hit.pos, current_hit.normal);
+            mc_adaptive_save(mc_state, current_hit.pos, current_hit.normal);
+          }
+          else if (MC_FAST_RECOVERY == 1 && mc_light_missing(mc_state, mc_f, wo, current_hit.pos))
+          {
+            // fix slow recovery after light source disappears
+            mc_states[mc_buffer_index].sum_w = 0.;
+          }
+        }
+      }
+#endif
+      // PREPARE NEXT ITERATION
+      {
+        current_throughput *= next_hit.albedo;
+        current_hit = next_hit;
+
+        // we stop if we won't transport any more light or if we found emissive material
+        if (all(lessThan(current_throughput, vec3(1e-7))) || any(greaterThan(f, vec3(1e-7))))
+          break;
+      }
+    }
+
+    const vec3 contrib = f / p;
+    if(!any(isinf(contrib)) && !any(isnan(contrib)))
+    {
+      irr += contrib;
+      const float l = yuv_luminance(contrib);
+      moments += vec2(l, l * l);
+    }
+  }
+
+  if (any(greaterThanEqual(pixel, resolution)))
+    return;
+
+  if (SURFACE_SPP > 0)
+  {
+    irr /= SURFACE_SPP;
+    moments /= SURFACE_SPP;
+  }
+
+  imageStore(img_irradiance, pixel, vec4(irr, SURFACE_SPP));
+  imageStore(img_moments, pixel, vec4(moments, 0, 0));
+}

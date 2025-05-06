@@ -1,0 +1,103 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_ray_tracing             : enable
+#extension GL_EXT_ray_query               : enable
+#extension GL_EXT_shader_atomic_float     : enable
+#extension GL_EXT_shader_16bit_storage    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types : enable
+
+#include "config.h"
+#include "shared.glsl"
+#include "shared/render3d.glsl"
+#include "colour.glsl"
+#include "volume-fwd.glsl"
+#include "volume.glsl"
+#include "env.glsl"
+#include "camera-fwd.glsl"
+#include "camera.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 0) uniform global_t
+{ 
+  int frame;
+} global;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{ 
+  vec4 cam_x;
+  vec4 cam_w;
+  vec4 cam_u;
+  vec4 fog;
+  float cltime;
+  int spp;
+} params;
+
+layout(set = 1, binding = 0) uniform writeonly image2D img_dn; // depth and normal
+layout(set = 1, binding = 1) uniform sampler2D img_tex[];
+layout(set = 1, binding = 2) buffer buf_mat_t { gbuf_t v[]; } buf_mat; // material+st
+layout(set = 1, binding = 3) buffer buf_pcv_t
+{
+  uint end;  // buffer size
+  uint cur;  // first free element
+  float v[]; // dynamic cache, we don't need it here
+} pcv;
+
+layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
+layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
+
+#include "raytrace.glsl"
+
+// ray trace up to first geo intersection. this can later be used
+// to cast shorter volume scattering rays as well as gbuf for svgf.
+// gbuf stores everything to continue indirect from there:
+// - depth, normal (for svgf and re-tracing)
+//   float, geo_encode_normal : 2f texture
+// - will later need: rgb radiance, second moment of luminance (4f atomic framebuffer)
+// - something material: uvec3 mat, vec2 st, for extensibility stored in a buffer
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(global.frame == 0 && ipos.x == 0 && ipos.y == 0)
+  // if(ipos.x == 0 && ipos.y == 0) // if disabling small step
+  {
+    uint size = imageSize(img_dn).x*imageSize(img_dn).y;
+    pcv.end = AVG_V*(size + size/64); // vertices for every path of large + small steps
+    pcv.cur = 0; // first free is right at the start
+  }
+  if(any(greaterThanEqual(ipos, imageSize(img_dn)))) return;
+  uint seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70000;
+  ivec2 fbdim = ivec2(imageSize(img_dn));
+
+  camera = camera_t(0.5, vec2(1.0, fbdim.y/float(fbdim.x)), params.cam_x.xyz, mat3(1));
+  camera_setup(params.cam_x.xyz, params.cam_w.xyz, params.cam_u.xyz);
+
+  vec4 rand = vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed));
+
+  vec4 x;
+  vec3 w, n = vec3(0), ng; // ray position, direction, hit normal
+  vec2 st; // texture coordinates
+  // vec2 uv = (ipos+0.5)/vec2(push.wd, pus.ht) - 0.5;
+  camera_sample_xw((ipos+filter_bh_sample(rand.yz))/fbdim, x, w);
+
+  vec2 dn = vec2(-1.0, 0.0);
+  uvec4 mat = uvec4(0);
+  float dist = 1e10;
+  if(cast_ray(w, x.xyz, dist, n, ng, st, mat))
+  {
+    // actually we don't care.
+  }
+  // else // escaped to envmap
+  dn = vec2(dist, uintBitsToFloat(geo_encode_normal(n)));
+
+  buf_mat.v[ipos.x + ipos.y*fbdim.x] = gbuf_t(
+      mat.x,
+      mat.y,
+      mat.z,
+      all(equal(n, vec3(0)))? -1u : packUnorm2x16(st),
+      geo_encode_normal(ng));
+
+  imageStore(img_dn, ipos, vec4(dn,0,0));
+}
