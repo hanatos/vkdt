@@ -265,25 +265,44 @@ int dt_gui_init()
 
   if(dt_gui_win_init_vk(&vkdt.win)) return 1;
 
-  // joystick detection:
-  vkdt.wstate.have_joystick = glfwJoystickPresent(GLFW_JOYSTICK_1);
-  if(vkdt.wstate.have_joystick && glfwJoystickIsGamepad(GLFW_JOYSTICK_1))
+  // joystick detection: find first gamepad.
+  FILE *f = fopen("/usr/share/sdl/gamecontrollerdb.txt", "r");
+  if(f)
+  { // load additional controller descriptions from file above if present
+    fseek(f, SEEK_END, 0);
+    size_t sz = ftell(f);
+    fseek(f, SEEK_SET, 0);
+    char *buf = malloc(sz);
+    fread(buf, 1, sz, f);
+    fclose(f);
+    dt_log(s_log_gui, "loading additional gamepad maps from gamecontrollerdb");
+    glfwUpdateGamepadMappings(buf);
+    free(buf);
+  }
+  vkdt.wstate.have_joystick = 0;
+  for(int js=GLFW_JOYSTICK_1;!vkdt.wstate.have_joystick&&js<GLFW_JOYSTICK_LAST;js++)
   {
-    const char *name = glfwGetJoystickName(GLFW_JOYSTICK_1);
-    dt_log(s_log_gui, "found gamepad %s", name);
-    const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 1);
-    if(disable)
+    if(glfwJoystickPresent(js) && glfwJoystickIsGamepad(js))
     {
-      vkdt.wstate.have_joystick = 0;
-      dt_log(s_log_gui, "disabling joystick due to explicit config request. enable by");
-      dt_log(s_log_gui, "setting 'intgui/disable_joystick:0' in ~/.config/vkdt/config.rc");
-    }
-    else
-    {
-      vkdt.wstate.have_joystick = 1;
+      const char *name = glfwGetJoystickName(js);
+      dt_log(s_log_gui, "found gamepad %s", name);
+      const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 1);
+      if(disable)
+      {
+        vkdt.wstate.have_joystick = 0;
+        dt_log(s_log_gui, "disabling joystick due to explicit config request. enable by");
+        dt_log(s_log_gui, "setting 'intgui/disable_joystick:0' in ~/.config/vkdt/config.rc");
+      }
+      else
+      {
+        vkdt.wstate.have_joystick = 1;
+        vkdt.wstate.joystick_id = js;
+        break;
+      }
     }
   }
-  else dt_log(s_log_gui, "no joysticks found");
+  if(!vkdt.wstate.have_joystick)
+    dt_log(s_log_gui, "no gamepad found");
 
   dt_gui_init_nk();
 

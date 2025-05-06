@@ -92,7 +92,7 @@ joystick_active(void *unused)
   GLFWgamepadstate curr;
   while(!glfwWindowShouldClose(vkdt.win.window))
   {
-    if(!glfwGetGamepadState(GLFW_JOYSTICK_1, &curr)) break; // no more joystick?
+    if(!glfwGetGamepadState(vkdt.wstate.joystick_id, &curr)) break; // no more joystick?
     if(gamepad_changed(&last, &curr))
     {
       last = curr;
@@ -375,7 +375,7 @@ int main(int argc, char *argv[])
     if(vkdt.wstate.have_joystick)
     {
       GLFWgamepadstate gamepad_curr;
-      if (!glfwGetGamepadState(GLFW_JOYSTICK_1, &gamepad_curr)) vkdt.wstate.have_joystick = 0;
+      if (!glfwGetGamepadState(vkdt.wstate.joystick_id, &gamepad_curr)) vkdt.wstate.have_joystick = 0;
       else if(gamepad_changed(&gamepad_last, &gamepad_curr))
       {
         dt_view_gamepad(vkdt.win.window, &gamepad_last, &gamepad_curr);
