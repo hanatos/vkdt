@@ -328,8 +328,6 @@ void render_darkroom_full(char *filter_name, char *filter_inst)
 
 void render_darkroom()
 {
-  // int axes_cnt = 0;
-  // const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
   int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
   struct nk_rect bounds = {win_x, win_y, win_w, win_h};
@@ -348,26 +346,6 @@ void render_darkroom()
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
-#if 0 // TODO: port gamepad stuff
-      if(ImGui::IsKeyPressed(ImGuiKey_GamepadL3)) // left stick pressed
-        dt_image_reset_zoom(&vkdt.wstate.img_widget);
-      if(axes)
-      {
-#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
-        float wd  = (float)out_main->connector[0].roi.wd;
-        float ht  = (float)out_main->connector[0].roi.ht;
-        float imwd = win_w, imht = win_h;
-        float scale = MIN(imwd/wd, imht/ht);
-        if(vkdt.wstate.img_widget.scale > 0.0f) scale = vkdt.wstate.img_widget.scale;
-        if(axes[2] > -1.0f) scale *= powf(2.0, -0.04*SMOOTH(axes[2]+1.0f)); 
-        if(axes[5] > -1.0f) scale *= powf(2.0,  0.04*SMOOTH(axes[5]+1.0f)); 
-        // scale *= powf(2.0, -0.1*SMOOTH(axes[4])); 
-        vkdt.wstate.img_widget.look_at_x += SMOOTH(axes[0]) * wd * 0.01 / scale;
-        vkdt.wstate.img_widget.look_at_y += SMOOTH(axes[1]) * ht * 0.01 / scale;
-        vkdt.wstate.img_widget.scale = scale;
-#undef SMOOTH
-      }
-#endif
       if(vkdt.graph_res[display_frame] == VK_SUCCESS)
       {
         int events = !vkdt.wstate.grabbed && !disabled;
@@ -1164,16 +1142,16 @@ darkroom_enter()
 
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "back to lighttable");
   dt_gamepadhelp_set(dt_gamepadhelp_ps, "toggle this help");
-  // dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L, "pan around");
+  dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L, "pan around");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_up, "anim: play");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_down, "anim: rewind");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_right, "next image");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_left, "prev image");
   dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "upvote and next");
   dt_gamepadhelp_set(dt_gamepadhelp_button_square, "downvote and next");
-  // dt_gamepadhelp_set(dt_gamepadhelp_L2, "zoom out");
-  // dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in. while holding L2: toggle fullscreen");
-  // dt_gamepadhelp_set(dt_gamepadhelp_L3, "reset zoom");
+  dt_gamepadhelp_set(dt_gamepadhelp_L2, "zoom out");
+  dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in");
+  dt_gamepadhelp_set(dt_gamepadhelp_L3, "reset zoom");
   // dt_gamepadhelp_set(dt_gamepadhelp_R3, "reset focussed control");
   return 0;
 }
@@ -1272,8 +1250,33 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
   {
     dt_gui_dr_advance_upvote();
   }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_LEFT_THUMB)) // left stick pressed
+  {
+    dt_image_reset_zoom(&vkdt.wstate.img_widget);
+  }
   // TODO: right shoulder fullscreen?
-  // TODO: right stick pan image?
-  // TODO: left stick zoom image?
+
+  dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
+  if(out_main)
+  {
+#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
+    float wd  = (float)out_main->connector[0].roi.wd;
+    float ht  = (float)out_main->connector[0].roi.ht;
+    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
+    float imwd = win_w, imht = win_h;
+    float scale = MIN(imwd/wd, imht/ht);
+    if(vkdt.wstate.img_widget.scale > 0.0f) scale = vkdt.wstate.img_widget.scale;
+    float ax = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_X];
+    float ay = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+    float zo = curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER];
+    float zi = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER];
+    if(zi > -1.0f) scale *= powf(2.0, -0.04*SMOOTH(zi+1.0f)); 
+    if(zo > -1.0f) scale *= powf(2.0,  0.04*SMOOTH(zo+1.0f)); 
+    // scale *= powf(2.0, -0.1*SMOOTH(axes[4])); 
+    vkdt.wstate.img_widget.look_at_x += SMOOTH(ax) * wd * 0.01 / scale;
+    vkdt.wstate.img_widget.look_at_y += SMOOTH(ay) * ht * 0.01 / scale;
+    vkdt.wstate.img_widget.scale = scale;
+#undef SMOOTH
+  }
 #undef PRESSED
 }
