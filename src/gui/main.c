@@ -72,9 +72,14 @@ gamepad_changed(
   for(int i=0;i<sizeof(curr->buttons)/sizeof(curr->buttons[0]);i++)
     if(curr->buttons[i] != last->buttons[i])
       return 1;
-  for(int i=0;i<sizeof(curr->axes)/sizeof(curr->axes[0]);i++)
-    if(fabsf(curr->axes[i] - last->axes[i]) > 0.1)
-      return 1;
+  // if curr axes are not in neutral state, give or take dead zone
+  float deadzone = 0.05;
+  if(fabsf(curr->axes[GLFW_GAMEPAD_AXIS_LEFT_X])  > deadzone) return 1;
+  if(fabsf(curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y])  > deadzone) return 1;
+  if(fabsf(curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_X]) > deadzone) return 1;
+  if(fabsf(curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]) > deadzone) return 1;
+  if(curr->axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER]   > deadzone) return 1;
+  if(curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER]  > deadzone) return 1;
   return 0;
 }
 
