@@ -85,7 +85,7 @@ main()
   vec2 dn = vec2(-1.0, 0.0);
   uvec4 mat = uvec4(0);
   float dist = 1e10;
-  if(cast_ray(w, x.xyz, dist, n, ng, st, mat))
+  if(cast_ray(w, x.xyz, dist, n, ng, st, mat.xyz))
   {
     // actually we don't care.
   }
