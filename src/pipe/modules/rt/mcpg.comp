@@ -52,6 +52,7 @@ layout(set = 1, binding = 5) uniform sampler2D img_dn;
 layout(set = 1, binding = 6) buffer buf_mat_t { gbuf_t v[]; } buf_mat; // material+st
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
+// TODO need vtx_mv/vtx_prev
 
 #include "shared/fb.glsl" // depends on buf_fb
 #include "raytrace.glsl"  // depends on rt_accel and buf_vtx
@@ -88,46 +89,19 @@ vec4 dithermask(vec4 xi, ivec2 rp)
 #include "grid.glsl"
 #include "hash.glsl"
 
-layout(set = 0, binding = 16, scalar) buffer restrict buf_mc_states {
+layout(set = 0, binding = 7, scalar) buffer restrict buf_mc_states {
     MCState mc_states[];
 };
-layout(set = 0, binding = 17, scalar) buffer restrict buf_light_cache {
+layout(set = 0, binding = 8, scalar) buffer restrict buf_light_cache {
     LightCacheVertex light_cache[];
 };
-layout(set = 0, binding = 18, scalar) buffer restrict buf_dist_mc_states {
+layout(set = 0, binding = 9, scalar) buffer restrict buf_dist_mc_states {
     DistanceMCVertex distance_mc_states[];
 };
 
 #include "light_cache.glsl"
 #include "mc.glsl"
 
-// XXX todo: maybe we want a special gbuf pass to compute directly that, so we don't have to fill it again from our gbuf structs?
-// XXX we have: mat_state_t (ns, sampled colours+roughness), gbuf_t (ng, st, mat uints straight outta rt), dn buf (depth + ns)
-// XXX how would we access prev pos? needs support in prepare_intersection and buf_vtx_prev. dn buf should have prev pos.
-// TODO this one here is used for the ray tracing interface in merian. replace by our interface and carry on?
-struct Hit {
-    vec3 pos;
-    vec3 prev_pos;
-    vec3 wi;
-    vec3 normal;
-    uint enc_geonormal;
-
-    // Material
-    f16vec3 albedo;
-    float16_t roughness;
-};
-#define pixel ivec2(gl_GlobalInvocationID)
-#define resolution ivec2(imageSize(img_irradiance))
-#define first_hit hits[gbuffer_index(pixel, resolution)]
-
-// XXX new main:
-// vec4 // returns rgb L + second moment of luminance
-// pt_trace(
-//     ivec2 ipos,      // pixel coordinate
-//     uint  seed,      // random seed
-//     ivec2 fbdim,     // frame buffer dimensions
-//     out vec3 albedo) // return base texture on first hit as aov for denoiser
-// TODO trace up to geo intersection only! volumes will be a separate pass
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
