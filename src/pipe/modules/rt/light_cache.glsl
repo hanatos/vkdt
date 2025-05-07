@@ -1,5 +1,12 @@
 #define LIGHT_CACHE_MAX_N 128s
 #define LIGHT_CACHE_MIN_ALPHA .01
+#define LIGHT_CACHE_BUFFER_SIZE 4000000
+
+#define MERIAN_QUAKE_LC_GRID_TYPE MERIAN_QUAKE_GRID_TYPE_EXPONENTIAL
+#define LC_GRID_STEPS_PER_UNIT_SIZE 6.0
+#define LC_GRID_TAN_ALPHA_HALF 0.002
+#define LC_GRID_MIN_WIDTH 0.01
+#define LC_GRID_POWER 2
 
 #ifndef MERIAN_QUAKE_LC_GRID_TYPE
 #error "unknown grid type"
@@ -56,8 +63,8 @@ void light_cache_update(const vec3 pos, const vec3 normal, const vec3 irr) {
     const ivec3 grid_idx = lc_grid_idx_for_level_interpolate(level, pos);
     const uint buf_idx = hash_grid_normal_level(grid_idx, normal, level, LIGHT_CACHE_BUFFER_SIZE);
     
-    const uint old = atomicExchange(light_cache[buf_idx].lock, params.frame);
-    if (old == params.frame)
+    const uint old = atomicExchange(light_cache[buf_idx].lock, global.frame);
+    if (old == global.frame)
         // did not get lock
         return;
 

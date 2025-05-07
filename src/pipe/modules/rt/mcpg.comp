@@ -3,8 +3,6 @@
 // Real-time Markov chain path guiding for global illumination and single scattering.
 // Proc. ACM Comput. Graph. Interact. Tech., 8(1), 2025. 
 #version 460
-void main() {}
-#if 0
 #extension GL_GOOGLE_include_directive              : enable
 #extension GL_EXT_ray_tracing                       : enable
 #extension GL_EXT_ray_query                         : enable
@@ -14,28 +12,82 @@ void main() {}
 #extension GL_EXT_control_flow_attributes           : enable
 #extension GL_KHR_shader_subgroup_ballot            : enable
 #extension GL_KHR_shader_subgroup_arithmetic        : enable
+#extension GL_EXT_scalar_block_layout               : enable
+#extension GL_EXT_shader_atomic_float               : enable
 
-// TODO replace by vkdt versions:
-#include "merian-shaders/random.glsl"
-#include "merian-shaders/normal_encode.glsl"
-#include "merian-shaders/grid.glsl"
-#include "merian-shaders/color/colors_yuv.glsl"
-#include "merian-shaders/color/colors_oklch.glsl"
-#include "merian-shaders/hash.glsl"
+#include "shared.glsl"
+#include "shared/render3d.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 0) uniform global_t
+{ 
+  int frame;
+} global;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{ 
+  vec4 cam_x;
+  vec4 cam_w;
+  vec4 cam_u;
+  vec4 fog;
+  float cltime;
+  int spp;
+} params;
+
+layout(set = 1, binding = 0) buffer buf_fb_t { float v[]; } buf_fb;
+layout(set = 1, binding = 1) uniform sampler2D img_blue;
+layout(set = 1, binding = 2) uniform sampler2D img_tex[];
+layout(set = 1, binding = 3) uniform writeonly image2D img_aov;
+layout(set = 1, binding = 4) uniform sampler2D img_env;
+layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
+layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
+
+#include "shared/fb.glsl" // depends on buf_fb
+#include "raytrace.glsl"  // depends on rt_accel and buf_vtx
+#include "env.glsl"
+#include "colour.glsl"
+#include "volume-fwd.glsl"
+#include "volume.glsl"
+#include "complex.glsl"
+#include "fresnel.glsl"
+#include "material.glsl"  // depends on img_tex
+#include "camera-fwd.glsl"
+#include "camera.glsl"
+
+// Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
+// Returns random float in [0, 1) and updates state.
+
+float XorShift32(inout uint state) {
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return state / 4294967296.0;
+}
+
+#define XorShift32Vec2(state) vec2(XorShift32(state), XorShift32(state))
+#define XorShift32Vec3(state) vec3(XorShift32(state), XorShift32(state), XorShift32(state))
+#define XorShift32Vec4(state) vec4(XorShift32(state), XorShift32(state), XorShift32(state), XorShift32(state))
+
+#include "grid.glsl"
+#include "hash.glsl"
+
+layout(set = 0, binding = 16, scalar) buffer restrict buf_mc_states {
+    MCState mc_states[];
+};
+layout(set = 0, binding = 17, scalar) buffer restrict buf_light_cache {
+    LightCacheVertex light_cache[];
+};
+layout(set = 0, binding = 18, scalar) buffer restrict buf_dist_mc_states {
+    DistanceMCVertex distance_mc_states[];
+};
 
 uint rng_state;
 vec2 moments;
 vec3 irr;
 
-// TODO replace:
-#include "../config.h"
-#include "layout.glsl"
-
 #include "light_cache.glsl"
 #include "mc.glsl"
-
-// TODO: bring in line with ours:
-#include "raytrace.glsl"
 
 // XXX todo: maybe we want a special gbuf pass to compute directly that, so we don't have to fill it again from our gbuf structs?
 // XXX we have: mat_state_t (ns, sampled colours+roughness), gbuf_t (ng, st, mat uints straight outta rt), dn buf (depth + ns)
@@ -66,6 +118,10 @@ struct Hit {
 // TODO trace up to geo intersection only! volumes will be a separate pass
 void main()
 {
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  ivec2 fbdim = ivec2(imageSize(img_aov));
+  if(any(greaterThanEqual(ipos, fbdim))) return;
+  uint64_t seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
   // blue noise dither mask
   const ivec2 rp = ivec2(ipos % ivec2(textureSize(img_blue, 0)));
 
@@ -111,8 +167,8 @@ void main()
     x.xyz = x.xyz + dist * w + 0.001*ng;
   }
 
-#define MAX_PATH_LENGTH 3
-  for(int i=0;i<MAX_PATH_LENGTH;i++)
+#define MAX_PATH_LENGTH 2
+  for(int bounce=0;bounce<MAX_PATH_LENGTH;bounce++)
   { // for a max number of path segments (every iteration traces one ray in addition to the eye ray)
     mat_state_t ms;
     if(act > 0)
@@ -211,7 +267,9 @@ void main()
 
     // TODO
     // Full GI (infinite diffuse bounces)
-    const f16vec3 lc_incident = any(greaterThan(incident, f16vec3(0))) || (USE_LIGHT_CACHE_TAIL == 0 && MAX_PATH_LENGTH == 2) ? incident : throughput * light_cache_get(next_hit.pos, next_hit.normal).rgb;
+    const f16vec3 lc_incident = any(greaterThan(incident, f16vec3(0))) ||
+      (USE_LIGHT_CACHE_TAIL == 0 && MAX_PATH_LENGTH == 2) ? incident :
+      throughput * light_cache_get(next_hit.pos, next_hit.normal).rgb;
 
     // EVAL BSDF
     // without albedo (added below to skip first albedo)
@@ -219,7 +277,7 @@ void main()
       const float microfacet_bsdf = bsdf_ggx_diffuse_mix_times_wodotn(current_hit.wi, wo, current_hit.normal, bsdf_ggx_roughness_to_alpha(current_hit.roughness), 0.02);
 
       current_throughput *= microfacet_bsdf;
-      f = current_throughput * (i < MAX_PATH_LENGTH - 1 ? incident : lc_incident);
+      f = current_throughput * (bounce < MAX_PATH_LENGTH - 1 ? incident : lc_incident);
       p *= wo_p;
       current_throughput *= throughput;
 
@@ -249,6 +307,7 @@ void main()
         // current_throughput *= next_hit.albedo;
         // current_hit = next_hit;
 
+    act = mix(act, 0, all(lessThanEqual(contrib, vec4(0.0)))); // contribution dropped
     if(subgroupAdd(act) <= 0) break; // keep subgroup in sync
   }
   vec4 acc_rgb;
@@ -432,4 +491,3 @@ void main()
   imageStore(img_irradiance, pixel, vec4(irr, SURFACE_SPP));
   imageStore(img_moments, pixel, vec4(moments, 0, 0));
 }
-#endif

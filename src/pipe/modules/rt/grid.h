@@ -1,5 +1,3 @@
-#include "merian-shaders/types.glsl.h"
-
 #define MERIAN_QUAKE_GRID_TYPE_EXPONENTIAL 0
 #define MERIAN_QUAKE_GRID_TYPE_QUADRATIC 1
 
@@ -28,8 +26,7 @@ struct DistanceMCState {
     vec2 moments;
 };
 
-#ifndef __cplusplus
+#define DISTANCE_MC_VERTEX_STATE_COUNT 1
 struct DistanceMCVertex {
     DistanceMCState states[DISTANCE_MC_VERTEX_STATE_COUNT];
 };
-#endif

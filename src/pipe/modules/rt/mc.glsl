@@ -2,6 +2,17 @@
 #define ML_MAX_N 1024
 #define ML_MIN_ALPHA .01
 
+#define MERIAN_QUAKE_ADAPTIVE_GRID_TYPE MERIAN_QUAKE_GRID_TYPE_EXPONENTIAL
+#define DIR_GUIDE_PRIOR 0.2
+#define MC_ADAPTIVE_GRID_TAN_ALPHA_HALF 0.002
+#define MC_ADAPTIVE_GRID_MIN_WIDTH 0.01
+#define MC_ADAPTIVE_GRID_POWER 4.0
+#define MC_ADAPTIVE_GRID_STEPS_PER_UNIT_SIZE 4.743416490252569
+#define MC_ADAPTIVE_BUFFER_SIZE 32777259
+
+#define MC_STATIC_BUFFER_SIZE 800009
+#define MC_STATIC_GRID_WIDTH 25.3
+
 #ifndef MERIAN_QUAKE_ADAPTIVE_GRID_TYPE
 #error "unknown grid type"
 #else
@@ -12,6 +23,7 @@
 
 // GENERAL
 
+#define merian_square(a) ((a)*(a))
 #define mc_state_new() MCState(vec3(0.0), 0.0, 0, 0.0, vec3(0), 0.0, 0);
 
 // return normalized direction (from pos)
@@ -29,7 +41,7 @@ bool mc_light_missing(const MCState mc_state, const float mc_f, const vec3 wo, c
         return false;
     }
 
-    if (params.cl_time == mc_state.T) {
+    if (params.cltime == mc_state.T) {
         return false;
     }
 
@@ -72,7 +84,7 @@ void mc_state_add_sample(inout MCState mc_state,
     //mc_state.w_cos = min(length(mix(mc_state.w_cos * mc_state_dir(mc_state, pos), w * normalize(target - pos), alpha)), mc_state.sum_w);
 
     mc_state.mv = target_mv;
-    mc_state.T = params.cl_time;
+    mc_state.T = params.cltime;
 }
 
 #define mc_state_valid(mc_state) (mc_state.sum_w > 0.0)
@@ -109,7 +121,7 @@ void mc_adaptive_buffer_index(const vec3 pos, const vec3 normal, out uint buffer
 
 void mc_adaptive_finalize_load(inout MCState mc_state, const uint hash) {
     mc_state.sum_w *= float(hash == mc_state.hash);
-    mc_state.w_tgt += mc_state.sum_w * (params.cl_time - mc_state.T) * mc_state.mv;
+    mc_state.w_tgt += mc_state.sum_w * (params.cltime - mc_state.T) * mc_state.mv;
 }
 
 void mc_adaptive_load(out MCState mc_state, const vec3 pos, const vec3 normal) {
@@ -139,13 +151,13 @@ void mc_static_buffer_index(const vec3 pos, out uint buffer_index, out uint hash
 
 void mc_static_finalize_load(inout MCState mc_state, const uint hash) {
     mc_state.sum_w *= float(hash == mc_state.hash);
-    mc_state.w_tgt += mc_state.sum_w * (params.cl_time - mc_state.T) * mc_state.mv;
+    mc_state.w_tgt += mc_state.sum_w * (params.cltime - mc_state.T) * mc_state.mv;
 }
 
 void mc_static_finalize_load(inout MCState mc_state, const uint hash, const vec3 pos, const vec3 normal) {
     mc_state.sum_w *= float(hash == mc_state.hash);
     mc_state.sum_w *= float(dot(normal, mc_state_dir(mc_state, pos)) > 0.);
-    mc_state.w_tgt += mc_state.sum_w * (params.cl_time - mc_state.T) * mc_state.mv;
+    mc_state.w_tgt += mc_state.sum_w * (params.cltime - mc_state.T) * mc_state.mv;
 }
 
 void mc_static_load(out MCState mc_state, const vec3 pos) {
