@@ -1,3 +1,5 @@
+#include "von_mises_fisher.glsl"
+
 struct mat_state_t
 { // cache stuff once so we don't need to re-evaluate it
   vec4 col_base;
@@ -30,7 +32,7 @@ vec3 quake_envmap(in vec3 w, uint sky_rt, uint sky_bk, uint sky_lf, uint sky_ft,
     emcol  = vec3(0.50, 0.50, 0.50) * /*(k0+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k0);
     emcol += vec3(1.00, 0.70, 0.30) * /*(k1+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k1);
     // emcol += 1000*vec3(1.00, 1.00, 1.00) * /*(k1+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k3);
-    emcol += 30.0*vec3(1.1, 1.0, 0.9)*vmf_eval(k3, dot(sundir, w));
+    emcol += 30.0*vec3(1.1, 1.0, 0.9)*vmf_pdf(w, sundir, k3);
     emcol += vec3(0.20, 0.08, 0.02) * /*(k2+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0-w.z), k2);
     // emcol *= 2.0;
     int m = 0;

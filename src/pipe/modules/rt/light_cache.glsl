@@ -33,7 +33,7 @@
 
 #define lc_grid_idx_for_level_closest(level, pos) grid_idx_closest(pos, lc_grid_width_for_level(level))
 
-#define lc_grid_idx_for_level_interpolate(level, pos) grid_idx_interpolate(pos, lc_grid_width_for_level(level), XorShift32(rng_state))
+#define lc_grid_idx_for_level_interpolate(level, pos) grid_idx_interpolate(pos, lc_grid_width_for_level(level), XorShift32(seed))
 
 void light_cache_get_level(out f16vec3 irr, out uint16_t N, const uint level, const vec3 pos, const vec3 normal) {
     const ivec3 grid_idx = lc_grid_idx_for_level_interpolate(level, pos);

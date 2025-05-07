@@ -109,11 +109,11 @@ void mc_state_add_sample(inout MCState mc_state,
 
 #define mc_adpative_grid_idx_for_level_closest(level, pos) grid_idx_closest(pos, mc_grid_width_for_level(level))
 
-#define mc_adaptive_grid_idx_for_level_interpolate(level, pos) grid_idx_interpolate(pos, mc_grid_width_for_level(level), XorShift32(rng_state))
+#define mc_adaptive_grid_idx_for_level_interpolate(level, pos) grid_idx_interpolate(pos, mc_grid_width_for_level(level), XorShift32(seed))
 
 // returns (buffer_index, hash)
 void mc_adaptive_buffer_index(const vec3 pos, const vec3 normal, out uint buffer_index, out uint hash) {
-    const uint level = mc_adaptive_level_for_pos(pos, XorShift32(rng_state));
+    const uint level = mc_adaptive_level_for_pos(pos, XorShift32(seed));
     const ivec3 grid_idx = mc_adaptive_grid_idx_for_level_interpolate(level, pos);
     buffer_index = hash_grid_normal_level(grid_idx, normal, level, MC_ADAPTIVE_BUFFER_SIZE);
     hash = hash2_grid_level(grid_idx, level);
@@ -144,7 +144,7 @@ void mc_adaptive_save(in MCState mc_state, const vec3 pos, const vec3 normal) {
 
 // returns (buffer_index, hash)
 void mc_static_buffer_index(const vec3 pos, out uint buffer_index, out uint hash) {
-    const ivec3 grid_idx = grid_idx_interpolate(pos, MC_STATIC_GRID_WIDTH, XorShift32(rng_state));
+    const ivec3 grid_idx = grid_idx_interpolate(pos, MC_STATIC_GRID_WIDTH, XorShift32(seed));
     buffer_index = hash_grid(grid_idx, MC_STATIC_BUFFER_SIZE) + MC_ADAPTIVE_BUFFER_SIZE;
     hash = hash2_grid(grid_idx);
 }

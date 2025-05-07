@@ -18,6 +18,7 @@
 #define MAX_PATH_LENGTH 2
 #define MC_SAMPLES 5
 #define MC_SAMPLES_ADAPTIVE_PROB 0.7
+#define SURF_BSDF_P 0.15
 #define SURFACE_SPP 2
 
 #include "shared.glsl"
@@ -67,6 +68,7 @@ layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
 // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
 // Returns random float in [0, 1) and updates state.
 
+uint seed;
 float XorShift32(inout uint state) {
     state ^= state << 13;
     state ^= state >> 17;
@@ -95,10 +97,6 @@ layout(set = 0, binding = 17, scalar) buffer restrict buf_light_cache {
 layout(set = 0, binding = 18, scalar) buffer restrict buf_dist_mc_states {
     DistanceMCVertex distance_mc_states[];
 };
-
-uint rng_state;
-vec2 moments;
-vec3 irr;
 
 #include "light_cache.glsl"
 #include "mc.glsl"
@@ -134,7 +132,7 @@ void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   ivec2 fbdim = ivec2(imageSize(img_aov));
-  uint seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
+  seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
   // blue noise dither mask
   const ivec2 rp = ivec2(ipos % ivec2(textureSize(img_blue, 0)));
 
@@ -180,162 +178,168 @@ void main()
     x.xyz = x.xyz + dist * w + 0.001*ng;
   }
 
-  if ((flags & s_envmap) == 0) for (int s = 0; s < SURFACE_SPP; s++)
+  act = mix(act, 0, (flags & (s_emit|s_envmap)) > 0); // endpoint found
+
+  if(act > 0) for (int s = 0; s < SURFACE_SPP; s++)
   {
-  for(int bounce=0;bounce<MAX_PATH_LENGTH;bounce++)
-  { // for a max number of path segments (every iteration traces one ray in addition to the eye ray)
-    mat_state_t ms;
-    if(act > 0)
-    {
-      vec3 albedo;
-      ms = mat_init(mat, st, n, flags, lambda, w, albedo);
-      // TODO write albedo to buffer for svgf
+    for(int bounce=0;bounce<MAX_PATH_LENGTH;bounce++)
+    { // for a max number of path segments (every iteration traces one ray in addition to the eye ray)
+      mat_state_t ms;
+      if(act > 0)
+      {
+        vec3 albedo;
+        ms = mat_init(mat, st, n, flags, lambda, w, albedo);
+        // TODO write albedo to buffer for svgf
 
-      if((flags & s_emit) != 0)
-        acc += contrib * ms.col_emit;
-    }
+        if((flags & s_emit) != 0)
+          acc += contrib * ms.col_emit;
+      }
+      act = mix(act, 0, (flags & (s_emit|s_envmap)) > 0); // endpoint found
+      if(subgroupAdd(act) <= 0) break; // keep subgroup in sync
 
-    act = mix(act, 0, all(lessThanEqual(contrib, vec4(0.0)))); // contribution dropped
-    act = mix(act, 0, (flags & (s_emit|s_envmap)) > 0); // endpoint found
-    if(subgroupAdd(act) <= 0) break; // keep subgroup in sync
-
-    if(act > 0)
-    { // SAMPLE NEXT OUTGOING DIRECTION
       vec3 wo;
-      float wodotn;
-      float wo_p = 0;
+      if(act > 0)
+      { // sample outgoing direction
+        float wodotn;
+        float wo_p = 0;
 
 #if MCPG_REFERENCE_MODE==1
-      rand = vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed));
-      w = mat_sample(ms, flags, w, n, lambda, rand.xyz, contrib);
-      if(dot(ng, w) <= 0) act = 0;
+        rand = XorShift32Vec4(seed);
+        w = mat_sample(ms, flags, w, n, lambda, rand.xyz, contrib);
+        if(dot(ng, w) <= 0) act = 0;
 #else
-      MCState mc_state;
-      uint mc_buffer_index;
+        MCState mc_state;
+        uint mc_buffer_index;
 
-      float score_sum = 0;
-      {
+        float score_sum = 0;
+        { // scope around smis 
         float scores[MC_SAMPLES];
         vec4 vmfs[MC_SAMPLES];
+        [[unroll]] for (int i = 0; i < MC_SAMPLES; i++)
         {
-          [[unroll]] for (int i = 0; i < MC_SAMPLES; i++)
+          const bool adaptive_grid = XorShift32(seed) < MC_SAMPLES_ADAPTIVE_PROB;
+
+          uint buffer_index, hash;
+          if (adaptive_grid)
+            mc_adaptive_buffer_index(
+                // s == 0 ? current_hit.prev_pos : current_hit.pos,
+                x.xyz, n,
+                buffer_index, hash);
+          else
+            mc_static_buffer_index(
+                // s == 0 ? current_hit.prev_pos : current_hit.pos,
+                x.xyz,
+                buffer_index, hash);
+
+          MCState state = mc_states[buffer_index];
+
+          if (adaptive_grid)
+            mc_adaptive_finalize_load(state, hash);
+          else
+            mc_static_finalize_load(state, hash, x.xyz, n);
+
+          scores[i] = state.sum_w;
+          score_sum += state.sum_w;
+          vmfs[i] = mc_state_get_vmf(state, x.xyz);
+          if (XorShift32(seed) < scores[i] / score_sum)
           {
-            const bool adaptive_grid = XorShift32(rng_state) < MC_SAMPLES_ADAPTIVE_PROB;
-
-            uint buffer_index, hash;
-            if (adaptive_grid)
-              mc_adaptive_buffer_index(s == 0 ? current_hit.prev_pos : current_hit.pos, current_hit.normal, buffer_index, hash);
-            else
-              mc_static_buffer_index(s == 0 ? current_hit.prev_pos : current_hit.pos, buffer_index, hash);
-
-            MCState state = mc_states[buffer_index];
-
-            if (adaptive_grid)
-              mc_adaptive_finalize_load(state, hash);
-            else
-              mc_static_finalize_load(state, hash, current_hit.pos, current_hit.normal);
-
-            scores[i] = state.sum_w;
-            score_sum += state.sum_w;
-            vmfs[i] = mc_state_get_vmf(state, current_hit.pos);
-            if (XorShift32(rng_state) < scores[i] / score_sum)
-            {
-              // we use here that comparison with NaN is false, that happens if candidate_score == 0 and sum == 0; 
-              mc_state = state;
-              mc_buffer_index = buffer_index;
-              wo = vmf_sample(vmfs[i].xyz, vmfs[i].w, XorShift32Vec2(rng_state));
-            }
+            // we use here that comparison with NaN is false, that happens if candidate_score == 0 and sum == 0; 
+            mc_state = state;
+            mc_buffer_index = buffer_index;
+            wo = vmf_sample(vmfs[i].xyz, vmfs[i].w, XorShift32Vec2(seed));
           }
         }
 
-        if (score_sum == 0 || XorShift32(rng_state) < SURF_BSDF_P)
-        {
-          // BSDF Sampling
-          wo = bsdf_ggx_diffuse_mix_sample(current_hit.wi, current_hit.normal, bsdf_ggx_roughness_to_alpha(current_hit.roughness), XorShift32Vec3(rng_state));
+        if (score_sum == 0 || XorShift32(seed) < SURF_BSDF_P)
+        { // BSDF Sampling
+          rand = XorShift32Vec4(seed);
+          wo = mat_sample(ms, flags, w, n, lambda, rand.xyz, contrib);
+          if(dot(ng, w) <= 0) act = 0;
           mc_state = mc_state_new();
         } // else {VMF Sampling // wo = set above }
-      wodotn = dot(wo, current_hit.normal);
+        wodotn = dot(wo, n);
 
-      // ray is below geometric surface
-      if (wodotn <= 1e-3 || dot(wo, geo_decode_normal(current_hit.enc_geonormal)) <= 1e-3)
-        break;
+        // ray is below geometric surface
+        if (wodotn <= 1e-3 || dot(wo, ng) <= 1e-3)
+          act = 0;
 
-      // Multiple importance sampling
-      [[unroll]] for (int i = 0; i < MC_SAMPLES; i++)
-      {
-        // score_sum > 0 ? results in black artifacts
-        wo_p += (scores[i] > 0 ? scores[i] * (vmf_pdf(wo, vmfs[i].xyz, vmfs[i].w)) / score_sum : 0);
-      }
-      wo_p = (score_sum > 0 ? SURF_BSDF_P : 1.0) *
-        // XXX our material pdf here
-        bsdf_ggx_diffuse_mix_pdf(current_hit.wi, wo, current_hit.normal, bsdf_ggx_roughness_to_alpha(current_hit.roughness)) + (1 - SURF_BSDF_P) * wo_p;
+        // Multiple importance sampling
+        [[unroll]] for (int i = 0; i < MC_SAMPLES; i++)
+        {
+          // score_sum > 0 ? results in black artifacts
+          wo_p += (scores[i] > 0 ? scores[i] * (vmf_pdf(wo, vmfs[i].xyz, vmfs[i].w)) / score_sum : 0);
+        }
+        wo_p = (score_sum > 0 ? SURF_BSDF_P : 1.0) *
+          mat_pdf(ms, flags, w, n, wo, lambda.x) + (1 - SURF_BSDF_P) * wo_p;
 
-      }
+        } // scope
 #endif
-    }
+      } // thread was active
 
-    dist = tmax; // trace ray
-    if(cast_ray(w, x.xyz, dist, n, ng, st, mat)) flags = 0;
-    else if(dist < tmax) flags = s_volume;
-    if(dist >= 1e10)     flags = s_envmap;
+      // XXX divide out albedo?
+      const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
 
-    // TODO
-    // Full GI (infinite diffuse bounces)
-    const f16vec3 lc_incident = any(greaterThan(incident, f16vec3(0))) ||
-      (USE_LIGHT_CACHE_TAIL == 0 && MAX_PATH_LENGTH == 2) ? incident :
-      throughput * light_cache_get(next_hit.pos, next_hit.normal).rgb;
+      vec4 x_next;
+      vec3 n_next, ng_next;
+      if(act > 0)
+      {
+        dist = tmax; // trace ray
+        if(cast_ray(w, x_next.xyz, dist, n_next, ng_next, st, mat)) flags = 0;
+        else if(dist < tmax) flags = s_volume;
+        if(dist >= 1e10)     flags = s_envmap;
+      }
 
-    // EVAL BSDF
-    // without albedo (added below to skip first albedo)
-    // TODO use our mat model
-      const float microfacet_bsdf = bsdf_ggx_diffuse_mix_times_wodotn(current_hit.wi, wo, current_hit.normal, bsdf_ggx_roughness_to_alpha(current_hit.roughness), 0.02);
+      // XXX what is incident and throughput?
+      // TODO
+      // Full GI (infinite diffuse bounces)
+      const f16vec3 lc_incident = any(greaterThan(incident, f16vec3(0))) ||
+        (USE_LIGHT_CACHE_TAIL == 0 && MAX_PATH_LENGTH == 2) ? incident :
+        throughput * light_cache_get(x_next.xyz, n_next).rgb;
 
-      current_throughput *= microfacet_bsdf;
-      f = current_throughput * (bounce < MAX_PATH_LENGTH - 1 ? incident : lc_incident);
+      // TODO without albedo (added below to skip first albedo)
+      contrib *= bsdf;
+      f = contrib * (bounce < MAX_PATH_LENGTH - 1 ? incident : lc_incident);
       p *= wo_p;
-      current_throughput *= throughput;
+      contrib *= throughput;
 
       { // UPDATE MARKOV CHAIN and LIGHT_CACHE
         // multiply albedo?
-        const float mc_f = luminance_rec2020(lc_incident * microfacet_bsdf / wo_p);
+        // XXX use some average of the vec4 instead of luminance!
+        const float mc_f = luminance_rec2020(lc_incident * bsdf / wo_p);
         if (!isinf(mc_f) && !isnan(mc_f))
         {
-          light_cache_update(current_hit.pos, current_hit.normal, lc_incident * bsdf_diffuse_eval(current_hit.albedo) * wodotn / max(wo_p, 10));
+          // TODO i don't have a diffuse version. is this albedo/pi?
+          light_cache_update(x.xyz, n, lc_incident * bsdf_diffuse_eval(current_hit.albedo) * wodotn / max(wo_p, 10));
 
-          if (XorShift32(rng_state) * score_sum < mc_f * MC_SAMPLES)
+          if (XorShift32(seed) * score_sum < mc_f * MC_SAMPLES)
           {
             // == XorShift32(rng_state) < mc_f / (score_sum / MC_SAMPLES)
-            mc_state_add_sample(mc_state, current_hit.pos, mc_f, next_hit.pos, (next_hit.pos - next_hit.prev_pos) / TIME_DIFF);
-            mc_static_save(mc_state, current_hit.pos, current_hit.normal);
-            mc_adaptive_save(mc_state, current_hit.pos, current_hit.normal);
+            mc_state_add_sample(mc_state, x.xyz, mc_f, x_next.xyz, vec3(0));// XXX TODO (x_next.xyz - x_next_prev_pos) / TIME_DIFF);
+            mc_static_save(mc_state, x.xyz, n);
+            mc_adaptive_save(mc_state, x.xyz, n);
           }
-          else if (MC_FAST_RECOVERY == 1 && mc_light_missing(mc_state, mc_f, wo, current_hit.pos))
+          else if (MC_FAST_RECOVERY == 1 && mc_light_missing(mc_state, mc_f, wo, x.xyz))
           {
             // fix slow recovery after light source disappears
             mc_states[mc_buffer_index].sum_w = 0.;
           }
         }
-      }
+      } // scope braces
 
       // XXX i think we want to be doing this above when evaluating the material
-        // current_throughput *= next_hit.albedo;
-        // current_hit = next_hit;
+      // current_throughput *= next_hit.albedo; // we don't have this albedo yet
+      x = x_next;
+      n = n_next;
+      ng = ng_next;
 
-    act = mix(act, 0, all(lessThanEqual(contrib, vec4(0.0)))); // contribution dropped
-    if(subgroupAdd(act) <= 0) break; // keep subgroup in sync
-    }
+      act = mix(act, 0, all(lessThanEqual(contrib, vec4(0.0)))); // contribution dropped
+      if(subgroupAdd(act) <= 0) break; // keep subgroup in sync
+    } // for number of bounces
 
-    const vec3 contrib = f / p;
-    if(!any(isinf(contrib)) && !any(isnan(contrib)))
-    {
-      irr += contrib;
-      const float l = luminance_rec2020(contrib);
-      moments += vec2(l, l * l);
-    }
-  }
-
-  if (any(greaterThanEqual(pixel, resolution)))
-    return;
+    const vec4 acc_sample = f / p;
+    if(!any(isinf(acc_sample)) && !any(isnan(acc_sample)))
+      acc += acc_sample;
+  } // for number of surface samples
 
   if (SURFACE_SPP > 0)
     acc /= SURFACE_SPP;
