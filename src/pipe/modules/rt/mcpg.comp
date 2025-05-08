@@ -104,6 +104,7 @@ float hsum(vec4 v)
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  // XXX FIXME get this from pc instead, if aov is not connected this fails (video output cli)
   ivec2 fbdim = ivec2(imageSize(img_aov));
   seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
   // blue noise dither mask
@@ -112,7 +113,6 @@ void main()
   camera = camera_t(0.5, vec2(1.0, fbdim.y/float(fbdim.x)), params.cam_x.xyz, mat3(1));
   camera_setup(params.cam_x.xyz, params.cam_w.xyz, params.cam_u.xyz);
 
-  uint vidx = -1u;    // vertex index in path cache that we stored last iteration
   vec4 acc = vec4(0); // value of our estimator, accumulate this
   vec4 hrp = vec4(1); // hero wavelength p, only deviates from 1 if pdf is different per wavelength
   vec4 rand = XorShift32Vec4(seed);
@@ -125,8 +125,8 @@ void main()
   vec3 w, n, ng; // ray position, direction, hit normal
   vec2 st;       // texture coordinates
   uvec3 mat;
-  contrib *= camera_sample_xw((ipos+filter_bh_sample(rand.yz))/fbdim, x, w);
-  // contrib *= camera_sample_xw(vec2(ipos)/fbdim, x, w);
+  // contrib *= camera_sample_xw((ipos+filter_bh_sample(rand.yz))/fbdim, x, w);
+  contrib *= camera_sample_xw(vec2(ipos)/fbdim, x, w);
   int act = mix(1, 0, all(lessThanEqual(contrib, vec4(0.0))));
 
   uint flags = 0;
@@ -134,37 +134,34 @@ void main()
   const float tmax = 1e12;//volume_sample_dist(x.xyz, w, mrand(seed));
   vec3 albedo = vec3(1);
 
-  { // init first intersection vertex: read geo intersection info
-    vec2 dn = texelFetch(img_dn, ipos, 0).rg;
-    dist = dn.x;
-    n  = geo_decode_normal(floatBitsToUint(dn.y));
-    ng = geo_decode_normal(buf_mat.v[ipos.x+fbdim.x*ipos.y].ng);
-    mat = uvec3(
-        buf_mat.v[ipos.x+fbdim.x*ipos.y].m0,
-        buf_mat.v[ipos.x+fbdim.x*ipos.y].m1,
-        buf_mat.v[ipos.x+fbdim.x*ipos.y].m2);
-    uint stui = buf_mat.v[ipos.x+fbdim.x*ipos.y].st;
-    if(stui == -1u) n = vec3(0);
-    st = unpackUnorm2x16(stui);
-    if(dist < tmax) flags = 0;
-    else          { flags = s_volume; dist = tmax; }
-    if(dist >=1e10) flags = s_envmap;
-    x.xyz = x.xyz + dist * w + 0.001*ng;
-  }
-
-  act = mix(act, 0, (flags & (s_emit|s_envmap)) > 0); // endpoint found
-  if(act > 0) for (int s = 0; s < SURFACE_SPP; s++)
+  for (int s = 0; s < SURFACE_SPP; s++)
   {
-    vec4 f = vec4(0); // store measurement of full path if connected to emitter
-    float p = 1.0;    // this is scalar because we don't sample directions by lambda
     mat_state_t ms;
-    { // init material state for first vertex on geo:
+    { // init first intersection vertex: read geo intersection info
+      vec2 dn = texelFetch(img_dn, ipos, 0).rg;
+      dist = dn.x;
+      n  = geo_decode_normal(floatBitsToUint(dn.y));
+      ng = geo_decode_normal(buf_mat.v[ipos.x+fbdim.x*ipos.y].ng);
+      mat = uvec3(
+          buf_mat.v[ipos.x+fbdim.x*ipos.y].m0,
+          buf_mat.v[ipos.x+fbdim.x*ipos.y].m1,
+          buf_mat.v[ipos.x+fbdim.x*ipos.y].m2);
+      uint stui = buf_mat.v[ipos.x+fbdim.x*ipos.y].st;
+      if(stui == -1u) n = vec3(0);
+      st = unpackUnorm2x16(stui);
+      if(dist < tmax) flags = 0;
+      else          { flags = s_volume; dist = tmax; }
+      if(dist >=1e10) flags = s_envmap;
+      x.xyz = x.xyz + dist * w + 0.001*ng;
+      // init material state for first vertex on geo:
       ms = mat_init(mat, st, n, flags, lambda, w, albedo);
       if((flags & s_emit) != 0)
         acc += contrib * ms.col_emit;
     }
+    vec4 f = vec4(0); // store measurement of full path if connected to emitter
+    float p = 1.0;    // this is scalar because we don't sample directions by lambda
     act = mix(act, 0, (flags & (s_emit|s_envmap)) > 0); // endpoint found
-    for(int bounce=0;bounce<MAX_PATH_LENGTH;bounce++)
+    if(act > 0) for(int bounce=0;bounce<MAX_PATH_LENGTH;bounce++)
     { // for a max number of path segments (every iteration traces one ray in addition to the eye ray)
       vec3 wo;
       float wo_p = 0;
@@ -175,10 +172,12 @@ void main()
       if(act > 0)
       { // sample outgoing direction
 #if MCPG_REFERENCE_MODE==1
-        rand = XorShift32Vec4(seed);
-        wo = mat_sample(ms, flags, w, n, lambda, rand.xyz, contrib);
-        wo_p = mat_pdf(ms, flags, w, n, wo, lambda.x);
-        if(dot(ng, wo) <= 0) act = 0;
+        {
+          vec4 c;
+          wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
+          wo_p = mat_pdf(ms, flags, w, n, wo, lambda.x);
+          if(dot(ng, wo) <= 0) act = 0;
+        }
 #else
         { // scope around smis 
         float scores[MC_SAMPLES];
@@ -220,8 +219,8 @@ void main()
 
         if (score_sum == 0 || XorShift32(seed) < SURF_BSDF_P)
         { // BSDF Sampling
-          rand = XorShift32Vec4(seed);
-          wo = mat_sample(ms, flags, w, n, lambda, rand.xyz, contrib);
+          vec4 c;
+          wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
           if(dot(ng, w) <= 0) act = 0;
           mc_state = mc_state_new();
         } // else {VMF Sampling // wo = set above }
@@ -242,24 +241,20 @@ void main()
 
         } // scope
 #endif
-      } // thread was active
 
       // XXX divide out albedo?
       const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
 
-      vec4 x_next;
+      vec4 x_next = x;
       vec3 n_next, ng_next;
-      if(act > 0)
-      {
-        dist = tmax; // trace ray
-        if(cast_ray(w, x_next.xyz, dist, n_next, ng_next, st, mat)) flags = 0;
-        else if(dist < tmax) flags = s_volume;
-        if(dist >= 1e10)     flags = s_envmap;
-      }
+
+      dist = tmax; // trace ray
+      if(cast_ray(wo, x_next.xyz, dist, n_next, ng_next, st, mat)) flags = 0;
+      else if(dist < tmax) flags = s_volume;
+      if(dist >= 1e10)     flags = s_envmap;
+
       vec3 albedo2;
       ms = mat_init(mat, st, n_next, flags, lambda, wo, albedo2);
-      if((flags & s_emit) != 0)
-        acc += contrib * ms.col_emit;
 
       vec4 transmittance = vec4(1);
       vec4 direct_illum = ms.col_emit * transmittance; // Le * T from next vertex
@@ -270,11 +265,11 @@ void main()
 
       // TODO without albedo (added below to skip first albedo)
       contrib *= bsdf;
-      vec4 f = contrib * (bounce < MAX_PATH_LENGTH - 1 ? direct_illum : lc_incident);
-      // XXX this is p for the whole path! (okay in solid angle so probably fine)
+      f = contrib * (bounce < MAX_PATH_LENGTH - 1 ? direct_illum : lc_incident);
       p *= wo_p;
       contrib *= transmittance;
 
+#if MCPG_REFERENCE_MODE!=1
       { // UPDATE MARKOV CHAIN and LIGHT_CACHE
         // multiply albedo?
         const float mc_f = hsum(lc_incident * bsdf / wo_p);
@@ -298,10 +293,13 @@ void main()
           }
         }
       } // scope braces
+#endif
 
       x = x_next;
       n = n_next;
       ng = ng_next;
+      w = wo;
+      } // thread was active
 
       act = mix(act, 0, (flags & (s_emit|s_envmap)) > 0); // endpoint found
       act = mix(act, 0, all(lessThanEqual(contrib, vec4(0.0)))); // contribution dropped

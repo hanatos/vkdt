@@ -308,6 +308,8 @@ create_nodes(
     // protect light cache and markov chain states for next iteration:
     graph->node[id_mcpg].connector[7].flags |= s_conn_protected;
     graph->node[id_mcpg].connector[8].flags |= s_conn_protected;
+    graph->node[id_gbuf].connector[3].flags |= s_conn_clear; // ??
+    graph->node[id_gbuf].connector[4].flags |= s_conn_clear;
 
     const int id_post = dt_node_add(graph, module, "rt", "post", wd, ht, 1, 0, 0, 3,
         "input",  "read",  "ssbo", "f32", dt_no_roi,
