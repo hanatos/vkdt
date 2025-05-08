@@ -133,6 +133,7 @@ void main()
   float dist = 1e20;
   const float tmax = 1e12;//volume_sample_dist(x.xyz, w, mrand(seed));
   vec3 albedo = vec3(1);
+  vec3 debug = vec3(1,0,1);
 
   for (int s = 0; s < SURFACE_SPP; s++)
   {
@@ -157,6 +158,7 @@ void main()
       ms = mat_init(mat, st, n, flags, lambda, w, albedo);
       if((flags & s_emit) != 0)
         acc += contrib * ms.col_emit;
+      // if(s == 0) imageStore(img_aov, ipos, vec4(albedo, 1)); // write albedo to buffer for svgf
     }
     vec4 f = vec4(0); // store measurement of full path if connected to emitter
     float p = 1.0;    // this is scalar because we don't sample directions by lambda
@@ -209,13 +211,13 @@ void main()
           score_sum += state.sum_w;
           vmfs[i] = mc_state_get_vmf(state, x.xyz);
           if (XorShift32(seed) < scores[i] / score_sum)
-          {
-            // we use here that comparison with NaN is false, that happens if candidate_score == 0 and sum == 0; 
+          { // we use here that comparison with NaN is false, that happens if candidate_score == 0 and sum == 0; 
             mc_state = state;
             mc_buffer_index = buffer_index;
             wo = vmf_sample(vmfs[i].xyz, vmfs[i].w, XorShift32Vec2(seed));
           }
         }
+        score_sum = 0; // XXX DEBUG
 
         if (score_sum == 0 || XorShift32(seed) < SURF_BSDF_P)
         { // BSDF Sampling
@@ -253,8 +255,8 @@ void main()
       else if(dist < tmax) flags = s_volume;
       if(dist >= 1e10)     flags = s_envmap;
 
-      vec3 albedo2;
-      ms = mat_init(mat, st, n_next, flags, lambda, wo, albedo2);
+      vec3 albedo_next;
+      ms = mat_init(mat, st, n_next, flags, lambda, wo, albedo_next);
 
       vec4 transmittance = vec4(1);
       vec4 direct_illum = ms.col_emit * transmittance; // Le * T from next vertex
@@ -269,20 +271,22 @@ void main()
       p *= wo_p;
       contrib *= transmittance;
 
-#if MCPG_REFERENCE_MODE!=1
+#if MCPG_REFERENCE_MODE != 1
       { // UPDATE MARKOV CHAIN and LIGHT_CACHE
         // multiply albedo?
-        const float mc_f = hsum(lc_incident * bsdf / wo_p);
+        // const float mc_f = hsum(lc_incident * bsdf / wo_p);
+        const float mc_f = albedo_next.y;// / wo_p);
         if (!isinf(mc_f) && !isnan(mc_f))
         {
           // TODO i don't have a diffuse version. is this albedo/pi?
           light_cache_update(x.xyz, n,
-              albedo2 * colour_to_linear_srgb(
+              albedo * colour_to_linear_srgb(
                 lc_incident / M_PI // bsdf_diffuse_eval(current_hit.albedo)
                 * wodotn / max(wo_p, 10.0), lambda, hrp));
 
           if (XorShift32(seed) * score_sum < mc_f * MC_SAMPLES)
           {
+          debug = vec3(1);
             mc_state_add_sample(mc_state, x.xyz, mc_f, x_next.xyz, vec3(0));// XXX TODO (x_next.xyz - x_next_prev_pos) / TIME_DIFF);
             mc_static_save(mc_state, x.xyz, n);
             mc_adaptive_save(mc_state, x.xyz, n);
@@ -298,6 +302,7 @@ void main()
       x = x_next;
       n = n_next;
       ng = ng_next;
+      albedo = albedo_next;
       w = wo;
       } // thread was active
 
@@ -315,8 +320,9 @@ void main()
     acc /= SURFACE_SPP;
 
   if(any(greaterThanEqual(ipos, fbdim))) return;
-
-  imageStore(img_aov, ipos, vec4(albedo, 1)); // write albedo to buffer for svgf
+  
+  // XXX DEBUG
+  imageStore(img_aov, ipos, vec4(debug, 1));
 
   vec3 acc_rgb;
   acc_rgb = colour_to_rgb(acc, lambda, hrp);

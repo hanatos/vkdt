@@ -37,12 +37,12 @@ layout(std140, set = 0, binding = 1) uniform params_t
 layout(set = 1, binding = 0) uniform writeonly image2D img_dn; // depth and normal
 layout(set = 1, binding = 1) uniform sampler2D img_tex[];
 layout(set = 1, binding = 2) buffer buf_mat_t { gbuf_t v[]; } buf_mat; // material+st
-layout(set = 1, binding = 3) buffer buf_pcv_t
-{
-  uint end;  // buffer size
-  uint cur;  // first free element
-  float v[]; // dynamic cache, we don't need it here
-} pcv;
+// layout(set = 1, binding = 3) buffer buf_pcv_t
+// {
+//   uint end;  // buffer size
+//   uint cur;  // first free element
+//   float v[]; // dynamic cache, we don't need it here
+// } pcv;
 
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
@@ -62,6 +62,7 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   // XXX FIXME: guard this, only do it for MCMC!
   // XXX TODO: maybe delete it and put a clear buffer kernel somewhere?
+#if 0
   if(global.frame == 0 && ipos.x == 0 && ipos.y == 0)
   // if(ipos.x == 0 && ipos.y == 0) // if disabling small step
   {
@@ -69,6 +70,7 @@ main()
     pcv.end = AVG_V*(size + size/64); // vertices for every path of large + small steps
     pcv.cur = 0; // first free is right at the start
   }
+#endif
   if(any(greaterThanEqual(ipos, imageSize(img_dn)))) return;
   uint seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70000;
   ivec2 fbdim = ivec2(imageSize(img_dn));

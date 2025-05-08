@@ -26,6 +26,7 @@ typedef enum dt_connector_flags_t
   s_conn_protected     = 16, // flag this connector for rewrites/accumulation/don't overwrite with other buffers
   s_conn_double_buffer = 32, // this connector is double-buffered for async compute/display
   s_conn_mipmap        = 64, // signifies we will build mipmaps
+  s_conn_clear_once    = 128,// clear only on frame 0
 }
 dt_connector_flags_t;
 

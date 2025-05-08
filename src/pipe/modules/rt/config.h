@@ -7,7 +7,7 @@ typedef struct vec2 { float x,y; } vec2;
 typedef struct vec3 { float x,y,z; } vec3;
 typedef struct vec4 { float x,y,z,w; } vec4;
 typedef uint32_t uint;
-typedef struct { uint16_t f[3]; } f16vec3;
+typedef struct f16vec3 { uint16_t x,y,z; } f16vec3;
 #endif
 
 // glsl version
@@ -108,7 +108,7 @@ struct DistanceMCVertex {
 #define MC_SAMPLES 5
 #define MC_SAMPLES_ADAPTIVE_PROB 0.7
 #define SURF_BSDF_P 0.15
-#define SURFACE_SPP 2
+#define SURFACE_SPP 1
 #define USE_LIGHT_CACHE_TAIL 1
 #define MCPG_REFERENCE_MODE 0
 #define MC_FAST_RECOVERY 1

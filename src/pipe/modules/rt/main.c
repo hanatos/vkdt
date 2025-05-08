@@ -283,8 +283,8 @@ create_nodes(
         "dn",  "write", "rg",   "f32",  &module->connector[0].roi,
         "tex", "read",  "*",    "*",    dt_no_roi,
         "mat", "write", "ssbo", "u8",  &roi_mat,
-        "mc",  "write", "ssbo", "u8",  &roi_mc,   // to init vertex lists to 0
-        "lc",  "write", "ssbo", "u8",  &roi_lc);  // just to keep it next to the vtx
+        "mc",  "write", "ssbo", "u8",  &roi_mc,
+        "lc",  "write", "ssbo", "u8",  &roi_lc);
     int id_mcpg = dt_node_add(graph, module, "rt", "mcpg", wd, ht, 1, 0, 0, 9,
         "output", "write", "ssbo", "f32", &roi_fb,                    // 0
         "blue",   "read",  "*",    "*",    dt_no_roi,                 // 1
@@ -306,10 +306,9 @@ create_nodes(
     CONN(dt_node_connect_named(graph, id_gbuf, "mc",     id_mcpg, "mc"));
     CONN(dt_node_connect_named(graph, id_gbuf, "lc",     id_mcpg, "lc"));
     // protect light cache and markov chain states for next iteration:
-    graph->node[id_mcpg].connector[7].flags |= s_conn_protected;
-    graph->node[id_mcpg].connector[8].flags |= s_conn_protected;
-    graph->node[id_gbuf].connector[3].flags |= s_conn_clear; // ??
-    graph->node[id_gbuf].connector[4].flags |= s_conn_clear;
+    // XXX in fact could put them on mcpg now
+    graph->node[id_gbuf].connector[3].flags |= s_conn_clear_once | s_conn_protected;
+    graph->node[id_gbuf].connector[4].flags |= s_conn_clear_once | s_conn_protected;
 
     const int id_post = dt_node_add(graph, module, "rt", "post", wd, ht, 1, 0, 0, 3,
         "input",  "read",  "ssbo", "f32", dt_no_roi,
