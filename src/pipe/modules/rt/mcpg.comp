@@ -15,15 +15,6 @@
 #extension GL_EXT_scalar_block_layout               : enable
 #extension GL_EXT_shader_atomic_float               : enable
 
-#define MAX_PATH_LENGTH 2
-#define MC_SAMPLES 5
-#define MC_SAMPLES_ADAPTIVE_PROB 0.7
-#define SURF_BSDF_P 0.15
-#define SURFACE_SPP 2
-#define USE_LIGHT_CACHE_TAIL 1
-#define MCPG_REFERENCE_MODE 0
-#define MC_FAST_RECOVERY 1
-
 #include "shared.glsl"
 #include "shared/render3d.glsl"
 
@@ -98,9 +89,9 @@ layout(set = 0, binding = 7, scalar) buffer restrict buf_mc_states {
 layout(set = 0, binding = 8, scalar) buffer restrict buf_light_cache {
     LightCacheVertex light_cache[];
 };
-layout(set = 0, binding = 9, scalar) buffer restrict buf_dist_mc_states {
-    DistanceMCVertex distance_mc_states[];
-};
+// layout(set = 0, binding = 9, scalar) buffer restrict buf_dist_mc_states {
+//     DistanceMCVertex distance_mc_states[];
+// };
 
 #include "light_cache.glsl"
 #include "mc.glsl"
@@ -141,6 +132,7 @@ void main()
   uint flags = 0;
   float dist = 1e20;
   const float tmax = 1e12;//volume_sample_dist(x.xyz, w, mrand(seed));
+  vec3 albedo = vec3(1);
 
   { // init first intersection vertex: read geo intersection info
     vec2 dn = texelFetch(img_dn, ipos, 0).rg;
@@ -167,9 +159,7 @@ void main()
     float p = 1.0;    // this is scalar because we don't sample directions by lambda
     mat_state_t ms;
     { // init material state for first vertex on geo:
-      vec3 albedo;
       ms = mat_init(mat, st, n, flags, lambda, w, albedo);
-      // TODO write albedo to buffer for svgf
       if((flags & s_emit) != 0)
         acc += contrib * ms.col_emit;
     }
@@ -266,8 +256,8 @@ void main()
         else if(dist < tmax) flags = s_volume;
         if(dist >= 1e10)     flags = s_envmap;
       }
-      vec3 albedo;
-      ms = mat_init(mat, st, n_next, flags, lambda, wo, albedo);
+      vec3 albedo2;
+      ms = mat_init(mat, st, n_next, flags, lambda, wo, albedo2);
       if((flags & s_emit) != 0)
         acc += contrib * ms.col_emit;
 
@@ -292,7 +282,7 @@ void main()
         {
           // TODO i don't have a diffuse version. is this albedo/pi?
           light_cache_update(x.xyz, n,
-              albedo * colour_to_linear_srgb(
+              albedo2 * colour_to_linear_srgb(
                 lc_incident / M_PI // bsdf_diffuse_eval(current_hit.albedo)
                 * wodotn / max(wo_p, 10.0), lambda, hrp));
 
@@ -327,6 +317,8 @@ void main()
     acc /= SURFACE_SPP;
 
   if(any(greaterThanEqual(ipos, fbdim))) return;
+
+  imageStore(img_aov, ipos, vec4(albedo, 1)); // write albedo to buffer for svgf
 
   vec3 acc_rgb;
   acc_rgb = colour_to_rgb(acc, lambda, hrp);

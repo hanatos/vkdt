@@ -60,6 +60,8 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  // XXX FIXME: guard this, only do it for MCMC!
+  // XXX TODO: maybe delete it and put a clear buffer kernel somewhere?
   if(global.frame == 0 && ipos.x == 0 && ipos.y == 0)
   // if(ipos.x == 0 && ipos.y == 0) // if disabling small step
   {

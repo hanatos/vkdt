@@ -1,6 +1,5 @@
 #ifndef _MERIAN_SHADERS_GRID_H_
 #define _MERIAN_SHADERS_GRID_H_
-#include "grid.h"
 // 0: pos x, 1: neg x, 2: pos y, 3: neg: y, 4: pos z, 5: neg z
 uint cubemap_side(const vec3 w) {
     if (abs(w.x) > abs(w.y) && abs(w.x) > abs(w.z)) {
