@@ -279,12 +279,12 @@ create_nodes(
     dt_roi_t roi_lc = {
       .wd = LIGHT_CACHE_BUFFER_SIZE,
       .ht = sizeof(struct LightCacheVertex) };
-    int id_gbuf = dt_node_add(graph, module, "rt", "gbuf", wd, ht, 1, 0, 0, 5,
-        "dn",  "write", "rg",   "f32",  &module->connector[0].roi,
+    int id_gbuf = dt_node_add(graph, module, "rt", "gbuf", wd, ht, 1, 0, 0, 3,
+        "dn",  "write", "rg",   "f32", &module->connector[0].roi,
         "tex", "read",  "*",    "*",    dt_no_roi,
-        "mat", "write", "ssbo", "u8",  &roi_mat,
-        "mc",  "write", "ssbo", "u8",  &roi_mc,
-        "lc",  "write", "ssbo", "u8",  &roi_lc);
+        "mat", "write", "ssbo", "u8",  &roi_mat);
+        // "mc",  "write", "ssbo", "u8",  &roi_mc,
+        // "lc",  "write", "ssbo", "u8",  &roi_lc);
     int id_mcpg = dt_node_add(graph, module, "rt", "mcpg", wd, ht, 1, 0, 0, 9,
         "output", "write", "ssbo", "f32", &roi_fb,                    // 0
         "blue",   "read",  "*",    "*",    dt_no_roi,                 // 1
@@ -293,8 +293,10 @@ create_nodes(
         "env",    "read",  "*",    "*",    dt_no_roi,                 // 4
         "dn",     "read",  "*",    "*",    dt_no_roi,                 // 5
         "mat",    "read",  "ssbo", "*",    dt_no_roi,                 // 6 material/gbuf
-        "mc",     "read",  "ssbo", "*",    dt_no_roi,                 // 7 markov chain states
-        "lc",     "read",  "ssbo", "*",    dt_no_roi);                // 8 light cache
+        "mc",  "write", "ssbo", "u8",  &roi_mc,
+        "lc",  "write", "ssbo", "u8",  &roi_lc);
+        // "mc",     "read",  "ssbo", "*",    dt_no_roi,                 // 7 markov chain states
+        // "lc",     "read",  "ssbo", "*",    dt_no_roi);                // 8 light cache
 
     dt_connector_copy(graph, module, 1, id_mcpg, 1); // blue
     dt_connector_copy(graph, module, 2, id_mcpg, 2); // tex
@@ -303,12 +305,14 @@ create_nodes(
     CONN(dt_node_connect_named(graph, id_env,  "output", id_mcpg, "env"));
     CONN(dt_node_connect_named(graph, id_gbuf, "dn",     id_mcpg, "dn"));
     CONN(dt_node_connect_named(graph, id_gbuf, "mat",    id_mcpg, "mat"));
-    CONN(dt_node_connect_named(graph, id_gbuf, "mc",     id_mcpg, "mc"));
-    CONN(dt_node_connect_named(graph, id_gbuf, "lc",     id_mcpg, "lc"));
+    // CONN(dt_node_connect_named(graph, id_gbuf, "mc",     id_mcpg, "mc"));
+    // CONN(dt_node_connect_named(graph, id_gbuf, "lc",     id_mcpg, "lc"));
     // protect light cache and markov chain states for next iteration:
     // XXX in fact could put them on mcpg now
-    graph->node[id_gbuf].connector[3].flags |= s_conn_clear_once | s_conn_protected;
-    graph->node[id_gbuf].connector[4].flags |= s_conn_clear_once | s_conn_protected;
+    // graph->node[id_gbuf].connector[3].flags |= s_conn_clear_once | s_conn_protected;
+    // graph->node[id_gbuf].connector[4].flags |= s_conn_clear_once | s_conn_protected;
+    graph->node[id_mcpg].connector[7].flags |= s_conn_clear_once | s_conn_protected;
+    graph->node[id_mcpg].connector[8].flags |= s_conn_clear_once | s_conn_protected;
 
     const int id_post = dt_node_add(graph, module, "rt", "post", wd, ht, 1, 0, 0, 3,
         "input",  "read",  "ssbo", "f32", dt_no_roi,
