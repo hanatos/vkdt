@@ -62,13 +62,13 @@ layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
 
 // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
 // Returns random float in [0, 1) and updates state.
-
 uint seed;
-float XorShift32(inout uint state) {
-    state ^= state << 13;
-    state ^= state >> 17;
-    state ^= state << 5;
-    return state / 4294967296.0;
+float XorShift32(inout uint state)
+{
+  state ^= state << 13;
+  state ^= state >> 17;
+  state ^= state << 5;
+  return state / 4294967296.0;
 }
 
 #define XorShift32Vec2(state) vec2(XorShift32(state), XorShift32(state))
@@ -217,6 +217,7 @@ void main()
             wo = vmf_sample(vmfs[i].xyz, vmfs[i].w, XorShift32Vec2(seed));
           }
         }
+        if (isinf(score_sum) || isnan(score_sum)) score_sum = 0;
 
         if (score_sum == 0 || XorShift32(seed) < SURF_BSDF_P)
         { // BSDF Sampling
@@ -246,7 +247,7 @@ void main()
       // XXX divide out albedo?
       const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
 
-      vec4 x_next = x;
+      vec4 x_next = x;//  + vec4(1e-3*n, 0);
       vec3 n_next, ng_next;
 
       dist = tmax; // trace ray
