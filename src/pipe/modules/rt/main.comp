@@ -60,6 +60,7 @@ vec4 dithermask(vec4 xi, ivec2 rp)
   return fract(xi + texelFetch(img_blue, rp, 0));
 }
 
+// TODO: port this to gbuf + rt too, so we can wire out the gbuffer for svgf
 void
 main()
 {
