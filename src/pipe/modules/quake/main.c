@@ -417,6 +417,12 @@ add_particles(
   *tri_cnt += ntri;
 }
 
+// TODO: add 3d motion vectors!
+// * quake: blend is different for keyframes and motion/orientations
+// * how to pass data on? f16vec3 x3 for each triangle?
+// * also need camera transform
+// * route out gbuf in rt module for svgf
+// * output mv here too to different array and append in read_source with offset?
 static void
 add_geo(
     entity_t  *ent,
