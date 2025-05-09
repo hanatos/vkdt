@@ -207,6 +207,7 @@ void main()
           else
             mc_static_finalize_load(state, hash, x.xyz, n);
 
+          if (isinf(state.sum_w) || isnan(state.sum_w)) state.sum_w = 0;
           scores[i] = state.sum_w;
           score_sum += state.sum_w;
           vmfs[i] = mc_state_get_vmf(state, x.xyz);
