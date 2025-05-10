@@ -34,11 +34,20 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int spp;
 } params;
 
+layout(push_constant, std140) uniform push_t
+{
+  int wd, ht;
+} pc;
+
+#include "config.h"
+
 layout(set = 1, binding = 0) buffer buf_fb_t { float v[]; } buf_fb;
 layout(set = 1, binding = 1) uniform sampler2D img_blue;
 layout(set = 1, binding = 2) uniform sampler2D img_tex[];
 layout(set = 1, binding = 3) uniform writeonly image2D img_aov;
 layout(set = 1, binding = 4) uniform sampler2D img_env;
+layout(set = 1, binding = 5) uniform sampler2D img_dn;
+layout(set = 1, binding = 6) buffer buf_mat_t { gbuf_t v[]; } buf_mat; // material+st
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
 
@@ -65,7 +74,7 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  ivec2 fbdim = ivec2(imageSize(img_aov));
+  ivec2 fbdim = ivec2(pc.wd, pc.ht);
   if(any(greaterThanEqual(ipos, fbdim))) return;
 
   uint64_t seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
@@ -103,11 +112,36 @@ main()
 
     for(int i=0;i<5;i++)
     { // for a number of bounces
-      float dist = volume_sample_dist(x.xyz, w, rand64(seed));
       uvec3 mat;
       uint flags = 0;
-      const float tmax = 1e6;
-      if(cast_ray(w, x.xyz, dist, n, ng, st, mat))
+      const float tmax = volume_sample_dist(x.xyz, w, rand64(seed));
+      float dist = tmax;
+
+      if(i == 0)
+      { // init first intersection vertex: read geo intersection info
+        vec2 dn = texelFetch(img_dn, ipos, 0).rg;
+        dist = dn.x;
+        n  = geo_decode_normal(floatBitsToUint(dn.y));
+        ng = geo_decode_normal(buf_mat.v[ipos.x+fbdim.x*ipos.y].ng);
+        mat = uvec3(
+            buf_mat.v[ipos.x+fbdim.x*ipos.y].m0,
+            buf_mat.v[ipos.x+fbdim.x*ipos.y].m1,
+            buf_mat.v[ipos.x+fbdim.x*ipos.y].m2);
+        uint stui = buf_mat.v[ipos.x+fbdim.x*ipos.y].st;
+        if(stui == -1u) n = vec3(0);
+        st = unpackUnorm2x16(stui);
+        if(dist < tmax) flags = 0;
+        else          { flags = s_volume; dist = tmax; }
+        if(dist >=1e10) flags = s_envmap;
+        x.xyz = x.xyz + dist * w + 0.001*ng;
+      }
+      else 
+      {
+        if(cast_ray(w, x.xyz, dist, n, ng, st, mat)) flags = 0;
+        else flags = s_envmap;
+      }
+
+      if(flags == 0)
       {
         if(dot(n,w) > 0) n = -n;
         vec3 du, dv, up = vec3(1,0,0);

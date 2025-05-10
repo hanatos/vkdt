@@ -35,6 +35,10 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int spp;
 } params;
 
+layout(push_constant, std140) uniform push_t
+{
+  int wd, ht;
+} pc;
 #include "config.h"
 
 layout(set = 1, binding = 0) buffer buf_fb_t { float v[]; } buf_fb;
@@ -104,8 +108,7 @@ float hsum(vec4 v)
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  // XXX FIXME get this from pc instead, if aov is not connected this fails (video output cli)
-  ivec2 fbdim = ivec2(imageSize(img_aov));
+  ivec2 fbdim = ivec2(pc.wd, pc.ht);
   seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
   // blue noise dither mask
   const ivec2 rp = ivec2(ipos % ivec2(textureSize(img_blue, 0)));

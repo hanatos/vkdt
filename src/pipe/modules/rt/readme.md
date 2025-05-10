@@ -12,9 +12,10 @@ the `rt` module uses hero wavelength spectral sampling for accurate colour repro
 ## connectors
 
 * `output` the rendered beauty image
-* `blue`   blue noise texture as input lut, as those provided by [christoph](http://momentsingraphics.de/BlueNoise.html)
-* `tex`    an array connector for input textures, connect to an i-jpglst or i-lut module
-* `aov`    an output buffer containing some *arbitary output variables* such as fake diffuse albedo or normals
+* `blue` blue noise texture as input lut, as those provided by [christoph](http://momentsingraphics.de/BlueNoise.html)
+* `tex` an array connector for input textures, connect to an i-jpglst or i-lut module
+* `aov` an output buffer containing some *arbitary output variables* such as fake diffuse albedo or normals
+* `gbuf` packed normal and depth of the first intersection
 
 the `tex` connector expects an array of input textures, as the
 [i-jpglst](../i-jpglst/readme.md) module provides, or the
@@ -31,4 +32,4 @@ this still changes so often.. be careful to trust this text.
 * `cam mode` use custom camera in this module, or grab camera, simulation time, and fog from another module
 * `cam_mod` if cam mode is set to another module, this is the other module's name
 * `cam_inst` if cam mode is set to another module, this is the other module's instance
-* `sampler` choose which path space sampler to use for rendering
+* `sampler` choose which path space sampler to use for rendering: path tracing/env-nee, markov chain path guiding
