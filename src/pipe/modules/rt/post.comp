@@ -11,14 +11,16 @@
 #include "shared.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(set = 1, binding = 0) readonly buffer buf_t { float v[]; } buf;
-layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+layout(set = 1, binding = 1) uniform sampler2D img_albedo;
+layout(set = 1, binding = 2) uniform writeonly image2D img_out;
 
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  vec4 albedo = texture(img_albedo, ipos);
   ivec2 sz = imageSize(img_out);
   uint idx = 4*(sz.x * ipos.y + ipos.x);
-  vec4 rgba = vec4(buf.v[idx], buf.v[idx+1], buf.v[idx+2], 1.0);
+  vec4 rgba = albedo * vec4(buf.v[idx], buf.v[idx+1], buf.v[idx+2], 1.0);
   imageStore(img_out, ipos, rgba);
 }

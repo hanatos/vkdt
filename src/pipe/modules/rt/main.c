@@ -46,7 +46,12 @@ void modify_roi_out(
   int wd = p_wd, ht = p_ht;
   mod->connector[0].roi.full_wd = mod->connector[3].roi.full_wd = mod->connector[4].roi.full_wd = wd;
   mod->connector[0].roi.full_ht = mod->connector[3].roi.full_ht = mod->connector[4].roi.full_ht = ht;
+  mod->connector[0].roi.wd = mod->connector[3].roi.wd = mod->connector[4].roi.wd = wd;
+  mod->connector[0].roi.ht = mod->connector[3].roi.ht = mod->connector[4].roi.ht = ht;
   mod->connector[0].roi.scale   = mod->connector[3].roi.scale   = mod->connector[4].roi.scale = 1;
+  mod->connector[5].roi.scale = 1;
+  mod->connector[5].roi.wd = mod->connector[5].roi.full_wd = wd;
+  mod->connector[5].roi.ht = mod->connector[5].roi.full_ht = ht * 4;
   mod->img_param   = (dt_image_params_t) {
     .black            = {0, 0, 0, 0},
     .white            = {65535,65535,65535,65535},
@@ -257,22 +262,23 @@ create_nodes(
       "mat", "write", "ssbo", "u8",  &roi_mat);
       // "mc",  "write", "ssbo", "u8",  &roi_mc,
       // "lc",  "write", "ssbo", "u8",  &roi_lc);
-  dt_connector_copy(graph, module, 2, id_gbuf, 1); // tex
+  dt_connector_copy(graph, module, 1, id_gbuf, 1); // tex
   int id_main = -1;
 
   if(sampler == 0)
   { // std pt
     id_main = dt_node_add(graph, module, "rt", "main", wd, ht, 1, 0, 0, 7,
         "output", "write", "ssbo", "f32", &roi_fb,                    // 0
-        "blue",   "read",  "*",    "*",    dt_no_roi,                 // 1
-        "tex",    "read",  "*",    "*",    dt_no_roi,                 // 2
-        "aov",    "write", "rgba", "f16", &module->connector[0].roi,  // 3
+        "tex",    "read",  "*",    "*",    dt_no_roi,                 // 1
+        "blue",   "read",  "*",    "*",    dt_no_roi,                 // 2
+        "albedo", "write", "rgba", "f16", &module->connector[0].roi,  // 3
         "env",    "read",  "*",    "*",    dt_no_roi,                 // 4
         "dn",     "read",  "*",    "*",    dt_no_roi,                 // 5
         "mat",    "read",  "ssbo", "*",    dt_no_roi);                // 6 material/gbuf
     dt_connector_copy(graph, module, 1, id_main, 1);
     dt_connector_copy(graph, module, 2, id_main, 2);
-    dt_connector_copy(graph, module, 3, id_main, 3);
+    dt_connector_copy(graph, module, 3, id_main, 0);
+    dt_connector_copy(graph, module, 4, id_main, 3);
   }
   else if(sampler == 1)
   { // mcpg: markov chain path guiding, alber 2025
@@ -284,9 +290,9 @@ create_nodes(
       .ht = sizeof(struct LightCacheVertex) };
     id_main = dt_node_add(graph, module, "rt", "mcpg", wd, ht, 1, 0, 0, 9,
         "output", "write", "ssbo", "f32", &roi_fb,                    // 0
-        "blue",   "read",  "*",    "*",    dt_no_roi,                 // 1
-        "tex",    "read",  "*",    "*",    dt_no_roi,                 // 2
-        "aov",    "write", "rgba", "f16", &module->connector[0].roi,  // 3
+        "tex",    "read",  "*",    "*",    dt_no_roi,                 // 1
+        "blue",   "read",  "*",    "*",    dt_no_roi,                 // 2
+        "albedo", "write", "rgba", "f16", &module->connector[0].roi,  // 3
         "env",    "read",  "*",    "*",    dt_no_roi,                 // 4
         "dn",     "read",  "*",    "*",    dt_no_roi,                 // 5
         "mat",    "read",  "ssbo", "*",    dt_no_roi,                 // 6 material/gbuf
@@ -295,9 +301,10 @@ create_nodes(
         // "mc",     "read",  "ssbo", "*",    dt_no_roi,                 // 7 markov chain states
         // "lc",     "read",  "ssbo", "*",    dt_no_roi);                // 8 light cache
 
-    dt_connector_copy(graph, module, 1, id_main, 1); // blue
-    dt_connector_copy(graph, module, 2, id_main, 2); // tex
-    dt_connector_copy(graph, module, 3, id_main, 3); // aov
+    dt_connector_copy(graph, module, 1, id_main, 1); // tex
+    dt_connector_copy(graph, module, 2, id_main, 2); // blue
+    dt_connector_copy(graph, module, 3, id_main, 0); // ssbo irradiance w/o albedo
+    dt_connector_copy(graph, module, 4, id_main, 3); // albedo/aov
     // CONN(dt_node_connect_named(graph, id_gbuf, "mc",     id_main, "mc"));
     // CONN(dt_node_connect_named(graph, id_gbuf, "lc",     id_main, "lc"));
     // protect light cache and markov chain states for next iteration:
@@ -310,14 +317,16 @@ create_nodes(
   CONN(dt_node_connect_named(graph, id_env,  "output", id_main, "env"));
   CONN(dt_node_connect_named(graph, id_gbuf, "dn",     id_main, "dn"));
   CONN(dt_node_connect_named(graph, id_gbuf, "mat",    id_main, "mat"));
-  const int id_post = dt_node_add(graph, module, "rt", "post", wd, ht, 1, 0, 0, 3,
+  const int id_post = dt_node_add(graph, module, "rt", "post", wd, ht, 1, 0, 0, 4,
       "input",  "read",  "ssbo", "f32", dt_no_roi,
+      "albedo", "read",  "rgba", "*",   dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[0].roi,
       "dep",    "read",  "*",    "*",   dt_no_roi); // sync exec connector
   CONN(dt_node_connect_named(graph, id_main, "output", id_post, "dep"));
   CONN(dt_node_connect_named(graph, id_main, "output", id_post, "input"));
-  dt_connector_copy(graph, module, 0, id_post, 1);
-  dt_connector_copy(graph, module, 4, id_gbuf, 0); // route out gbuf
+  CONN(dt_node_connect_named(graph, id_main, "albedo", id_post, "albedo"));
+  dt_connector_copy(graph, module, 0, id_post, 2);
+  dt_connector_copy(graph, module, 5, id_gbuf, 0); // route out gbuf
 }
 
 int read_source(

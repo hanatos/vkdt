@@ -1,6 +1,31 @@
 #include "modules/api.h"
 #include "config.h"
 
+void modify_roi_out(
+    dt_graph_t *graph,
+    dt_module_t *mod)
+{ // grab output dimensions from albedo image
+  mod->connector[3].roi.scale = 1;
+  mod->connector[3].roi.full_wd = mod->connector[2].roi.full_wd;
+  mod->connector[3].roi.full_ht = mod->connector[2].roi.full_ht;
+}
+
+void modify_roi_in(
+    dt_graph_t *graph,
+    dt_module_t *mod)
+{ // need irradiance with 4 stride
+  mod->connector[0].roi.wd = mod->connector[3].roi.wd; // mv
+  mod->connector[0].roi.ht = mod->connector[3].roi.ht;
+  mod->connector[1].roi.wd = mod->connector[3].roi.wd; // irr
+  mod->connector[1].roi.ht = mod->connector[3].roi.ht * 4;
+  mod->connector[2].roi.wd = mod->connector[3].roi.wd; // albedo
+  mod->connector[2].roi.ht = mod->connector[3].roi.ht;
+  mod->connector[4].roi.wd = mod->connector[3].roi.wd; // dn prev
+  mod->connector[4].roi.ht = mod->connector[3].roi.ht;
+  mod->connector[5].roi.wd = mod->connector[3].roi.wd; // dn curr
+  mod->connector[5].roi.ht = mod->connector[3].roi.ht;
+}
+
 // XXX go through this and do stuff in 32 or in 16 bits please!
 //
 // TODO: input: straight ssbo from renderer
@@ -15,8 +40,8 @@ create_nodes(
   const int id_preblend = dt_node_add(graph, module, "svgf", "preblend",
       module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 6,
       "mv",     "read",  "rg",   "*",   dt_no_roi,
-      "prevl",  "read",  "rgba", "*",   dt_no_roi,
-      "light",  "read",  "rgba", "*",   dt_no_roi,
+      "irrp",   "read",  "rgba", "f32", dt_no_roi,
+      "irrc",   "read",  "ssbo", "f32", dt_no_roi,
       "gbufp",  "read",  "*",    "f32", dt_no_roi,
       "gbufc",  "read",  "*",    "f32", dt_no_roi,
       "output", "write", "rgba", "f32", &module->connector[0].roi);

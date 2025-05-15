@@ -16,8 +16,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
 } params;
 
 layout(set = 1, binding = 0) uniform sampler2D img_mv;    // motion vectors
-layout(set = 1, binding = 1) uniform sampler2D img_prevl; // previous light (noisy)
-layout(set = 1, binding = 2) uniform sampler2D img_light; // current  light (noisy)
+layout(set = 1, binding = 1) uniform sampler2D img_irrp;  // previous irradiance (noisy)
+layout(set = 1, binding = 2) readonly buffer irrc_t { float v[]; } irrc; // current  irradiance (noisy)
 layout(set = 1, binding = 3) uniform sampler2D img_gbufp; // old gbuffer
 layout(set = 1, binding = 4) uniform sampler2D img_gbufc; // current gbuffer
 
@@ -30,8 +30,10 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec2 mv = texelFetch(img_mv, ipos, 0).rg;
-  vec3 L  = texelFetch(img_light, ipos,           0).rgb;
-  vec3 Lo = texelFetch(img_prevl, ivec2(ipos+mv), 0).rgb;
+  ivec2 sz = imageSize(img_out);
+  uint idx = 4*(sz.x * ipos.y + ipos.x);
+  vec3 L = vec3(irrc.v[idx], irrc.v[idx+1], irrc.v[idx+2]);
+  vec3 Lo = texture(img_irrp, ipos+mv).rgb;
 
   vec4 gbufc = texelFetch(img_gbufc, ipos, 0);
   vec4 gbufp = texelFetch(img_gbufp, ivec2(ipos+mv), 0);
@@ -47,10 +49,10 @@ main()
   alpha *= smoothstep(sigma, 0.0, abs(gbufc.z - length(L)));
 
   // gbuffer weight:
-  vec3 nc = geo_decode_normal(floatBitsToUint(gbufc.x));
-  vec3 np = geo_decode_normal(floatBitsToUint(gbufp.x));
+  vec3 nc = geo_decode_normal(floatBitsToUint(gbufc.y));
+  vec3 np = geo_decode_normal(floatBitsToUint(gbufp.y));
   alpha *= smoothstep(0.8, 1.0, dot(nc, np));
-  alpha *= smoothstep(0.02*max(gbufc.y, gbufp.y), 0.0, abs(gbufc.y - gbufp.y));
+  alpha *= smoothstep(0.02*max(gbufc.x, gbufp.x), 0.0, abs(gbufc.x - gbufp.x));
 
   L = mix(L, Lo, alpha);
   // L = vec3(gbufc.z, sigmac, sigmap); // visualise mean and variance

@@ -125,7 +125,7 @@ mat_init(
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(tex_b)], 0)*st);
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(tex_b)], 0)-1);
     vec3 tex = texelFetch(img_tex[nonuniformEXT(tex_b)], tc, 0).rgb;
-    albedo = tex;
+    albedo = tex*tex;
     base = colour_upsample(tex*tex, lambda);
   }
   if(tex_e > 0)

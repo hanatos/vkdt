@@ -40,8 +40,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
 #include "config.h"
 
 layout(set = 1, binding = 0) buffer buf_fb_t { float v[]; } buf_fb;
-layout(set = 1, binding = 1) uniform sampler2D img_blue;
-layout(set = 1, binding = 2) uniform sampler2D img_tex[];
+layout(set = 1, binding = 1) uniform sampler2D img_tex[];
+layout(set = 1, binding = 2) uniform sampler2D img_blue;
 layout(set = 1, binding = 3) uniform writeonly image2D img_aov;
 layout(set = 1, binding = 4) uniform sampler2D img_env;
 layout(set = 1, binding = 5) uniform sampler2D img_dn;
@@ -114,30 +114,30 @@ void main()
   camera = camera_t(0.5, vec2(1.0, fbdim.y/float(fbdim.x)), params.cam_x.xyz, mat3(1));
   camera_setup(params.cam_x.xyz, params.cam_w.xyz, params.cam_u.xyz);
 
-  vec4 acc = vec4(0); // value of our estimator, accumulate this
-  vec4 hrp = vec4(1); // hero wavelength p, only deviates from 1 if pdf is different per wavelength
   vec4 rand = XorShift32Vec4(seed);
-  vec4 contrib = vec4(1.0);
-  // dithermask shows *no* difference for stratified hwl:
-  uint seed2 = 19937*global.frame;
-  vec4 lambda = colour_sample_lambda(dithermask(vec4(XorShift32(seed2)), rp), contrib, hrp);
 
   vec4 x;
   vec3 w, n, ng; // ray position, direction, hit normal
   vec2 st;       // texture coordinates
   uvec4 mat;
-  // contrib *= camera_sample_xw((ipos+filter_bh_sample(rand.yz))/fbdim, x, w);
-  contrib *= camera_sample_xw(vec2(ipos)/fbdim, x, w);
-  int act = mix(1, 0, all(lessThanEqual(contrib, vec4(0.0))));
 
   uint flags = 0;
   float dist = 1e20;
   const float tmax = 1e12;//volume_sample_dist(x.xyz, w, mrand(seed));
   vec3 albedo = vec3(1);
+  vec3 acc_rgb = vec3(0);
   // vec3 debug = vec3(1,0,1);
 
   for (int s = 0; s < SURFACE_SPP; s++)
   {
+    vec4 hrp = vec4(1); // hero wavelength p, only deviates from 1 if pdf is different per wavelength
+    vec4 contrib = vec4(1.0);
+    // dithermask shows *no* difference for stratified hwl:
+    uint seed2 = 19937*global.frame;
+    vec4 lambda = colour_sample_lambda(dithermask(vec4(XorShift32(seed2)), rp), contrib, hrp);
+    // contrib *= camera_sample_xw((ipos+filter_bh_sample(rand.yz))/fbdim, x, w);
+    contrib *= camera_sample_xw(vec2(ipos)/fbdim, x, w);
+    int act = mix(1, 0, all(lessThanEqual(contrib, vec4(0.0))));
     mat_state_t ms;
     { // init first intersection vertex: read geo intersection info
       vec2 dn = texelFetch(img_dn, ipos, 0).rg;
@@ -160,7 +160,13 @@ void main()
       // init material state for first vertex on geo:
       ms = mat_init(mat, st, n, flags, lambda, w, albedo);
       if((flags & s_emit) != 0)
-        acc += contrib * ms.col_emit;
+      {
+        acc_rgb = colour_to_rgb(contrib * ms.col_emit, lambda, hrp)/SURFACE_SPP;
+        albedo = acc_rgb;
+        albedo = clamp(albedo, vec3(-1.0), vec3(65000.0));
+        if(s == 0) acc_rgb = vec3(0);
+      }
+      contrib /= colour_upsample(albedo, lambda); // divide out first albedo for svgf
       if(s == 0) imageStore(img_aov, ipos, vec4(albedo, 1)); // write albedo to buffer for svgf
     }
     vec4 f = vec4(0); // store measurement of full path if connected to emitter
@@ -312,11 +318,11 @@ void main()
 
     const vec4 acc_sample = f / p;
     if(!any(isinf(acc_sample)) && !any(isnan(acc_sample)))
-      acc += acc_sample;
+    {
+      acc_rgb += colour_to_rgb(acc_sample, lambda, hrp)/SURFACE_SPP;
+      acc_rgb = clamp(acc_rgb, vec3(-1.0), vec3(65000.0));
+    }
   } // for number of surface samples
-
-  if (SURFACE_SPP > 0)
-    acc /= SURFACE_SPP;
 
   if(any(greaterThanEqual(ipos, fbdim))) return;
   
@@ -324,8 +330,5 @@ void main()
   // XXX DEBUG
   // imageStore(img_aov, ipos, vec4(debug, 1));
 
-  vec3 acc_rgb;
-  acc_rgb = colour_to_rgb(acc, lambda, hrp);
-  acc_rgb = clamp(acc_rgb, vec3(-1.0), vec3(65000.0));
   fb_set(ipos, fbdim, vec4(acc_rgb, merian_square(luminance_rec2020(acc_rgb))));
 }

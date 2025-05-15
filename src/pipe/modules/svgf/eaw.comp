@@ -47,8 +47,8 @@ main()
   ivec2 sz = textureSize(img_irr, 0).xy;
 
   vec4  gbuf   = texelFetch(img_gbuf, ipos, 0);
-  vec3  normal = geo_decode_normal(floatBitsToUint(gbuf.x));
-  float depth  = gbuf.y;
+  vec3  normal = geo_decode_normal(floatBitsToUint(gbuf.y));
+  float depth  = gbuf.x;
   // float m1 = gbuf.z, m2 = gbuf.w; // will add below
   float m1 = 0.0, m2 = 0.0;
   float sigma;
@@ -57,18 +57,24 @@ main()
   vec4 tmp = texelFetch(img_irr, ipos, 0);
   Lp = tmp.xyz;
   sigma = sqrt(tmp.w);
+  m1 = luminance_rec2020(tmp.rgb);
+  m2 = tmp.w;
 
   if(push.gap == 1)
   { // estimate variance spatially, and get z gradient too:
     const int r = 1;
-    for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++)// if(i != 0 || j != 0)
+    for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++) if(i != 0 || j != 0)
     {
-      vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);
+      // vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);
+      vec4 irr = texelFetch(img_irr, ipos+ivec2(i,j), 0);
+      float lum = luminance_rec2020(irr.rgb);
       // vec4 gbufq = texture(img_gbuf, (ipos+ivec2(i,j)+0.5)/textureSize(img_gbuf, 0));
-      m1 += gbufq.z; m2 += gbufq.w;
+      m1 += lum; m2 += irr.w;
     }
     m1 /= (2.0*r+1)*(2.0*r+1);//-1;
     m2 /= (2.0*r+1)*(2.0*r+1);//-1;
+    gbuf.z = m1;
+    gbuf.w = m2;
     sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
     // Lp = clamp(Lp, m1-2*sigma, m1+2*sigma); // firefly clamping. completely hosed on envmaps.
     // m1 += gbuf.z; m2 += gbuf.w;
@@ -96,13 +102,13 @@ main()
     vec4 tx = texture(img_irr, (ipos+ivec2(i,j)+0.5)/textureSize(img_irr, 0));\
     vec3 Lq = tx.rgb;\
     vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);\
-    vec3 nq = geo_decode_normal(floatBitsToUint(gbufq.x));\
+    vec3 nq = geo_decode_normal(floatBitsToUint(gbufq.y));\
     float sq = push.gap == 1 ? sqrt(max(0, gbufq.w - gbufq.z*gbufq.z)) : sqrt(tx.w);\
     float w = edge(\
         vec2(i,j), sq, \
         Lp, Lq,\
         normal, nq,\
-        depth, gbufq.y);\
+        depth, gbufq.x);\
     res += vec4(w*Lq, w*w*sq*sq);\
     w_sum += vec2(w, w*w);\
     } while(false)
