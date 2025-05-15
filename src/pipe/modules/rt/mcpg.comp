@@ -232,7 +232,7 @@ void main()
         // Multiple importance sampling
         // score_sum > 0 ? results in black artifacts
         [[unroll]] for (int i = 0; i < MC_SAMPLES; i++)
-          wo_p += (scores[i] > 0 ? scores[i] * (vmf_pdf(wo, vmfs[i].xyz, vmfs[i].w)) / score_sum : 0);
+          wo_p += (score_sum > 0 && scores[i] > 0 ? scores[i] * (vmf_pdf(wo, vmfs[i].xyz, vmfs[i].w)) / score_sum : 0);
         wo_p = (score_sum > 0 ? SURF_BSDF_P : 1.0) *
           mat_pdf(ms, flags, w, n, wo, lambda.x) + (1 - SURF_BSDF_P) * wo_p;
 
@@ -241,8 +241,9 @@ void main()
         // ray is below geometric surface
         wodotn = dot(wo, n);
         if (wodotn <= 1e-3 || dot(wo, ng) <= 1e-3) act = 0;
-
-
+      }
+      if(act > 0)
+      {
         // XXX divide out albedo?
         const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
 
@@ -273,13 +274,14 @@ void main()
 #if MCPG_REFERENCE_MODE != 1
         { // UPDATE MARKOV CHAIN and LIGHT_CACHE
           // multiply albedo?
-          const float mc_f = hsum(lc_incident * bsdf / wo_p);
+          const float mc_f = hsum(lc_incident * bsdf * wodotn / wo_p);
           if (!isinf(mc_f) && !isnan(mc_f))
           {
             // TODO i don't have a diffuse version. is this albedo/pi?
             light_cache_update(x.xyz, n,
-                albedo * colour_to_linear_srgb(
-                  lc_incident / M_PI // bsdf_diffuse_eval(current_hit.albedo)
+                albedo*colour_to_linear_srgb(
+                  lc_incident *
+                  1.0/M_PI
                   * wodotn / max(wo_p, 10.0), lambda, hrp));
 
             if (XorShift32(seed) * score_sum < mc_f * MC_SAMPLES)

@@ -13,13 +13,13 @@
 // Based on Wenzel Jakob, Numerically stable sampling of the von Mises Fisher distribution on S2 (and other tricks)
 
 float vmf_pdf(const vec3 w, const vec3 mu, const float kappa) {
-    if (kappa < 1e-4) return INV_FOUR_PI;
-    return kappa / (TWO_PI * (1.0 - exp(-2.0 * kappa))) * exp(kappa * (dot(w, mu) - 1.0));
+    if (kappa < 1e-4) return 1.0/(4.0*M_PI);
+    return kappa / (2.0*M_PI * (1.0 - exp(-2.0 * kappa))) * exp(kappa * (dot(w, mu) - 1.0));
 }
 
 vec3 vmf_sample(const float kappa, const vec2 random) {
     const float w = 1.0 + log(random.x + (1.0 - random.x) * exp(-2.0 * kappa)) / kappa;
-    const vec2 v = vec2(sin(TWO_PI * random.y), cos(TWO_PI * random.y));
+    const vec2 v = vec2(sin(2.0*M_PI * random.y), cos(2.0*M_PI * random.y));
     return vec3(sqrt(1.0 - w * w) * v, w);
 }
 
