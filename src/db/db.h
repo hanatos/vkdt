@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/threads.h"
+#include "db/stringpool-fwd.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -28,19 +29,6 @@ typedef struct dt_image_t
   uint16_t    labels;    // each bit is one colour label flag, 1<<15 is selected bit
 }
 dt_image_t;
-
-// forward declare for stringpool.h so we don't have to include it here.
-typedef struct dt_stringpool_entry_t dt_stringpool_entry_t;
-typedef struct dt_stringpool_t
-{
-  uint32_t entry_max;
-  dt_stringpool_entry_t *entry;
-
-  uint32_t buf_max;
-  uint32_t buf_cnt;
-  char *buf;
-}
-dt_stringpool_t;
 
 typedef enum dt_db_property_t
 {

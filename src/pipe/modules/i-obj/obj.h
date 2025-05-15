@@ -199,6 +199,7 @@ geo_obj_read(
         vtx[vi] = (geo_vtx_t){
           .x    = v[3*vert[vi]+0], .y = v[3*vert[vi]+1], .z = v[3*vert[vi]+2],
           .tex0 = vi == 0 ? tid_base : vi == 1 ? tid_emit : tid_norm,
+          .tex1 = vi == 0 ? s_geo_opaque : 0,
           .n    = geo_encode_normal(n + 3*norm[vi]),
           .s    = float_to_half(vt[2*uvco[vi]+0]),
           .t    = float_to_half(vt[2*uvco[vi]+1]),

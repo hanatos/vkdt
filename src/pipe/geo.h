@@ -18,7 +18,7 @@ geo_vtx_t;
 // texture ids on the vertices are used as follows:
 // base, flags, emit, alpha, normals, roughness
 typedef struct geo_tri_t
-{ // plain flat triangle. each vertex stores a different texture for the triangle: albedo, normals, extra.
+{ // plain flat triangle. each vertex stores a different texture for the triangle
   geo_vtx_t v0, v1, v2;
 }
 geo_tri_t;
@@ -35,6 +35,7 @@ typedef enum geo_flags_t
   s_geo_watere = 6, // emissive water
   s_geo_sky    = 7, // quake style sky surface, a window to the infinite
   s_geo_nonorm = 8, // actually a flag, signifies there are no vertex normals
+  s_geo_opaque = 16,// disregard alpha channel for transparency
 }
 geo_flags_t;
 

@@ -14,6 +14,17 @@ const uint s_specular = 128u;
 const uint s_envmap   = 256u;
 const uint s_absorb   =   0u;
 
+// same as in geo.h for cpu:
+const uint s_geo_none   = 0u; // nothing special, ordinary geo
+const uint s_geo_lava   = 1u; // lava
+const uint s_geo_slime  = 2u; // slime
+const uint s_geo_tele   = 3u; // teleporter
+const uint s_geo_water  = 4u; // water front surf
+const uint s_geo_waterb = 5u; // water back surf
+const uint s_geo_watere = 6u; // emissive water
+const uint s_geo_sky    = 7u; // quake style sky surface, a window to the infinite
+const uint s_geo_nonorm = 8u; // actually a flag, signifies there are no vertex normals
+const uint s_geo_opaque = 16u;// disregard alpha channel for transparency
 
 void prepare_intersection(
     rayQueryEXT rq,
@@ -138,21 +149,25 @@ bool cast_ray(
       else
       {
         uint flags = mat.x >> 16; // extract surface flags;
-        vec2 st0 = unpackHalf2x16(buf_vtx[it].v[pi+0].st);
-        vec2 st1 = unpackHalf2x16(buf_vtx[it].v[pi+1].st);
-        vec2 st2 = unpackHalf2x16(buf_vtx[it].v[pi+2].st);
-        vec3 b;
-        b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
-        b.x = 1.0-b.z-b.y;
-        st = mat3x2(st0, st1, st2) * b;
-        if(flags > 0) st = vec2(
-            st.x + 0.2*sin(st.y*2.0 + params.cltime),
-            st.y + 0.2*sin(st.x*2.0 + params.cltime));
-        ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(tex_b)], 0)*fract(st));
-        tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(tex_b)], 0)-1);
-        vec4 col_base = texelFetch(img_tex[nonuniformEXT(tex_b)], tc, 0);
-        if(col_base.a > 0.666)
-          rayQueryConfirmIntersectionEXT(rq);
+        if((flags & s_geo_opaque) == 0)
+        {
+          vec2 st0 = unpackHalf2x16(buf_vtx[it].v[pi+0].st);
+          vec2 st1 = unpackHalf2x16(buf_vtx[it].v[pi+1].st);
+          vec2 st2 = unpackHalf2x16(buf_vtx[it].v[pi+2].st);
+          vec3 b;
+          b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
+          b.x = 1.0-b.z-b.y;
+          st = mat3x2(st0, st1, st2) * b;
+          if(flags > 0) st = vec2(
+              st.x + 0.2*sin(st.y*2.0 + params.cltime),
+              st.y + 0.2*sin(st.x*2.0 + params.cltime));
+          ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(tex_b)], 0)*fract(st));
+          tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(tex_b)], 0)-1);
+          vec4 col_base = texelFetch(img_tex[nonuniformEXT(tex_b)], tc, 0);
+          if(col_base.a > 0.666)
+            rayQueryConfirmIntersectionEXT(rq);
+        }
+        else rayQueryConfirmIntersectionEXT(rq);
       }
     }
   }
