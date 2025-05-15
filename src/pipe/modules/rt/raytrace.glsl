@@ -22,13 +22,13 @@ void prepare_intersection(
     out vec3    n,    // shading normal
     out vec3    ng,   // geo normal
     out vec2    st,   // texture coordinates, modulo'd into [0,1)
-    out uvec3   mat)  // material ids
+    out uvec4   mat)  // material ids + inside flag
 { // access and unpack geometry data
   uint pi = 3*rayQueryGetIntersectionPrimitiveIndexEXT(rq, true);
   uint it = rayQueryGetIntersectionInstanceIdEXT(rq, true);
-  mat = uvec3(buf_vtx[it].v[pi+0].tex,
+  mat = uvec4(buf_vtx[it].v[pi+0].tex,
               buf_vtx[it].v[pi+1].tex,
-              buf_vtx[it].v[pi+2].tex);
+              buf_vtx[it].v[pi+2].tex, 0);
   vec3 v0 = vec3(buf_vtx[it].v[pi+0].x, buf_vtx[it].v[pi+0].y, buf_vtx[it].v[pi+0].z);
   vec3 v1 = vec3(buf_vtx[it].v[pi+1].x, buf_vtx[it].v[pi+1].y, buf_vtx[it].v[pi+1].z);
   vec3 v2 = vec3(buf_vtx[it].v[pi+2].x, buf_vtx[it].v[pi+2].y, buf_vtx[it].v[pi+2].z);
@@ -51,7 +51,7 @@ void prepare_intersection(
 
   if(geo_flags == 7)
   { // sky box, extract cube map textures from n and mark as sky:
-    n = vec3(0);
+    n = ng = vec3(0);
     mat.x = buf_vtx[it].v[pi+0].n;
     mat.y = buf_vtx[it].v[pi+1].n;
     mat.z = buf_vtx[it].v[pi+2].n;
@@ -59,10 +59,17 @@ void prepare_intersection(
   }
 
   if(dot(w, n) > 0) n = -n;
-  if(dot(w, ng) > 0) ng = -ng;
+  if(dot(w, ng) > 0)
+  {
+    mat.w = 1; // inside the object
+    ng = -ng;
+  }
   vec2 st0 = unpackHalf2x16(buf_vtx[it].v[pi+0].st);
   vec2 st1 = unpackHalf2x16(buf_vtx[it].v[pi+1].st);
   vec2 st2 = unpackHalf2x16(buf_vtx[it].v[pi+2].st);
+  st0.y = 1.0-st0.y;
+  st1.y = 1.0-st1.y;
+  st2.y = 1.0-st2.y;
   st = fract(mat3x2(st0, st1, st2) * b);
 
   uint tex_n = mat.z & 0xffff;
@@ -107,7 +114,7 @@ bool cast_ray(
     out vec3    n,    // shading normal
     out vec3    ng,   // geo normal
     out vec2    st,   // texture coordinates
-    out uvec3   mat)  // material ids
+    out uvec4   mat)  // 3 material ids + inside flag
 {
   rayQueryEXT rq;
   rayQueryInitializeEXT(rq, rt_accel,
@@ -120,9 +127,9 @@ bool cast_ray(
       // TODO: skip this step if the whole instance is sure to not have transparency?
       nonuniformEXT int it = rayQueryGetIntersectionInstanceIdEXT(rq, false); // which of our ssbo
       nonuniformEXT int pi = 3*rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
-      mat = uvec3(buf_vtx[it].v[pi+0].tex,
+      mat = uvec4(buf_vtx[it].v[pi+0].tex,
                   buf_vtx[it].v[pi+1].tex,
-                  buf_vtx[it].v[pi+2].tex);
+                  buf_vtx[it].v[pi+2].tex, 0);
       uint tex_b = mat.x & 0xffff;
       if(tex_b == 0)
       {
