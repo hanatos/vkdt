@@ -11,6 +11,13 @@ struct mat_state_t
   uint geo_flags; // geo_flags_t on cpu: lava, slime, nonorm, ..
 };
 
+vec3 emission_to_hdr(vec3 c)
+{
+  if(any(greaterThan(c, vec3(1e-3)))) // avoid near div0
+    return c/dot(c, vec3(1)) * 10.0*(exp2(4.0*dot(c, vec3(1)))-1.0);
+  return c;
+}
+
 vec3 quake_envmap(in vec3 w, uint sky_rt, uint sky_bk, uint sky_lf, uint sky_ft, uint sky_up, uint sky_dn)
 {
   if(sky_lf == 0xffff)
@@ -20,7 +27,7 @@ vec3 quake_envmap(in vec3 w, uint sky_rt, uint sky_bk, uint sky_lf, uint sky_ft,
     vec4 bck = texelFetch(img_tex[nonuniformEXT(sky_rt)], ivec2(mod(st+0.1*t, vec2(1))*textureSize(img_tex[nonuniformEXT(sky_rt)], 0)), 0);
     vec4 fnt= texelFetch(img_tex[nonuniformEXT(sky_bk)], ivec2(mod(st+t, vec2(1))*textureSize(img_tex[nonuniformEXT(sky_bk)], 0)), 0);
     vec3 tex = mix(bck.rgb, fnt.rgb, fnt.a);
-    return 100*tex*tex;
+    return emission_to_hdr(100*tex*tex);
   }
   else
   { // cubemap: gfx/env/*{rt,bk,lf,ft,up,dn}
@@ -51,7 +58,7 @@ vec3 quake_envmap(in vec3 w, uint sky_rt, uint sky_bk, uint sky_lf, uint sky_ft,
           ivec2(0), textureSize(img_tex[nonuniformEXT(side)], 0)-1);
     vec3 tex = texelFetch(img_tex[nonuniformEXT(side)], tc, 0).rgb;
     emcol += tex*tex; // mul "un-gamma"d sky texture
-    return emcol;
+    return emission_to_hdr(emcol);
   }
 }
 
@@ -126,7 +133,7 @@ mat_init(
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(tex_e)], 0)*st);
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(tex_e)], 0)-1);
     vec3 tex = texelFetch(img_tex[nonuniformEXT(tex_e)], tc, 0).rgb;
-    emit = colour_upsample(tex*tex, lambda);
+    emit = colour_upsample(emission_to_hdr(tex*tex), lambda);
   }
   if(tex_r > 0)
   {
@@ -135,13 +142,7 @@ mat_init(
     roughness = texelFetch(img_tex[nonuniformEXT(tex_r)], tc, 0).r;
   }
 
-  if(any(greaterThan(emit, vec4(1e-3)))) // avoid near div0
-  {
-    emit = emit/dot(emit, vec4(1)) * 10.0*(exp2(4.0*dot(emit, vec4(1)))-1.0);
-    flags |= s_emit;
-  }
-
-  if((geo_flags & 7)== 6)
+  if(false)if((geo_flags & 7) == 6)
   { // tears waterfall hack
     emit = 2.0*base;
     flags |= s_emit;

@@ -61,15 +61,15 @@ void prepare_intersection(
   if(dot(w, n) > 0) n = -n;
   if(dot(w, ng) > 0)
   {
-    mat.w = 1; // inside the object
+    // mat.w = 1; // inside the object, required for glass but quake is inconsistent and can't have it
     ng = -ng;
   }
   vec2 st0 = unpackHalf2x16(buf_vtx[it].v[pi+0].st);
   vec2 st1 = unpackHalf2x16(buf_vtx[it].v[pi+1].st);
   vec2 st2 = unpackHalf2x16(buf_vtx[it].v[pi+2].st);
-  st0.y = 1.0-st0.y;
-  st1.y = 1.0-st1.y;
-  st2.y = 1.0-st2.y;
+  // st0.y = 1.0-st0.y;
+  // st1.y = 1.0-st1.y;
+  // st2.y = 1.0-st2.y;
   st = fract(mat3x2(st0, st1, st2) * b);
 
   uint tex_n = mat.z & 0xffff;

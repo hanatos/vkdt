@@ -17,9 +17,9 @@
 #include "camera-fwd.glsl"
 #include "camera.glsl"
 
-// #define NEE 0 // sampling only
+#define NEE 0 // sampling only
 // #define NEE 1 // nee only
-#define NEE 2 // both and MIS
+// #define NEE 2 // both and MIS
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
