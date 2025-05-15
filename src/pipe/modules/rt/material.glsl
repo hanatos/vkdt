@@ -135,12 +135,6 @@ mat_init(
     roughness = texelFetch(img_tex[nonuniformEXT(tex_r)], tc, 0).r;
   }
 
-  if(tex_b == 2)
-  {
-    base = vec4(1.0);
-    geo_flags |= 32; // XXX glass hack!
-  }
-
   if(any(greaterThan(emit, vec4(1e-3)))) // avoid near div0
   {
     emit = emit/dot(emit, vec4(1)) * 10.0*(exp2(4.0*dot(emit, vec4(1)))-1.0);
