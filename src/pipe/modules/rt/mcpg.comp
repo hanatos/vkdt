@@ -264,9 +264,9 @@ void main()
           transmittance * colour_upsample(light_cache_get(x_next.xyz, n_next).rgb, lambda);
 
         // TODO without albedo (added below to skip first albedo)
-        contrib *= bsdf;
-        // f = contrib * (bounce < MAX_PATH_LENGTH - 1 ? direct_illum : lc_incident);
-        f = contrib * direct_illum;
+        contrib *= bsdf * wodotn;
+        f = contrib * (bounce < MAX_PATH_LENGTH - 1 ? direct_illum : lc_incident);
+        // f = contrib * direct_illum;
         p *= wo_p;
         contrib *= transmittance;
 

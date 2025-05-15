@@ -111,7 +111,7 @@ main()
     aov.rgb = (1.0+w)/2.0;
     float pdf_w = -1.0;
 
-    for(int i=0;i<5;i++)
+    for(int i=0;i<3;i++)
     { // for a number of bounces
       uvec4 mat;
       uint flags = 0;
@@ -197,8 +197,8 @@ main()
       rand = vec4(rand64(seed), rand64(seed), rand64(seed), rand64(seed));
       vec4 c;
       vec3 wo = mat_sample(ms, flags, w, n, lambda, rand.xyz, c);
-      thr *= c;
       pdf_w = mat_pdf(ms, flags, w, n, wo, lambda.x);
+      thr *= c;
       w = wo;
       // if((flags & s_transmit) > 0)
         x.xyz += 0.001*wo;
