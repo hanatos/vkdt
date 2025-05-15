@@ -142,19 +142,19 @@ main()
       else 
       {
         if(cast_ray(w, x.xyz, dist, n, ng, st, mat)) flags = 0;
-        else if(dist > 1e2) flags = s_envmap;
+        else if(dist >=1e10) flags = s_envmap;
       }
 
       vec3 tmp;
-      mat_state_t ms = mat_init(mat, st, n, flags, lambda, vec3(0), tmp);
+      mat_state_t ms = mat_init(mat, st, n, flags, lambda, w, tmp);
       if((flags & s_envmap) > 0)
       { // escaped to environment map, eval MIS
-        float pdf_env = pdf_w <= 0.0 ? 0.0 : env_pdf(w, img_env);
 #if NEE==0
         float mis = 1; // only sample
 #elif NEE==1
         float mis = i>0?0:1; // NEE only
 #else
+        float pdf_env = pdf_w <= 0.0 ? 0.0 : env_pdf(w, img_env);
         float mis = pdf_w <= 0.0 ? 1.0 : pdf_w / (pdf_env + pdf_w);
 #endif
         acc += thr * mis * ms.col_emit;
@@ -166,7 +166,7 @@ main()
         if(i == 0) aov.rgb = ms.col_emit.rgb;
         break;
       }
-#if NEE!=1
+#if NEE!=0
       { // NEE to envmap
         float xe;
         vec3 wo = env_sample(vec2(rand64(seed), rand64(seed)), img_env, xe);

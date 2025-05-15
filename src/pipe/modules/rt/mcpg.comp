@@ -125,7 +125,7 @@ void main()
   vec4 x;
   vec3 w, n, ng; // ray position, direction, hit normal
   vec2 st;       // texture coordinates
-  uvec3 mat;
+  uvec4 mat;
   // contrib *= camera_sample_xw((ipos+filter_bh_sample(rand.yz))/fbdim, x, w);
   contrib *= camera_sample_xw(vec2(ipos)/fbdim, x, w);
   int act = mix(1, 0, all(lessThanEqual(contrib, vec4(0.0))));
@@ -144,10 +144,12 @@ void main()
       dist = dn.x;
       n  = geo_decode_normal(floatBitsToUint(dn.y));
       ng = geo_decode_normal(buf_mat.v[ipos.x+fbdim.x*ipos.y].ng);
-      mat = uvec3(
+      uint inside = (buf_mat.v[ipos.x+fbdim.x*ipos.y].m2 & 0x80000000) > 0 ? 1 : 0;
+      mat = uvec4(
           buf_mat.v[ipos.x+fbdim.x*ipos.y].m0,
           buf_mat.v[ipos.x+fbdim.x*ipos.y].m1,
-          buf_mat.v[ipos.x+fbdim.x*ipos.y].m2);
+          buf_mat.v[ipos.x+fbdim.x*ipos.y].m2 & 0x7fffffff,
+          inside);
       uint stui = buf_mat.v[ipos.x+fbdim.x*ipos.y].st;
       if(stui == -1u) n = vec3(0);
       st = unpackUnorm2x16(stui);
@@ -179,7 +181,6 @@ void main()
           vec4 c;
           wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
           wo_p = mat_pdf(ms, flags, w, n, wo, lambda.x);
-          if(dot(ng, wo) <= 0) act = 0;
         }
 #else
         { // scope around smis 
@@ -225,86 +226,81 @@ void main()
         { // BSDF Sampling
           vec4 c;
           wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
-          if(dot(ng, w) <= 0) act = 0;
           mc_state = mc_state_new();
         } // else {VMF Sampling // wo = set above }
-        wodotn = dot(wo, n);
-
-        // ray is below geometric surface
-        if (wodotn <= 1e-3 || dot(wo, ng) <= 1e-3)
-          act = 0;
 
         // Multiple importance sampling
+        // score_sum > 0 ? results in black artifacts
         [[unroll]] for (int i = 0; i < MC_SAMPLES; i++)
-        {
-          // score_sum > 0 ? results in black artifacts
           wo_p += (scores[i] > 0 ? scores[i] * (vmf_pdf(wo, vmfs[i].xyz, vmfs[i].w)) / score_sum : 0);
-        }
         wo_p = (score_sum > 0 ? SURF_BSDF_P : 1.0) *
           mat_pdf(ms, flags, w, n, wo, lambda.x) + (1 - SURF_BSDF_P) * wo_p;
 
         } // scope
 #endif
+        // ray is below geometric surface
+        wodotn = dot(wo, n);
+        if (wodotn <= 1e-3 || dot(wo, ng) <= 1e-3) act = 0;
 
-      // XXX divide out albedo?
-      const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
 
-      vec4 x_next = x;//  + vec4(1e-3*n, 0);
-      vec3 n_next, ng_next;
+        // XXX divide out albedo?
+        const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
 
-      dist = tmax; // trace ray
-      if(cast_ray(wo, x_next.xyz, dist, n_next, ng_next, st, mat)) flags = 0;
-      else if(dist < tmax) flags = s_volume;
-      if(dist >= 1e10)     flags = s_envmap;
+        vec4 x_next = x;// + vec4(1e-3*wo, 0);
+        vec3 n_next, ng_next;
 
-      vec3 albedo_next;
-      ms = mat_init(mat, st, n_next, flags, lambda, wo, albedo_next);
+        dist = tmax; // trace ray
+        if(cast_ray(wo, x_next.xyz, dist, n_next, ng_next, st, mat)) flags = 0;
+        if(dist >= tmax) flags = s_envmap;
 
-      vec4 transmittance = vec4(1);
-      vec4 direct_illum = ms.col_emit * transmittance; // Le * T from next vertex
-      // use full GI (diffuse bounces from light cache)?
-      const vec4 lc_incident = any(greaterThan(direct_illum, vec4(0))) ||
-        (USE_LIGHT_CACHE_TAIL == 0 && MAX_PATH_LENGTH == 2) ? direct_illum :
-        transmittance * colour_upsample(light_cache_get(x_next.xyz, n_next).rgb, lambda);
+        vec3 albedo_next;
+        ms = mat_init(mat, st, n_next, flags, lambda, wo, albedo_next);
 
-      // TODO without albedo (added below to skip first albedo)
-      contrib *= bsdf;
-      f = contrib * (bounce < MAX_PATH_LENGTH - 1 ? direct_illum : lc_incident);
-      p *= wo_p;
-      contrib *= transmittance;
+        vec4 transmittance = vec4(1);
+        vec4 direct_illum = ms.col_emit * transmittance; // Le * T from next vertex
+        // use full GI (diffuse bounces from light cache)?
+        const vec4 lc_incident = any(greaterThan(direct_illum, vec4(0))) ||
+          (USE_LIGHT_CACHE_TAIL == 0 && MAX_PATH_LENGTH == 2) ? direct_illum :
+          transmittance * colour_upsample(light_cache_get(x_next.xyz, n_next).rgb, lambda);
+
+        // TODO without albedo (added below to skip first albedo)
+        contrib *= bsdf;
+        // f = contrib * (bounce < MAX_PATH_LENGTH - 1 ? direct_illum : lc_incident);
+        f = contrib * direct_illum;
+        p *= wo_p;
+        contrib *= transmittance;
 
 #if MCPG_REFERENCE_MODE != 1
-      { // UPDATE MARKOV CHAIN and LIGHT_CACHE
-        // multiply albedo?
-        const float mc_f = hsum(lc_incident * bsdf / wo_p);
-        // const float mc_f = 1;//albedo_next.y;// / wo_p);
-        if (!isinf(mc_f) && !isnan(mc_f))
-        {
-          // TODO i don't have a diffuse version. is this albedo/pi?
-          light_cache_update(x.xyz, n,
-              albedo * colour_to_linear_srgb(
-                lc_incident / M_PI // bsdf_diffuse_eval(current_hit.albedo)
-                * wodotn / max(wo_p, 10.0), lambda, hrp));
-
-          if (XorShift32(seed) * score_sum < mc_f * MC_SAMPLES)
+        { // UPDATE MARKOV CHAIN and LIGHT_CACHE
+          // multiply albedo?
+          const float mc_f = hsum(lc_incident * bsdf / wo_p);
+          if (!isinf(mc_f) && !isnan(mc_f))
           {
-            mc_state_add_sample(mc_state, x.xyz, mc_f, x_next.xyz, vec3(0));// XXX TODO (x_next.xyz - x_next_prev_pos) / TIME_DIFF);
-            mc_static_save(mc_state, x.xyz, n);
-            mc_adaptive_save(mc_state, x.xyz, n);
+            // TODO i don't have a diffuse version. is this albedo/pi?
+            light_cache_update(x.xyz, n,
+                albedo * colour_to_linear_srgb(
+                  lc_incident / M_PI // bsdf_diffuse_eval(current_hit.albedo)
+                  * wodotn / max(wo_p, 10.0), lambda, hrp));
+
+            if (XorShift32(seed) * score_sum < mc_f * MC_SAMPLES)
+            {
+              mc_state_add_sample(mc_state, x.xyz, mc_f, x_next.xyz, vec3(0));// XXX TODO (x_next.xyz - x_next_prev_pos) / TIME_DIFF);
+              mc_static_save(mc_state, x.xyz, n);
+              mc_adaptive_save(mc_state, x.xyz, n);
+            }
+            else if (MC_FAST_RECOVERY == 1 && mc_light_missing(mc_state, mc_f, wo, x.xyz))
+            { // fix slow recovery after light source disappears
+              mc_states[mc_buffer_index].sum_w = 0.;
+            }
           }
-          else if (MC_FAST_RECOVERY == 1 && mc_light_missing(mc_state, mc_f, wo, x.xyz))
-          { // fix slow recovery after light source disappears
-            mc_states[mc_buffer_index].sum_w = 0.;
-          }
-        }
-      } // scope braces
+        } // scope braces
 #endif
 
-      x = x_next;
-      n = n_next;
-      ng = ng_next;
-      albedo = albedo_next;
-      w = wo;
+        x = x_next;
+        n = n_next;
+        ng = ng_next;
+        albedo = albedo_next;
+        w = wo;
       } // thread was active
 
       act = mix(act, 0, (flags & (s_emit|s_envmap)) > 0); // endpoint found
@@ -328,5 +324,6 @@ void main()
 
   vec3 acc_rgb;
   acc_rgb = colour_to_rgb(acc, lambda, hrp);
+  acc_rgb = clamp(acc_rgb, vec3(-1.0), vec3(65000.0));
   fb_set(ipos, fbdim, vec4(acc_rgb, merian_square(luminance_rec2020(acc_rgb))));
 }

@@ -60,8 +60,8 @@ void prepare_intersection(
 
   if(dot(w, n) > 0) n = -n;
   if(dot(w, ng) > 0)
-  {
-    // mat.w = 1; // inside the object, required for glass but quake is inconsistent and can't have it
+  { // inside the object, required for glass
+    mat.w = 1;
     ng = -ng;
   }
   vec2 st0 = unpackHalf2x16(buf_vtx[it].v[pi+0].st);

@@ -851,6 +851,7 @@ void animate(
       }
       if(q[0]) Cmd_ExecuteString(q, src_command);
       sv_player_set = 0; // just in case we loaded a map (demo, savegame)
+      dat->worldspawn = 1;
     }
   }
 

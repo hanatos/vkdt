@@ -27,7 +27,7 @@ vec3 quake_envmap(in vec3 w, uint sky_rt, uint sky_bk, uint sky_lf, uint sky_ft,
     vec4 bck = texelFetch(img_tex[nonuniformEXT(sky_rt)], ivec2(mod(st+0.1*t, vec2(1))*textureSize(img_tex[nonuniformEXT(sky_rt)], 0)), 0);
     vec4 fnt= texelFetch(img_tex[nonuniformEXT(sky_bk)], ivec2(mod(st+t, vec2(1))*textureSize(img_tex[nonuniformEXT(sky_bk)], 0)), 0);
     vec3 tex = mix(bck.rgb, fnt.rgb, fnt.a);
-    return emission_to_hdr(100*tex*tex);
+    return 100*tex*tex;
   }
   else
   { // cubemap: gfx/env/*{rt,bk,lf,ft,up,dn}
@@ -58,7 +58,7 @@ vec3 quake_envmap(in vec3 w, uint sky_rt, uint sky_bk, uint sky_lf, uint sky_ft,
           ivec2(0), textureSize(img_tex[nonuniformEXT(side)], 0)-1);
     vec3 tex = texelFetch(img_tex[nonuniformEXT(side)], tc, 0).rgb;
     emcol += tex*tex; // mul "un-gamma"d sky texture
-    return emission_to_hdr(emcol);
+    return emcol;
   }
 }
 
@@ -134,6 +134,7 @@ mat_init(
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(tex_e)], 0)-1);
     vec3 tex = texelFetch(img_tex[nonuniformEXT(tex_e)], tc, 0).rgb;
     emit = colour_upsample(emission_to_hdr(tex*tex), lambda);
+    if(any(greaterThan(emit, vec4(0)))) flags |= s_emit;
   }
   if(tex_r > 0)
   {
@@ -142,7 +143,7 @@ mat_init(
     roughness = texelFetch(img_tex[nonuniformEXT(tex_r)], tc, 0).r;
   }
 
-  if(false)if((geo_flags & 7) == 6)
+  if((geo_flags & 7) == 6)
   { // tears waterfall hack
     emit = 2.0*base;
     flags |= s_emit;
