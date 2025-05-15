@@ -32,12 +32,9 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4 fog;
   float cltime;
   int spp;
+  int wd;
+  int ht;
 } params;
-
-layout(push_constant, std140) uniform push_t
-{
-  int wd, ht;
-} pc;
 
 #include "config.h"
 
@@ -74,7 +71,7 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  ivec2 fbdim = ivec2(pc.wd, pc.ht);
+  ivec2 fbdim = ivec2(params.wd, params.ht);
   if(any(greaterThanEqual(ipos, fbdim))) return;
 
   uint64_t seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
@@ -114,12 +111,12 @@ main()
     { // for a number of bounces
       uvec3 mat;
       uint flags = 0;
-      const float tmax = volume_sample_dist(x.xyz, w, rand64(seed));
+      const float tmax = 1e10;//volume_sample_dist(x.xyz, w, rand64(seed));
       float dist = tmax;
 
       if(i == 0)
       { // init first intersection vertex: read geo intersection info
-        vec2 dn = texelFetch(img_dn, ipos, 0).rg;
+        vec2 dn = texelFetch(img_dn, ipos, 0).rg;// TODO with camera jitter as above?
         dist = dn.x;
         n  = geo_decode_normal(floatBitsToUint(dn.y));
         ng = geo_decode_normal(buf_mat.v[ipos.x+fbdim.x*ipos.y].ng);
@@ -133,12 +130,13 @@ main()
         if(dist < tmax) flags = 0;
         else          { flags = s_volume; dist = tmax; }
         if(dist >=1e10) flags = s_envmap;
+        // flags=s_envmap;
         x.xyz = x.xyz + dist * w + 0.001*ng;
       }
       else 
       {
         if(cast_ray(w, x.xyz, dist, n, ng, st, mat)) flags = 0;
-        else flags = s_envmap;
+        else if(dist > 1e2) flags = s_envmap;
       }
 
       if(flags == 0)
@@ -218,7 +216,7 @@ main()
         x.xyz += 0.001 * n; // TODO only for convex regions where the terminator hack doesn't work
         w = wo;
       }
-      else if(dist > tmax)
+      else if((flags & s_envmap) > 0)
       { // escaped to environment map
         vec3 env = env_lookup(w, img_env);
         vec4 L = colour_upsample(env, lambda);

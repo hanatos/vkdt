@@ -259,11 +259,10 @@ create_nodes(
       // "lc",  "write", "ssbo", "u8",  &roi_lc);
   dt_connector_copy(graph, module, 2, id_gbuf, 1); // tex
   int id_main = -1;
-  int pc[] = { wd, ht };
 
   if(sampler == 0)
   { // std pt
-    id_main = dt_node_add(graph, module, "rt", "main", wd, ht, 1, sizeof(pc), pc, 7,
+    id_main = dt_node_add(graph, module, "rt", "main", wd, ht, 1, 0, 0, 7,
         "output", "write", "ssbo", "f32", &roi_fb,                    // 0
         "blue",   "read",  "*",    "*",    dt_no_roi,                 // 1
         "tex",    "read",  "*",    "*",    dt_no_roi,                 // 2
@@ -283,7 +282,7 @@ create_nodes(
     dt_roi_t roi_lc = {
       .wd = LIGHT_CACHE_BUFFER_SIZE,
       .ht = sizeof(struct LightCacheVertex) };
-    id_main = dt_node_add(graph, module, "rt", "mcpg", wd, ht, 1, sizeof(pc), pc, 9,
+    id_main = dt_node_add(graph, module, "rt", "mcpg", wd, ht, 1, 0, 0, 9,
         "output", "write", "ssbo", "f32", &roi_fb,                    // 0
         "blue",   "read",  "*",    "*",    dt_no_roi,                 // 1
         "tex",    "read",  "*",    "*",    dt_no_roi,                 // 2
