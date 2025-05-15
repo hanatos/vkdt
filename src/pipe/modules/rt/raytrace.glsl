@@ -124,7 +124,7 @@ bool cast_ray(
                   buf_vtx[it].v[pi+1].tex,
                   buf_vtx[it].v[pi+2].tex);
       uint tex_b = mat.x & 0xffff;
-      if(true)// XXX switch off transparency tex_b == 0)
+      if(tex_b == 0)
       {
         rayQueryConfirmIntersectionEXT(rq);
       }

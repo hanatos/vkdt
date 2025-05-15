@@ -317,7 +317,7 @@ create_nodes(
   CONN(dt_node_connect_named(graph, id_main, "output", id_post, "dep"));
   CONN(dt_node_connect_named(graph, id_main, "output", id_post, "input"));
   dt_connector_copy(graph, module, 0, id_post, 1);
-  dt_connector_copy(graph, module, 4, id_gbuf, 0);
+  dt_connector_copy(graph, module, 4, id_gbuf, 0); // route out gbuf
 }
 
 int read_source(
