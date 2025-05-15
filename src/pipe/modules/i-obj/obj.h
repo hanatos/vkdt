@@ -77,7 +77,10 @@ geo_obj_to_zero_base_idx(const int idx, uint64_t num_indices)
 }
 
 static inline geo_tri_t*
-geo_obj_read(const char *filename, uint32_t *num_tris)
+geo_obj_read(
+    const char *filename, // filename to open
+    uint32_t   *num_tris, // number of triangles read will be returned here
+    dt_stringpool_t *sp)  // if not zero, translate object names to %s_base and %s_norm texture ids
 {
   *num_tris = 0;
   FILE *f = fopen(filename, "rb");
@@ -119,7 +122,7 @@ geo_obj_read(const char *filename, uint32_t *num_tris)
   // third pass: load faces and write out
   int lineno = 1, messaged = 0;
   fseek(f, 0, SEEK_SET);
-  int mtl = 0; // fake material id
+  int tid_base = 0, tid_emit = 0, tid_norm = 0; // texture indices
   uint32_t face = 0;
   while(fscanf(f, "%[^\n]", line) != EOF)
   {
@@ -127,8 +130,21 @@ geo_obj_read(const char *filename, uint32_t *num_tris)
     // if(!strncmp(line, "o ", 2) || !strncmp(line, "usemtl ", 7))
     if(!strncmp(line, "o ", 2))
     // if(!strncmp(line, "usemtl ", 7))
-    { // new object, increment material id
-      mtl ++;
+    { // new object, grab texture indices from string pool
+      if(sp)
+      {
+        char key[100];
+        snprintf(key, sizeof(key), "%s_base", line+2);
+        tid_base = dt_stringpool_get(sp, key, strlen(key), -1u, 0);
+        if(tid_base == -1) tid_base = 0;
+        snprintf(key, sizeof(key), "%s_emit", line+2);
+        tid_emit = dt_stringpool_get(sp, key, strlen(key), -1u, 0);
+        if(tid_emit == -1) tid_emit = 0;
+        snprintf(key, sizeof(key), "%s_norm", line+2);
+        tid_norm = dt_stringpool_get(sp, key, strlen(key), -1u, 0);
+        if(tid_norm == -1) tid_norm = 0;
+        // fprintf(stderr, "object %s with mat ids %d %d\n", line+2, tid_base, tid_emit, tid_norm);
+      }
     }
     else if(!strncmp(line, "f ", 2) || !strncmp(line, "l ", 2))
     { // face. parse vert normal texture indices
@@ -182,7 +198,7 @@ geo_obj_read(const char *filename, uint32_t *num_tris)
       {
         vtx[vi] = (geo_vtx_t){
           .x    = v[3*vert[vi]+0], .y = v[3*vert[vi]+1], .z = v[3*vert[vi]+2],
-          .tex0 = vi ? 0 : mtl,
+          .tex0 = vi == 0 ? tid_base : vi == 1 ? tid_emit : tid_norm,
           .n    = geo_encode_normal(n + 3*norm[vi]),
           .s    = float_to_half(vt[2*uvco[vi]+0]),
           .t    = float_to_half(vt[2*uvco[vi]+1]),
