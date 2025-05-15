@@ -55,9 +55,10 @@ vec3 quake_envmap(in vec3 w, uint sky_rt, uint sky_bk, uint sky_lf, uint sky_ft,
   }
 }
 
+#include "sdielectric.glsl"
 mat_state_t
 mat_init(
-    uvec3 mat,         // texture ids base, emit, normals, roughness and flags + alpha
+    uvec4 mat,         // texture ids base, emit, normals, roughness and flags + alpha, inside flag
     vec2 st,           // texture coordinates
     vec3 n,            // normal
     inout uint flags,  // scatter mode (reflect, transmit, emit, ..)
@@ -93,6 +94,7 @@ mat_init(
   uint tex_b = mat.x & 0xffff;
   uint tex_e = mat.y & 0xffff;
   uint geo_flags = mat.x >> 16;
+  if(mat.w > 0) geo_flags |= 16; // mark as inside (flipped normal)
   float alpha = unpackUnorm2x16(mat.y).y;
 
   if(geo_flags > 0 && geo_flags < 6)
@@ -133,6 +135,12 @@ mat_init(
     roughness = texelFetch(img_tex[nonuniformEXT(tex_r)], tc, 0).r;
   }
 
+  if(tex_b == 2)
+  {
+    base = vec4(1.0);
+    geo_flags |= 32; // XXX glass hack!
+  }
+
   if(any(greaterThan(emit, vec4(1e-3)))) // avoid near div0
   {
     emit = emit/dot(emit, vec4(1)) * 10.0*(exp2(4.0*dot(emit, vec4(1)))-1.0);
@@ -158,6 +166,7 @@ mat_eval(
     vec4  lambda) // hero wavelengths
 {
   if((flags & s_volume) > 0) return vec4(volume_phase_function(dot(w, wo)));
+  if((mat.geo_flags & 32) > 0) return dielectric_eval(mat, flags, w, n, wo, lambda);
   vec3 h = normalize(wo-w);
   return mat.col_base * bsdf_rough_eval(w, mat.du, mat.dv, n, wo, vec2(mat.roughness)) * fresnel(0, lambda, 1.0, dot(wo, h));
 }
@@ -182,6 +191,7 @@ mat_sample(
     const float phi = 2.0*M_PI*xi.z;
     return cosu * w + sqrt(1.0-cosu*cosu) * (sin(phi) * du + cos(phi) * dv);
   }
+  if((mat.geo_flags & 32) > 0) return dielectric_sample(mat, flags, w, n, lambda, xi, c);
   float X = 1.0;
   vec3 wo = bsdf_rough_sample(w, mat.du, mat.dv, n, vec2(mat.roughness), xi.xy, X);
   vec3 h = normalize(wo-w);
@@ -201,5 +211,6 @@ mat_pdf(
     float lambda) // the hero wavelength
 {
   if((flags & s_volume) > 0) return volume_phase_function(dot(w, wo));
+  if((mat.geo_flags & 32) > 0) return dielectric_pdf(mat, flags, w, n, wo, lambda);
   return bsdf_rough_pdf(w, mat.du, mat.dv, n, wo, vec2(mat.roughness));
 }

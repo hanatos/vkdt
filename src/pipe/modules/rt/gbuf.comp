@@ -89,7 +89,7 @@ main()
   vec2 dn = vec2(-1.0, 0.0);
   uvec4 mat = uvec4(0);
   float dist = 1e10;
-  if(cast_ray(w, x.xyz, dist, n, ng, st, mat.xyz))
+  if(cast_ray(w, x.xyz, dist, n, ng, st, mat))
   {
     // actually we don't care.
   }
@@ -99,7 +99,7 @@ main()
   buf_mat.v[ipos.x + ipos.y*fbdim.x] = gbuf_t(
       mat.x,
       mat.y,
-      mat.z,
+      mat.z | (mat.w > 0 ? (1<<31) : 0),
       all(equal(n, vec3(0)))? -1u : packUnorm2x16(st),
       geo_encode_normal(ng));
 
