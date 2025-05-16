@@ -29,9 +29,9 @@ frame via taa with box clamping.
 
 ## connectors
 
-* `mv` the motion vectors to align the previous frame with the current
+* `mv` the motion vectors to align the previous frame with the current: gbufp[x + mv]
 * `input` the noisy input, assumed to be irradiance
 * `albedo` the input albedo, to be multiplied to the irradiance for final beauty
 * `output` the final beauty output
-* `gbufp` the previous gbuffer (normal, depth, 1st moment, 2nd moment)
-* `gbufc` the current gbuffer (normal, depth, 1st moment, 2nd moment)
+* `gbufp` the previous gbuffer (depth, normal)
+* `gbufc` the current gbuffer (depth, normal)

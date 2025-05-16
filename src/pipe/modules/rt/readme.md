@@ -12,9 +12,10 @@ the `rt` module uses hero wavelength spectral sampling for accurate colour repro
 ## connectors
 
 * `output` the rendered beauty image
-* `blue` blue noise texture as input lut, as those provided by [christoph](http://momentsingraphics.de/BlueNoise.html)
 * `tex` an array connector for input textures, connect to an i-jpglst or i-lut module
-* `aov` an output buffer containing some *arbitary output variables* such as fake diffuse albedo or normals
+* `blue` blue noise texture as input lut, as those provided by [christoph](http://momentsingraphics.de/BlueNoise.html)
+* `irr` irradiance buffer, that is: beauty output divided by albedo
+* `albedo` fake diffuse albedo for use with svgf, demodulated from the irradiance buffer
 * `gbuf` packed normal and depth of the first intersection
 
 the `tex` connector expects an array of input textures, as the

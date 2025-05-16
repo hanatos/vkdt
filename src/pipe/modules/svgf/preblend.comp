@@ -12,6 +12,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float alpha;
   float taa;
   float lalpha;
+  int   iter;
 } params;
 
 layout(set = 1, binding = 0) uniform sampler2D img_mv;    // motion vectors
@@ -19,7 +20,6 @@ layout(set = 1, binding = 1) uniform sampler2D img_irrp;  // previous irradiance
 layout(set = 1, binding = 2) readonly buffer irrc_t { float v[]; } irrc; // current  irradiance (noisy)
 layout(set = 1, binding = 3) uniform sampler2D img_gbufp; // old gbuffer
 layout(set = 1, binding = 4) uniform sampler2D img_gbufc; // current gbuffer
-
 layout(set = 1, binding = 5) uniform writeonly image2D img_out; // output a bit less noisy light
 
 void
@@ -28,11 +28,11 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec2 mv = texelFetch(img_mv, ipos, 0).rg;
   ivec2 sz = imageSize(img_out);
-  uint idx = 4*(sz.x * ipos.y + ipos.x);
+  ivec2 mv = ivec2(texture(img_mv, (ipos+0.5)/vec2(sz)).rg);
+  const uint idx = 4*(sz.x * ipos.y + ipos.x);
   vec3 L = vec3(irrc.v[idx], irrc.v[idx+1], irrc.v[idx+2]);
-  vec3 Lo = texture(img_irrp, ipos+mv).rgb;
+  vec3 Lo = texture(img_irrp, vec2(ipos+mv+0.5)/vec2(sz)).rgb;
 
   vec4 gbufc = texelFetch(img_gbufc, ipos, 0);
   vec4 gbufp = texelFetch(img_gbufp, ivec2(ipos+mv), 0);
@@ -40,17 +40,16 @@ main()
   float alpha = params.lalpha; // blend weight, larger means use more of the history.
   // predict temporal variance from biased moments.
   // could use a bias correction scheme as adam does if we knew the number of iterations.
-  // XXX TODO variance comes to us a second moment stored in the fourth channel of the light buffer
-  float sigma = 1;//sqrt(max(0, gbufc.w - gbufc.z*gbufc.z));
+  float sigma = 1;//luminance_rec2020(L) - irrc.v[idx+3];//sqrt(max(0, gbufc.w - gbufc.z*gbufc.z));
   // float sigmap = sqrt(max(0, gbufp.w - gbufp.z*gbufp.z));
 
   // discontinuity detection
-  alpha *= smoothstep(sigma, 0.0, abs(gbufc.z - length(L)));
+  // alpha *= smoothstep(sigma, 0.0, abs(gbufc.z - length(L)));
 
   // gbuffer weight:
   vec3 nc = geo_decode_normal(floatBitsToUint(gbufc.y));
   vec3 np = geo_decode_normal(floatBitsToUint(gbufp.y));
-  alpha *= smoothstep(0.8, 1.0, dot(nc, np));
+  // alpha *= smoothstep(0.8, 1.0, dot(nc, np));
   alpha *= smoothstep(0.02*max(gbufc.x, gbufp.x), 0.0, abs(gbufc.x - gbufp.x));
 
   L = mix(L, Lo, alpha);
@@ -58,4 +57,3 @@ main()
 
   imageStore(img_out, ipos, vec4(L, 1));
 }
-

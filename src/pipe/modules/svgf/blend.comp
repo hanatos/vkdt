@@ -36,9 +36,9 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   ivec2 sz = textureSize(img_light, 0).xy;
-  vec2 mv = texelFetch(img_mv, ipos, 0).rg;
+  ivec2 mv = ivec2(texture(img_mv, (ipos+0.5)/vec2(sz)).rg);
   vec3 L  = texelFetch(img_light, eaw3_tc(ipos, sz), 0).rgb;
-  vec3 prevb = texelFetch(img_prevb, ivec2(ipos+mv), 0).rgb;
+  vec3 prevb = texture(img_prevb, vec2(ipos+mv+0.5)/vec2(sz)).rgb;
 
   mat3 M = mat3( // linear rec709 to linear rec2020
       0.62750375, 0.06910828, 0.01639406,
