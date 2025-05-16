@@ -83,7 +83,7 @@ dt_node_editor_context_menu(
   struct nk_rect size = nk_layout_space_bounds(ctx);
   int ret = 0;
   // TODO: scale size of popup
-  if(nk_contextual_begin(ctx, 0, nk_vec2(vkdt.state.panel_wd, 220), nk_window_get_bounds(ctx)))
+  if(nk_contextual_begin(ctx, 0, nk_vec2(vkdt.state.panel_wd, nedit->dpi_scale*220), nk_window_get_bounds(ctx)))
   { // right click over node/selection to open context menu
     int sel_node_cnt = dt_node_editor_selection(nedit, &vkdt.graph_dev, 0);
     int *sel_node_id  = (int *)alloca(sizeof(int)*sel_node_cnt);
@@ -216,8 +216,8 @@ dt_node_editor_context_menu(
     if(!sel_node_cnt)
     {
       struct nk_vec2 pos = dt_node_view_to_world(nedit, nk_vec2(in->mouse.pos.x - size.x, in->mouse.pos.y - size.y));
-      nedit->add_pos_x = pos.x / nedit->dpi_scale;
-      nedit->add_pos_y = pos.y / nedit->dpi_scale;
+      nedit->add_pos_x = pos.x;
+      nedit->add_pos_y = pos.y;
       nk_layout_row_dynamic(ctx, row_height, 1);
       if (nk_contextual_item_label(ctx, "add module..", NK_TEXT_LEFT))
       {
@@ -246,11 +246,11 @@ dt_node_editor(
     memset(nedit, 0, sizeof(*nedit));
     nedit->zoom = 1.0f;
     nedit->inited = 1;
-    float scalex, scaley;
-    dt_gui_content_scale(vkdt.win.window, &scalex, &scaley);
-    const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-    nedit->dpi_scale = CLAMP(scalex * dpi_scale, 0.01f, 10.0f);
   }
+  float scalex, scaley;
+  dt_gui_content_scale(vkdt.win.window, &scalex, &scaley);
+  const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
+  nedit->dpi_scale = CLAMP(scaley * dpi_scale, 0.01f, 100.0f);
 
   canvas = nk_window_get_canvas(ctx);
   total_space = nk_window_get_content_region(ctx);
@@ -283,14 +283,15 @@ dt_node_editor(
   static struct nk_user_font font;
   font = *nk_glfw3_font(0);
   font.height *= nedit->zoom; // font size is screen space. now it considers dpi scale (internally) and zoom
+  // style variables in nk are already adjusted for dpi scale/unzoomed font size:
 #define STYLE_LARGE do {\
   nk_style_push_font(ctx, &font);\
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.tab.padding, nk_vec2(vkdt.ctx.style.tab.padding.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.tab.padding.y*nedit->zoom*nedit->dpi_scale));\
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.tab.spacing, nk_vec2(vkdt.ctx.style.tab.spacing.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.tab.spacing.y*nedit->zoom*nedit->dpi_scale));\
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.padding, nk_vec2(vkdt.ctx.style.window.header.padding.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.window.header.padding.y*nedit->zoom*nedit->dpi_scale));\
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.spacing, nk_vec2(vkdt.ctx.style.window.header.spacing.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.window.header.spacing.y*nedit->zoom*nedit->dpi_scale));\
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.padding, nk_vec2(vkdt.ctx.style.window.padding.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.window.padding.y*nedit->zoom*nedit->dpi_scale));\
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.spacing, nk_vec2(vkdt.ctx.style.window.spacing.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.window.spacing.y*nedit->zoom*nedit->dpi_scale));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.tab.padding, nk_vec2(vkdt.ctx.style.tab.padding.x*nedit->zoom, vkdt.ctx.style.tab.padding.y*nedit->zoom));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.tab.spacing, nk_vec2(vkdt.ctx.style.tab.spacing.x*nedit->zoom, vkdt.ctx.style.tab.spacing.y*nedit->zoom));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.padding, nk_vec2(vkdt.ctx.style.window.header.padding.x*nedit->zoom, vkdt.ctx.style.window.header.padding.y*nedit->zoom));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.spacing, nk_vec2(vkdt.ctx.style.window.header.spacing.x*nedit->zoom, vkdt.ctx.style.window.header.spacing.y*nedit->zoom));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.padding, nk_vec2(vkdt.ctx.style.window.padding.x*nedit->zoom, vkdt.ctx.style.window.padding.y*nedit->zoom));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.spacing, nk_vec2(vkdt.ctx.style.window.spacing.x*nedit->zoom, vkdt.ctx.style.window.spacing.y*nedit->zoom));\
   } while(0)
 #define STYLE_POP do {\
   nk_style_pop_vec2(ctx);\
@@ -302,6 +303,7 @@ dt_node_editor(
   nk_style_pop_font(ctx);\
   } while(0)
 
+  const float mod_wd = 7*nk_glfw3_font(0)->height/(nedit->dpi_scale); // world space
   STYLE_LARGE;
 
   // row height is view space, i.e. already scaled for display
@@ -317,7 +319,6 @@ dt_node_editor(
   static int move_nodes = 0;     // move selected nodes with the mouse
   int mouse_over_something = 0;
   const int disabled = context_menu_clicked | dt_gui_input_blocked(); // io is going to popup window or something
-  const float mod_wd = 7*nk_glfw3_font(0)->height/nedit->dpi_scale; // world space, i.e. without zoom or scale
 
   for(int mid2=0;mid2<=(int)graph->num_modules;mid2++)
   { // draw all modules, connected or not
