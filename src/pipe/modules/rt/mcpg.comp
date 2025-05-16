@@ -231,7 +231,9 @@ void main()
         if (score_sum == 0 || XorShift32(seed) < SURF_BSDF_P)
         { // BSDF Sampling
           vec4 c;
-          wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
+          wo = mat3(ms.du, ms.dv, n) * sample_cos(XorShift32Vec2(seed));
+            // XXX
+          // wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
           mc_state = mc_state_new();
         } // else {VMF Sampling // wo = set above }
 
@@ -240,7 +242,9 @@ void main()
         [[unroll]] for (int i = 0; i < MC_SAMPLES; i++)
           wo_p += (score_sum > 0 && scores[i] > 0 ? scores[i] * (vmf_pdf(wo, vmfs[i].xyz, vmfs[i].w)) / score_sum : 0);
         wo_p = (score_sum > 0 ? SURF_BSDF_P : 1.0) *
-          mat_pdf(ms, flags, w, n, wo, lambda.x) + (1 - SURF_BSDF_P) * wo_p;
+          // XXX mat_pdf(ms, flags, w, n, wo, lambda.x)
+          dot(n, wo)/M_PI
+          + (1 - SURF_BSDF_P) * wo_p;
 
         } // scope
 #endif
@@ -251,7 +255,7 @@ void main()
       if(act > 0)
       {
         // XXX divide out albedo?
-        const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
+        const vec4 bsdf = colour_upsample(albedo, lambda)/M_PI;// XXX mat_eval(ms, flags, w, n, wo, lambda);
 
         vec4 x_next = x;// + vec4(1e-3*wo, 0);
         vec3 n_next, ng_next;
