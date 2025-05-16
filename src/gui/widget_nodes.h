@@ -463,16 +463,8 @@ dt_node_editor(
               }
             }
           }
-          if(module->connector[c].flags & s_conn_feedback)
-            nk_stroke_curve(canvas, l0.x, l0.y, l0.x - (l0.x - p.x)*0.5f, l0.y,
-                p.x + (l0.x - p.x)*0.5f, p.y, p.x, p.y, link_thickness, col);
-            // nk_stroke_curve(canvas, l0.x, l0.y,
-            //     l0.x+5*pin_radius*nedit->zoom, l0.y+10*pin_radius*nedit->zoom,
-            //     p.x -5*pin_radius*nedit->zoom, p.y +10*pin_radius*nedit->zoom,
-            //     p.x, p.y, link_thickness, col);
-          else
-            nk_stroke_curve(canvas, l0.x, l0.y, (l0.x + p.x)*0.5f, l0.y,
-                (l0.x + p.x)*0.5f, p.y, p.x, p.y, link_thickness, col);
+          nk_stroke_curve(canvas, l0.x, l0.y, l0.x - (l0.x - p.x)*0.5f, l0.y,
+              p.x + (l0.x - p.x)*0.5f, p.y, p.x, p.y, link_thickness, col);
         }
       }
     }
