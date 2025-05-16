@@ -268,7 +268,6 @@ dt_node_editor(
   { // render a grid
     float x, y;
     const float grid_size_ws = 32.0f;
-    const struct nk_vec2 size_ws = dt_node_view_to_world(nedit, nk_vec2(size.x,size.y));
     struct nk_vec2 off_ws = dt_node_view_to_world(nedit, nk_vec2(0,0));
     off_ws = nk_vec2(
         (int)(off_ws.x / grid_size_ws)*grid_size_ws,
@@ -287,12 +286,14 @@ dt_node_editor(
 #define STYLE_LARGE do {\
   nk_style_push_font(ctx, &font);\
   nk_style_push_vec2(ctx, &vkdt.ctx.style.tab.padding, nk_vec2(vkdt.ctx.style.tab.padding.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.tab.padding.y*nedit->zoom*nedit->dpi_scale));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.tab.spacing, nk_vec2(vkdt.ctx.style.tab.spacing.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.tab.spacing.y*nedit->zoom*nedit->dpi_scale));\
   nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.padding, nk_vec2(vkdt.ctx.style.window.header.padding.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.window.header.padding.y*nedit->zoom*nedit->dpi_scale));\
   nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.spacing, nk_vec2(vkdt.ctx.style.window.header.spacing.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.window.header.spacing.y*nedit->zoom*nedit->dpi_scale));\
   nk_style_push_vec2(ctx, &vkdt.ctx.style.window.padding, nk_vec2(vkdt.ctx.style.window.padding.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.window.padding.y*nedit->zoom*nedit->dpi_scale));\
   nk_style_push_vec2(ctx, &vkdt.ctx.style.window.spacing, nk_vec2(vkdt.ctx.style.window.spacing.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.window.spacing.y*nedit->zoom*nedit->dpi_scale));\
   } while(0)
 #define STYLE_POP do {\
+  nk_style_pop_vec2(ctx);\
   nk_style_pop_vec2(ctx);\
   nk_style_pop_vec2(ctx);\
   nk_style_pop_vec2(ctx);\
