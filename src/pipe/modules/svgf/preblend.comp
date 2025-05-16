@@ -3,7 +3,6 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
-#include "config.h"
 #include "shared/render3d.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;

@@ -1,9 +1,9 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_control_flow_attributes : enable
 
 #include "shared.glsl"
-#include "config.h"
 #include "shared/render3d.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
@@ -13,6 +13,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float alpha;
   float taa;
   float lalpha;
+  int   iter;
 } params;
 
 layout(set = 1, binding = 0) uniform sampler2D img_mv;     // motion vectors
@@ -23,20 +24,9 @@ layout(set = 1, binding = 4) uniform writeonly image2D img_out; // new beauty fr
 
 ivec2 eaw3_tc(ivec2 tc, ivec2 sz)
 {
-#if SVGF_OFF==1
+  [[unroll]] for(int i=0;i<params.iter;i++)
+    tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
   return tc;
-#else
-  tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
-  tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
-  tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
-#if SVGF_IT > 3
-  tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
-#if SVGF_IT > 4
-  tc = mix(tc / 2, sz-1-tc/2, equal(tc & 1, ivec2(0)));
-#endif
-#endif
-  return tc;
-#endif
 }
 
 void

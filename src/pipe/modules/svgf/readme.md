@@ -19,14 +19,15 @@ the denoised output is then undergoing albedo modulation (denoised irradiance
 and albedo buffers are multiplied) and combined with the same from the last
 frame via taa with box clamping.
 
-# parameters
+## parameters
 
 * `alpha` the taa blend weight for the previous frame. more means more blur
 * `taa` the taa rejection threshold for the previous frame, in units of standard deviation
 * `prealpha` controls the exponentially weighted average of the pre-blend pass on the noisy
   input samples
+* `iter` number of a-trous wavelet iterations. zero switches off wavelet smoothing
 
-# connectors
+## connectors
 
 * `mv` the motion vectors to align the previous frame with the current
 * `input` the noisy input, assumed to be irradiance

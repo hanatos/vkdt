@@ -1,5 +1,21 @@
 #include "modules/api.h"
-#include "config.h"
+
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    uint32_t     num,
+    void        *oldval)
+{
+  const int pid_iter = dt_module_get_param(module->so, dt_token("iter"));
+  if(parid == pid_iter)
+  { // number of iterations changes pipeline
+    int oldv = *(int*)oldval;
+    int newv = dt_module_param_int(module, parid)[0];
+    if(oldv != newv) return s_graph_run_all;
+  }
+  return s_graph_run_record_cmd_buf;
+}
 
 void modify_roi_out(
     dt_graph_t *graph,
@@ -27,10 +43,6 @@ void modify_roi_in(
 }
 
 // XXX go through this and do stuff in 32 or in 16 bits please!
-//
-// TODO: input: straight ssbo from renderer
-// TODO: input: approximate albedo/base texture
-// TODO: preblend: do albedo *demodulation* (keep path tracer out of the hacky business)
 void
 create_nodes(
     dt_graph_t  *graph,
@@ -55,8 +67,10 @@ create_nodes(
       "albedo", "read",  "rgba", "*",   dt_no_roi,
       "output", "write", "rgba", "f32", &module->connector[0].roi);
 
-  int id_eaw[SVGF_IT];
-  for(int i=0;i<SVGF_IT;i++)
+  const int pid_iter = dt_module_get_param(module->so, dt_token("iter"));
+  const int num_it = CLAMP(dt_module_param_int(module, pid_iter)[0], 0, 5);
+  int id_eaw[5]; // we only have 5 max iterations in the ui
+  for(int i=0;i<num_it;i++)
   {
     int pc[] = {1<<i};
     id_eaw[i] = dt_node_add(graph, module, "svgf", "eaw",
@@ -73,19 +87,23 @@ create_nodes(
   dt_connector_copy(graph, module, 5, id_preblend, 4);  // current gbuffer
 
   CONN(dt_node_feedback(graph, id_preblend, 5, id_preblend, 1)); // previous noisy light
-  CONN(dt_node_connect (graph, id_preblend, 5, id_eaw[0],   0)); // less noisy light
-  // dt_connector_copy(graph, module, 1, id_eaw[0], 0);  // noisy light
-  dt_connector_copy(graph, module, 5, id_eaw[0], 1);  // gbuffer for normal, depth, L moments
-  for(int i=1;i<SVGF_IT;i++)
+  if(num_it > 0)
   {
-    CONN(dt_node_connect (graph, id_eaw[i-1], 2, id_eaw[i], 0));
-    CONN(dt_node_connect (graph, id_eaw[i-1], 3, id_eaw[i], 1));
+    CONN(dt_node_connect (graph, id_preblend, 5, id_eaw[0],   0)); // less noisy light
+    // dt_connector_copy(graph, module, 1, id_eaw[0], 0);  // noisy light
+    dt_connector_copy(graph, module, 5, id_eaw[0], 1);  // gbuffer for normal, depth, L moments
+    for(int i=1;i<num_it;i++)
+    {
+      CONN(dt_node_connect (graph, id_eaw[i-1], 2, id_eaw[i], 0));
+      CONN(dt_node_connect (graph, id_eaw[i-1], 3, id_eaw[i], 1));
+    }
+    CONN(dt_node_connect (graph, id_eaw[num_it-1], 2, id_blend, 2)); // denoised light
   }
-  CONN(dt_node_connect (graph, id_eaw[SVGF_IT-1], 2, id_blend, 2)); // denoised light
+  else
+  {
+    CONN(dt_node_connect(graph, id_preblend, 5, id_blend, 2));
+  }
   CONN(dt_node_feedback(graph, id_blend, 4, id_blend, 1)); // beauty frame, old
-#if SVGF_OFF==1
-  dt_connector_copy(graph, module, 1, id_blend, 2); // XXX DEBUG light w/o denoising
-#endif
 
   dt_connector_copy(graph, module, 0, id_blend, 0);  // mv
   dt_connector_copy(graph, module, 2, id_blend, 3);  // albedo
