@@ -60,8 +60,8 @@ dt_node_world_to_view(
     struct nk_vec2 world)
 {
   return nk_vec2(
-      (world.x - nedit->scroll.x)*nedit->zoom,
-      (world.y - nedit->scroll.y)*nedit->zoom);
+      (world.x - nedit->scroll.x)*nedit->zoom*nedit->dpi_scale,
+      (world.y - nedit->scroll.y)*nedit->zoom*nedit->dpi_scale);
 }
 
 static inline struct nk_vec2
@@ -70,8 +70,8 @@ dt_node_view_to_world(
     struct nk_vec2 view)
 {
   return nk_vec2(
-      view.x/nedit->zoom + nedit->scroll.x,
-      view.y/nedit->zoom + nedit->scroll.y);
+      view.x/(nedit->zoom*nedit->dpi_scale) + nedit->scroll.x,
+      view.y/(nedit->zoom*nedit->dpi_scale) + nedit->scroll.y);
 }
 
 static inline int
@@ -269,27 +269,28 @@ dt_node_editor(
     float x, y;
     const float grid_size_ws = 32.0f;
     const struct nk_vec2 size_ws = dt_node_view_to_world(nedit, nk_vec2(size.x,size.y));
-    struct nk_vec2 off_ws = nk_vec2(-fmod(size_ws.x, grid_size_ws), -fmod(size_ws.y, grid_size_ws));
-    if(off_ws.x < 0) off_ws.x += grid_size_ws;
-    if(off_ws.y < 0) off_ws.y += grid_size_ws;
-    const struct nk_vec2 off_vs = nk_vec2(off_ws.x * nedit->zoom, off_ws.y * nedit->zoom);
+    struct nk_vec2 off_ws = dt_node_view_to_world(nedit, nk_vec2(0,0));
+    off_ws = nk_vec2(
+        (int)(off_ws.x / grid_size_ws)*grid_size_ws,
+        (int)(off_ws.y / grid_size_ws)*grid_size_ws);
+    const struct nk_vec2 off_vs = dt_node_world_to_view(nedit, off_ws);
     const struct nk_color grid_color = nk_rgb(30, 30, 30);
-    for (x = off_vs.x; x < size.w; x += nedit->zoom * grid_size_ws)
+    for (x = off_vs.x; x < size.w; x += nedit->zoom*nedit->dpi_scale * grid_size_ws)
       nk_stroke_line(canvas, x+size.x, size.y, x+size.x, size.y+size.h, 1.0f, grid_color);
-    for (y = off_vs.y; y < size.h; y += nedit->zoom * grid_size_ws)
+    for (y = off_vs.y; y < size.h; y += nedit->zoom*nedit->dpi_scale * grid_size_ws)
       nk_stroke_line(canvas, size.x, y+size.y, size.x+size.w, y+size.y, 1.0f, grid_color);
   }
   // set font size to something scaled by zoom:
   static struct nk_user_font font;
   font = *nk_glfw3_font(0);
-  font.height *= nedit->zoom;
+  font.height *= nedit->zoom; // font size is screen space. now it considers dpi scale (internally) and zoom
 #define STYLE_LARGE do {\
   nk_style_push_font(ctx, &font);\
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.tab.padding, nk_vec2(vkdt.ctx.style.tab.padding.x*nedit->zoom, vkdt.ctx.style.tab.padding.y*nedit->zoom));\
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.padding, nk_vec2(vkdt.ctx.style.window.header.padding.x*nedit->zoom, vkdt.ctx.style.window.header.padding.y*nedit->zoom));\
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.spacing, nk_vec2(vkdt.ctx.style.window.header.spacing.x*nedit->zoom, vkdt.ctx.style.window.header.spacing.y*nedit->zoom));\
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.padding, nk_vec2(vkdt.ctx.style.window.padding.x*nedit->zoom, vkdt.ctx.style.window.padding.y*nedit->zoom));\
-  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.spacing, nk_vec2(vkdt.ctx.style.window.spacing.x*nedit->zoom, vkdt.ctx.style.window.spacing.y*nedit->zoom));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.tab.padding, nk_vec2(vkdt.ctx.style.tab.padding.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.tab.padding.y*nedit->zoom*nedit->dpi_scale));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.padding, nk_vec2(vkdt.ctx.style.window.header.padding.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.window.header.padding.y*nedit->zoom*nedit->dpi_scale));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.header.spacing, nk_vec2(vkdt.ctx.style.window.header.spacing.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.window.header.spacing.y*nedit->zoom*nedit->dpi_scale));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.padding, nk_vec2(vkdt.ctx.style.window.padding.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.window.padding.y*nedit->zoom*nedit->dpi_scale));\
+  nk_style_push_vec2(ctx, &vkdt.ctx.style.window.spacing, nk_vec2(vkdt.ctx.style.window.spacing.x*nedit->zoom*nedit->dpi_scale, vkdt.ctx.style.window.spacing.y*nedit->zoom*nedit->dpi_scale));\
   } while(0)
 #define STYLE_POP do {\
   nk_style_pop_vec2(ctx);\
@@ -315,6 +316,7 @@ dt_node_editor(
   static int move_nodes = 0;     // move selected nodes with the mouse
   int mouse_over_something = 0;
   const int disabled = context_menu_clicked | dt_gui_input_blocked(); // io is going to popup window or something
+  const float mod_wd = 7*nk_glfw3_font(0)->height/nedit->dpi_scale; // world space, i.e. without zoom or scale
 
   for(int mid2=0;mid2<=(int)graph->num_modules;mid2++)
   { // draw all modules, connected or not
@@ -324,10 +326,9 @@ dt_node_editor(
     if(mid2 < graph->num_modules && module == nedit->selected) continue; // skip 1st time we iterate over this module
     const int mid = module - graph->module; // fix index
 
-    const float mod_wd = 7*nk_glfw3_font(0)->height;
-    struct nk_rect module_bounds = nk_rect(nedit->dpi_scale*module->gui_x, nedit->dpi_scale*module->gui_y, mod_wd, 0);
-    struct nk_vec2 lbb_min = dt_node_world_to_view(nedit, nk_vec2(nedit->dpi_scale*module->gui_x, nedit->dpi_scale*module->gui_y));
-    struct nk_vec2 lbb_max = dt_node_world_to_view(nedit, nk_vec2(nedit->dpi_scale*module->gui_x + module_bounds.w, nedit->dpi_scale*module->gui_y));
+    struct nk_rect module_bounds = nk_rect(module->gui_x, module->gui_y, mod_wd, 0);
+    struct nk_vec2 lbb_min = dt_node_world_to_view(nedit, nk_vec2(module->gui_x, module->gui_y));
+    struct nk_vec2 lbb_max = dt_node_world_to_view(nedit, nk_vec2(module->gui_x + module_bounds.w, module->gui_y));
     struct nk_rect lbb = nk_rect(lbb_min.x, lbb_min.y, lbb_max.x-lbb_min.x, row_height * (module->num_connectors + 3));
     nk_layout_space_push(ctx, lbb);
     if(nk_input_is_mouse_hovering_rect(in, lbb)) mouse_over_something = 1;
@@ -426,8 +427,7 @@ dt_node_editor(
         if(mido >= 0)
         { // draw link to output if we are connected
           dt_module_t *mo = graph->module + mido;
-          const float mod_wd = 7*nk_glfw3_font(0)->height;
-          struct nk_rect mo_bounds = nk_rect(nedit->dpi_scale*mo->gui_x, nedit->dpi_scale*mo->gui_y, mod_wd, row_height * (mo->num_connectors + 3));
+          struct nk_rect mo_bounds = nk_rect(mo->gui_x, mo->gui_y, mod_wd, row_height * (mo->num_connectors + 3));
           struct nk_vec2 l0 = nk_layout_space_to_screen(ctx,
               dt_node_world_to_view(nedit,
                 nk_vec2(
@@ -530,8 +530,8 @@ dt_node_editor(
           nk_input_is_mouse_down(in, NK_BUTTON_LEFT) &&
           (mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid])
       {
-        module->gui_x += in->mouse.delta.x/nedit->zoom/nedit->dpi_scale;
-        module->gui_y += in->mouse.delta.y/nedit->zoom/nedit->dpi_scale;
+        module->gui_x += in->mouse.delta.x/(nedit->zoom*nedit->dpi_scale);
+        module->gui_y += in->mouse.delta.y/(nedit->zoom*nedit->dpi_scale);
       }
     }
     nk_style_pop_style_item(ctx);
@@ -573,8 +573,8 @@ dt_node_editor(
   struct nk_vec2 pos = dt_node_view_to_world(nedit, nk_vec2(
         size.x + size.w/2,
         size.y + size.h/2));
-  nedit->add_pos_x = pos.x/nedit->dpi_scale;
-  nedit->add_pos_y = pos.y/nedit->dpi_scale;
+  nedit->add_pos_x = pos.x/(nedit->zoom*nedit->dpi_scale);
+  nedit->add_pos_y = pos.y/(nedit->zoom*nedit->dpi_scale);
 
   STYLE_POP;
   row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
@@ -585,7 +585,7 @@ dt_node_editor(
       nk_input_is_mouse_hovering_rect(in, nk_window_get_bounds(ctx)) &&
       nk_input_is_mouse_down(in, NK_BUTTON_MIDDLE))
   { // panning by middle mouse drag
-    nedit->scroll.x -= in->mouse.delta.x/nedit->zoom;
-    nedit->scroll.y -= in->mouse.delta.y/nedit->zoom;
+    nedit->scroll.x -= in->mouse.delta.x/(nedit->zoom*nedit->dpi_scale);
+    nedit->scroll.y -= in->mouse.delta.y/(nedit->zoom*nedit->dpi_scale);
   }
 }
