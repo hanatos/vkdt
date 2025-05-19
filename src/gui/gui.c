@@ -561,6 +561,7 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
     // maxContentLightLevel is the value in nits of the desired luminance for the brightest pixels in the displayed image.
     // maxFrameAverageLightLevel is the value in nits of the average luminance of the frame which has the brightest average luminance anywhere in the content.
     // TODO configure these in the file (for the master screen and as some content setting)
+    // TODO this function call has no sync requirements so we can just call it out of band whenever we please
     .maxLuminance              = 1000.0f,
     .minLuminance              = 0.0f,
     .maxContentLightLevel      = 1000.0f,

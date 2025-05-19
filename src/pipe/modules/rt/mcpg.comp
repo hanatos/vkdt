@@ -238,13 +238,16 @@ void main()
         } // else {VMF Sampling // wo = set above }
 
         // Multiple importance sampling
+        wo_p = 0.0;
         // score_sum > 0 ? results in black artifacts
         [[unroll]] for (int i = 0; i < MC_SAMPLES; i++)
-          wo_p += (score_sum > 0 && scores[i] > 0 ? scores[i] * (vmf_pdf(wo, vmfs[i].xyz, vmfs[i].w)) / score_sum : 0);
-        wo_p = (score_sum > 0 ? SURF_BSDF_P : 1.0) *
+          wo_p += (score_sum > 0 && scores[i] > 0) ? scores[i] * (vmf_pdf(wo, vmfs[i].xyz, vmfs[i].w)) / score_sum : 0;
+        const float bw = score_sum > 0 ? SURF_BSDF_P : 1.0;
+        // wo_p = mix(wo_p, 0, wo_p < 0 || wo_p > 1000000);
+        wo_p = mix(wo_p,
           // XXX mat_pdf(ms, flags, w, n, wo, lambda.x)
-          dot(n, wo)/M_PI
-          + (1 - SURF_BSDF_P) * wo_p;
+          max(dot(n, wo), 0)/M_PI
+          , bw);
 
         } // scope
 #endif
@@ -284,7 +287,9 @@ void main()
 #if MCPG_REFERENCE_MODE != 1
         { // UPDATE MARKOV CHAIN and LIGHT_CACHE
           // multiply albedo?
-          const float mc_f = hsum(lc_incident * bsdf * wodotn / wo_p);
+          // const float mc_f = hsum(lc_incident * bsdf * wodotn / wo_p);
+          const float mc_f = hsum(lc_incident*bsdf*wodotn)/wo_p;//hsum(lc_incident * bsdf / (wodotn*wo_p));
+          // const float mc_f = hsum(lc_incident * bsdf * wodotn);// / wo_p);
           if (!isinf(mc_f) && !isnan(mc_f))
           {
             // TODO i don't have a diffuse version. is this albedo/pi?
@@ -293,6 +298,11 @@ void main()
                   lc_incident *
                   1.0/M_PI
                   * wodotn / max(wo_p, 10.0), lambda, hrp));
+
+            // XXX DEBUG kill overly peaky vmf
+            // vec4 vmf = mc_state_get_vmf(mc_states[mc_buffer_index], x.xyz);
+            // if(vmf.w > 1000)
+            //   mc_states[mc_buffer_index].sum_w = 0.;
 
             if (XorShift32(seed) * score_sum < mc_f * MC_SAMPLES)
             {

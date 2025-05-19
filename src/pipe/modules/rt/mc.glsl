@@ -13,6 +13,17 @@
 
 // return normalized direction (from pos)
 #define mc_state_dir(mc_state, pos) normalize((mc_state.sum_w > 0.0 ? mc_state.w_tgt / mc_state.sum_w : mc_state.w_tgt) - pos)
+#if 0 // XXX DEBUG
+vec3 mc_state_dir(MCState mc_state, vec3 pos)
+{
+  // if(mc_state.sum_w <= 0.0)
+    return vec3(100000,0,0);
+  vec3 dir = normalize((mc_state.sum_w > 0.0 ? mc_state.w_tgt / mc_state.sum_w : mc_state.w_tgt) - pos);
+  dir = mix(dir, vec3(0), isinf(dir));
+  dir = mix(dir, vec3(1), isnan(dir));
+  return dir;
+}
+#endif
 
 #define mc_state_pos(mc_state) (mc_state.sum_w > 0.0 ? mc_state.w_tgt / mc_state.sum_w : mc_state.w_tgt)
 
@@ -42,7 +53,10 @@ bool mc_light_missing(const MCState mc_state, const float mc_f, const vec3 wo, c
 
 float mc_state_kappa(const MCState mc_state, const vec3 pos) {
     const float r = mc_state_mean_cos(mc_state, pos);
-    return (3.0 * r - r * r * r) / (1.0 - r * r);
+    float kappa = (3.0 * r - r * r * r) / (1.0 - r * r);
+    if(isnan(kappa) || isinf(kappa)) return 10.0;
+    return kappa;
+    // return clamp(kappa, 1, 2);
 }
 
 // returns the vmf lobe vec4(direction, kappa) for a position
