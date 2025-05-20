@@ -12,12 +12,12 @@
 #define mc_state_new() MCState(vec3(0.0), 0.0, 0, 0.0, vec3(0), 0.0, 0);
 
 // return normalized direction (from pos)
-#define mc_state_dir(mc_state, pos) normalize((mc_state.sum_w > 0.0 ? mc_state.w_tgt / mc_state.sum_w : mc_state.w_tgt) - pos)
-#if 0 // XXX DEBUG
+// #define mc_state_dir(mc_state, pos) normalize((mc_state.sum_w > 0.0 ? mc_state.w_tgt / mc_state.sum_w : mc_state.w_tgt) - pos)
+#if 1 // XXX DEBUG
 vec3 mc_state_dir(MCState mc_state, vec3 pos)
 {
-  // if(mc_state.sum_w <= 0.0)
-    return vec3(100000,0,0);
+  if(mc_state.sum_w <= 0.0)
+    return vec3(1,0,0);
   vec3 dir = normalize((mc_state.sum_w > 0.0 ? mc_state.w_tgt / mc_state.sum_w : mc_state.w_tgt) - pos);
   dir = mix(dir, vec3(0), isinf(dir));
   dir = mix(dir, vec3(1), isnan(dir));
@@ -30,25 +30,21 @@ vec3 mc_state_dir(MCState mc_state, vec3 pos)
 #define mc_state_prior(mc_state, pos) (max(0.0001, DIR_GUIDE_PRIOR / merian_square(distance((pos), mc_state_pos(mc_state)))))
 
 #define mc_state_mean_cos(mc_state, pos) ((mc_state.N * mc_state.N * clamp(mc_state.w_cos / mc_state.sum_w, 0.0, 0.9999999)) / (mc_state.N * mc_state.N + mc_state_prior(mc_state, pos)))
+// #define mc_state_mean_cos(mc_state, pos) ((mc_state.N * mc_state.N * clamp(mc_state.w_cos / mc_state.sum_w, 0.0, 0.999)) / (mc_state.N * mc_state.N + mc_state_prior(mc_state, pos)))
 
-bool mc_light_missing(const MCState mc_state, const float mc_f, const vec3 wo, const vec3 pos) {
+bool mc_light_missing(const MCState mc_state, const float mc_f, const vec3 wo, const vec3 pos) 
+{
+  if (mc_f > 0.5 * mc_state.sum_w)
+    return false;
 
-    if (mc_f > 0.5 * mc_state.sum_w) {
-        return false;
-    }
+  if (params.cltime == mc_state.T)
+    return false;
 
-    if (params.cltime == mc_state.T) {
-        return false;
-    }
+  const float coswd = dot(wo, mc_state_dir(mc_state, pos));
+  if (coswd < 0.9 + 0.1 * mc_state_mean_cos(mc_state, pos))
+    return false; // light might still be there 
 
-    const float cos = dot(wo, mc_state_dir(mc_state, pos));
-
-    if (cos < 0.9 + 0.1 * mc_state_mean_cos(mc_state, pos)) {
-        // light might still be there 
-        return false;
-    }
-
-    return true;
+  return true;
 }
 
 float mc_state_kappa(const MCState mc_state, const vec3 pos) {
@@ -69,11 +65,13 @@ void mc_state_reweight(inout MCState mc_state, const float factor) {
 }
 
 // add sample to lobe via maximum likelihood estimator and exponentially weighted average
-void mc_state_add_sample(inout MCState mc_state,
-                         const vec3 pos,         // position where the ray started
-                         const float w,          // goodness
-                         const vec3 target, const vec3 target_mv) {    // ray hit point
-
+void mc_state_add_sample(
+    inout MCState mc_state,
+    const vec3 pos,         // position where the ray started
+    const float w,          // goodness
+    const vec3 target,      // endpoint of the ray
+    const vec3 target_mv)   // corresponding motion vector
+{
     mc_state.N = min(mc_state.N + 1, ML_MAX_N);
     const float alpha = max(1.0 / mc_state.N, ML_MIN_ALPHA);
 
@@ -119,7 +117,8 @@ void mc_adaptive_buffer_index(const vec3 pos, const vec3 normal, out uint buffer
 }
 
 void mc_adaptive_finalize_load(inout MCState mc_state, const uint hash) {
-    mc_state.sum_w *= float(hash == mc_state.hash);
+    // mc_state.sum_w *= float(hash == mc_state.hash);
+    mc_state.sum_w = mix(0, mc_state.sum_w, hash == mc_state.hash);
     mc_state.w_tgt += mc_state.sum_w * (params.cltime - mc_state.T) * mc_state.mv;
 }
 
@@ -149,13 +148,16 @@ void mc_static_buffer_index(const vec3 pos, out uint buffer_index, out uint hash
 }
 
 void mc_static_finalize_load(inout MCState mc_state, const uint hash) {
-    mc_state.sum_w *= float(hash == mc_state.hash);
+    // mc_state.sum_w *= float(hash == mc_state.hash);
+    mc_state.sum_w = mix(0, mc_state.sum_w, hash == mc_state.hash);
     mc_state.w_tgt += mc_state.sum_w * (params.cltime - mc_state.T) * mc_state.mv;
 }
 
 void mc_static_finalize_load(inout MCState mc_state, const uint hash, const vec3 pos, const vec3 normal) {
-    mc_state.sum_w *= float(hash == mc_state.hash);
-    mc_state.sum_w *= float(dot(normal, mc_state_dir(mc_state, pos)) > 0.);
+    // mc_state.sum_w *= float(hash == mc_state.hash);
+    // mc_state.sum_w *= float(dot(normal, mc_state_dir(mc_state, pos)) > 0.);
+    mc_state.sum_w = mix(0, mc_state.sum_w, hash == mc_state.hash);
+    mc_state.sum_w = mix(0, mc_state.sum_w, dot(normal, mc_state_dir(mc_state, pos)) > 0.);
     mc_state.w_tgt += mc_state.sum_w * (params.cltime - mc_state.T) * mc_state.mv;
 }
 
