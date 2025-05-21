@@ -103,7 +103,6 @@ void prepare_intersection(
     if(dot(w,n) > 0) n -= w*dot(w,n);
   }
 
-  if(false)
   if((geo_flags & s_geo_nonorm)==0 && (tex_n == 0))
   { // now fix shading normals below horizon and terminator problem:
     if(dot(w,n0) > 0) n0 -= w*dot(w,n0);

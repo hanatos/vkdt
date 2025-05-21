@@ -83,8 +83,8 @@ main()
   vec4 x;
   vec3 w, n = vec3(0), ng; // ray position, direction, hit normal
   vec2 st; // texture coordinates
-  // vec2 uv = (ipos+0.5)/vec2(push.wd, pus.ht) - 0.5;
-  camera_sample_xw((ipos+filter_bh_sample(rand.yz))/fbdim, x, w);
+  // camera_sample_xw((ipos+filter_bh_sample(rand.yz))/fbdim, x, w);
+  camera_sample_xw(vec2(ipos)/fbdim, x, w);
 
   vec2 dn = vec2(-1.0, 0.0);
   uvec4 mat = uvec4(0);

@@ -193,11 +193,11 @@ void main()
       uint mc_buffer_index;
       { // scope: sample outgoing direction
 #if MCPG_REFERENCE_MODE==1
-        // vec4 c;
-        // wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
-        // wo_p = mat_pdf(ms, flags, w, n, wo, lambda.x);
-          wo = mat3(ms.du, ms.dv, ng) * sample_cos(XorShift32Vec2(seed));
-          wo_p = dot(ng, wo)/M_PI;
+        vec4 c;
+        wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
+        wo_p = mat_pdf(ms, flags, w, n, wo, lambda.x);
+        // wo = mat3(ms.du, ms.dv, ng) * sample_cos(XorShift32Vec2(seed));
+        // wo_p = dot(ng, wo)/M_PI;
 #else
         float scores[MC_SAMPLES];
         vec4 vmfs[MC_SAMPLES];
@@ -263,8 +263,8 @@ void main()
       wodotn = dot(wo, n);
       if (wodotn <= 1e-3 || dot(wo, ng) <= 1e-3) break; // dead sample
       // XXX divide out albedo?
-      const vec4 bsdf = colour_upsample(albedo, lambda)/M_PI;
-      // const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
+      // const vec4 bsdf = colour_upsample(albedo, lambda)/M_PI;
+      const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
 
       vec3 x_next = x.xyz, n_next, ng_next;
 
