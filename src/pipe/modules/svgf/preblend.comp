@@ -49,7 +49,7 @@ main()
   // gbuffer weight:
   vec3 nc = geo_decode_normal(floatBitsToUint(gbufc.y));
   vec3 np = geo_decode_normal(floatBitsToUint(gbufp.y));
-  // alpha *= smoothstep(0.8, 1.0, dot(nc, np));
+  alpha *= smoothstep(0.8, 1.0, dot(nc, np));
   alpha *= smoothstep(0.02*max(gbufc.x, gbufp.x), 0.0, abs(gbufc.x - gbufp.x));
 
   L = mix(L, Lo, alpha);
