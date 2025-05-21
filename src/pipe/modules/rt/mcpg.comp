@@ -284,6 +284,7 @@ void main()
       // TODO without albedo (added below to skip first albedo)
       contrib *= bsdf * wodotn;
       f = contrib * (bounce < MAX_PATH_LENGTH - 1 ? direct_illum : lc_incident);
+      // f = contrib * direct_illum;
       p *= wo_p;
       contrib *= transmittance;
 
@@ -294,9 +295,11 @@ void main()
         if (!isinf(mc_f) && !isnan(mc_f))
         {
           light_cache_update(x.xyz, n,
-              albedo*colour_to_linear_srgb(
-                lc_incident *
-                wodotn/M_PI
+              // albedo*
+              colour_to_linear_srgb(
+                bsdf *
+                lc_incident
+                // * wodotn/M_PI
                 / max(wo_p, 10.0), lambda, hrp));
 
           if (XorShift32(seed) * score_sum < mc_f * MC_SAMPLES)
