@@ -185,7 +185,7 @@ void main()
     if((flags & (s_emit|s_envmap)) > 0) continue; // endpoint found, next spp
     for(int bounce=0;bounce<MAX_PATH_LENGTH;bounce++)
     { // for a max number of path segments (every iteration traces one ray in addition to the eye ray)
-      vec3 wo = vec3(1,0,0);
+      vec3 wo;
       float wo_p = 0;
       float wodotn;
       float score_sum = 0;
@@ -193,9 +193,11 @@ void main()
       uint mc_buffer_index;
       { // scope: sample outgoing direction
 #if MCPG_REFERENCE_MODE==1
-        vec4 c;
-        wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
-        wo_p = mat_pdf(ms, flags, w, n, wo, lambda.x);
+        // vec4 c;
+        // wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
+        // wo_p = mat_pdf(ms, flags, w, n, wo, lambda.x);
+          wo = mat3(ms.du, ms.dv, ng) * sample_cos(XorShift32Vec2(seed));
+          wo_p = dot(ng, wo)/M_PI;
 #else
         float scores[MC_SAMPLES];
         vec4 vmfs[MC_SAMPLES];
@@ -261,14 +263,13 @@ void main()
       wodotn = dot(wo, n);
       if (wodotn <= 1e-3 || dot(wo, ng) <= 1e-3) break; // dead sample
       // XXX divide out albedo?
-      // const vec4 bsdf = colour_upsample(albedo, lambda)/M_PI;
-      const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
+      const vec4 bsdf = colour_upsample(albedo, lambda)/M_PI;
+      // const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
 
-      vec4 x_next = x + vec4(1e-3*ng, 0);
-      vec3 n_next, ng_next;
+      vec3 x_next = x.xyz, n_next, ng_next;
 
       dist = tmax; // trace ray
-      if(cast_ray(wo, x_next.xyz, dist, n_next, ng_next, st, mat)) flags = 0;
+      if(cast_ray(wo, x_next, dist, n_next, ng_next, st, mat)) flags = 0;
       if(dist >= tmax) flags = s_envmap;
 
       vec3 albedo_next;
@@ -278,8 +279,8 @@ void main()
       vec4 direct_illum = ms.col_emit * transmittance; // Le * T from next vertex
       // use full GI (diffuse bounces from light cache)?
       const vec4 lc_incident = any(greaterThan(direct_illum, vec4(0))) ||
-        (USE_LIGHT_CACHE_TAIL == 0 && MAX_PATH_LENGTH == 2) ? direct_illum :
-        transmittance * colour_upsample(light_cache_get(x_next.xyz, n_next).rgb, lambda);
+        (USE_LIGHT_CACHE_TAIL == 0 && MAX_PATH_LENGTH == 1) ? direct_illum :
+        transmittance * colour_upsample(light_cache_get(x_next, n_next).rgb, lambda);
 
       // TODO without albedo (added below to skip first albedo)
       contrib *= bsdf * wodotn;
@@ -307,7 +308,7 @@ void main()
 
           if (XorShift32(seed) * score_sum < mc_f * MC_SAMPLES)
           {
-            mc_state_add_sample(mc_state, x.xyz, mc_f, x_next.xyz, vec3(0));// XXX TODO (x_next.xyz - x_next_prev_pos) / TIME_DIFF);
+            mc_state_add_sample(mc_state, x.xyz, mc_f, x_next, vec3(0));// XXX TODO (x_next - x_next_prev_pos) / TIME_DIFF);
             mc_static_save(mc_state, x.xyz, n);
             mc_adaptive_save(mc_state, x.xyz, n);
           }
@@ -320,7 +321,7 @@ void main()
       } // scope braces
 #endif
 
-      x = x_next;
+      x.xyz = x_next;
       n = n_next;
       ng = ng_next; // XXX need this?
       albedo = albedo_next; // XXX and this?

@@ -101,7 +101,7 @@ mat_init(
   uint tex_b = mat.x & 0xffff;
   uint tex_e = mat.y & 0xffff;
   uint geo_flags = mat.x >> 16;
-  if(mat.w > 0) geo_flags |= 16; // mark as inside (flipped normal)
+  if(mat.w > 0) geo_flags |= s_geo_inside; // mark as inside (flipped normal)
   float alpha = unpackUnorm2x16(mat.y).y;
 
   if(geo_flags > 0 && geo_flags < 6)
@@ -110,11 +110,6 @@ mat_init(
         st.x + 0.2*sin(st.y*2.0 + params.cltime),
         st.y + 0.2*sin(st.x*2.0 + params.cltime));
   }
-
-  vec3 du, dv, up = vec3(1,0,0);
-  if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
-  du = normalize(cross(up, n));
-  dv = normalize(cross(du, n));
 
   vec4 base = vec4(0.5);
   vec4 emit = vec4(0);
@@ -142,11 +137,12 @@ mat_init(
     roughness = texelFetch(img_tex[nonuniformEXT(tex_r)], tc, 0).r;
   }
 
-  if((geo_flags & 7) == 6) // tears waterfall hack
+  if((geo_flags & 7) == s_geo_watere) // tears waterfall hack
     emit = 2.0*base;
 
   if(any(greaterThan(emit, vec4(0)))) flags |= s_emit;
-  return mat_state_t(base, emit, n, du, dv, roughness, alpha, geo_flags);
+  mat3 onb = make_frame(n);
+  return mat_state_t(base, emit, n, onb[0], onb[1], roughness, alpha, geo_flags);
 }
 
 vec4 // return evaluation of f_r for the given wavelengths
@@ -159,7 +155,7 @@ mat_eval(
     vec4  lambda) // hero wavelengths
 {
   if((flags & s_volume) > 0) return vec4(volume_phase_function(dot(w, wo)));
-  if((mat.geo_flags & 32) > 0) return dielectric_eval(mat, flags, w, n, wo, lambda);
+  if((mat.geo_flags & s_geo_dielectric) > 0) return dielectric_eval(mat, flags, w, n, wo, lambda);
   vec3 h = normalize(wo-w);
   return mat.col_base * bsdf_rough_eval(w, mat.du, mat.dv, n, wo, vec2(mat.roughness)) * fresnel(0, lambda, 1.0, dot(wo, h));
 }
@@ -177,14 +173,11 @@ mat_sample(
   if((flags & s_volume) > 0)
   {
     const float cosu = volume_sample_phase_function_cos(xi.xy);
-    vec3 du, dv, up = vec3(1,0,0);
-    if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
-    du = normalize(cross(up, w));
-    dv = normalize(cross(du, w));
+    mat3 onb = make_frame(w);
     const float phi = 2.0*M_PI*xi.z;
-    return cosu * w + sqrt(1.0-cosu*cosu) * (sin(phi) * du + cos(phi) * dv);
+    return onb * vec3(sqrt(1.0-cosu*cosu) * vec2(sin(phi), cos(phi)), cosu);
   }
-  if((mat.geo_flags & 32) > 0) return dielectric_sample(mat, flags, w, n, lambda, xi, c);
+  if((mat.geo_flags & s_geo_dielectric) > 0) return dielectric_sample(mat, flags, w, n, lambda, xi, c);
   float X = 1.0;
   vec3 wo = bsdf_rough_sample(w, mat.du, mat.dv, n, vec2(mat.roughness), xi.xy, X);
   vec3 h = normalize(wo-w);
@@ -204,6 +197,6 @@ mat_pdf(
     float lambda) // the hero wavelength
 {
   if((flags & s_volume) > 0) return volume_phase_function(dot(w, wo));
-  if((mat.geo_flags & 32) > 0) return dielectric_pdf(mat, flags, w, n, wo, lambda);
+  if((mat.geo_flags & s_geo_dielectric) > 0) return dielectric_pdf(mat, flags, w, n, wo, lambda);
   return bsdf_rough_pdf(w, mat.du, mat.dv, n, wo, vec2(mat.roughness));
 }

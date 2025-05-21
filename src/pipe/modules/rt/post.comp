@@ -18,7 +18,7 @@ void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
-  vec4 albedo = texture(img_albedo, ipos);
+  vec4 albedo = texelFetch(img_albedo, ipos, 0);
   ivec2 sz = imageSize(img_out);
   uint idx = 4*(sz.x * ipos.y + ipos.x);
   vec4 rgba = albedo * vec4(buf.v[idx], buf.v[idx+1], buf.v[idx+2], 1.0);

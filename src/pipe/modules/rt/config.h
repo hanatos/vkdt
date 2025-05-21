@@ -110,5 +110,5 @@ struct DistanceMCVertex {
 #define SURF_BSDF_P 0.1
 #define SURFACE_SPP 2
 #define USE_LIGHT_CACHE_TAIL 0
-#define MCPG_REFERENCE_MODE 0
+#define MCPG_REFERENCE_MODE 1
 #define MC_FAST_RECOVERY 1

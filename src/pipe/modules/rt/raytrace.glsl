@@ -25,6 +25,8 @@ const uint s_geo_watere = 6u; // emissive water
 const uint s_geo_sky    = 7u; // quake style sky surface, a window to the infinite
 const uint s_geo_nonorm = 8u; // actually a flag, signifies there are no vertex normals
 const uint s_geo_opaque = 16u;// disregard alpha channel for transparency
+const uint s_geo_dielectric = 32u; // specular dielectric
+const uint s_geo_inside = 64u;// intersecting surface from inside
 
 void prepare_intersection(
     rayQueryEXT rq,
@@ -57,10 +59,10 @@ void prepare_intersection(
 #endif
   ng = normalize(cross(v1-v0, v2-v0)); // geo normal
   uint geo_flags = mat.x >> 16; // extract surface flags;
-  if((geo_flags & 8)>0) n = ng;
+  if((geo_flags & s_geo_nonorm)>0) n = ng;
   else n = normalize(mat3(n0, n1, n2) * b); // vertex normals
 
-  if(geo_flags == 7)
+  if(geo_flags == s_geo_sky)
   { // sky box, extract cube map textures from n and mark as sky:
     n = ng = vec3(0);
     mat.x = buf_vtx[it].v[pi+0].n;
@@ -101,7 +103,8 @@ void prepare_intersection(
     if(dot(w,n) > 0) n -= w*dot(w,n);
   }
 
-  if((geo_flags & 8)==0 && (tex_n == 0))
+  if(false)
+  if((geo_flags & s_geo_nonorm)==0 && (tex_n == 0))
   { // now fix shading normals below horizon and terminator problem:
     if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
     if(dot(w,n1) > 0) n1 -= w*dot(w,n1);

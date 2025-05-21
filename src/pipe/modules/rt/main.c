@@ -44,14 +44,14 @@ void modify_roi_out(
   const int p_wd = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("wd")))[0];
   const int p_ht = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("ht")))[0];
   int wd = p_wd, ht = p_ht;
-  mod->connector[0].roi.full_wd = mod->connector[3].roi.full_wd = mod->connector[4].roi.full_wd = wd;
-  mod->connector[0].roi.full_ht = mod->connector[3].roi.full_ht = mod->connector[4].roi.full_ht = ht;
-  mod->connector[0].roi.wd = mod->connector[3].roi.wd = mod->connector[4].roi.wd = wd;
-  mod->connector[0].roi.ht = mod->connector[3].roi.ht = mod->connector[4].roi.ht = ht;
-  mod->connector[0].roi.scale   = mod->connector[3].roi.scale   = mod->connector[4].roi.scale = 1;
-  mod->connector[5].roi.scale = 1;
-  mod->connector[5].roi.wd = mod->connector[5].roi.full_wd = wd;
-  mod->connector[5].roi.ht = mod->connector[5].roi.full_ht = ht * 4;
+  mod->connector[0].roi.full_wd = mod->connector[5].roi.full_wd = mod->connector[4].roi.full_wd = wd;
+  mod->connector[0].roi.full_ht = mod->connector[5].roi.full_ht = mod->connector[4].roi.full_ht = ht;
+  mod->connector[0].roi.wd = mod->connector[5].roi.wd = mod->connector[4].roi.wd = wd;
+  mod->connector[0].roi.ht = mod->connector[5].roi.ht = mod->connector[4].roi.ht = ht;
+  mod->connector[0].roi.scale   = mod->connector[5].roi.scale   = mod->connector[4].roi.scale = 1;
+  mod->connector[3].roi.scale = 1;
+  mod->connector[3].roi.wd = mod->connector[3].roi.full_wd = wd;
+  mod->connector[3].roi.ht = mod->connector[3].roi.full_ht = ht * 4;
   mod->img_param   = (dt_image_params_t) {
     .black            = {0, 0, 0, 0},
     .white            = {65535,65535,65535,65535},

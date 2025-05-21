@@ -81,26 +81,6 @@ vec3 vmf_sample(const float kappa, const vec2 random) {
 
 // ----------------------------------------------------------
 
-#if 0
-mat3 make_frame(vec3 n)
-{
-  vec3 up = abs(n.z) > abs(n.y) ? vec3(0, 1, 0) : vec3(0, 0, 1);
-  vec3 u = cross(n, up);
-  vec3 v = cross(n, u);
-  return mat3(u, v, n);
-}
-#else
-// Follows Building an Orthonormal Basis, Revisited, Duff et al. 2017
-mat3 make_frame(const vec3 z) {
-    const float sign = (z.z >= 0) ? 1 : -1;
-    const float a = -1.0 / (sign + z.z);
-    const float b = z.x * z.y * a;
-    return mat3(vec3(1.0 + sign * z.x * z.x * a, sign * b, -sign * z.x),
-                vec3(b, sign + z.y * z.y * a, -z.y),
-                z);
-}
-#endif
-
 // Sample "around" z.
 vec3 vmf_sample(const vec3 z, const float kappa, const vec2 random) {
     return make_frame(z) * vmf_sample(kappa, random);
