@@ -264,7 +264,7 @@ void main()
       // const vec4 bsdf = colour_upsample(albedo, lambda)/M_PI;
       const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
 
-      vec4 x_next = x;// + vec4(1e-3*ng, 0);
+      vec4 x_next = x + vec4(1e-3*ng, 0);
       vec3 n_next, ng_next;
 
       dist = tmax; // trace ray
@@ -283,8 +283,11 @@ void main()
 
       // TODO without albedo (added below to skip first albedo)
       contrib *= bsdf * wodotn;
+#if USE_LIGHT_CACHE_TAIL==1
       f = contrib * (bounce < MAX_PATH_LENGTH - 1 ? direct_illum : lc_incident);
-      // f = contrib * direct_illum;
+#else
+      f = contrib * direct_illum;
+#endif
       p *= wo_p;
       contrib *= transmittance;
 
