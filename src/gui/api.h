@@ -631,6 +631,7 @@ dt_gui_set_hdr_metadata(
     .maxFrameAverageLightLevel = maxFrameAverageLightLevel,
   };
   PFN_vkSetHdrMetadataEXT func = (PFN_vkSetHdrMetadataEXT)vkGetInstanceProcAddr(qvk.instance, "vkSetHdrMetadataEXT");
+  if(0) // XXX DEBUG switched off due to segfault on non-hdr monitor
   if(func) func(
       qvk.device,
       1,
