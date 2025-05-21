@@ -12,25 +12,13 @@
 #define mc_state_new() MCState(vec3(0.0), 0.0, 0, 0.0, vec3(0), 0.0, 0);
 
 // return normalized direction (from pos)
-// #define mc_state_dir(mc_state, pos) normalize((mc_state.sum_w > 0.0 ? mc_state.w_tgt / mc_state.sum_w : mc_state.w_tgt) - pos)
-#if 1 // XXX DEBUG
-vec3 mc_state_dir(MCState mc_state, vec3 pos)
-{
-  if(mc_state.sum_w <= 0.0)
-    return vec3(1,0,0);
-  vec3 dir = normalize((mc_state.sum_w > 0.0 ? mc_state.w_tgt / mc_state.sum_w : mc_state.w_tgt) - pos);
-  dir = mix(dir, vec3(0), isinf(dir));
-  dir = mix(dir, vec3(1), isnan(dir));
-  return dir;
-}
-#endif
+#define mc_state_dir(mc_state, pos) normalize((mc_state.sum_w > 0.0 ? mc_state.w_tgt / mc_state.sum_w : mc_state.w_tgt) - pos)
 
 #define mc_state_pos(mc_state) (mc_state.sum_w > 0.0 ? mc_state.w_tgt / mc_state.sum_w : mc_state.w_tgt)
 
 #define mc_state_prior(mc_state, pos) (max(0.0001, DIR_GUIDE_PRIOR / merian_square(distance((pos), mc_state_pos(mc_state)))))
 
 #define mc_state_mean_cos(mc_state, pos) ((mc_state.N * mc_state.N * clamp(mc_state.w_cos / mc_state.sum_w, 0.0, 0.9999999)) / (mc_state.N * mc_state.N + mc_state_prior(mc_state, pos)))
-// #define mc_state_mean_cos(mc_state, pos) ((mc_state.N * mc_state.N * clamp(mc_state.w_cos / mc_state.sum_w, 0.0, 0.999)) / (mc_state.N * mc_state.N + mc_state_prior(mc_state, pos)))
 
 bool mc_light_missing(const MCState mc_state, const float mc_f, const vec3 wo, const vec3 pos) 
 {
@@ -49,10 +37,9 @@ bool mc_light_missing(const MCState mc_state, const float mc_f, const vec3 wo, c
 
 float mc_state_kappa(const MCState mc_state, const vec3 pos) {
     const float r = mc_state_mean_cos(mc_state, pos);
-    float kappa = (3.0 * r - r * r * r) / (1.0 - r * r);
-    if(isnan(kappa) || isinf(kappa)) return 10.0;
-    return kappa;
-    // return clamp(kappa, 1, 2);
+    return (3.0 * r - r * r * r) / (1.0 - r * r);
+    // if(isnan(kappa) || isinf(kappa)) return 10.0;
+    // return kappa;
 }
 
 // returns the vmf lobe vec4(direction, kappa) for a position

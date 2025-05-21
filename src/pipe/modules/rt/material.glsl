@@ -134,7 +134,6 @@ mat_init(
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(tex_e)], 0)-1);
     vec3 tex = texelFetch(img_tex[nonuniformEXT(tex_e)], tc, 0).rgb;
     emit = colour_upsample(emission_to_hdr(tex*tex), lambda);
-    if(any(greaterThan(emit, vec4(0)))) flags |= s_emit;
   }
   if(tex_r > 0)
   {
@@ -143,12 +142,10 @@ mat_init(
     roughness = texelFetch(img_tex[nonuniformEXT(tex_r)], tc, 0).r;
   }
 
-  if((geo_flags & 7) == 6)
-  { // tears waterfall hack
+  if((geo_flags & 7) == 6) // tears waterfall hack
     emit = 2.0*base;
-    flags |= s_emit;
-  }
 
+  if(any(greaterThan(emit, vec4(0)))) flags |= s_emit;
   return mat_state_t(base, emit, n, du, dv, roughness, alpha, geo_flags);
 }
 
