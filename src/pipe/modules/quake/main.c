@@ -724,7 +724,7 @@ again:;
       VectorMA (point, frame->left * scale,       k == 2 ? front : s_right, point);
       for(int l=0;l<3;l++) vert[0][l] = point[l];
 
-      VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up, point);
+      VectorMA (ent->origin, frame->up * scale, k == 1 ? front : s_up,    point);
       VectorMA (point, frame->left * scale,     k == 2 ? front : s_right, point);
       for(int l=0;l<3;l++) vert[1][l] = point[l];
 
@@ -781,11 +781,11 @@ again:;
         cur[0].v1.t = float_to_half(0);
         cur[0].v2.s = float_to_half(1);
         cur[0].v2.t = float_to_half(0);
-        cur[1].v0.s = float_to_half(0);
-        cur[1].v0.t = float_to_half(1);
+        cur[1].v0.s = float_to_half(1);
+        cur[1].v0.t = float_to_half(0);
         cur[1].v1.s = float_to_half(1);
-        cur[1].v1.t = float_to_half(0);
-        cur[1].v2.s = float_to_half(1);
+        cur[1].v1.t = float_to_half(1);
+        cur[1].v2.s = float_to_half(0);
         cur[1].v2.t = float_to_half(1);
         if(frame->gltexture)
         {
