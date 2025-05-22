@@ -70,7 +70,7 @@ void modify_roi_out(
   };
 }
 
-void
+dt_graph_run_t
 input(
     dt_module_t             *mod,
     dt_module_input_event_t *p)
@@ -82,7 +82,7 @@ input(
   { // activate event? store mouse zero and clear all movement flags we might still have
     rt->move = 0;
     mx = my = -666.0;
-    return;
+    return 0;
   }
 
   if(p->type == 2)
@@ -117,9 +117,10 @@ input(
                 p_cam[4] = 1;
                 dt_module_input_event_t p = { 0 };
                 mod->so->input(mod, &p);
-                return;
+                return 0;
     }
   }
+  return 0;
 }
 
 // this is called every time the command buffer is executed again, to

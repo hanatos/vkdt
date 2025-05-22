@@ -122,11 +122,13 @@ int init(dt_module_t *mod)
   return 0;
 }
 
-void
+dt_graph_run_t
 input(
     dt_module_t             *mod,
     dt_module_input_event_t *p)
 {
+  // we're not interested in mouse over widget input
+  if(!p->grabbed) return 0;
   qs_data_t *dat = mod->data;
 
   if(p->type == 0)
@@ -134,7 +136,7 @@ input(
     dat->move = 0;
     dat->mx = dat->my = -666.0;
     S_UnblockSound();
-    return;
+    return 0;
   }
 
   if(p->type == -1)
@@ -143,56 +145,10 @@ input(
     S_BlockSound();
   }
 
-#if 0 // custom camera:
-  float *p_cam = (float *)dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("cam")));
-  if(p->type == 1)
-  { // mouse button
-  }
-
-  if(p->type == 2)
-  { // mouse position: rotate camera based on mouse coordinate
-    if(dat->mx == -666.0 && dat->my == -666.0) { dat->mx = p->x; dat->my = p->y; }
-    const float avel = 0.001f; // angular velocity
-    quat_t rotx, roty, tmp;
-    float rgt[3], top[] = {0,0,1};
-    cross(top, p_cam+4, rgt);
-    quat_init_angle(&rotx, (p->x-dat->mx)*avel, 0, 0, -1);
-    quat_init_angle(&roty, (p->y-dat->my)*avel, rgt[0], rgt[1], rgt[2]);
-    quat_mul(&rotx, &roty, &tmp);
-    quat_transform(&tmp, p_cam+4);
-    dat->mx = p->x;
-    dat->my = p->y;
-  }
-
-  if(p->type == 3)
-  { // mouse scrolled, .dx .dy
-  }
-
-  if(p->type == 4)
-  { // keyboard (key, scancode)
-    if(p->action <= 1) // ignore key repeat
-    switch(p->key)
-    {
-      case 'E': dat->move = (dat->move & ~(1<<0)) | (p->action<<0); break;
-      case 'D': dat->move = (dat->move & ~(1<<1)) | (p->action<<1); break;
-      case 'S': dat->move = (dat->move & ~(1<<2)) | (p->action<<2); break;
-      case 'F': dat->move = (dat->move & ~(1<<3)) | (p->action<<3); break;
-      case ' ': dat->move = (dat->move & ~(1<<4)) | (p->action<<4); break;
-      case 'V': dat->move = (dat->move & ~(1<<5)) | (p->action<<5); break;
-      case 'R': // reset camera
-                dat->move = 0;
-                memset(p_cam, 0, sizeof(float)*8);
-                p_cam[4] = 1;
-                dt_module_input_event_t p = { 0 };
-                mod->so->input(mod, &p);
-                return;
-    }
-  }
-#else
   if(p->type == 1)
   { // mouse button
     const int remap[] = {K_MOUSE1, K_MOUSE2, K_MOUSE3, K_MOUSE4, K_MOUSE5};
-    if(p->mbutton < 0 || p->mbutton > 4) return;
+    if(p->mbutton < 0 || p->mbutton > 4) return 0;
     Key_Event(remap[p->mbutton], p->action == 1);
   }
   else if(p->type == 2)
@@ -228,7 +184,7 @@ input(
     if(p->action <= 1) // ignore key repeat
       Key_Event (key, down);
   }
-#endif
+  return 0;
 }
 
 void cleanup(dt_module_t *mod)
