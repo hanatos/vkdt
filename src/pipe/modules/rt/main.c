@@ -245,7 +245,7 @@ create_nodes(
   // environment importance sampling:
   const int   id       = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("startid")))[0];
   const char *filename = dt_module_param_string(module, dt_module_get_param(module->so, dt_token("envmap")));
-  if(read_header(module, graph->frame+id, filename)) {} // XXX error handling ???
+  if(read_header(module, graph->frame+id, filename)) {}
   dt_roi_t roi_mip = { .wd = rt->width, .ht = rt->height };
   roi_mip.ht = roi_mip.ht + roi_mip.ht / 12 + 1; // true for 8k
   int id_env = dt_node_add(graph, module, "rt", "env",
@@ -260,8 +260,6 @@ create_nodes(
       "dn",  "write", "rg",   "f32", &module->connector[0].roi,
       "tex", "read",  "*",    "*",    dt_no_roi,
       "mat", "write", "ssbo", "u8",  &roi_mat);
-      // "mc",  "write", "ssbo", "u8",  &roi_mc,
-      // "lc",  "write", "ssbo", "u8",  &roi_lc);
   dt_connector_copy(graph, module, 1, id_gbuf, 1); // tex
   int id_main = -1;
 
@@ -298,19 +296,12 @@ create_nodes(
         "mat",    "read",  "ssbo", "*",    dt_no_roi,                 // 6 material/gbuf
         "mc",  "write", "ssbo", "u8",  &roi_mc,
         "lc",  "write", "ssbo", "u8",  &roi_lc);
-        // "mc",     "read",  "ssbo", "*",    dt_no_roi,                 // 7 markov chain states
-        // "lc",     "read",  "ssbo", "*",    dt_no_roi);                // 8 light cache
 
     dt_connector_copy(graph, module, 1, id_main, 1); // tex
     dt_connector_copy(graph, module, 2, id_main, 2); // blue
     dt_connector_copy(graph, module, 3, id_main, 0); // ssbo irradiance w/o albedo
     dt_connector_copy(graph, module, 4, id_main, 3); // albedo/aov
-    // CONN(dt_node_connect_named(graph, id_gbuf, "mc",     id_main, "mc"));
-    // CONN(dt_node_connect_named(graph, id_gbuf, "lc",     id_main, "lc"));
     // protect light cache and markov chain states for next iteration:
-    // XXX in fact could put them on mcpg now
-    // graph->node[id_gbuf].connector[3].flags |= s_conn_clear_once | s_conn_protected;
-    // graph->node[id_gbuf].connector[4].flags |= s_conn_clear_once | s_conn_protected;
     graph->node[id_main].connector[7].flags |= s_conn_clear_once | s_conn_protected;
     graph->node[id_main].connector[8].flags |= s_conn_clear_once | s_conn_protected;
   }
