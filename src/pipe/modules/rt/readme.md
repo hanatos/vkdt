@@ -39,3 +39,9 @@ this still changes so often.. be careful to trust this text.
 * `sampler` choose which path space sampler to use for rendering: path tracing/env-nee, markov chain path guiding
 * `wd` width of the render in pixels
 * `ht` height of the render in pixels
+
+the sampler dropdown list includes simple path tracing with optional next event estimation to the envmap,
+as well as markov chain path guiding based on the publication:  
+Lucas Alber, Johannes Hanika, and Carsten Dachsbacher.
+Real-time Markov chain path guiding for global illumination and single scattering.
+Proc. ACM Comput. Graph. Interact. Tech., 8(1), 2025. 
