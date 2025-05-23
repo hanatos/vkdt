@@ -23,6 +23,9 @@ the `tex` connector expects an array of input textures, as the
 [i-lut](../i-lut/readme.md) module if you pass a `.txt` file with a list of
 filenames.
 
+you can download a [blue noise texture from this github issue](https://github.com/hanatos/vkdt/files/8529441/blue.lut.gz).
+this was too large to just ship with the vkdt distribution.
+
 ## parameters
 this still changes so often.. be careful to trust this text.
 
@@ -34,3 +37,5 @@ this still changes so often.. be careful to trust this text.
 * `cam_mod` if cam mode is set to another module, this is the other module's name
 * `cam_inst` if cam mode is set to another module, this is the other module's instance
 * `sampler` choose which path space sampler to use for rendering: path tracing/env-nee, markov chain path guiding
+* `wd` width of the render in pixels
+* `ht` height of the render in pixels
