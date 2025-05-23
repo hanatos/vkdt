@@ -160,9 +160,9 @@ bool cast_ray(
           b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
           b.x = 1.0-b.z-b.y;
           st = mat3x2(st0, st1, st2) * b;
-          if(flags > 0) st = vec2(
-              st.x + 0.2*sin(st.y*2.0 + params.cltime),
-              st.y + 0.2*sin(st.x*2.0 + params.cltime));
+          if((flags&7) > 0) st = vec2(
+              st.x + 0.1*sin(st.y*M_PI*2.0 + params.cltime),
+              st.y + 0.1*sin(st.x*M_PI*2.0 + params.cltime));
           ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(tex_b)], 0)*fract(st));
           tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(tex_b)], 0)-1);
           vec4 col_base = texelFetch(img_tex[nonuniformEXT(tex_b)], tc, 0);

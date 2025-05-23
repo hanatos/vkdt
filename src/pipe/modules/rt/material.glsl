@@ -104,11 +104,11 @@ mat_init(
   if(mat.w > 0) geo_flags |= s_geo_inside; // mark as inside (flipped normal)
   float alpha = unpackUnorm2x16(mat.y).y;
 
-  if(geo_flags > 0 && geo_flags < 6)
+  if((geo_flags&7) > 0 && (geo_flags&7)<6)
   { // all esoteric surfaces warp
-    st = vec2(
-        st.x + 0.2*sin(st.y*2.0 + params.cltime),
-        st.y + 0.2*sin(st.x*2.0 + params.cltime));
+    st = fract(vec2(
+        st.x + 0.1*sin(st.y*M_PI*2.0 + params.cltime),
+        st.y + 0.1*sin(st.x*M_PI*2.0 + params.cltime)));
   }
 
   vec4 base = vec4(0.5);
