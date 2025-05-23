@@ -370,7 +370,7 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
           if(acceptable_colorspace[k] == avail_surface_formats[j].colorSpace)
           {
             win->surf_format = avail_surface_formats[j];
-            dt_log(s_log_gui, "using %s and colour space %s",
+            dt_log(s_log_qvk, "using %s and colour space %s",
                 qvk_format_to_string(win->surf_format.format), qvk_colourspace_to_string(win->surf_format.colorSpace));
             goto out;
           }
