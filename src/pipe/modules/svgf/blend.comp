@@ -37,7 +37,7 @@ main()
 
   ivec2 sz = textureSize(img_light, 0).xy;
   ivec2 mv = ivec2(texture(img_mv, (ipos+0.5)/vec2(sz)).rg);
-  vec3 L  = texelFetch(img_light, eaw3_tc(ipos, sz), 0).rgb;
+  vec4 L  = texelFetch(img_light, eaw3_tc(ipos, sz), 0);
   vec3 prevb = texture(img_prevb, vec2(ipos+mv+0.5)/vec2(sz)).rgb;
 
   mat3 M = mat3( // linear rec709 to linear rec2020
@@ -64,7 +64,7 @@ main()
   prevb = clamp(prevb, max(vec3(0), m1 - thresh * sigma), m1 + thresh * sigma);
 
   vec3 albedo = texelFetch(img_albedo, ipos, 0).rgb; // multiply albedo
-  vec3 beauty = L * albedo;
+  vec3 beauty = L.rgb * albedo;
 
   beauty = M * beauty;
 

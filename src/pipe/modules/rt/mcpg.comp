@@ -137,7 +137,7 @@ void main()
   float dist = 1e20;
   const float tmax = 1e12;//volume_sample_dist(x.xyz, w, mrand(seed));
   vec3 albedo = vec3(1);
-  vec3 acc_rgb = vec3(0);
+  vec4 acc_rgb = vec4(0);
 
   for (int s = 0; s < SURFACE_SPP; s++)
   {
@@ -172,10 +172,10 @@ void main()
       ms = mat_init(mat, st, n, flags, lambda, w, albedo);
       if((flags & s_emit) != 0)
       {
-        acc_rgb = colour_to_rgb(contrib * ms.col_emit, lambda, hrp)/SURFACE_SPP;
-        albedo = acc_rgb;
+        acc_rgb.rgb = colour_to_rgb(contrib * ms.col_emit, lambda, hrp)/SURFACE_SPP;
+        albedo = acc_rgb.rgb;
         albedo = clamp(albedo, vec3(-1.0), vec3(65000.0));
-        acc_rgb = vec3(1);
+        acc_rgb.rgb = vec3(1);
       }
       contrib /= colour_upsample(albedo, lambda); // divide out first albedo for svgf
       if(s == 0) imageStore(img_aov, ipos, vec4(albedo, 1)); // write albedo to buffer for svgf
@@ -334,11 +334,12 @@ void main()
     const vec4 acc_sample = f / p;
     if(!any(isinf(acc_sample)) && !any(isnan(acc_sample)))
     {
-      acc_rgb += colour_to_rgb(acc_sample, lambda, hrp)/SURFACE_SPP;
-      acc_rgb = clamp(acc_rgb, vec3(-1.0), vec3(65000.0));
+      acc_rgb.rgb += colour_to_rgb(acc_sample, lambda, hrp)/SURFACE_SPP;
+      acc_rgb.rgb = clamp(acc_rgb.rgb, vec3(-1.0), vec3(65000.0));
+      acc_rgb.w += merian_square(luminance_rec2020(acc_rgb.rgb))/SURFACE_SPP;
     }
   } // for number of surface samples
 
   if(any(greaterThanEqual(ipos, fbdim))) return;
-  fb_set(ipos, fbdim, vec4(acc_rgb, merian_square(luminance_rec2020(acc_rgb))));
+  fb_set(ipos, fbdim, acc_rgb);
 }
