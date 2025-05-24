@@ -57,6 +57,7 @@ create_nodes(
       "gbufp",  "read",  "*",    "f32", dt_no_roi,
       "gbufc",  "read",  "*",    "f32", dt_no_roi,
       "output", "write", "rgba", "f32", &module->connector[0].roi);
+  graph->node[id_preblend].connector[5].flags |= s_conn_clear_once;
 
   // blend: final taa and albedo modulation
   const int id_blend = dt_node_add(graph, module, "svgf", "blend",
@@ -66,6 +67,7 @@ create_nodes(
       "light",  "read",  "rgba", "*",   dt_no_roi,
       "albedo", "read",  "rgba", "*",   dt_no_roi,
       "output", "write", "rgba", "f32", &module->connector[0].roi);
+  graph->node[id_blend].connector[4].flags |= s_conn_clear_once;
 
   const int pid_iter = dt_module_get_param(module->so, dt_token("iter"));
   const int num_it = CLAMP(dt_module_param_int(module, pid_iter)[0], 0, 5);
