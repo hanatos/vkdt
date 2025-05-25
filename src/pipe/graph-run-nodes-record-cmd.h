@@ -198,7 +198,9 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
                 (node->connector[i].flags & s_conn_feedback) ?
                 1-(graph->double_buffer & 1) :
                 graph->double_buffer)->buffer);
-      if(dt_connector_output(node->connector+i) && (node->connector[i].flags & s_conn_clear))
+      if(dt_connector_output(node->connector+i) &&
+          ((node->connector[i].flags & s_conn_clear) ||
+          ((node->connector[i].flags & s_conn_clear_once) && graph->frame == 0)))
         for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
         {
           VkBuffer buf = dt_graph_connector_image(graph, node-graph->node, i, k,
@@ -252,7 +254,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     else if(dt_connector_output(node->connector+i))
     {
       // wait for layout transition on the output back to general:
-      if(node->connector[i].flags & s_conn_clear)
+      if((node->connector[i].flags & s_conn_clear) ||
+        ((node->connector[i].flags & s_conn_clear_once) && (graph->frame == 0)))
       {
         for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
         {

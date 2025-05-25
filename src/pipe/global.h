@@ -38,6 +38,7 @@ typedef struct dt_module_input_event_t
   int mods;       // shift 1 ctrl 2 alt 4 super 8 caps 0x10 num lock 0x20
   int key;        // ascii character 'a' etc works. for the rest, see /usr/include/GLFW/glfw3.h
   int scancode;
+  int grabbed;    // to distinguish grabbed and mouse-over-widget events
 }
 dt_module_input_event_t;
 

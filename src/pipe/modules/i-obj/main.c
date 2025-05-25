@@ -2,6 +2,7 @@
 #include "pipe/geo.h"
 #include "core/half.h"
 #include "core/core.h"
+#include "db/stringpool.h"
 #include "obj.h"
 
 #include <stdio.h>
@@ -20,8 +21,8 @@ objinput_buf_t;
 static int 
 read_obj(
     dt_module_t *mod,
-    uint32_t    frame,
-    const char *filename)
+    uint32_t     frame,
+    const char  *filename)
 {
   objinput_buf_t *obj = mod->data;
   if(obj && !strcmp(obj->filename, filename) &&
@@ -48,8 +49,34 @@ read_obj(
   }
   else
   {
+    dt_stringpool_t sp;
+    dt_stringpool_init(&sp, 200, 50); // 100 objects with avg 50 chars in their names (minus _base or _norm)
+
+    const int pid = dt_module_get_param(mod->so, dt_token("texids"));
+    const char *texfile = dt_module_param_string(mod, pid);
+    if(!dt_graph_get_resource_filename(mod, texfile, frame, fname, sizeof(fname)))
+    {
+      FILE *tf = fopen(fname, "rb");
+      if(tf)
+      { // now init the string pool from our input text file
+        char line[2048];
+        while(fscanf(tf, "%[^\n]", line) != EOF)
+        {
+          char *colon = 0;
+          if((colon = strstr(line, ":")))
+          {
+            *colon = 0;
+            int tid = atoi(colon+1);
+            dt_stringpool_get(&sp, line, strlen(line), tid, 0);
+          }
+          fgetc(tf); // eat newline
+        }
+        fclose(tf);
+      }
+    }
     if(dt_graph_get_resource_filename(mod, filename, frame, fname, sizeof(fname))) goto error;
-    obj->tri = geo_obj_read(fname, &obj->tri_cnt);
+    obj->tri = geo_obj_read(fname, &obj->tri_cnt, &sp);
+    dt_stringpool_cleanup(&sp);
     snprintf(triname, sizeof(triname), "%s.tri", fname);
     FILE *f = fopen(triname, "wb");
     if(f)

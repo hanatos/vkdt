@@ -6,9 +6,7 @@
 #include "pipe/draw.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-// api functions for gui interactions, c portion.
-// the c++ header api.hh includes this one too, but this here
-// can be called from the non-imgui parts of the code.
+// api functions for gui interactions.
 
 static inline void
 dt_gui_dr_reload_shaders()
@@ -604,4 +602,39 @@ dt_gui_dr_draw_position(
     if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
       vx[dat[0]++] = dt_draw_endmarker();
   }
+}
+
+// sets the hdr metadata for the given window.
+// parameters are a straight copy of the vulkan spec,
+// nobody knows what they mean or how they impact the look.
+static inline void
+dt_gui_set_hdr_metadata(
+    dt_gui_win_t *win,
+    float maxLuminance,
+    float minLuminance,
+    float maxContentLightLevel,
+    float maxFrameAverageLightLevel)
+{
+  VkHdrMetadataEXT meta = { // rec2020
+    .sType = VK_STRUCTURE_TYPE_HDR_METADATA_EXT,
+    .displayPrimaryRed   = { .x=0.708, .y=0.292 },
+    .displayPrimaryGreen = { .x=0.170, .y=0.797 },
+    .displayPrimaryBlue  = { .x=0.131, .y=0.046 },
+    .whitePoint          = { .x=0.3127, .y=0.3290 },
+    // maxLuminance is the maximum luminance of the display used to optimize the content in nits
+    // minLuminance is the minimum luminance of the display used to optimize the content in nits
+    // maxContentLightLevel is the value in nits of the desired luminance for the brightest pixels in the displayed image.
+    // maxFrameAverageLightLevel is the value in nits of the average luminance of the frame which has the brightest average luminance anywhere in the content.
+    .maxLuminance              = maxLuminance,
+    .minLuminance              = minLuminance,
+    .maxContentLightLevel      = maxContentLightLevel,
+    .maxFrameAverageLightLevel = maxFrameAverageLightLevel,
+  };
+  PFN_vkSetHdrMetadataEXT func = (PFN_vkSetHdrMetadataEXT)vkGetInstanceProcAddr(qvk.instance, "vkSetHdrMetadataEXT");
+  if(0) // XXX probably requires the hdr metadata extension to work
+  if(func) func(
+      qvk.device,
+      1,
+      &win->swap_chain,
+      &meta);
 }

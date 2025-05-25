@@ -2,7 +2,7 @@
 
 vec3 env_lookup(vec3 w, sampler2D img_env)
 {
-  vec2 tc = vec2((atan(w.y, w.x)+M_PI)/(2.0*M_PI), acos(clamp(w.z, -1, 1))/M_PI);
+  vec2 tc = vec2((atan(w.x, w.y)+M_PI)/(2.0*M_PI), acos(clamp(w.z, -1, 1))/M_PI);
   ivec2 size = ivec2(textureSize(img_env, 0).x, 0);
   size.y = size.x/2;
 #if 0 // XXX DEBUG visualise mip maps
@@ -103,14 +103,14 @@ vec3 env_sample(vec2 xi, sampler2D img_env, out float X)
   X = 1.0/pdf;
 
   return vec3(
-      sin(angles.y*M_PI)*cos((angles.x-0.5)*2.0*M_PI),
       sin(angles.y*M_PI)*sin((angles.x-0.5)*2.0*M_PI),
+      sin(angles.y*M_PI)*cos((angles.x-0.5)*2.0*M_PI),
       cos(angles.y*M_PI));
 }
 
 float env_pdf(vec3 w, sampler2D img_env)
 {
-  vec2 tc = vec2((atan(w.y, w.x)+M_PI)/(2.0*M_PI), acos(clamp(w.z, -1, 1))/M_PI);
+  vec2 tc = vec2((atan(w.x, w.y)+M_PI)/(2.0*M_PI), acos(clamp(w.z, -1, 1))/M_PI);
   ivec2 size = ivec2(textureSize(img_env, 0).x, 0);
   size.y = size.x/2;
   ivec2 tci = clamp(ivec2(tc * size + 0.5), ivec2(0), size-1);

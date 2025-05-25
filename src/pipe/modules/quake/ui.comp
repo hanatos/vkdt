@@ -50,15 +50,14 @@ void main()
       vec2 ts = vec2(0.47,0.04)*imageSize(img_out);
       float c = print_number(params.duration, ts, vec2(0,ts.y)+vec2(1,-1)*(ipos-ts));
       irr.rgb = vec3(c);
-      irr.a = 1.0;
     }
     else
     {
       vec2 ts = vec2(0.01,0.04)*imageSize(img_out);
       float c = print_number(params.duration, ts, vec2(0,ts.y)+vec2(1,-1)*(ipos-ts));
       irr.rgb = vec3(c);
-      irr.a = 1.0;
     }
+    if(any(greaterThan(irr.rgb, vec3(0)))) irr.a = 1.0;
   }
   if(ipos.y > imageSize(img_out).y*0.96 && ipos.x > imageSize(img_out).x*0.8)
   { // draw health + armor indicators

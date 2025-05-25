@@ -21,7 +21,7 @@ layout(set = 1, binding = 3) uniform writeonly image2D img_gbuf_out;
 // christoph's vanilla svgf edge stopping functions:
 float edge(
     vec2  dx,      // delta in screen space
-    float sigma,   // noise estimation for light
+    float s2,      // noise variance estimation for light
     vec3  Lp,      // center pixel light
     vec3  Lq,      // other pixel light
     vec3  np,      // normal center
@@ -29,12 +29,12 @@ float edge(
     float dp,      // depth center
     float dq)      // depth other
 { // parameters from paper, default/paper version in comment:
-  const float sigma_z = 1;     // parameter for depth      = 1   larger blurs more
+  const float sigma_z = 8;     // parameter for depth      = 1   larger blurs more
   const float sigma_n = 32;    // parameter for normals    = 128 larger blurs more
-  const float sigma_l = 4;     // parameter for brightness = 4   larger blurs more
+  const float sigma_l = 0.1;     // parameter for brightness = 4   larger blurs more
   float w_z = exp(-abs(dp-dq) / (sigma_z));// * (1e-6+abs(dot(grad_z, dx)))));
   float w_n = pow(max(0.0, dot(np, nq)), sigma_n);
-  float w_l = exp(-dot(Lp-Lq, Lp-Lq) / (sigma_l * sigma + 1e-6));
+  float w_l = exp(-dot(Lp-Lq, Lp-Lq)*max(0,s2)/(sigma_l * sigma_l + 1e-6));
   return w_z * w_n * w_l;
 }
 
@@ -47,28 +47,32 @@ main()
   ivec2 sz = textureSize(img_irr, 0).xy;
 
   vec4  gbuf   = texelFetch(img_gbuf, ipos, 0);
-  vec3  normal = geo_decode_normal(floatBitsToUint(gbuf.x));
-  float depth  = gbuf.y;
+  vec3  normal = geo_decode_normal(floatBitsToUint(gbuf.y));
+  float depth  = gbuf.x;
+
+  vec4 Lp = texelFetch(img_irr, ipos, 0);
+  // m1 = luminance_rec2020(tmp.rgb);
+  // m2 = tmp.w;
+
+#if 0
   // float m1 = gbuf.z, m2 = gbuf.w; // will add below
   float m1 = 0.0, m2 = 0.0;
   float sigma;
-  vec3 Lp;
-
-  vec4 tmp = texelFetch(img_irr, ipos, 0);
-  Lp = tmp.xyz;
-  sigma = sqrt(tmp.w);
-
   if(push.gap == 1)
   { // estimate variance spatially, and get z gradient too:
     const int r = 1;
-    for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++)// if(i != 0 || j != 0)
+    for(int j=-r;j<=r;j++) for(int i=-r;i<=r;i++) if(i != 0 || j != 0)
     {
-      vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);
+      // vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);
+      vec4 irr = texelFetch(img_irr, ipos+ivec2(i,j), 0);
+      float lum = luminance_rec2020(irr.rgb);
       // vec4 gbufq = texture(img_gbuf, (ipos+ivec2(i,j)+0.5)/textureSize(img_gbuf, 0));
-      m1 += gbufq.z; m2 += gbufq.w;
+      m1 += lum; m2 += irr.w;
     }
     m1 /= (2.0*r+1)*(2.0*r+1);//-1;
     m2 /= (2.0*r+1)*(2.0*r+1);//-1;
+    gbuf.z = m1;
+    gbuf.w = m2;
     sigma = sqrt(max(0, m2 - m1*m1)) + 1e-8;
     // Lp = clamp(Lp, m1-2*sigma, m1+2*sigma); // firefly clamping. completely hosed on envmaps.
     // m1 += gbuf.z; m2 += gbuf.w;
@@ -87,24 +91,27 @@ main()
     }
 #endif
   }
+#endif
 
-  vec2 w_sum = vec2(1.0);
-  vec4 res = vec4(w_sum.x * Lp, w_sum.y*sigma*sigma);
+  float w_sum = 1.0;
+  vec4 res = w_sum * Lp;
   // evaluate filter:
+  // TODO: eval variance spatially if gap==1
 #define FILTER \
     do {\
     vec4 tx = texture(img_irr, (ipos+ivec2(i,j)+0.5)/textureSize(img_irr, 0));\
     vec3 Lq = tx.rgb;\
-    vec4 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0);\
-    vec3 nq = geo_decode_normal(floatBitsToUint(gbufq.x));\
-    float sq = push.gap == 1 ? sqrt(max(0, gbufq.w - gbufq.z*gbufq.z)) : sqrt(tx.w);\
+    vec2 gbufq = texelFetch(img_gbuf, ipos+ivec2(i,j), 0).xy;\
+    vec3 nq = geo_decode_normal(floatBitsToUint(gbufq.y));\
+    float s2q = tx.w - luminance_rec2020(tx.rgb)*luminance_rec2020(tx.rgb);\
+    float s2p = Lp.w - luminance_rec2020(Lp.rgb)*luminance_rec2020(Lp.rgb);\
     float w = edge(\
-        vec2(i,j), sq, \
-        Lp, Lq,\
+        vec2(i,j), max(s2p,s2q), \
+        Lp.rgb, Lq,\
         normal, nq,\
-        depth, gbufq.y);\
-    res += vec4(w*Lq, w*w*sq*sq);\
-    w_sum += vec2(w, w*w);\
+        depth, gbufq.x);\
+    res += w*tx;\
+    w_sum += w;\
     } while(false)
   { int j=-2; for(int i=-1;i<=1;i++) FILTER; }
   { int j=-1; for(int i=-2;i<=2;i++) FILTER; }
@@ -112,7 +119,7 @@ main()
   { int j= 1; for(int i=-2;i<=2;i++) FILTER; }
   { int j= 2; for(int i=-1;i<=1;i++) FILTER; }
 #undef FILTER
-  res /= w_sum.xxxy;
+  res /= w_sum;
 
   // sort image to write positions so we can iterate the filter
   ipos = mix(ipos / 2, imageSize(img_out)-1-ipos/2, equal(ipos & 1, ivec2(0)));

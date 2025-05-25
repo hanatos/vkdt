@@ -1,3 +1,5 @@
+#include "von_mises_fisher.glsl"
+
 struct mat_state_t
 { // cache stuff once so we don't need to re-evaluate it
   vec4 col_base;
@@ -8,6 +10,13 @@ struct mat_state_t
   float alpha;    // alpha transparency
   uint geo_flags; // geo_flags_t on cpu: lava, slime, nonorm, ..
 };
+
+vec3 emission_to_hdr(vec3 c)
+{
+  if(any(greaterThan(c, vec3(1e-3)))) // avoid near div0
+    return c/dot(c, vec3(1)) * 10.0*(exp2(4.0*dot(c, vec3(1)))-1.0);
+  return c;
+}
 
 vec3 quake_envmap(in vec3 w, uint sky_rt, uint sky_bk, uint sky_lf, uint sky_ft, uint sky_up, uint sky_dn)
 {
@@ -30,7 +39,7 @@ vec3 quake_envmap(in vec3 w, uint sky_rt, uint sky_bk, uint sky_lf, uint sky_ft,
     emcol  = vec3(0.50, 0.50, 0.50) * /*(k0+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k0);
     emcol += vec3(1.00, 0.70, 0.30) * /*(k1+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k1);
     // emcol += 1000*vec3(1.00, 1.00, 1.00) * /*(k1+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0+dot(sundir, w)), k3);
-    emcol += 30.0*vec3(1.1, 1.0, 0.9)*vmf_eval(k3, dot(sundir, w));
+    emcol += 30.0*vec3(1.1, 1.0, 0.9)*vmf_pdf(w, sundir, k3);
     emcol += vec3(0.20, 0.08, 0.02) * /*(k2+1.0)/(2.0*M_PI)*/ pow(0.5*(1.0-w.z), k2);
     // emcol *= 2.0;
     int m = 0;
@@ -53,9 +62,10 @@ vec3 quake_envmap(in vec3 w, uint sky_rt, uint sky_bk, uint sky_lf, uint sky_ft,
   }
 }
 
+#include "sdielectric.glsl"
 mat_state_t
 mat_init(
-    uvec3 mat,         // texture ids base, emit, normals, roughness and flags + alpha
+    uvec4 mat,         // texture ids base, emit, normals, roughness and flags + alpha, inside flag
     vec2 st,           // texture coordinates
     vec3 n,            // normal
     inout uint flags,  // scatter mode (reflect, transmit, emit, ..)
@@ -91,19 +101,15 @@ mat_init(
   uint tex_b = mat.x & 0xffff;
   uint tex_e = mat.y & 0xffff;
   uint geo_flags = mat.x >> 16;
+  if(mat.w > 0) geo_flags |= s_geo_inside; // mark as inside (flipped normal)
   float alpha = unpackUnorm2x16(mat.y).y;
 
-  if(geo_flags > 0 && geo_flags < 6)
+  if((geo_flags&7) > 0 && (geo_flags&7)<6)
   { // all esoteric surfaces warp
-    st = vec2(
-        st.x + 0.2*sin(st.y*2.0 + params.cltime),
-        st.y + 0.2*sin(st.x*2.0 + params.cltime));
+    st = fract(vec2(
+        st.x + 0.1*sin(st.y*M_PI*2.0 + params.cltime),
+        st.y + 0.1*sin(st.x*M_PI*2.0 + params.cltime)));
   }
-
-  vec3 du, dv, up = vec3(1,0,0);
-  if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
-  du = normalize(cross(up, n));
-  dv = normalize(cross(du, n));
 
   vec4 base = vec4(0.5);
   vec4 emit = vec4(0);
@@ -114,7 +120,7 @@ mat_init(
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(tex_b)], 0)*st);
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(tex_b)], 0)-1);
     vec3 tex = texelFetch(img_tex[nonuniformEXT(tex_b)], tc, 0).rgb;
-    albedo = tex;
+    albedo = tex*tex;
     base = colour_upsample(tex*tex, lambda);
   }
   if(tex_e > 0)
@@ -122,7 +128,7 @@ mat_init(
     ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(tex_e)], 0)*st);
     tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(tex_e)], 0)-1);
     vec3 tex = texelFetch(img_tex[nonuniformEXT(tex_e)], tc, 0).rgb;
-    emit = colour_upsample(tex*tex, lambda);
+    emit = colour_upsample(emission_to_hdr(tex*tex), lambda);
   }
   if(tex_r > 0)
   {
@@ -131,19 +137,12 @@ mat_init(
     roughness = texelFetch(img_tex[nonuniformEXT(tex_r)], tc, 0).r;
   }
 
-  if(any(greaterThan(emit, vec4(1e-3)))) // avoid near div0
-  {
-    emit = emit/dot(emit, vec4(1)) * 10.0*(exp2(4.0*dot(emit, vec4(1)))-1.0);
-    flags |= s_emit;
-  }
-
-  if((geo_flags & 7)== 6)
-  { // tears waterfall hack
+  if((geo_flags & 7) == s_geo_watere) // tears waterfall hack
     emit = 2.0*base;
-    flags |= s_emit;
-  }
 
-  return mat_state_t(base, emit, n, du, dv, roughness, alpha, geo_flags);
+  if(any(greaterThan(emit, vec4(0)))) flags |= s_emit;
+  mat3 onb = make_frame(n);
+  return mat_state_t(base, emit, n, onb[0], onb[1], roughness, alpha, geo_flags);
 }
 
 vec4 // return evaluation of f_r for the given wavelengths
@@ -156,6 +155,7 @@ mat_eval(
     vec4  lambda) // hero wavelengths
 {
   if((flags & s_volume) > 0) return vec4(volume_phase_function(dot(w, wo)));
+  if((mat.geo_flags & s_geo_dielectric) > 0) return dielectric_eval(mat, flags, w, n, wo, lambda);
   vec3 h = normalize(wo-w);
   return mat.col_base * bsdf_rough_eval(w, mat.du, mat.dv, n, wo, vec2(mat.roughness)) * fresnel(0, lambda, 1.0, dot(wo, h));
 }
@@ -173,13 +173,11 @@ mat_sample(
   if((flags & s_volume) > 0)
   {
     const float cosu = volume_sample_phase_function_cos(xi.xy);
-    vec3 du, dv, up = vec3(1,0,0);
-    if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
-    du = normalize(cross(up, w));
-    dv = normalize(cross(du, w));
+    mat3 onb = make_frame(w);
     const float phi = 2.0*M_PI*xi.z;
-    return cosu * w + sqrt(1.0-cosu*cosu) * (sin(phi) * du + cos(phi) * dv);
+    return onb * vec3(sqrt(1.0-cosu*cosu) * vec2(sin(phi), cos(phi)), cosu);
   }
+  if((mat.geo_flags & s_geo_dielectric) > 0) return dielectric_sample(mat, flags, w, n, lambda, xi, c);
   float X = 1.0;
   vec3 wo = bsdf_rough_sample(w, mat.du, mat.dv, n, vec2(mat.roughness), xi.xy, X);
   vec3 h = normalize(wo-w);
@@ -199,5 +197,6 @@ mat_pdf(
     float lambda) // the hero wavelength
 {
   if((flags & s_volume) > 0) return volume_phase_function(dot(w, wo));
+  if((mat.geo_flags & s_geo_dielectric) > 0) return dielectric_pdf(mat, flags, w, n, wo, lambda);
   return bsdf_rough_pdf(w, mat.du, mat.dv, n, wo, vec2(mat.roughness));
 }

@@ -1,0 +1,351 @@
+// markov chain path guiding:
+// Lucas Alber, Johannes Hanika, and Carsten Dachsbacher.
+// Real-time Markov chain path guiding for global illumination and single scattering.
+// Proc. ACM Comput. Graph. Interact. Tech., 8(1), 2025. 
+// released as GPLv3
+#version 460
+#extension GL_GOOGLE_include_directive              : enable
+#extension GL_EXT_ray_tracing                       : enable
+#extension GL_EXT_ray_query                         : enable
+#extension GL_EXT_ray_tracing_position_fetch        : enable
+#extension GL_EXT_shader_explicit_arithmetic_types  : enable
+#extension GL_EXT_nonuniform_qualifier              : enable
+#extension GL_EXT_control_flow_attributes           : enable
+#extension GL_KHR_shader_subgroup_ballot            : enable
+#extension GL_KHR_shader_subgroup_arithmetic        : enable
+#extension GL_EXT_scalar_block_layout               : enable
+#extension GL_EXT_shader_atomic_float               : enable
+
+#include "shared.glsl"
+#include "shared/render3d.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 0) uniform global_t
+{ 
+  int frame;
+} global;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{ 
+  vec4 cam_x;
+  vec4 cam_w;
+  vec4 cam_u;
+  vec4 fog;
+  float cltime;
+  int spp;
+  int wd;
+  int ht;
+} params;
+
+#include "config.h"
+
+layout(set = 1, binding = 0) buffer buf_fb_t { float v[]; } buf_fb;
+layout(set = 1, binding = 1) uniform sampler2D img_tex[];
+layout(set = 1, binding = 2) uniform sampler2D img_blue;
+layout(set = 1, binding = 3) uniform writeonly image2D img_aov;
+layout(set = 1, binding = 4) uniform sampler2D img_env;
+layout(set = 1, binding = 5) uniform sampler2D img_dn;
+layout(set = 1, binding = 6) buffer buf_mat_t { gbuf_t v[]; } buf_mat; // material+st
+layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
+layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
+// TODO need vtx_mv/vtx_prev (do horrible thing in quake using the lerp stuff and some hand waving)
+
+#include "shared/fb.glsl" // depends on buf_fb
+#include "raytrace.glsl"  // depends on rt_accel and buf_vtx
+#include "env.glsl"
+#include "colour.glsl"
+#include "volume-fwd.glsl"
+#include "volume.glsl"
+#include "complex.glsl"
+#include "fresnel.glsl"
+#include "material.glsl"  // depends on img_tex
+#include "camera-fwd.glsl"
+#include "camera.glsl"
+
+#if 1
+// Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
+// Returns random float in [0, 1) and updates state.
+uint seed;
+float XorShift32(inout uint state)
+{
+  state ^= state << 13;
+  state ^= state >> 17;
+  state ^= state << 5;
+  return state / 4294967296.0;
+}
+#else
+uint64_t seed;
+float XorShift32(inout uint64_t x)
+{
+  x ^= x >> 12;
+  x ^= x << 25;
+  x ^= x >> 27;
+  return float((x * 0x2545F4914F6CDD1Dul)>>32)/4294967296.0;
+}
+#endif
+
+#define XorShift32Vec2(state) vec2(XorShift32(state), XorShift32(state))
+#define XorShift32Vec3(state) vec3(XorShift32(state), XorShift32(state), XorShift32(state))
+#define XorShift32Vec4(state) vec4(XorShift32(state), XorShift32(state), XorShift32(state), XorShift32(state))
+
+vec4 dithermask(vec4 xi, ivec2 rp)
+{
+  return fract(xi + texelFetch(img_blue, rp, 0));
+}
+
+#include "grid.glsl"
+#include "hash.glsl"
+
+layout(set = 1, binding = 7, scalar) buffer restrict buf_mc_states {
+    MCState mc_states[];
+};
+layout(set = 1, binding = 8, scalar) buffer restrict buf_light_cache {
+    LightCacheVertex light_cache[];
+};
+// layout(set = 1, binding = 9, scalar) buffer restrict buf_dist_mc_states {
+//     DistanceMCVertex distance_mc_states[];
+// };
+
+#include "light_cache.glsl"
+#include "mc.glsl"
+
+float hsum(vec4 v)
+{
+  return v.x + v.y + v.z + v.w;
+}
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  ivec2 fbdim = ivec2(params.wd, params.ht);
+  seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
+#if RT_GBUF_JITTER==1
+  vec2 bh_off = vec2(mrand(seed),mrand(seed));
+#endif
+  // blue noise dither mask
+  const ivec2 rp = ivec2(ipos % ivec2(textureSize(img_blue, 0)));
+
+  camera = camera_t(0.5, vec2(1.0, fbdim.y/float(fbdim.x)), params.cam_x.xyz, mat3(1));
+  camera_setup(params.cam_x.xyz, params.cam_w.xyz, params.cam_u.xyz);
+
+  vec4 rand = XorShift32Vec4(seed);
+
+  vec4 x;
+  vec3 w, n, ng; // ray position, direction, hit normal
+  vec2 st;       // texture coordinates
+  uvec4 mat;
+
+  uint flags = 0;
+  float dist = 1e20;
+  const float tmax = 1e12;//volume_sample_dist(x.xyz, w, mrand(seed));
+  vec3 albedo = vec3(1);
+  vec4 acc_rgb = vec4(0);
+
+  for (int s = 0; s < SURFACE_SPP; s++)
+  {
+    vec4 hrp = vec4(1); // hero wavelength p, only deviates from 1 if pdf is different per wavelength
+    vec4 contrib = vec4(1.0);
+    // dithermask shows *no* difference for stratified hwl:
+    uint seed2 = 19937*global.frame;
+    vec4 lambda = colour_sample_lambda(dithermask(vec4(XorShift32(seed2)), rp), contrib, hrp);
+#if RT_GBUF_JITTER==1
+    contrib *= camera_sample_xw((ipos+filter_bh_sample(bh_off))/vec2(fbdim), x, w);
+#else
+    contrib *= camera_sample_xw(vec2(ipos)/vec2(fbdim), x, w);
+#endif
+    if(all(lessThanEqual(contrib, vec4(0.0)))) continue; // next spp
+    mat_state_t ms;
+    { // init first intersection vertex: read geo intersection info
+      vec2 dn = texelFetch(img_dn, ipos, 0).rg;
+      dist = dn.x;
+      n  = geo_decode_normal(floatBitsToUint(dn.y));
+      ng = geo_decode_normal(buf_mat.v[ipos.x+fbdim.x*ipos.y].ng);
+      uint inside = (buf_mat.v[ipos.x+fbdim.x*ipos.y].m2 & 0x80000000) > 0 ? 1 : 0;
+      mat = uvec4(
+          buf_mat.v[ipos.x+fbdim.x*ipos.y].m0,
+          buf_mat.v[ipos.x+fbdim.x*ipos.y].m1,
+          buf_mat.v[ipos.x+fbdim.x*ipos.y].m2 & 0x7fffffff,
+          inside);
+      uint stui = buf_mat.v[ipos.x+fbdim.x*ipos.y].st;
+      if(stui == -1u) n = vec3(0);
+      st = unpackUnorm2x16(stui);
+      if(dist < tmax) flags = 0;
+      else          { flags = s_volume; dist = tmax; }
+      if(dist >=1e10) flags = s_envmap;
+      x.xyz = x.xyz + dist * w + 0.001*ng;
+      // init material state for first vertex on geo:
+      ms = mat_init(mat, st, n, flags, lambda, w, albedo);
+      if((flags & s_emit) != 0)
+      {
+        acc_rgb.rgb = colour_to_rgb(contrib * ms.col_emit, lambda, hrp)/SURFACE_SPP;
+        albedo = acc_rgb.rgb;
+        albedo = clamp(albedo, vec3(-1.0), vec3(65000.0));
+        acc_rgb.rgb = vec3(1);
+      }
+      contrib /= colour_upsample(albedo, lambda); // divide out first albedo for svgf
+      if(s == 0) imageStore(img_aov, ipos, vec4(albedo, 1)); // write albedo to buffer for svgf
+    }
+    vec4 f = vec4(0); // store measurement of full path if connected to emitter
+    float p = 1.0;    // this is scalar because we don't sample directions by lambda
+    if((flags & (s_emit|s_envmap)) > 0) continue; // endpoint found, next spp
+    for(int bounce=0;bounce<MAX_PATH_LENGTH;bounce++)
+    { // for a max number of path segments (every iteration traces one ray in addition to the eye ray)
+      vec3 wo;
+      float wo_p = 0;
+      float wodotn;
+      float score_sum = 0;
+      MCState mc_state;
+      uint mc_buffer_index;
+      { // scope: sample outgoing direction
+#if MCPG_REFERENCE_MODE==1
+        vec4 c;
+        wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
+        wo_p = mat_pdf(ms, flags, w, n, wo, lambda.x);
+        // wo = mat3(ms.du, ms.dv, ng) * sample_cos(XorShift32Vec2(seed));
+        // wo_p = dot(ng, wo)/M_PI;
+#else
+        float scores[MC_SAMPLES];
+        vec4 vmfs[MC_SAMPLES];
+        [[unroll]] for (int i = 0; i < MC_SAMPLES; i++)
+        {
+          const bool adaptive_grid = XorShift32(seed) < MC_SAMPLES_ADAPTIVE_PROB;
+
+          uint buffer_index, hash;
+          if (adaptive_grid)
+            mc_adaptive_buffer_index(
+                // s == 0 ? current_hit.prev_pos : current_hit.pos,
+                x.xyz, n,
+                buffer_index, hash);
+          else
+            mc_static_buffer_index(
+                // s == 0 ? current_hit.prev_pos : current_hit.pos,
+                x.xyz,
+                buffer_index, hash);
+
+          MCState state = mc_states[buffer_index];
+
+          if (adaptive_grid)
+            mc_adaptive_finalize_load(state, hash);
+          else
+            mc_static_finalize_load(state, hash, x.xyz, n);
+
+          if (isinf(state.sum_w) || isnan(state.sum_w)) state.sum_w = 0;
+          vmfs[i] = mc_state_get_vmf(state, x.xyz);
+          scores[i] = state.sum_w;
+          score_sum += state.sum_w;
+          if (XorShift32(seed) <= scores[i] / score_sum + 1e-5)
+          { // we use here that comparison with NaN is false, that happens if candidate_score == 0 and sum == 0; 
+            mc_state = state;
+            mc_buffer_index = buffer_index;
+            wo = vmf_sample(vmfs[i].xyz, vmfs[i].w, XorShift32Vec2(seed));
+          }
+        }
+        if (isinf(score_sum) || isnan(score_sum)) score_sum = 0;
+
+        if (score_sum == 0 || XorShift32(seed) < SURF_BSDF_P)
+        { // BSDF Sampling
+          vec4 c;
+          // wo = mat3(ms.du, ms.dv, n) * sample_cos(XorShift32Vec2(seed));
+          wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
+          mc_state = mc_state_new();
+          mc_buffer_index = -1u;
+        } // else {VMF Sampling // wo = set above }
+
+        // Multiple importance sampling
+        // score_sum > 0 ? results in black artifacts
+        [[unroll]] for (int i = 0; i < MC_SAMPLES; i++)
+          // wo_p += (score_sum > 0 && scores[i] > 0) ? scores[i] * (vmf_pdf(wo, vmfs[i].xyz, vmfs[i].w)) / score_sum : 0;
+          wo_p += (score_sum > 0) ? scores[i] * (vmf_pdf(wo, vmfs[i].xyz, vmfs[i].w)) / score_sum : 0;
+        const float bw = score_sum > 0 ? SURF_BSDF_P : 1.0;
+        wo_p = mix(wo_p,
+          mat_pdf(ms, flags, w, n, wo, lambda.x)
+          // max(dot(n, wo), 0)/M_PI
+          , bw);
+
+#endif
+      } // wo scope
+      // ray is below geometric surface
+      wodotn = dot(wo, n);
+      if (wodotn <= 1e-3 || dot(wo, ng) <= 1e-3) break; // dead sample
+      // XXX divide out albedo?
+      // const vec4 bsdf = colour_upsample(albedo, lambda)/M_PI;
+      const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
+
+      vec3 x_next = x.xyz, n_next, ng_next;
+
+      dist = tmax; // trace ray
+      if(cast_ray(wo, x_next, dist, n_next, ng_next, st, mat)) flags = 0;
+      if(dist >= tmax) flags = s_envmap;
+
+      vec3 albedo_next;
+      ms = mat_init(mat, st, n_next, flags, lambda, wo, albedo_next);
+
+      vec4 transmittance = vec4(1);
+      vec4 direct_illum = ms.col_emit * transmittance; // Le * T from next vertex
+      // use full GI (diffuse bounces from light cache)?
+      const vec4 lc_incident = any(greaterThan(direct_illum, vec4(0))) ||
+        (USE_LIGHT_CACHE_TAIL == 0 && MAX_PATH_LENGTH == 1) ? direct_illum :
+        transmittance * colour_upsample(light_cache_get(x_next, n_next).rgb, lambda);
+
+      // TODO without albedo (added below to skip first albedo)
+      contrib *= bsdf * wodotn;
+#if USE_LIGHT_CACHE_TAIL==1
+      f = contrib * (bounce < MAX_PATH_LENGTH - 1 ? direct_illum : lc_incident);
+#else
+      f = contrib * direct_illum;
+#endif
+      p *= wo_p;
+      contrib *= transmittance;
+
+#if MCPG_REFERENCE_MODE != 1
+      { // UPDATE MARKOV CHAIN and LIGHT_CACHE
+        // multiply albedo?
+        const float mc_f = hsum(lc_incident*bsdf)*wodotn/wo_p;
+        if (!isinf(mc_f) && !isnan(mc_f))
+        {
+          light_cache_update(x.xyz, n,
+              // albedo*
+              colour_to_linear_srgb(
+                bsdf *
+                lc_incident
+                // * wodotn/M_PI
+                / max(wo_p, 10.0), lambda, hrp));
+
+          if (XorShift32(seed) * score_sum < mc_f * MC_SAMPLES)
+          {
+            mc_state_add_sample(mc_state, x.xyz, mc_f, x_next, vec3(0));// XXX TODO (x_next - x_next_prev_pos) / TIME_DIFF);
+            mc_static_save(mc_state, x.xyz, n);
+            mc_adaptive_save(mc_state, x.xyz, n);
+          }
+          else if (MC_FAST_RECOVERY == 1 && mc_light_missing(mc_state, mc_f, wo, x.xyz))
+          { // fix slow recovery after light source disappears
+            if(mc_buffer_index != -1u)
+              mc_states[mc_buffer_index].sum_w = 0.;
+          }
+        }
+      } // scope braces
+#endif
+
+      x.xyz = x_next;
+      n = n_next;
+      ng = ng_next; // XXX need this?
+      albedo = albedo_next; // XXX and this?
+      w = wo;
+
+      if((flags & (s_emit|s_envmap)) > 0) break; // endpoint found
+      if(all(lessThanEqual(contrib, vec4(0.0)))) break; // contribution dropped
+    } // for number of bounces
+
+    const vec4 acc_sample = f / p;
+    if(!any(isinf(acc_sample)) && !any(isnan(acc_sample)))
+    {
+      acc_rgb.rgb += colour_to_rgb(acc_sample, lambda, hrp)/SURFACE_SPP;
+      acc_rgb.rgb = clamp(acc_rgb.rgb, vec3(-1.0), vec3(65000.0));
+      acc_rgb.w += merian_square(luminance_rec2020(acc_rgb.rgb))/SURFACE_SPP;
+    }
+  } // for number of surface samples
+
+  if(any(greaterThanEqual(ipos, fbdim))) return;
+  fb_set(ipos, fbdim, acc_rgb);
+}

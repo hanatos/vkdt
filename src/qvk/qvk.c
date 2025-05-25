@@ -96,7 +96,7 @@ vk_debug_callback(
   {
     // void *const buf[100];
     // backtrace_symbols_fd(buf, 100, 2);
-    assert(0);
+    // assert(0);
   }
 #endif
 #endif
@@ -141,7 +141,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   const char *vk_hdr_instance_extensions[] = {
     // colour management:
     VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
-    //VK_EXT_HDR_METADATA_EXTENSION_NAME, ??? we just grab the function pointer
+    // VK_EXT_HDR_METADATA_EXTENSION_NAME, // not present on hyprland
   };
 
   int hdr = 1;

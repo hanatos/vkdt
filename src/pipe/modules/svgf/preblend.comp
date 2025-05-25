@@ -3,7 +3,6 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
-#include "config.h"
 #include "shared/render3d.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
@@ -13,15 +12,19 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float alpha;
   float taa;
   float lalpha;
+  int   iter;
 } params;
 
 layout(set = 1, binding = 0) uniform sampler2D img_mv;    // motion vectors
-layout(set = 1, binding = 1) uniform sampler2D img_prevl; // previous light (noisy)
-layout(set = 1, binding = 2) uniform sampler2D img_light; // current  light (noisy)
+layout(set = 1, binding = 1) uniform sampler2D img_irrp;  // previous irradiance (noisy)
+layout(set = 1, binding = 2) readonly buffer irrc_t { float v[]; } irrc; // current  irradiance (noisy)
 layout(set = 1, binding = 3) uniform sampler2D img_gbufp; // old gbuffer
 layout(set = 1, binding = 4) uniform sampler2D img_gbufc; // current gbuffer
-
 layout(set = 1, binding = 5) uniform writeonly image2D img_out; // output a bit less noisy light
+
+#define WORKGROUP_SIZE (gl_WorkGroupSize.x * gl_WorkGroupSize.y)
+#define LOCAL_INDEX gl_LocalInvocationIndex
+shared float sort[WORKGROUP_SIZE];
 
 void
 main()
@@ -29,9 +32,11 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec2 mv = texelFetch(img_mv, ipos, 0).rg;
-  vec3 L  = texelFetch(img_light, ipos,           0).rgb;
-  vec3 Lo = texelFetch(img_prevl, ivec2(ipos+mv), 0).rgb;
+  ivec2 sz = imageSize(img_out);
+  ivec2 mv = ivec2(texture(img_mv, (ipos+0.5)/vec2(sz)).rg);
+  const uint idx = 4*(sz.x * ipos.y + ipos.x);
+  vec4 L = vec4(irrc.v[idx], irrc.v[idx+1], irrc.v[idx+2], irrc.v[idx+3]);
+  vec4 Lo = texture(img_irrp, vec2(ipos+mv+0.5)/vec2(sz));
 
   vec4 gbufc = texelFetch(img_gbufc, ipos, 0);
   vec4 gbufp = texelFetch(img_gbufp, ivec2(ipos+mv), 0);
@@ -39,22 +44,55 @@ main()
   float alpha = params.lalpha; // blend weight, larger means use more of the history.
   // predict temporal variance from biased moments.
   // could use a bias correction scheme as adam does if we knew the number of iterations.
-  // XXX TODO variance comes to us a second moment stored in the fourth channel of the light buffer
-  float sigma = 1;//sqrt(max(0, gbufc.w - gbufc.z*gbufc.z));
+  float m2 = mix(L.w, Lo.w, alpha);
+  float m1 = mix(luminance_rec2020(L.rgb), luminance_rec2020(Lo.rgb), 0.5);
+  float sigma = sqrt(max(0, m2 - m1 * m1));
   // float sigmap = sqrt(max(0, gbufp.w - gbufp.z*gbufp.z));
 
   // discontinuity detection
-  alpha *= smoothstep(sigma, 0.0, abs(gbufc.z - length(L)));
+  // alpha *= smoothstep(0.0, 3*sigma, length(Lo-L));
 
   // gbuffer weight:
-  vec3 nc = geo_decode_normal(floatBitsToUint(gbufc.x));
-  vec3 np = geo_decode_normal(floatBitsToUint(gbufp.x));
+  vec3 nc = geo_decode_normal(floatBitsToUint(gbufc.y));
+  vec3 np = geo_decode_normal(floatBitsToUint(gbufp.y));
   alpha *= smoothstep(0.8, 1.0, dot(nc, np));
-  alpha *= smoothstep(0.02*max(gbufc.y, gbufp.y), 0.0, abs(gbufc.y - gbufp.y));
+  alpha *= smoothstep(0.02*max(gbufc.x, gbufp.x), 0.0, abs(gbufc.x - gbufp.x));
 
   L = mix(L, Lo, alpha);
   // L = vec3(gbufc.z, sigmac, sigmap); // visualise mean and variance
 
-  imageStore(img_out, ipos, vec4(L, 1));
-}
+#if 1
+  // firefly filter stolen from merian:
+  // sort luminance using odd even sort
+  float lum = luminance_rec2020(L.rgb);
+  sort[LOCAL_INDEX] = lum;
+  barrier();
 
+  if (LOCAL_INDEX < WORKGROUP_SIZE - 1) {
+    for (int i = 0; i < WORKGROUP_SIZE / 2; i++) {
+      if (LOCAL_INDEX % 2 == 0) {
+        if (sort[LOCAL_INDEX] > sort[LOCAL_INDEX + 1]) {
+          const float tmp = sort[LOCAL_INDEX];
+          sort[LOCAL_INDEX] = sort[LOCAL_INDEX + 1];
+          sort[LOCAL_INDEX + 1] = tmp;
+        }
+      }
+      barrier();
+
+      if (LOCAL_INDEX % 2 == 1) {
+        if (sort[LOCAL_INDEX] > sort[LOCAL_INDEX + 1]) {
+          const float tmp = sort[LOCAL_INDEX];
+          sort[LOCAL_INDEX] = sort[LOCAL_INDEX + 1];
+          sort[LOCAL_INDEX + 1] = tmp;
+        }
+      }
+      barrier();
+    }
+  }
+  const float q = sort[uint(clamp(round(0.96 * WORKGROUP_SIZE), 0, WORKGROUP_SIZE - 1))];
+  if(lum > q) L *= q/lum;
+#endif
+
+  // imageStore(img_out, ipos, vec4(sigma));
+  imageStore(img_out, ipos, L); // pass on m2 as based on final alpha
+}

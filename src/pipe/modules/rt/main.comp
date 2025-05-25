@@ -17,6 +17,10 @@
 #include "camera-fwd.glsl"
 #include "camera.glsl"
 
+#define NEE 0 // sampling only
+// #define NEE 1 // nee only
+// #define NEE 2 // both and MIS
+
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
 layout(std140, set = 0, binding = 0) uniform global_t
@@ -32,13 +36,19 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4 fog;
   float cltime;
   int spp;
+  int wd;
+  int ht;
 } params;
 
+#include "config.h"
+
 layout(set = 1, binding = 0) buffer buf_fb_t { float v[]; } buf_fb;
-layout(set = 1, binding = 1) uniform sampler2D img_blue;
-layout(set = 1, binding = 2) uniform sampler2D img_tex[];
+layout(set = 1, binding = 1) uniform sampler2D img_tex[];
+layout(set = 1, binding = 2) uniform sampler2D img_blue;
 layout(set = 1, binding = 3) uniform writeonly image2D img_aov;
 layout(set = 1, binding = 4) uniform sampler2D img_env;
+layout(set = 1, binding = 5) uniform sampler2D img_dn;
+layout(set = 1, binding = 6) buffer buf_mat_t { gbuf_t v[]; } buf_mat; // material+st
 layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
 layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
 
@@ -64,7 +74,7 @@ void
 main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  ivec2 fbdim = ivec2(imageSize(img_aov));
+  ivec2 fbdim = ivec2(params.wd, params.ht);
   if(any(greaterThanEqual(ipos, fbdim))) return;
 
   uint64_t seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
@@ -96,150 +106,110 @@ main()
     vec3 w, n, ng; // ray position, direction, hit normal
     vec2 st;       // texture coordinates
     // vec2 uv = (ipos+0.5)/vec2(push.wd, pus.ht) - 0.5;
+#if RT_GBUF_JITTER==1
     thr *= camera_sample_xw((ipos+filter_bh_sample(rand.yz))/vec2(fbdim), x, w);
+#else
+    thr *= camera_sample_xw(vec2(ipos)/fbdim, x, w);
+#endif
 
     aov.rgb = (1.0+w)/2.0;
+    float pdf_w = -1.0;
 
-    for(int i=0;i<5;i++)
+    for(int i=0;i<3;i++)
     { // for a number of bounces
-      float dist = volume_sample_dist(x.xyz, w, rand64(seed));
-      uvec3 mat;
+      uvec4 mat;
       uint flags = 0;
-      const float tmax = 1e6;
-      if(cast_ray(w, x.xyz, dist, n, ng, st, mat))
-      {
-        if(dot(n,w) > 0) n = -n;
-        vec3 du, dv, up = vec3(1,0,0);
-        if(abs(n.x) > abs(n.y)) up = vec3(0,1,0);
-        du = normalize(cross(up, n));
-        dv = normalize(cross(du, n));
-        if(i == 0) aov.rgb = vec3(dot(-w, n));
+      const float tmax = 1e10;//volume_sample_dist(x.xyz, w, rand64(seed));
+      float dist = tmax;
 
-        vec3 wo;
-#if 0 // default cosine
-        {
-          vec3 ws = sample_cos(vec2(rand64(seed), rand64(seed)));
-          wo = mat3(du, dv, n) * ws;
-          float pdf = ws.z / M_PI;
-          vec3 h = normalize(wo - w);
-          vec4 f = ws.z * bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness)) * fresnel(0, lambda, 1.0, dot(wo, h));
-          thr *= f/pdf;
-        }
-#endif
-#if 0 // importance sampling the bsdf
-        {
-          float weight = 1.0;
-          wo = bsdf_rough_sample(w, du, dv, n, vec2(roughness), vec2(rand64(seed), rand64(seed)), weight);
-          vec3 h = normalize(wo - w);
-          thr *= fresnel(0, lambda, 1.0, dot(wo, h));
-          thr *= weight;
-        }
-#endif
-#if 0 // envmap sampling
-        {
-          float weight = 1.0;
-          wo = env_sample(vec2(rand64(seed), rand64(seed)), img_env, weight);
-          thr *= max(0.0, dot(n, wo))*bsdf_rough_eval(w, du, dv, n, wo, vec2(roughness));
-          thr *= weight;
-        }
-#endif
-#if 1 // resampling thing:
-        { // do both and resample!
-          float w0 = 1.0, w1 = 1.0;
-
-          uint flags = 0;
-          vec3 tmp;
-          mat_state_t ms = mat_init(mat, st, n, flags, lambda, vec3(0), tmp);
-
-          // bsdf sampling
-          vec4 dummy;
-          vec3 wo0 = mat_sample(ms, flags, w, n, lambda, vec3(rand64(seed), rand64(seed), rand64(seed)), dummy);
-          float p0 = mat_pdf(ms, flags, w, n, wo0, lambda.x);
-          float ph0 = env_pdf(wo0, img_env) * (dot(wo0,n) > 0 ? 1 : 0) * dot(vec4(1), mat_eval(ms, 0, w, n, wo0, lambda));
-          w0 = ph0 / p0;
-
-          // envmap sampling
-          vec3 wo1 = env_sample(vec2(rand64(seed), rand64(seed)), img_env, w1);
-          float p1 = 1.0/w1;
-          float ph1 = p1 * (dot(wo1,n) > 0 ? 1 : 0) * dot(vec4(1), mat_eval(ms, 0, w, n, wo1, lambda));
-          w1 = ph1 / p1;
-
-          if(rand64(seed) < w0/(w0+w1))
-          {
-            wo = wo0;
-            vec4 f = mat_eval(ms, 0, w, n, wo0, lambda);
-            thr *= f / ph0 * 0.5 * (w0 + w1);
-          }
-          else
-          {
-            wo = wo1;
-            vec4 f = mat_eval(ms, 0, w, n, wo1, lambda);
-            thr *= f / ph1 * 0.5 * (w0 + w1);
-          }
-        }
-#endif
-        if(i == 0) aov.rgb = (1.0+n)/2.0;
-        if(dot(wo,n) <= 0.0) break; // sampled under surface
-        x.xyz += 0.001 * n; // TODO only for convex regions where the terminator hack doesn't work
-        w = wo;
+      if(i == 0)
+      { // init first intersection vertex: read geo intersection info
+        vec2 dn = texelFetch(img_dn, ipos, 0).rg;// TODO with camera jitter as above?
+        dist = dn.x;
+        n  = geo_decode_normal(floatBitsToUint(dn.y));
+        ng = geo_decode_normal(buf_mat.v[ipos.x+fbdim.x*ipos.y].ng);
+        uint inside = (buf_mat.v[ipos.x+fbdim.x*ipos.y].m2 & 0x80000000) > 0 ? 1 : 0;
+        mat = uvec4(
+            buf_mat.v[ipos.x+fbdim.x*ipos.y].m0,
+            buf_mat.v[ipos.x+fbdim.x*ipos.y].m1,
+            buf_mat.v[ipos.x+fbdim.x*ipos.y].m2 & 0x7fffffff,
+            inside);
+        uint stui = buf_mat.v[ipos.x+fbdim.x*ipos.y].st;
+        if(stui == -1u) n = vec3(0);
+        st = unpackUnorm2x16(stui);
+        if(dist < tmax) flags = 0;
+        else          { flags = s_volume; dist = tmax; }
+        if(dist >=1e10) flags = s_envmap;
+        // flags=s_envmap;
+        x.xyz = x.xyz + dist * w + 0.001*ng;
       }
-      else if(dist > tmax)
-      { // escaped to environment map
-        vec3 env = env_lookup(w, img_env);
-        vec4 L = colour_upsample(env, lambda);
-        // vec4 Lc = colour_blackbody(lambda, 6504.0); // not quite D65
-        // vec4 L = pow(1.0+dot(vec3(0,0,1), w), 3.0) * 0.5 * Lc;
-        acc += thr*L / float(params.spp);
+      else 
+      {
+        if(cast_ray(w, x.xyz, dist, n, ng, st, mat)) flags = 0;
+        else if(dist >=1e10) flags = s_envmap;
+      }
+
+      vec3 tmp;
+      mat_state_t ms = mat_init(mat, st, n, flags, lambda, w, tmp);
+      if((flags & s_envmap) > 0)
+      { // escaped to environment map, eval MIS
+#if NEE==0
+        float mis = 1; // only sample
+#elif NEE==1
+        float mis = i>0?0:1; // NEE only
+#else
+        float pdf_env = pdf_w <= 0.0 ? 0.0 : env_pdf(w, img_env);
+        float mis = pdf_w <= 0.0 ? 1.0 : pdf_w / (pdf_env + pdf_w);
+#endif
+        acc += thr * mis * ms.col_emit;
         break;
       }
-      else
-      { // scattering in medium
-        thr *= colour_upsample(vec3(1.0, 0.97, 0.6), lambda); // scattering albedo
-        x.xyz += dist * w;
-#if 0 // sample phase function
-        const float cosu = volume_sample_phase_function_cos(vec2(rand64(seed),rand64(seed)));
-        vec3 du, dv, up = vec3(1,0,0);
-        if(abs(w.x) > abs(w.y)) up = vec3(0,1,0);
-        du = normalize(cross(up, w));
-        dv = normalize(cross(du, w));
-        const float phi = 2.0*M_PI*rand64(seed);
-        w = cosu * w + sqrt(1.0-cosu*cosu) * (sin(phi) * du + cos(phi) * dv);
-#endif
-#if 1 // resample env + phase function
-        float w0 = 1.0, w1 = 1.0;
-
-        // phase sampling
-        const float cosu = volume_sample_phase_function_cos(vec2(rand64(seed),rand64(seed)));
-        float p0 = volume_phase_function(cosu);
-        vec3 du, dv, up = vec3(1,0,0);
-        if(abs(w.x) > abs(w.y)) up = vec3(0,1,0);
-        du = normalize(cross(up, w));
-        dv = normalize(cross(du, w));
-        const float phi = 2.0*M_PI*rand64(seed);
-        vec3 wo0 = cosu * w + sqrt(1.0-cosu*cosu) * (sin(phi) * du + cos(phi) * dv);
-        float ph0 = p0 * env_pdf(wo0, img_env);
-        w0 = ph0 / p0;
-
-        // envmap sampling
-        vec3 wo1 = env_sample(vec2(rand64(seed), rand64(seed)), img_env, w1);
-        float p1 = 1.0/w1;
-        float f1 = volume_phase_function(dot(wo1, w));
-        float ph1 = p1 * f1;
-        w1 = f1;//ph1 / p1;
-
-        if(rand64(seed) < w0/(w0+w1))
+      if((flags & s_emit) != 0)
+      { // intersected a light source, that's where we stop
+        acc += thr * ms.col_emit;
+        if(i == 0) aov.rgb = ms.col_emit.rgb;
+        break;
+      }
+#if NEE!=0
+      { // NEE to envmap
+        float xe;
+        vec3 wo = env_sample(vec2(rand64(seed), rand64(seed)), img_env, xe);
+        vec3 n2, ng2, x2 = x.xyz;
+        vec2 st2;
+        uvec4 m2;
+        float dist2 = 1e10;
+        if(!cast_ray(wo, x2, dist, n2, ng2, st2, m2))
         {
-          w = wo0;
-          vec4 f = vec4(p0);
-          thr *= f / ph0 * 0.5 * (w0 + w1);
-        }
-        else
-        {
-          w = wo1;
-          vec4 f = vec4(w1);
-          thr *= f / ph1 * 0.5 * (w0 + w1);
-        }
+          vec3 env = env_lookup(wo, img_env);
+          vec4 L = colour_upsample(env, lambda);
+          float pdf_env = 1.0/xe;
+          float pdf_wo = mat_pdf(ms, flags, w, n, wo, lambda.x);
+#if NEE==0
+          float mis = 0; // scattering only
+#elif NEE==1
+          float mis = 1; // NEE only
+#else
+          float mis = pdf_env / (pdf_wo + pdf_env);
 #endif
+          vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
+          acc += thr * bsdf * max(0, dot(n, wo)) * xe * L * mis;
+        }
+      }
+#endif
+
+      // trace on
+      rand = vec4(rand64(seed), rand64(seed), rand64(seed), rand64(seed));
+      vec4 c;
+      vec3 wo = mat_sample(ms, flags, w, n, lambda, rand.xyz, c);
+      pdf_w = mat_pdf(ms, flags, w, n, wo, lambda.x);
+      thr *= c;
+      w = wo;
+      // if((flags & s_transmit) > 0)
+        x.xyz += 0.001*wo;
+      if((dot(n, w) <= 0 || dot(ng, w) <= 0) && (flags & s_transmit) == 0)
+      {
+        thr = vec4(0);
+        break;
       }
     }
     acc_col += colour_to_rgb(acc, lambda, hrp);

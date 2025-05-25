@@ -14,6 +14,19 @@ const uint s_specular = 128u;
 const uint s_envmap   = 256u;
 const uint s_absorb   =   0u;
 
+// same as in geo.h for cpu:
+const uint s_geo_none   = 0u; // nothing special, ordinary geo
+const uint s_geo_lava   = 1u; // lava
+const uint s_geo_slime  = 2u; // slime
+const uint s_geo_tele   = 3u; // teleporter
+const uint s_geo_water  = 4u; // water front surf
+const uint s_geo_waterb = 5u; // water back surf
+const uint s_geo_watere = 6u; // emissive water
+const uint s_geo_sky    = 7u; // quake style sky surface, a window to the infinite
+const uint s_geo_nonorm = 8u; // actually a flag, signifies there are no vertex normals
+const uint s_geo_opaque = 16u;// disregard alpha channel for transparency
+const uint s_geo_dielectric = 32u; // specular dielectric
+const uint s_geo_inside = 64u;// intersecting surface from inside
 
 void prepare_intersection(
     rayQueryEXT rq,
@@ -22,13 +35,13 @@ void prepare_intersection(
     out vec3    n,    // shading normal
     out vec3    ng,   // geo normal
     out vec2    st,   // texture coordinates, modulo'd into [0,1)
-    out uvec3   mat)  // material ids
+    out uvec4   mat)  // material ids + inside flag
 { // access and unpack geometry data
   uint pi = 3*rayQueryGetIntersectionPrimitiveIndexEXT(rq, true);
   uint it = rayQueryGetIntersectionInstanceIdEXT(rq, true);
-  mat = uvec3(buf_vtx[it].v[pi+0].tex,
+  mat = uvec4(buf_vtx[it].v[pi+0].tex,
               buf_vtx[it].v[pi+1].tex,
-              buf_vtx[it].v[pi+2].tex);
+              buf_vtx[it].v[pi+2].tex, 0);
   vec3 v0 = vec3(buf_vtx[it].v[pi+0].x, buf_vtx[it].v[pi+0].y, buf_vtx[it].v[pi+0].z);
   vec3 v1 = vec3(buf_vtx[it].v[pi+1].x, buf_vtx[it].v[pi+1].y, buf_vtx[it].v[pi+1].z);
   vec3 v2 = vec3(buf_vtx[it].v[pi+2].x, buf_vtx[it].v[pi+2].y, buf_vtx[it].v[pi+2].z);
@@ -46,12 +59,12 @@ void prepare_intersection(
 #endif
   ng = normalize(cross(v1-v0, v2-v0)); // geo normal
   uint geo_flags = mat.x >> 16; // extract surface flags;
-  if((geo_flags & 8)>0) n = ng;
+  if((geo_flags & s_geo_nonorm)>0) n = ng;
   else n = normalize(mat3(n0, n1, n2) * b); // vertex normals
 
-  if(geo_flags == 7)
+  if(geo_flags == s_geo_sky)
   { // sky box, extract cube map textures from n and mark as sky:
-    n = vec3(0);
+    n = ng = vec3(0);
     mat.x = buf_vtx[it].v[pi+0].n;
     mat.y = buf_vtx[it].v[pi+1].n;
     mat.z = buf_vtx[it].v[pi+2].n;
@@ -59,10 +72,17 @@ void prepare_intersection(
   }
 
   if(dot(w, n) > 0) n = -n;
-  if(dot(w, ng) > 0) ng = -ng;
+  if(dot(w, ng) > 0)
+  { // inside the object, required for glass
+    mat.w = 1;
+    ng = -ng;
+  }
   vec2 st0 = unpackHalf2x16(buf_vtx[it].v[pi+0].st);
   vec2 st1 = unpackHalf2x16(buf_vtx[it].v[pi+1].st);
   vec2 st2 = unpackHalf2x16(buf_vtx[it].v[pi+2].st);
+  // st0.y = 1.0-st0.y;
+  // st1.y = 1.0-st1.y;
+  // st2.y = 1.0-st2.y;
   st = fract(mat3x2(st0, st1, st2) * b);
 
   uint tex_n = mat.z & 0xffff;
@@ -83,7 +103,7 @@ void prepare_intersection(
     if(dot(w,n) > 0) n -= w*dot(w,n);
   }
 
-  if((geo_flags & 8)==0 && (tex_n == 0))
+  if((geo_flags & s_geo_nonorm)==0 && (tex_n == 0))
   { // now fix shading normals below horizon and terminator problem:
     if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
     if(dot(w,n1) > 0) n1 -= w*dot(w,n1);
@@ -107,7 +127,7 @@ bool cast_ray(
     out vec3    n,    // shading normal
     out vec3    ng,   // geo normal
     out vec2    st,   // texture coordinates
-    out uvec3   mat)  // material ids
+    out uvec4   mat)  // 3 material ids + inside flag
 {
   rayQueryEXT rq;
   rayQueryInitializeEXT(rq, rt_accel,
@@ -120,9 +140,9 @@ bool cast_ray(
       // TODO: skip this step if the whole instance is sure to not have transparency?
       nonuniformEXT int it = rayQueryGetIntersectionInstanceIdEXT(rq, false); // which of our ssbo
       nonuniformEXT int pi = 3*rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
-      mat = uvec3(buf_vtx[it].v[pi+0].tex,
+      mat = uvec4(buf_vtx[it].v[pi+0].tex,
                   buf_vtx[it].v[pi+1].tex,
-                  buf_vtx[it].v[pi+2].tex);
+                  buf_vtx[it].v[pi+2].tex, 0);
       uint tex_b = mat.x & 0xffff;
       if(tex_b == 0)
       {
@@ -131,21 +151,25 @@ bool cast_ray(
       else
       {
         uint flags = mat.x >> 16; // extract surface flags;
-        vec2 st0 = unpackHalf2x16(buf_vtx[it].v[pi+0].st);
-        vec2 st1 = unpackHalf2x16(buf_vtx[it].v[pi+1].st);
-        vec2 st2 = unpackHalf2x16(buf_vtx[it].v[pi+2].st);
-        vec3 b;
-        b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
-        b.x = 1.0-b.z-b.y;
-        st = mat3x2(st0, st1, st2) * b;
-        if(flags > 0) st = vec2(
-            st.x + 0.2*sin(st.y*2.0 + params.cltime),
-            st.y + 0.2*sin(st.x*2.0 + params.cltime));
-        ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(tex_b)], 0)*fract(st));
-        tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(tex_b)], 0)-1);
-        vec4 col_base = texelFetch(img_tex[nonuniformEXT(tex_b)], tc, 0);
-        if(col_base.a > 0.666)
-          rayQueryConfirmIntersectionEXT(rq);
+        if((flags & s_geo_opaque) == 0)
+        {
+          vec2 st0 = unpackHalf2x16(buf_vtx[it].v[pi+0].st);
+          vec2 st1 = unpackHalf2x16(buf_vtx[it].v[pi+1].st);
+          vec2 st2 = unpackHalf2x16(buf_vtx[it].v[pi+2].st);
+          vec3 b;
+          b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
+          b.x = 1.0-b.z-b.y;
+          st = mat3x2(st0, st1, st2) * b;
+          if((flags&7) > 0) st = vec2(
+              st.x + 0.1*sin(st.y*M_PI*2.0 + params.cltime),
+              st.y + 0.1*sin(st.x*M_PI*2.0 + params.cltime));
+          ivec2 tc = ivec2(textureSize(img_tex[nonuniformEXT(tex_b)], 0)*fract(st));
+          tc = clamp(tc, ivec2(0), textureSize(img_tex[nonuniformEXT(tex_b)], 0)-1);
+          vec4 col_base = texelFetch(img_tex[nonuniformEXT(tex_b)], tc, 0);
+          if(col_base.a > 0.666)
+            rayQueryConfirmIntersectionEXT(rq);
+        }
+        else rayQueryConfirmIntersectionEXT(rq);
       }
     }
   }

@@ -12,14 +12,19 @@ the `rt` module uses hero wavelength spectral sampling for accurate colour repro
 ## connectors
 
 * `output` the rendered beauty image
-* `blue`   blue noise texture as input lut, as those provided by [christoph](http://momentsingraphics.de/BlueNoise.html)
-* `tex`    an array connector for input textures, connect to an i-jpglst or i-lut module
-* `aov`    an output buffer containing some *arbitary output variables* such as fake diffuse albedo or normals
+* `tex` an array connector for input textures, connect to an i-jpglst or i-lut module
+* `blue` blue noise texture as input lut, as those provided by [christoph](http://momentsingraphics.de/BlueNoise.html)
+* `irr` irradiance buffer, that is: beauty output divided by albedo
+* `albedo` fake diffuse albedo for use with svgf, demodulated from the irradiance buffer
+* `gbuf` packed normal and depth of the first intersection
 
 the `tex` connector expects an array of input textures, as the
 [i-jpglst](../i-jpglst/readme.md) module provides, or the
 [i-lut](../i-lut/readme.md) module if you pass a `.txt` file with a list of
 filenames.
+
+you can download a [blue noise texture from this github issue](https://github.com/hanatos/vkdt/files/8529441/blue.lut.gz).
+this was too large to just ship with the vkdt distribution.
 
 ## parameters
 this still changes so often.. be careful to trust this text.
@@ -31,4 +36,12 @@ this still changes so often.. be careful to trust this text.
 * `cam mode` use custom camera in this module, or grab camera, simulation time, and fog from another module
 * `cam_mod` if cam mode is set to another module, this is the other module's name
 * `cam_inst` if cam mode is set to another module, this is the other module's instance
-* `sampler` choose which path space sampler to use for rendering
+* `sampler` choose which path space sampler to use for rendering: path tracing/env-nee, markov chain path guiding
+* `wd` width of the render in pixels
+* `ht` height of the render in pixels
+
+the sampler dropdown list includes simple path tracing with optional next event estimation to the envmap,
+as well as markov chain path guiding based on the publication:  
+Lucas Alber, Johannes Hanika, and Carsten Dachsbacher.
+Real-time Markov chain path guiding for global illumination and single scattering.
+Proc. ACM Comput. Graph. Interact. Tech., 8(1), 2025. 

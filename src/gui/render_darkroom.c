@@ -132,6 +132,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       .scancode = scancode,
       .action   = action,
       .mods     = mods,
+      .grabbed  = vkdt.wstate.grabbed,
     };
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK))
@@ -793,6 +794,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         .mbutton = button,
         .action  = action,
         .mods    = mods,
+        .grabbed = vkdt.wstate.grabbed,
       };
       if(mod->so->input)
         vkdt.graph_dev.runflags |= mod->so->input(mod, &p);
@@ -808,6 +810,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       .mbutton = button,
       .action  = action,
       .mods    = mods,
+      .grabbed = vkdt.wstate.grabbed,
     };
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
@@ -828,6 +831,7 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
       .type = 3,
       .dx = xoff,
       .dy = yoff,
+      .grabbed = vkdt.wstate.grabbed,
     };
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
@@ -839,7 +843,7 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
 void
 darkroom_mouse_position(GLFWwindow* window, double x, double y)
 {
-  if(vkdt.graph_dev.active_module >= 0)
+  if(!vkdt.wstate.grabbed && (vkdt.graph_dev.active_module >= 0))
   { // pass on mouse events on dspy window
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.graph_dev.active_module;
     struct nk_rect b = vkdt.wstate.active_dspy_bound;
@@ -847,6 +851,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
       .type = 2,
       .x = CLAMP((x-b.x)/b.w, 0, 1),
       .y = CLAMP(1.0-(y-b.y)/b.h, 0, 1),
+      .grabbed = vkdt.wstate.grabbed,
     };
     if(mod->so->input) // always send to active module, just clamp coordinates
       vkdt.graph_dev.runflags |= mod->so->input(mod, &p);
@@ -857,6 +862,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
       .type = 2,
       .x = x,
       .y = y,
+      .grabbed = vkdt.wstate.grabbed,
     };
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
