@@ -106,7 +106,11 @@ main()
     vec3 w, n, ng; // ray position, direction, hit normal
     vec2 st;       // texture coordinates
     // vec2 uv = (ipos+0.5)/vec2(push.wd, pus.ht) - 0.5;
+#if RT_GBUF_JITTER==1
     thr *= camera_sample_xw((ipos+filter_bh_sample(rand.yz))/vec2(fbdim), x, w);
+#else
+    thr *= camera_sample_xw(vec2(ipos)/fbdim, x, w);
+#endif
 
     aov.rgb = (1.0+w)/2.0;
     float pdf_w = -1.0;

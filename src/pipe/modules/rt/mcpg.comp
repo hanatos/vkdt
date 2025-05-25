@@ -63,7 +63,7 @@ layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
 #include "camera-fwd.glsl"
 #include "camera.glsl"
 
-#if 0
+#if 1
 // Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs"
 // Returns random float in [0, 1) and updates state.
 uint seed;
@@ -120,6 +120,9 @@ void main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   ivec2 fbdim = ivec2(params.wd, params.ht);
   seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
+#if RT_GBUF_JITTER==1
+  vec2 bh_off = vec2(mrand(seed),mrand(seed));
+#endif
   // blue noise dither mask
   const ivec2 rp = ivec2(ipos % ivec2(textureSize(img_blue, 0)));
 
@@ -144,10 +147,13 @@ void main()
     vec4 hrp = vec4(1); // hero wavelength p, only deviates from 1 if pdf is different per wavelength
     vec4 contrib = vec4(1.0);
     // dithermask shows *no* difference for stratified hwl:
-    uint64_t seed2 = 19937*global.frame;
+    uint seed2 = 19937*global.frame;
     vec4 lambda = colour_sample_lambda(dithermask(vec4(XorShift32(seed2)), rp), contrib, hrp);
-    // contrib *= camera_sample_xw((ipos+filter_bh_sample(rand.yz))/fbdim, x, w);
-    contrib *= camera_sample_xw(vec2(ipos)/fbdim, x, w);
+#if RT_GBUF_JITTER==1
+    contrib *= camera_sample_xw((ipos+filter_bh_sample(bh_off))/vec2(fbdim), x, w);
+#else
+    contrib *= camera_sample_xw(vec2(ipos)/vec2(fbdim), x, w);
+#endif
     if(all(lessThanEqual(contrib, vec4(0.0)))) continue; // next spp
     mat_state_t ms;
     { // init first intersection vertex: read geo intersection info
