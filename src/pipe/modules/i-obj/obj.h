@@ -202,7 +202,7 @@ geo_obj_read(
           .tex1 = vi == 0 ? s_geo_opaque : 0,
           .n    = geo_encode_normal(n + 3*norm[vi]),
           .s    = float_to_half(vt[2*uvco[vi]+0]),
-          .t    = float_to_half(vt[2*uvco[vi]+1]),
+          .t    = float_to_half(1.0f-vt[2*uvco[vi]+1]),
         };
       }
       int ti = face++;
