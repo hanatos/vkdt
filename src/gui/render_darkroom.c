@@ -781,7 +781,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
   double x, y;
   dt_view_get_cursor_pos(vkdt.win.window, &x, &y);
-  if(vkdt.graph_dev.active_module >= 0)
+  if(!vkdt.wstate.grabbed && (vkdt.graph_dev.active_module >= 0))
   { // pass on mouse events on dspy window
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.graph_dev.active_module;
     struct nk_rect b = vkdt.wstate.active_dspy_bound;

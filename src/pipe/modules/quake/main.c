@@ -127,8 +127,6 @@ input(
     dt_module_t             *mod,
     dt_module_input_event_t *p)
 {
-  // we're not interested in mouse over widget input
-  if(!p->grabbed) return 0;
   qs_data_t *dat = mod->data;
 
   if(p->type == 0)
@@ -136,7 +134,6 @@ input(
     dat->move = 0;
     dat->mx = dat->my = -666.0;
     S_UnblockSound();
-    return 0;
   }
 
   if(p->type == -1)
@@ -144,6 +141,9 @@ input(
     dat->mx = dat->my = -666.0;
     S_BlockSound();
   }
+
+  // we're not interested in mouse over widget input
+  if(!p->grabbed) return 0;
 
   if(p->type == 1)
   { // mouse button
