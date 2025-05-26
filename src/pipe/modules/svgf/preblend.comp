@@ -90,7 +90,8 @@ main()
     }
   }
   const float q = sort[uint(clamp(round(0.96 * WORKGROUP_SIZE), 0, WORKGROUP_SIZE - 1))];
-  if(lum > q) L *= q/lum;
+  float w = q/lum;
+  if(lum > q) L *= vec4(w,w,w,w*w);
 #endif
 
   // imageStore(img_out, ipos, vec4(sigma));
