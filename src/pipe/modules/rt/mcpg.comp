@@ -121,7 +121,7 @@ void main()
   ivec2 fbdim = ivec2(params.wd, params.ht);
   seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
 #if RT_GBUF_JITTER==1
-  vec2 bh_off = vec2(mrand(seed),mrand(seed));
+  const vec2 bh_off = vec2(mrand(seed),mrand(seed));
 #endif
   // blue noise dither mask
   const ivec2 rp = ivec2(ipos % ivec2(textureSize(img_blue, 0)));

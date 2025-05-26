@@ -72,13 +72,13 @@ main()
   }
 #endif
   if(any(greaterThanEqual(ipos, imageSize(img_dn)))) return;
-  uint seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70000;
+  uint seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
   ivec2 fbdim = ivec2(imageSize(img_dn));
 
   camera = camera_t(0.5, vec2(1.0, fbdim.y/float(fbdim.x)), params.cam_x.xyz, mat3(1));
   camera_setup(params.cam_x.xyz, params.cam_w.xyz, params.cam_u.xyz);
 
-  vec4 rand = vec4(mrand(seed), mrand(seed), mrand(seed), mrand(seed));
+  vec2 rand = vec2(mrand(seed), mrand(seed));
 
   vec4 x;
   vec3 w, n = vec3(0), ng; // ray position, direction, hit normal

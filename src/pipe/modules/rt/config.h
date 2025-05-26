@@ -78,7 +78,7 @@ struct DistanceMCVertex {
 #endif
 
 // shoot only through pixel centers or random jitter a b/h pixel filter:
-#define RT_GBUF_JITTER 0 // FIXME: something gbuf/indirect currently broken
+#define RT_GBUF_JITTER 1
 
 // light cache
 #define LIGHT_CACHE_MAX_N 128s
