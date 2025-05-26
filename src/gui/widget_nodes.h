@@ -465,8 +465,11 @@ dt_node_editor(
               }
             }
           }
-          nk_stroke_curve(canvas, l0.x, l0.y, l0.x - (l0.x - p.x)*0.5f, l0.y,
-              p.x + (l0.x - p.x)*0.5f, p.y, p.x, p.y, link_thickness, col);
+          const float sc = l0.x > p.x ? 2.0f : 1.0f;
+          nk_stroke_curve(canvas, l0.x, l0.y,
+              l0.x + sc*fabsf(l0.x - p.x)*0.5f, l0.y,
+              p.x  - sc*fabsf(l0.x - p.x)*0.5f, p.y,
+              p.x, p.y, link_thickness, col);
         }
       }
     }
