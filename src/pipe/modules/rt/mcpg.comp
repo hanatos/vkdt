@@ -231,14 +231,18 @@ void main()
             mc_static_finalize_load(state, hash, x.xyz, n);
 
           if (isinf(state.sum_w) || isnan(state.sum_w)) state.sum_w = 0;
-          vmfs[i] = mc_state_get_vmf(state, x.xyz);
-          scores[i] = state.sum_w;
           score_sum += state.sum_w;
-          if (XorShift32(seed) <= scores[i] / score_sum + 1e-5)
+          if (XorShift32(seed) <= state.sum_w / score_sum + 1e-5)
           { // we use here that comparison with NaN is false, that happens if candidate_score == 0 and sum == 0; 
             mc_state = state;
             mc_buffer_index = buffer_index;
-            wo = vmf_sample(vmfs[i].xyz, vmfs[i].w, XorShift32Vec2(seed));
+            vmfs[i] = vmfs[0]; // move selected to 0
+            scores[i] = scores[0];
+            scores[0] = state.sum_w;
+            vmfs[0] = mc_state_get_vmf(state, x.xyz);
+          } else {
+            scores[i] = state.sum_w;
+            vmfs[i] = mc_state_get_vmf(state, x.xyz);
           }
         }
         if (isinf(score_sum) || isnan(score_sum)) score_sum = 0;
@@ -250,7 +254,11 @@ void main()
           wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
           mc_state = mc_state_new();
           mc_buffer_index = -1u;
-        } // else {VMF Sampling // wo = set above }
+        }
+        else 
+        {
+          wo = vmf_sample(vmfs[0].xyz, vmfs[0].w, XorShift32Vec2(seed));
+        }
 
         // Multiple importance sampling
         // score_sum > 0 ? results in black artifacts
