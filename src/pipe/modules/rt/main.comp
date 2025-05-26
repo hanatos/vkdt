@@ -88,7 +88,7 @@ main()
   camera_setup(params.cam_x.xyz, params.cam_w.xyz, params.cam_u.xyz);
 
   vec3 acc_col = vec3(0.0);
-  vec4 aov = vec4(1, 0, 1, 1.0);
+  vec3 albedo;
   for(int s=0;s<params.spp;s++)
   {
     vec4 acc = vec4(0); // value of our estimator, accumulate this
@@ -115,7 +115,6 @@ main()
     thr *= camera_sample_xw(vec2(ipos)/fbdim, x, w);
 #endif
 
-    aov.rgb = (1.0+w)/2.0;
     float pdf_w = -1.0;
 
     for(int i=0;i<3;i++)
@@ -154,6 +153,19 @@ main()
 
       vec3 tmp;
       mat_state_t ms = mat_init(mat, st, n, flags, lambda, w, tmp);
+      if(i == 0)
+      {
+        albedo = tmp;
+        if((flags & s_emit) != 0)
+        {
+          acc_col.rgb = colour_to_rgb(thr * ms.col_emit, lambda, hrp)/SURFACE_SPP;
+          albedo = acc_col.rgb;
+          albedo = clamp(albedo, vec3(-1.0), vec3(65000.0));
+          acc_col.rgb = vec3(1);
+        }
+        thr /= colour_upsample(albedo, lambda); // divide out first albedo for svgf
+        if(s == 0) imageStore(img_aov, ipos, vec4(albedo, 1)); // write albedo to buffer for svgf
+      }
       if((flags & s_envmap) > 0)
       { // escaped to environment map, eval MIS
 #if NEE==0
@@ -170,7 +182,6 @@ main()
       if((flags & s_emit) != 0)
       { // intersected a light source, that's where we stop
         acc += thr * ms.col_emit;
-        if(i == 0) aov.rgb = ms.col_emit.rgb;
         break;
       }
 #if NEE!=0
@@ -221,5 +232,4 @@ main()
   acc_col = clamp(acc_col, vec3(0.0), vec3(65000.0));
 
   fb_set(ipos, fbdim, vec4(acc_col, 1.0));
-  imageStore(img_aov, ipos, aov);
 }
