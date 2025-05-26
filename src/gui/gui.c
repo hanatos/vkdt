@@ -357,10 +357,12 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
     VK_FORMAT_R8G8B8_UNORM, VK_FORMAT_B8G8R8_UNORM,
   };
   VkColorSpaceKHR acceptable_colorspace[] = {
-    // VK_COLOR_SPACE_HDR10_HLG_EXT, // does not work in hyprland
-    VK_COLOR_SPACE_HDR10_ST2084_EXT, // pq does.
+    // VK_COLOR_SPACE_HDR10_HLG_EXT,    // does not work in hyprland
+    dt_rc_get_int(&vkdt.rc, "gui/allowhdr", 0) ?
+    VK_COLOR_SPACE_HDR10_ST2084_EXT:    // pq does.
+    VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,  // fallback in case hdr is forced off
     // VK_COLOR_SPACE_PASS_THROUGH_EXT, // is what we want for custom cm
-    VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, // is what we get
+    VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,  // is what we get
   };
 
   for(int i = 0; i < LENGTH(acceptable_formats); i++)
@@ -372,6 +374,8 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
             win->surf_format = avail_surface_formats[j];
             dt_log(s_log_qvk, "using %s and colour space %s",
                 qvk_format_to_string(win->surf_format.format), qvk_colourspace_to_string(win->surf_format.colorSpace));
+            if(!dt_rc_get_int(&vkdt.rc, "gui/allowhdr", 0))
+              dt_log(s_log_qvk, "hdr disallowed in config file, set `intgui/allowhdr:1` to enable");
             goto out;
           }
   dt_log(s_log_gui|s_log_err, "could not find a suitable surface format!");

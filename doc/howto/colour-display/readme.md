@@ -67,3 +67,33 @@ have higher precision).
 the command line interface explicitly inserts `colenc` nodes before
 the `o-*` nodes if the output format requires gamma encoding,
 such as jpeg.
+
+## hdr
+
+`vkdt` supports rendering to hdr framebuffers, using HDR10 ST2084, i.e. BT2020
+primaries and a perceptual quantiser (PQ) tone response curve.
+on different platforms, there are slightly different settings for this. in kde
+and hyprland, you can enable hdr for the display (system settings or hyprland.conf).
+then, run
+```
+ENABLE_HDR_WSI=1 vkdt -d qvk
+```
+and look for output like
+```
+[qvk] using A2R10G10B10_UNORM_PACK32 and colour space HDR10 ST2084
+```
+indicating that a 10-bits per channel hdr framebuffer is used, or:
+```
+[qvk] using A2R10G10B10_UNORM_PACK32 and colour space sRGB nonlinear
+```
+in which case a standard 10-bit sdr buffer is used.
+
+while on macintosh things seem to "just work" (you don't need to enable the wsi
+layer as for wayland above), windows generally makes a mess of the image.
+thus, there is a config option to switch off hdr framebuffers even though they are
+available. this defaults to "hdr disabled" and thus anyone on all platforms has to
+flip the switch in `~/.config/vkdt/config.rc`:
+```
+intgui/allowhdr:1
+```
+to actually use hdr framebuffers.
