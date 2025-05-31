@@ -1,3 +1,4 @@
+frames:0
 module:i-mcraw:main
 module:denoise:01:218:400
 module:demosaic:01:568:400
