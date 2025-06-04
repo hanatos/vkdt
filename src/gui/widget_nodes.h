@@ -578,8 +578,8 @@ dt_node_editor(
   struct nk_vec2 pos = dt_node_view_to_world(nedit, nk_vec2(
         size.x + size.w/2,
         size.y + size.h/2));
-  nedit->add_pos_x = pos.x/(nedit->zoom*nedit->dpi_scale);
-  nedit->add_pos_y = pos.y/(nedit->zoom*nedit->dpi_scale);
+  nedit->add_pos_x = pos.x;
+  nedit->add_pos_y = pos.y;
 
   STYLE_POP;
   row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
