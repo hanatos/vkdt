@@ -6,6 +6,11 @@ edit_to_linear(float v)
 {
   return v*v;
 }
+static inline float
+linear_to_edit(float v)
+{
+  return sqrtf(v);
+}
 
 void modify_roi_out(
     dt_graph_t  *graph,
@@ -94,6 +99,7 @@ input(
   int edit = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("edit")))[0];
 
 #define E2L(V) (edit ? edit_to_linear(V) : (V))
+#define L2E(V) (edit ? linear_to_edit(V) : (V))
   static int active = -1;
   if(p->type == 1)
   { // mouse button
@@ -143,7 +149,7 @@ input(
       int old = p_sel[0];
       p_sel[0] = -1;
       for(int i=0;i<p_cnt[0];i++)
-        if(fabs(E2L(p->x) - p_x[i]) < 0.05 && fabs(E2L(p->y) - p_y[i]) < 0.05)
+        if(fabs(p->x - L2E(p_x[i])) < 0.05 && fabs(p->y - L2E(p_y[i])) < 0.05)
           p_sel[0] = i;
       if(old != p_sel[0]) return s_graph_run_record_cmd_buf;
     }
