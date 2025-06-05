@@ -129,7 +129,7 @@ create_nodes(
       "filmsim", "read",  "*",    "*",    dt_no_roi,
       "spectra", "read",  "*",    "*",    dt_no_roi,
       "coupler", "read",  "*",    "*",    dt_no_roi);
-  float blur = 0.005*MAX(owd, oht);
+  float blur = 0.015*MAX(owd, oht);
   const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_part0, 1, 0, 0, blur) : id_part0;
   const int cn_blur = blur > 0 ? 1 : 1;
   CONN(dt_node_connect(graph, id_blur, cn_blur, id_part1, 4));
