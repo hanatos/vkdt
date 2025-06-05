@@ -99,13 +99,30 @@ dt_graph_history_append(
   {
     *(hi[i+1]-1) = 0;
     double time = dt_time();
-    if(throttle > 0.0 && i > 0 && !strncmp(hi[i-1], hi[i], eop-hi[i]) &&
-       time < write_time + throttle)
-    { // replace old item
-      memmove(hi[i-1], hi[i], hi[i+1]-hi[i]);
-      hi[i] = hi[i-1] + (hi[i+1]-hi[i]);
+    int replaced_old = 0;
+    if(throttle > 0.0 && time < write_time + throttle)
+    { // lookback: find slot with equal module/instance/param id:
+      for(int j=i-1;j>=MAX(i-5,0);j--)
+      {
+        if(!strncmp(hi[j], hi[i], eop-hi[i]))
+        { // found recent previous slot for matching param, replace
+          if(j < i-1)
+          { // move everything else to the back, if anything
+            int nsize = hi[i+1]-hi[i]; // size of new item
+            int osize = hi[j+1]-hi[j]; // size of old item
+            for(int k=j+1;k<=i+1;k++) hi[k] += nsize-osize;
+            memmove(hi[j], hi[j]+osize-nsize, hi[i+1]-hi[j]);
+          }
+          // 2: move newly written parameter into new slot
+          memmove(hi[j], hi[i], hi[i+1]-hi[i]);
+          hi[j+1] = hi[j] + (hi[i+1]-hi[i]);
+          replaced_old = 1;
+          break;
+        }
+      }
     }
-    else graph->history_item_cur = ++graph->history_item_end; // now a valid new item
+    if(!replaced_old)
+      graph->history_item_cur = ++graph->history_item_end; // now a valid new item
     write_time = time;
   }
 }
