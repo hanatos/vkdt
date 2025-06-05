@@ -48,6 +48,7 @@ main()
   // vec2 pp = (xyz.xy / xyz.z) / aspect + 0.5;
   vec2 pp = (xyz.xy / xyz.z) / aspect + 0.5 + params.c; // i don't think this is what the paper intended but it looks great (makes me dizzy)
 
+  // TODO: use textureGrad with analytic derivatives of our lens mapping!
   vec3 rgb;
   if(params.ca == vec2(1.0))
     rgb = sample_catmull_rom(img_in, pp).rgb;

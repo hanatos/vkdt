@@ -23,4 +23,6 @@ mid-tones will receive more noise.
 
 * `size` the size of the grain, with respect to pixel size (this is not scale invariant)
 * `strength` the magnitude of the effect, how much will be added
+* `decay` how fast do lower frequency components of the noise decay. set this to 0 for only high frequency noise.
+* `octaves` how many low frequencies to consider. set this to 1 for only high frequency noise.
 

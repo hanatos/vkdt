@@ -11,6 +11,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   float size;
   float magnitude;
+  float decay;
+  int octaves;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
@@ -58,7 +60,13 @@ void main()
   // let's say this changes the optical thickness of some film material instead:
 #if 1 // logistic answer to film density:
   rgb = log(1e-4 + rgb / (1e-4 + 1.0 - rgb));
-  rgb += params.magnitude * noise(tc);
+  float mag = params.magnitude;
+  for(int f=0;f<params.octaves;f++)
+  { // get some all-frequency noise:
+    rgb += mag * noise(tc);
+    mag *= params.decay;
+    tc  *= params.decay;
+  }
   rgb = exp(rgb) / (1.0 + exp(rgb));
 #else
   float lum = luminance_rec2020(rgb);

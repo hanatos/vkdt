@@ -157,7 +157,7 @@ void modify_roi_out(
   mod->img_param.colour_primaries = s_colour_primaries_custom;
   mod->img_param.colour_trc       = s_colour_trc_linear;
 
-  // set a bit of metadata from rawspeed, overwrite exiv2 because this one is more consistent:
+  // set a bit of metadata, overwrite exiv2 because this one is more consistent:
   snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->img.clean_maker);
   snprintf(mod->img_param.model, sizeof(mod->img_param.model), "%s", mod_data->img.clean_model);
   mod->img_param.iso = mod_data->img.iso;
