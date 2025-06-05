@@ -1,4 +1,5 @@
 #include "modules/api.h"
+#include "pipe/graph-history.h"
 
 // returns "edit space" from linear value, for more control in blacks for linear rgb
 static inline float
@@ -11,6 +12,8 @@ linear_to_edit(float v)
 {
   return sqrtf(v);
 }
+
+static const double throttle = 0.5; // throttling history in seconds
 
 void modify_roi_out(
     dt_graph_t  *graph,
@@ -91,12 +94,18 @@ input(
     dt_token("cntr"), dt_token("xr"), dt_token("yr"),
     dt_token("cntg"), dt_token("xg"), dt_token("yg"),
     dt_token("cntb"), dt_token("xb"), dt_token("yb")};
-  int channel = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("channel")))[0];
-  int *p_sel = (int   *)dt_module_param_int  (mod, dt_module_get_param(mod->so, dt_token("sel")));
-  int *p_cnt = (int   *)dt_module_param_int  (mod, dt_module_get_param(mod->so, par[3*channel+0]));
-  float *p_x = (float *)dt_module_param_float(mod, dt_module_get_param(mod->so, par[3*channel+1]));
-  float *p_y = (float *)dt_module_param_float(mod, dt_module_get_param(mod->so, par[3*channel+2]));
-  int edit = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("edit")))[0];
+  const int pid_channel = dt_module_get_param(mod->so, dt_token("channel"));
+  const int channel     = dt_module_param_int(mod, pid_channel)[0];
+  const int pid_sel     = dt_module_get_param(mod->so, dt_token("sel"));
+  const int pid_cnt     = dt_module_get_param(mod->so, par[3*channel+0]);
+  const int pid_x       = dt_module_get_param(mod->so, par[3*channel+1]);
+  const int pid_y       = dt_module_get_param(mod->so, par[3*channel+2]);
+  const int pid_edit    = dt_module_get_param(mod->so, dt_token("edit"));
+  int *p_sel = (int   *)dt_module_param_int  (mod, pid_sel);
+  int *p_cnt = (int   *)dt_module_param_int  (mod, pid_cnt);
+  float *p_x = (float *)dt_module_param_float(mod, pid_x);
+  float *p_y = (float *)dt_module_param_float(mod, pid_y);
+  const int edit = dt_module_param_int(mod, pid_edit)[0];
 
 #define E2L(V) (edit ? edit_to_linear(V) : (V))
 #define L2E(V) (edit ? linear_to_edit(V) : (V))
@@ -120,6 +129,9 @@ input(
         p_y[j] = E2L(p->y);
         p_cnt[0] = CLAMP(p_cnt[0]+1,0,8);
         active = p_sel[0] = j;
+        dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_x, throttle);
+        dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_y, throttle);
+        dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_cnt, throttle);
       }
       if(p->mbutton == 1 && p_sel[0] >= 0 && p_cnt[0] > 2)
       { // delete active vertex
@@ -130,6 +142,9 @@ input(
         }
         p_cnt[0] = CLAMP(p_cnt[0]-1,0,8);
         active = -1;
+        dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_x, throttle);
+        dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_y, throttle);
+        dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_cnt, throttle);
       }
     }
     else active = -1; // no mouse down no active vertex
@@ -142,6 +157,8 @@ input(
       float Mx = active < p_cnt[0]-1 ? p_x[active+1]-1e-3f : 1.0f;
       p_x[active] = CLAMP(E2L(p->x), mx, Mx);
       p_y[active] = E2L(p->y);
+      dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_x, throttle);
+      dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_y, throttle);
       return s_graph_run_record_cmd_buf;
     }
     else

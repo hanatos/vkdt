@@ -7,11 +7,12 @@ dt_graph_history_init(
     dt_graph_t *graph)
 {
   graph->history_max = 100<<10;
-  graph->history_pool = (char*)malloc(sizeof(char) * graph->history_max);
+  graph->history_pool = malloc(sizeof(char) * graph->history_max);
   graph->history_item_max = 1000;
   graph->history_item_cur = 0;
   graph->history_item_end = 0;
-  graph->history_item = (char**)malloc(sizeof(char*) * (graph->history_item_max + 1));
+  graph->history_item = malloc(sizeof(char*) * (graph->history_item_max + 1));
+  graph->history_time = malloc(sizeof(float)*graph->history_max);
 }
 
 static inline int
@@ -50,6 +51,8 @@ dt_graph_history_reset(
         return 1;
 
   graph->history_item_cur = graph->history_item_end = i;
+  float time = dt_time();
+  for(int k=0;k<graph->history_item_cur;k++) graph->history_time[k] = time;
   for(char *c=graph->history_pool;c<graph->history_item[graph->history_item_end];c++)
     if(*c == '\n') *c = 0;
   return 0;
@@ -62,6 +65,7 @@ dt_graph_history_cleanup(
   graph->history_max = graph->history_item_max = graph->history_item_cur = graph->history_item_end = 0;
   free(graph->history_item); graph->history_item = 0;
   free(graph->history_pool); graph->history_pool = 0;
+  free(graph->history_time); graph->history_time = 0;
 }
 
 static inline int
@@ -106,6 +110,7 @@ dt_graph_history_append(
       {
         if(!strncmp(hi[j], hi[i], eop-hi[i]))
         { // found recent previous slot for matching param, replace
+          if(graph->history_time[j] + throttle >= time) break; // abort, too recent
           if(j < i-1)
           { // move everything else to the back, if anything
             int nsize = hi[i+1]-hi[i]; // size of new item
@@ -116,13 +121,17 @@ dt_graph_history_append(
           // 2: move newly written parameter into new slot
           memmove(hi[j], hi[i], hi[i+1]-hi[i]);
           hi[j+1] = hi[j] + (hi[i+1]-hi[i]);
+          graph->history_time[j] = time;
           replaced_old = 1;
           break;
         }
       }
     }
     if(!replaced_old)
+    {
+      graph->history_time[i] = time;
       graph->history_item_cur = ++graph->history_item_end; // now a valid new item
+    }
     write_time = time;
   }
 }

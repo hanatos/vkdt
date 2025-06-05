@@ -387,7 +387,7 @@ dt_graph_write_param_ascii(
     const int         p,
     char             *line,
     size_t            size,
-    char            **eop)
+    char            **eop)  // end of prefix, identifying module, instance, param
 {
   const dt_module_t *mod = graph->module + m;
   if(mod->name == 0) return line; // don't write params for deleted module

@@ -61,6 +61,7 @@ typedef struct dt_graph_t
   char                 *history_pool;
   uint32_t              history_max;
   char                **history_item;
+  float                *history_time; // timestamp
   uint32_t              history_item_cur, history_item_end, history_item_max;
 
   // memory pool for connector allocations
