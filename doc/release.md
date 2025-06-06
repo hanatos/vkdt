@@ -79,28 +79,37 @@ packages from github nightly ci.
 ### current changelog
 
 #### big features:
-* [spectral film simulation](../src/pipe/modules/filmsim/readme.md)
-* [msdf fonts](./howto/fonts/readme.md)
-* hdr support, if you use wayland and the compositor does it, try
-  `ENABLE_HDR_WSI=1 vdkt`
+* [spectral film simulation](../src/pipe/modules/filmsim/readme.md)  
+  thanks to arctic for crunching all the data and doing the research!  
+  thanks to jedypod for adding the latest film/paper stock!
+* [scalable msdf fonts](./howto/fonts/readme.md) for sharp fonts in graph editor at any zoom level
+* hdr support, if you use wayland and the compositor does it, try  
+  `ENABLE_HDR_WSI=1 vdkt`  
+  (see [display colour docs](../doc/howto/colour-display/readme.md) for details)
 * quick access preset buttons in customisable favourites tab
 * arch aur package `vkdt-git`
 * rewrote `vkdt read-icc` in c to reduce dependencies for packaging
 * filtered minification for display (improved grain/noise inspection)
 * introduce [core and beta modules](./core.md) for backward compatibility guarantees
 * rgb knobs / oklab widget (see `frame` or `grade` module for an example)
-* ui fixes and polish
 * android compile fixes (thanks paolo!)
 * dynamic lod (option to render low res when dragging sliders/drawing masks)
 * keyframe interpolation modes (ease-in, ease-out, ..)
-* keyframed brush strokes
-* vkdt-rendered logo
+* keyframed brush strokes (for real time hand drawn text for instance)
+* vkdt-rendered logo (looks best in hdr mode)
 * improved wayland support (better than x11)
-* [i-lut](../src/pipe/modules/i-lut/readme.md) now supports lists of input files
+* [i-lut](../src/pipe/modules/i-lut/readme.md) now supports lists of input files, useful for textures/3d rendering
+* improved the [grain module](../src/pipe/modules/grain/readme.md) with additional parameters for low frequency components
+* introduce mouse interaction on `dspy` outputs of modules to change their parameters. 
+  the new rgb `curves` module is the first user.
+* re-introduced darkroom mode zoom/pan via gamepad
+* refactored `quake` and `rt` modules to use a unified spectral renderer
+* an implementation of [mcpg](https://www.lalber.org/2025/04/markov-chain-path-guiding/) (Markov chain path guiding) for 3d rendering/quake
+* ui fixes and polish
 * removed some old modules
 
 #### new modules
-* [rgb curves](../src/pipe/modules/curves/readme.md) simple per-channel curve widget
+* [rgb curves](../src/pipe/modules/curves/readme.md) simple per-channel/luminance curve widget
 * [o-copy](../src/pipe/modules/o-copy/readme.md) to copy raw images on export
 * [jddcnn](../src/pipe/modules/jddcnn/readme.md) experimental joint demosaicing and denoising based on a CNN
 * [g-csolid](../src/pipe/modules/g-csolid/readme.md) convert drawn brush strokes to 3d geometry
