@@ -65,7 +65,7 @@ void main()
   { // get some all-frequency noise:
     rgb += mag * noise(tc);
     mag *= params.decay;
-    tc  *= params.decay;
+    tc  *= 0.5;
   }
   rgb = exp(rgb) / (1.0 + exp(rgb));
 #else

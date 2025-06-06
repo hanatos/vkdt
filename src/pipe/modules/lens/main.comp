@@ -15,13 +15,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
 } params;
 
 
-layout( // input f16 buffer rgb
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output f16 buffer rgb
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 // lens correction after https://arxiv.org/pdf/1807.08957.pdf
 // The Double Sphere Camera Model Vladyslav Usenko, Nikolaus Demmel and Daniel Cremers
