@@ -12,7 +12,7 @@ dt_graph_history_init(
   graph->history_item_cur = 0;
   graph->history_item_end = 0;
   graph->history_item = malloc(sizeof(char*) * (graph->history_item_max + 1));
-  graph->history_time = malloc(sizeof(float)*graph->history_max);
+  graph->history_time = malloc(sizeof(float) * (graph->history_item_max + 1));
 }
 
 static inline int
@@ -51,7 +51,7 @@ dt_graph_history_reset(
         return 1;
 
   graph->history_item_cur = graph->history_item_end = i;
-  float time = dt_time();
+  double time = dt_time();
   for(int k=0;k<graph->history_item_cur;k++) graph->history_time[k] = time;
   for(char *c=graph->history_pool;c<graph->history_item[graph->history_item_end];c++)
     if(*c == '\n') *c = 0;
@@ -93,7 +93,6 @@ dt_graph_history_append(
     int         parid,     // record this parameter
     double      throttle)  // throttle same modid,parid to 1 item per `throttle` seconds. pass 0.0 for always record.
 {
-  static double write_time = 0.0; // does not need to go on graph, throttling is a gui thing.
   int cnt = graph->module[modid].so->param[parid]->cnt; // this is way conservative (for instance for draw)
   size_t psz = dt_ui_param_size(graph->module[modid].so->param[parid]->type, cnt);
   if(_dt_graph_history_check_buf(graph, 40+psz)) return;
@@ -104,19 +103,21 @@ dt_graph_history_append(
     *(hi[i+1]-1) = 0;
     double time = dt_time();
     int replaced_old = 0;
-    if(throttle > 0.0 && time < write_time + throttle)
+    if(throttle > 0.0)
     { // lookback: find slot with equal module/instance/param id:
       for(int j=i-1;j>=MAX(i-5,0);j--)
       {
         if(!strncmp(hi[j], hi[i], eop-hi[i]))
         { // found recent previous slot for matching param, replace
-          if(graph->history_time[j] + throttle >= time) break; // abort, too recent
+          if(graph->history_time[j] + throttle < time) break; // too old, let's write a new entry
           if(j < i-1)
           { // move everything else to the back, if anything
             int nsize = hi[i+1]-hi[i]; // size of new item
             int osize = hi[j+1]-hi[j]; // size of old item
+            if(nsize <= 0 || osize <= 0) return;
             for(int k=j+1;k<=i+1;k++) hi[k] += nsize-osize;
-            memmove(hi[j], hi[j]+osize-nsize, hi[i+1]-hi[j]);
+            if(hi[i+1] > max) return;  // mem block exceeded
+            memmove(hi[j+1], hi[j+1]+osize-nsize, hi[i+1]-hi[j+1]);
           }
           // 2: move newly written parameter into new slot
           memmove(hi[j], hi[i], hi[i+1]-hi[i]);
@@ -129,10 +130,9 @@ dt_graph_history_append(
     }
     if(!replaced_old)
     {
-      graph->history_time[i] = time;
+      graph->history_time[graph->history_item_cur] = time;
       graph->history_item_cur = ++graph->history_item_end; // now a valid new item
     }
-    write_time = time;
   }
 }
 
