@@ -49,13 +49,23 @@ void main()
   if(1.0-tc.y < h)
   {
     rgba = vec4(0.3, 0.3, 0.3, 1.0);
-    if(params.mode == 1) rgba.rgb = hsv2rgb(vec3(tc.x, 0.5, 0.5));
+    if(params.mode == 1)
+    {
+      rgba.rgb = hsv2rgb(vec3(tc.x, 1, 1));
+      // now convert to some discernable gradient. oklab is very much *not* hue constant,
+      // so we eval it with hCL = x,1,1 above and then we fake tonemap the result to look about right:
+      // rgba.rgb /= 1.0+max(0,dot(vec3(1),rgba.rgb));
+      // rgba.rgb /= 1.0+max(vec3(0),rgba.rgb);
+      rgba.rgb /= 10.0+max(max(rgba.r, rgba.g), max(0, rgba.b));
+      rgba.rgb = pow(rgba.rgb, vec3(0.5));
+    }
   }
 
   // rasterise envelope lines
   float y = env(tc.x);
   float ddx = ddx_env(tc.x);
   const float w = 2.0; // stroke width
+  if(abs(env(tc.x - w/imageSize(img_out).x) - y) >= 1.0) ddx = 1000.0;
   float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
   float d = abs((1.0-y) * imageSize(img_out).y - ipos.y);
   rgba = max(rgba, 0.7 * vec4(vec3(smoothstep(t, 0.0, d)), 1));
