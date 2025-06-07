@@ -2,7 +2,7 @@
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
 #include "shared.glsl"
-// #include "shared/dtucs.glsl"
+#include "shared/dtucs.glsl"
 #include "shared/munsell.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -54,11 +54,12 @@ void main()
     if(params.mode == 1)
     {
 #if 0 // oklab is not suitable for this because hue vs v is not const.
-      rgba.rgb = hsv2rgb(vec3(tc.x, 1, 1));
-#elif 0 // dt ucs: better but weird effects in blacks and whites
+      rgba.rgb = hsv2rgb(vec3(tc.x, 1, 0.5));
+#elif 1 // dt ucs: better but weird effects in blacks and whites
       const float L_white = 1.0;
-      vec3 jch = vec3(1, 0.2, 2.0*M_PI*tc.x);
+      vec3 jch = vec3(.5, 0.15, 2.0*M_PI*tc.x);
       vec3 xyY = dt_UCS_JCH_to_xyY(jch, L_white);
+      xyY.z = .5; // same as during histogram collection
       rgba.rgb = clamp(xyY_to_rec2020(xyY), vec3(0), vec3(1));
 #else // munsell: oh well. we'll use the data (also during histogram collection)
       vec3 xyY = vec3(1.0);
