@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
 #include "shared.glsl"
+#include "shared/munsell.glsl"
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 layout(set = 1, binding = 0) uniform sampler2D img_src;
@@ -27,8 +28,15 @@ uint get_bin(vec3 rgb)
 {
   float l = 0.0;
   if     (params.mode == 0) l = luminance_rec2020(rgb);
-  else if(params.mode == 1) l = rgb2hsv(rgb).x;
-  else if(params.mode == 2) l = rgb2hsv(rgb).y;
+  else if(params.mode == 1 || params.mode == 2)
+  {
+    // if(params.mode == 1) l = rgb2hsv(rgb).x; // oklab too simple.
+    // if(params.mode == 2) l = rgb2hsv(rgb).y;
+    vec3 xyY = rec2020_to_xyY(rgb);
+    vec2 m   = munsell_from_xy(xyY.xy);
+    if(params.mode == 1) l = fract(0.666-m.x);
+    if(params.mode == 2) l = m.y;
+  }
   else if(params.mode == 3) l = rgb.r;
   uint bin = 0;
   if(params.mode == 0 || params.mode == 3)

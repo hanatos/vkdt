@@ -2,6 +2,8 @@
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
 #include "shared.glsl"
+// #include "shared/dtucs.glsl"
+#include "shared/munsell.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
 layout(set = 1, binding = 0, std430) buffer buf_hist { uint  histogram[]; };
@@ -51,14 +53,22 @@ void main()
     rgba = vec4(0.3, 0.3, 0.3, 1.0);
     if(params.mode == 1)
     {
+#if 0 // oklab is not suitable for this because hue vs v is not const.
       rgba.rgb = hsv2rgb(vec3(tc.x, 1, 1));
-      // now convert to some discernable gradient. oklab is very much *not* hue constant,
-      // so we eval it with hCL = x,1,1 above and then we fake tonemap the result to look about right:
-      // rgba.rgb /= 1.0+max(0,dot(vec3(1),rgba.rgb));
-      // rgba.rgb /= 1.0+max(vec3(0),rgba.rgb);
-      rgba.rgb /= 10.0+max(max(rgba.r, rgba.g), max(0, rgba.b));
-      rgba.rgb = pow(rgba.rgb, vec3(0.5));
+#elif 0 // dt ucs: better but weird effects in blacks and whites
+      const float L_white = 1.0;
+      vec3 jch = vec3(1, 0.2, 2.0*M_PI*tc.x);
+      vec3 xyY = dt_UCS_JCH_to_xyY(jch, L_white);
+      rgba.rgb = clamp(xyY_to_rec2020(xyY), vec3(0), vec3(1));
+#else // munsell: oh well. we'll use the data (also during histogram collection)
+      vec3 xyY = vec3(1.0);
+      xyY.xy   = munsell_to_xy(vec2(fract(0.666-tc.x), .9));
+      rgba.rgb = xyY_to_rec2020(xyY);
+#endif
+      // now convert to some discernable gradient:
+      rgba.rgb /= 1.0+max(max(rgba.r, rgba.g), max(0, rgba.b));
     }
+
   }
 
   // rasterise envelope lines
