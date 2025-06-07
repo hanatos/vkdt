@@ -34,6 +34,7 @@ uint get_bin(vec3 rgb)
     // if(params.mode == 2) l = rgb2hsv(rgb).y;
     vec3 xyY = rec2020_to_xyY(rgb);
     vec2 m   = munsell_from_xy(xyY.xy);
+    m = mix(m, vec2(0), isnan(m));
     if(params.mode == 1) l = fract(0.666-m.x);
     if(params.mode == 2) l = m.y;
   }
