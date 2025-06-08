@@ -505,14 +505,44 @@ files_enter()
 {
   filebrowser.scroll_to_selected = 1;
   dt_gamepadhelp_set(dt_gamepadhelp_ps,              "toggle this help");
-  // dt_gamepadhelp_set(dt_gamepadhelp_button_square,   "plus L1/R1: switch panel");
-  // dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "back to lighttable without changing folders");
-  // dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "enter lighttable for highlighted folder");
-  // dt_gamepadhelp_set(dt_gamepadhelp_button_cross,    "navigate to highlighted folder");
-  // dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L,  "scroll view");
-  // dt_gamepadhelp_set(dt_gamepadhelp_arrow_up,        "select entry one up");
-  // dt_gamepadhelp_set(dt_gamepadhelp_arrow_down,      "select entry one down");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "escape to lighttable");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "open folder in lighttable");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_cross,    "descend into folder");
+  dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L,  "scroll view");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_up,        "move up");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_down,      "move down");
   return 0;
+}
+
+void
+files_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr)
+{
+  if(vkdt.wstate.popup == s_popup_edit_hotkeys) return;
+  if(dt_gui_input_blocked()) return;
+  dt_filebrowser_widget_t *w = &filebrowser;
+  const float ay = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+#define PRESSED(A) (curr->buttons[A] && !last->buttons[A])
+  if     (PRESSED(GLFW_GAMEPAD_BUTTON_A))
+      folder_down();
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_B))
+    dt_view_switch(s_view_lighttable);
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_Y))
+    folder_activate();
+  else if(ay < -0.5 || PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_UP))
+  { // up arrow: select entry above
+    w->selected_idx = CLAMP(w->selected_idx - 1, 0, w->ent_cnt-1);
+    w->selected = w->ent[w->selected_idx].d_name;
+    w->selected_isdir = fs_isdir(w->cwd, w->ent+w->selected_idx);
+    w->scroll_to_selected = 1;
+  }
+  else if(ay > 0.5 || PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_DOWN))
+  { // down arrow: select entry below
+    w->selected_idx = CLAMP(w->selected_idx + 1, 0, w->ent_cnt-1);
+    w->selected = w->ent[w->selected_idx].d_name;
+    w->selected_isdir = fs_isdir(w->cwd, w->ent+w->selected_idx);
+    w->scroll_to_selected = 1;
+  }
+#undef PRESSED
 }
 
 int
@@ -521,4 +551,3 @@ files_leave()
   dt_gamepadhelp_clear();
   return 0;
 }
-

@@ -184,6 +184,9 @@ dt_view_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *cu
 
   switch(vkdt.view_mode)
   {
+    case s_view_files:
+      files_gamepad(window, last, curr);
+      break;
     case s_view_lighttable:
       lighttable_gamepad(window, last, curr);
       break;

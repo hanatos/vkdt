@@ -1343,7 +1343,7 @@ int lighttable_enter()
   if(vkdt.wstate.history_view)    dt_gui_dr_toggle_history();
   if(vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
   dt_gamepadhelp_set(dt_gamepadhelp_ps,              "toggle this help");
-  // dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "back to files");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "go to file browser");
   dt_gamepadhelp_set(dt_gamepadhelp_button_cross,    "enter darkroom");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_up,        "move up");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_down,      "move down");
@@ -1375,6 +1375,10 @@ void lighttable_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepads
       dt_db_selection_add(&vkdt.db, g_image_cursor);
       dt_view_switch(s_view_darkroom);
     }
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_B))
+  {
+    dt_view_switch(s_view_files);
   }
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_UP))
   {
