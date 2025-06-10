@@ -1099,10 +1099,27 @@ void render_lighttable_right_panel()
     nk_layout_row_static(ctx, row_height, vkdt.state.panel_wd, 1);
     static uint32_t imgid = -1u;
     static char text[2048], *text_end = text;
+    static int looked_for_exiftool = 0; // only go looking for it once
     if(imgid != vkdt.db.current_imgid)
     {
+      const char *exiftool_path[] = {"/usr/bin", "/usr/bin/vendor_perl", "/usr/local/bin", dt_pipe.basedir };
+      static char def_cmd[PATH_MAX] = {0};
+      if(!looked_for_exiftool)
+      {
+        for(int k=0;k<4;k++)
+        {
+          char test[PATH_MAX];
+          snprintf(test, sizeof(test), "%s/exiftool", exiftool_path[k]);
+          if(fs_isreg_file(test))
+          { // found at least a file here
+            snprintf(def_cmd, sizeof(def_cmd), "%s/exiftool -l -createdate -aperture -shutterspeed -iso", exiftool_path[k]);
+            break;
+          }
+        }
+        looked_for_exiftool = 1;
+      }
       text[0] = 0; text_end = text;
-      const char *rccmd = dt_rc_get(&vkdt.rc, "gui/metadata/command", "/usr/bin/exiftool -l -createdate -aperture -shutterspeed -iso");
+      const char *rccmd = dt_rc_get(&vkdt.rc, "gui/metadata/command", def_cmd);
       dt_sanitize_user_string((char*)rccmd); // be sure nothing evil is in here. we won't change the length so we don't care about const.
       char cmd[PATH_MAX], imgpath[PATH_MAX];
       snprintf(cmd, sizeof(cmd), "%s '", rccmd);
