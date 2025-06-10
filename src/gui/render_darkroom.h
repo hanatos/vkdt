@@ -1114,7 +1114,7 @@ static inline void render_darkroom_widgets(
   if(graph->active_module >= 0 && !active) return;
 
   struct nk_context *ctx = &vkdt.ctx;
-  const float ratio[] = {0.06f, 0.06f, 0.88f};
+  const float ratio[] = {0.06f, 0.88f, 0.06f};
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
       dt_token_str(arr[curr].name), dt_token_str(arr[curr].inst));
@@ -1125,7 +1125,7 @@ static inline void render_darkroom_widgets(
   nk_window_get_scroll(ctx, &offx, &offy);
   struct nk_rect bound = nk_layout_widget_bounds(ctx);
   bound.y -= offy; // account for scrolling: both drawing and mouse events are not relative to scroll window, widget bounds are
-  bound.h -= 2; // leave 2px padding
+  bound.h -= ctx->style.tab.padding.y;
   nk_fill_rect(nk_window_get_canvas(ctx), bound, 0.0, ctx->style.tab.background.data.color);
   bound.x += ratio[0] * vkdt.state.panel_wd; // mouse click: not the disable button
 
@@ -1136,7 +1136,9 @@ static inline void render_darkroom_widgets(
         "this is just a convenience A/B switch in the ui and will not affect your "
         "processing history, lighttable thumbnail, or export.");
     struct nk_rect box = nk_widget_bounds(ctx);
+    ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize * 0.9;
     nk_label(ctx, module->disabled ? "\ue612" : "\ue836", NK_TEXT_CENTERED);
+    ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize;
     // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
     const struct nk_input *in = (ctx->current->layout->flags & NK_WINDOW_ROM) ? 0 : &ctx->input;
     if(in && nk_input_is_mouse_hovering_rect(in, box) && 
@@ -1168,13 +1170,17 @@ static inline void render_darkroom_widgets(
   {
     dt_tooltip("this module cannot be disabled automatically because\n"
                "it does not implement a simple input -> output chain");
+    ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize * 0.9;
     nk_label(ctx, "\ue15b", NK_TEXT_CENTERED);
+    ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize;
   }
   // nk_label(ctx, active ? "\ue5cf" : "\ue5cc", NK_TEXT_CENTERED);
   // nk_label(ctx, active ? "\ue5e0" : "\ue5e1", NK_TEXT_CENTERED);
   // nk_label(ctx, active ? "\ue5c5" : "\ue5df", NK_TEXT_CENTERED);
-  nk_label(ctx, active ? "\ue5e0" : "\ue5e1", NK_TEXT_CENTERED);
   nk_label(ctx, name, NK_TEXT_LEFT);
+  ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize * 0.9;
+  nk_label(ctx, active ? "\ue5e0" : "\ue5e1", NK_TEXT_CENTERED);
+  ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize;
   // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
   const struct nk_input *in = (vkdt.ctx.current->layout->flags & NK_WINDOW_ROM) ? 0 : &ctx->input;
   if(in && nk_input_is_mouse_hovering_rect(in, bound) && 
