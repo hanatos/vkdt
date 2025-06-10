@@ -64,7 +64,7 @@ vec3 dt_UCS_JCH_to_xyY(const vec3 JCH, const float L_white)
   const float L_star = JCH.x * L_white; // should be L_star = powf(JCH[0], 1.f / cz) * L_white but we treat only cz = 1
   float M = pow(JCH.y * L_white / (15.932993652962535 * pow(L_star, 0.6523997524738018)), 0.8322850678616855);
   // touchy bugger:
-  // M = clamp(M, 0.0, 0.05);
+  M = clamp(M, 0.0, 0.05);
 
   vec2 UV_star = M * vec2(cos(JCH.z), sin(JCH.z)); // uv*'
   const mat2 M1 = mat2(-5.037522385190711, 4.760029407436461, -2.504856328185843, 2.874012963239247); // col major
