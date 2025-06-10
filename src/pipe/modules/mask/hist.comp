@@ -39,8 +39,8 @@ uint get_bin(vec3 rgb)
     vec3 xyY = rec2020_to_xyY(rgb);
     xyY.z = .5;
     vec3 jch = xyY_to_dt_UCS_JCH(xyY, 1.0);
-    if(params.mode == 1) l = jch.y / (2.0*M_PI);
-    if(params.mode == 2) l = jch.z;
+    if(params.mode == 1) l = jch.z / (2.0*M_PI);
+    if(params.mode == 2) l = jch.y;
 #endif
 #if 0
     vec3 xyY = rec2020_to_xyY(rgb);

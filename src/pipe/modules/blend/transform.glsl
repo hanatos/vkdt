@@ -7,5 +7,3 @@ vec4 output_transform(vec4 v)
 {
   return exp(v) * 0.5;
 }
-
-
