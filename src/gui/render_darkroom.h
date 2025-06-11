@@ -338,7 +338,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       struct nk_rect bounds = nk_widget_bounds(ctx);
       nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // H
       nk_style_pop_color(ctx);
-      DECORATE(hsv.r, hsv2rgb((k+0.5)/N, .6, 1.0), 0.8f);
+      DECORATE(hsv.r, hsv2rgb((k+0.5)/N, .2, 0.8), 0.8f);
       ROTARY_KNOB(hsv.r, 1.0);
 
       dt_tooltip("dt-ucs saturation, will clip at maximum possible value");
