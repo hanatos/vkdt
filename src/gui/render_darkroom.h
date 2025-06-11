@@ -332,16 +332,16 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         }\
       }} while(0)
 
-      dt_tooltip("oklab hue angle");
+      dt_tooltip("dt-ucs hue angle");
       nk_label(ctx, "hue", NK_TEXT_RIGHT);
       nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
       struct nk_rect bounds = nk_widget_bounds(ctx);
       nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // H
       nk_style_pop_color(ctx);
-      DECORATE(hsv.r, hsv2rgb((k+0.5)/N, .6, 1.0), 0.18f);
+      DECORATE(hsv.r, hsv2rgb((k+0.5)/N, .6, 1.0), 0.8f);
       ROTARY_KNOB(hsv.r, 1.0);
 
-      dt_tooltip("oklab colourfulness");
+      dt_tooltip("dt-ucs saturation, will clip at maximum possible value");
       nk_label(ctx, "col", NK_TEXT_RIGHT);
       nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 1.0)));
       bounds = nk_widget_bounds(ctx);
@@ -350,7 +350,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       DECORATE(hsv.g, hsv2rgb(hsv.r, (k+0.5)/N, 1.0), 1.0f);
       ROTARY_KNOB(hsv.g, 1.0);
 
-      dt_tooltip("oklab lightness");
+      dt_tooltip("dt-ucs lightness");
       nk_label(ctx, "lit", NK_TEXT_RIGHT);
       // nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, hsv.b)));
       bounds = nk_widget_bounds(ctx);

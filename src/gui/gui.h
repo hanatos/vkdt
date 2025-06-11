@@ -344,9 +344,9 @@ xy_to_dt_UCS_UV(struct nk_colorf xy)
   float uvd[3] = {0.0f};
   for(int k=0;k<3;k++)
   {
-    uvd[k] += M1[0+3*k] * xy.r;
-    uvd[k] += M1[1+3*k] * xy.g;
-    uvd[k] += M1[2+3*k] * 1.0f;
+    uvd[k] += M1[3*0+k] * xy.r;
+    uvd[k] += M1[3*1+k] * xy.g;
+    uvd[k] += M1[3*2+k] * 1.0f;
   }
   uvd[0] /= uvd[2];
   uvd[1] /= uvd[2];
@@ -360,11 +360,8 @@ xy_to_dt_UCS_UV(struct nk_colorf xy)
     M2[0] * UV_star[0] + M2[2] * UV_star[1],
     M2[1] * UV_star[0] + M2[3] * UV_star[1], 0, 0};
 }
-//  input :
 //    * xyY in normalized CIE XYZ for the 2° 1931 observer adapted for D65
 //    * L_white the lightness of white as dt UCS L* lightness
-//    * cz = 1 for standard pre-print proofing conditions with average surround and n = 20 %
-//            (background = middle grey, white = perfect diffuse white)
 //  range : xy in [0; 1], Y normalized for perfect diffuse white = 1
 static inline struct nk_colorf
 xyY_to_dt_UCS_JCH(const struct nk_colorf xyY, const float L_white)
@@ -377,12 +374,6 @@ xyY_to_dt_UCS_JCH(const struct nk_colorf xyY, const float L_white)
       15.932993652962535f * powf(L_star, 0.6523997524738018f) * powf(M2, 0.6007557017508491f) / L_white,
       atan2f(UV_star_prime.g, UV_star_prime.r)};
 }
-//  input :
-//    * xyY in normalized CIE XYZ for the 2° 1931 observer adapted for D65
-//    * L_white the lightness of white as dt UCS L* lightness
-//    * cz = 1 for standard pre-print proofing conditions with average surround and n = 20 %
-//            (background = middle grey, white = perfect diffuse white)
-//  range : xy in [0; 1], Y normalized for perfect diffuse white = 1
 static inline struct nk_colorf
 dt_UCS_JCH_to_xyY(const struct nk_colorf JCH, const float L_white)
 {
@@ -390,19 +381,16 @@ dt_UCS_JCH_to_xyY(const struct nk_colorf JCH, const float L_white)
   float M = powf(JCH.g * L_white / (15.932993652962535f * powf(L_star, 0.6523997524738018f)), 0.8322850678616855f);
   // touchy bugger:
   M = CLAMP(M, 0.0, 0.05);
-
   float UV_starp[] = { M * cosf(JCH.b), M * sin(JCH.b) }; // uv*'
   const float M1[] = {-5.037522385190711, 4.760029407436461, -2.504856328185843, 2.874012963239247}; // col major
   float UV_star[] = {
     M1[0] * UV_starp[0] + M1[2] * UV_starp[1],
     M1[1] * UV_starp[0] + M1[3] * UV_starp[1]};
-
   const float factors[]     = {1.39656225667, 1.4513954287};
   const float half_values[] = {1.49217352929, 1.52488637914};
   float UV[] = {
     -half_values[0] * UV_star[0] / (fabsf(UV_star[0]) - factors[0]),
     -half_values[1] * UV_star[1] / (fabsf(UV_star[1]) - factors[1])};
-
   const float M2[] = { // given as column vectors
        0.167171472114775,   -0.150959086409163,    0.940254742367256,
        0.141299802443708,   -0.155185060382272,    1.000000000000000,
@@ -410,9 +398,9 @@ dt_UCS_JCH_to_xyY(const struct nk_colorf JCH, const float L_white)
   float xyD[3] = {0.0f};
   for(int k=0;k<3;k++)
   {
-    xyD[k] += M2[0+3*k] * UV[0];
-    xyD[k] += M2[1+3*k] * UV[1];
-    xyD[k] += M2[2+3*k] * 1.0f;
+    xyD[k] += M2[3*0+k] * UV[0];
+    xyD[k] += M2[3*1+k] * UV[1];
+    xyD[k] += M2[3*2+k] * 1.0f;
   }
   return (struct nk_colorf){xyD[0]/xyD[2], xyD[1]/xyD[2], dt_UCS_L_star_to_Y(L_star)};
 }
@@ -438,14 +426,50 @@ dt_UCS_HCB_to_JCH(const struct nk_colorf HCB)
 {
   return (struct nk_colorf){HCB.b / (powf(HCB.g, 1.33654221029386f) + 1.f), HCB.g, HCB.r};
 }
+static inline void
+rec2020_to_dtucs(const float rgb[], float dtucs[])
+{ // these matrices are the same as in glsl, i.e. transposed:
+  const float rec2020_to_xyz[] = {
+    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+    1.68880975e-01, 5.93017165e-02, 1.06098506e+00};
+  float xyz[3] = {0.0f};
+  for(int k=0;k<3;k++)
+    for(int i=0;i<3;i++)
+      xyz[k] += rec2020_to_xyz[3*i+k] * rgb[i];
+  float s = 1.0f/(xyz[0]+xyz[1]+xyz[2]);
+  struct nk_colorf xyY = { s*xyz[0], s*xyz[1], xyz[1] };
+  struct nk_colorf jch = xyY_to_dt_UCS_JCH(xyY, 1.0f);
+  struct nk_colorf hsb = dt_UCS_JCH_to_HSB(jch);
+  dtucs[0] = hsb.r; dtucs[1] = hsb.g; dtucs[2] = hsb.b;
+}
+static inline void
+dtucs_to_rec2020(const float dtucs[], float rgb[])
+{
+  struct nk_colorf hsb = {dtucs[0],dtucs[1],dtucs[2]};
+  struct nk_colorf jch = dt_UCS_HSB_to_JCH(hsb);
+  struct nk_colorf xyY = dt_UCS_JCH_to_xyY(jch, 1.0f);
+  float s = xyY.b / xyY.g;
+  float xyz[] = {s*xyY.r, s*xyY.g, s*(1.0-xyY.r-xyY.g)};
+  const float xyz_to_rec2020[] = {
+    1.71665119, -0.66668435,  0.01763986,
+   -0.35567078,  1.61648124, -0.04277061,
+   -0.25336628,  0.01576855,  0.94210312};
+  rgb[0] = rgb[1] = rgb[2] = 0.0f;
+  for(int k=0;k<3;k++)
+    for(int i=0;i<3;i++)
+      rgb[k] += xyz_to_rec2020[3*i+k] * xyz[i];
+}
 #endif
 
 static inline struct nk_colorf
 rgb2hsv(float r, float g, float b)
 {
-  float oklab[3], rgb[] = {r, g, b, 0.0f};
-  rec2020_to_oklab(rgb, oklab);
-  return (struct nk_colorf){modff(1.0f + atan2f(oklab[2], oklab[1])/(2.0f*M_PI), rgb+3), sqrtf(oklab[1]*oklab[1]+oklab[2]*oklab[2]), oklab[0], 1.0};
+  float ucs[3], rgb[] = {r, g, b, 0.0f};
+  // rec2020_to_oklab(rgb, ucs);
+  // return (struct nk_colorf){modff(1.0f + atan2f(ucs[2], ucs[1])/(2.0f*M_PI), rgb+3), sqrtf(ucs[1]*ucs[1]+ucs[2]*ucs[2]), ucs[0], 1.0};
+  rec2020_to_dtucs(rgb, ucs);
+  return (struct nk_colorf){ modff(1.0f + ucs[0]/(2.0f*M_PI), rgb+3), ucs[1], ucs[2], 1.0};
 }
 
 static inline struct nk_colorf
@@ -461,8 +485,10 @@ static inline struct nk_colorf
 hsv2rgb(float h, float s, float v)
 {
   if(v <= 0.0f) return (struct nk_colorf){0,0,0,1.0f};
-  float oklab[3] = {v, s * cosf(2.0f*M_PI*h), s * sinf(2.0f*M_PI*h)}, rgb[3];
-  oklab_to_rec2020(oklab, rgb);
+  // float ucs[3] = {v, s * cosf(2.0f*M_PI*h), s * sinf(2.0f*M_PI*h)}, rgb[3];
+  // oklab_to_rec2020(ucs, rgb);
+  float ucs[3] = {h*2.0f*M_PI, s, v}, rgb[3];
+  dtucs_to_rec2020(ucs, rgb);
   return (struct nk_colorf){rgb[0], rgb[1], rgb[2], 1.0f};
 }
 
