@@ -137,6 +137,13 @@ mat_init(
     roughness = texelFetch(img_tex[nonuniformEXT(tex_r)], tc, 0).r;
   }
 
+  if(tex_b == 0)
+  {
+    base = vec4(1.0);
+    albedo = vec3(1);
+    geo_flags |= s_geo_dielectric; // XXX glass hack!
+  }
+
   if((geo_flags & 7) == s_geo_watere) // tears waterfall hack
     emit = 2.0*base;
 
