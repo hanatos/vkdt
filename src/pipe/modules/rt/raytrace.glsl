@@ -100,6 +100,8 @@ void prepare_intersection(
     if(dot(w,n) > 0) n -= w*dot(w,n);
   }
 
+  uint tex_b = mat.x & 0xffff;
+  if(tex_b != 0) // don't offset for dielectrics
   if((geo_flags & s_geo_nonorm)==0 && (tex_n == 0))
   { // now fix shading normals below horizon and terminator problem:
     if(dot(w,n0) > 0) n0 -= w*dot(w,n0);
@@ -176,6 +178,10 @@ bool cast_ray(
     dist = rayQueryGetIntersectionTEXT(rq, true);
     return true;
   }
-  dist = 1e10;
+  // don't overwrite distance, use whatever was set as max on the outside to move x:
+  x += dist * w;
+  n = ng = vec3(0);
+  st = vec2(0);
+  mat = uvec4(0);
   return false;
 }

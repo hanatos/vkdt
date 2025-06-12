@@ -31,7 +31,7 @@ dielectric_sample(
     vec3       xi,     // random numbers
     out vec4   c)      // value of monte carlo estimator f_r*cos/pdf for the four wavelengths
 {
-  const float eta_ratio = (mat.geo_flags & s_geo_inside)>0? 1.3 : 1.0/1.3;
+  const float eta_ratio = ((mat.geo_flags & s_geo_inside)>0)? 1.3 : 1.0/1.3;
 
   float cosr = -dot(w, n);
   float cost2 = 1.0 - eta_ratio*eta_ratio * (1.0-cosr*cosr);
