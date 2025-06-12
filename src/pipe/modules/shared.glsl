@@ -442,7 +442,8 @@ float mrand(inout uint seed)
   seed ^= seed << 13;
   seed ^= seed >> 17;
   seed ^= seed << 5;
-  return seed / 4294967296.0;
+  // do it the rust way, results in more distinct numbers in [0,1) than pasting the mantissa bits to 0x3f800000:
+  return (seed >> 8) * 5.9604644775390625e-08;
 }
 
 // since hsv is a severely broken concept, we mean oklab LCh (or hCL really)
