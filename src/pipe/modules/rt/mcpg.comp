@@ -117,8 +117,8 @@ float hsum(vec4 v)
 
 void main()
 {
-  ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  ivec2 fbdim = ivec2(params.wd, params.ht);
+  const ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  const ivec2 fbdim = ivec2(params.wd, params.ht);
   seed = 19937 * global.frame + 133700000 * ipos.x + ipos.y * 70007;
 #if RT_GBUF_JITTER==1
   const vec2 bh_off = vec2(mrand(seed),mrand(seed));
@@ -138,7 +138,7 @@ void main()
 
   uint flags = 0;
   float dist = 1e20;
-  const float tmax = 1e12;//volume_sample_dist(x.xyz, w, mrand(seed));
+  const float tmax = 1e10;//volume_sample_dist(x.xyz, w, mrand(seed));
   vec3 albedo = vec3(1);
   vec4 acc_rgb = vec4(0);
 
@@ -156,12 +156,13 @@ void main()
 #endif
     if(all(lessThanEqual(contrib, vec4(0.0)))) continue; // next spp
     mat_state_t ms;
+    bool specular = false;
     { // init first intersection vertex: read geo intersection info
       vec2 dn = texelFetch(img_dn, ipos, 0).rg;
       dist = dn.x;
       n  = geo_decode_normal(floatBitsToUint(dn.y));
       ng = geo_decode_normal(buf_mat.v[ipos.x+fbdim.x*ipos.y].ng);
-      uint inside = (buf_mat.v[ipos.x+fbdim.x*ipos.y].m2 & 0x80000000) > 0 ? 1 : 0;
+      uint inside = (buf_mat.v[ipos.x+fbdim.x*ipos.y].m2 & uint(0x80000000)) > 0 ? 1 : 0;
       mat = uvec4(
           buf_mat.v[ipos.x+fbdim.x*ipos.y].m0,
           buf_mat.v[ipos.x+fbdim.x*ipos.y].m1,
@@ -173,9 +174,10 @@ void main()
       if(dist < tmax) flags = 0;
       else          { flags = s_volume; dist = tmax; }
       if(dist >=1e10) flags = s_envmap;
-      x.xyz = x.xyz + dist * w + 0.001*ng;
+      x.xyz = x.xyz + dist * w;
       // init material state for first vertex on geo:
       ms = mat_init(mat, st, n, flags, lambda, w, albedo);
+      specular = (ms.geo_flags & s_geo_dielectric)>0;
       if((flags & s_emit) != 0)
       {
         acc_rgb.rgb = colour_to_rgb(contrib * ms.col_emit, lambda, hrp)/SURFACE_SPP;
@@ -202,6 +204,7 @@ void main()
         vec4 c;
         wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
         wo_p = mat_pdf(ms, flags, w, n, wo, lambda.x);
+        // flags = s_reflect;
         // wo = mat3(ms.du, ms.dv, ng) * sample_cos(XorShift32Vec2(seed));
         // wo_p = dot(ng, wo)/M_PI;
 #else
@@ -247,18 +250,16 @@ void main()
         }
         if (isinf(score_sum) || isnan(score_sum)) score_sum = 0;
 
-        if (score_sum == 0 || XorShift32(seed) < SURF_BSDF_P)
+        if (specular || score_sum == 0 || XorShift32(seed) < SURF_BSDF_P)
         { // BSDF Sampling
           vec4 c;
           // wo = mat3(ms.du, ms.dv, n) * sample_cos(XorShift32Vec2(seed));
+          // wo = mat3(ms.du, ms.dv, n) * sample_hemisphere(XorShift32Vec2(seed));
           wo = mat_sample(ms, flags, w, n, lambda, XorShift32Vec4(seed).xyz, c);
           mc_state = mc_state_new();
           mc_buffer_index = -1u;
         }
-        else 
-        {
-          wo = vmf_sample(vmfs[0].xyz, vmfs[0].w, XorShift32Vec2(seed));
-        }
+        else wo = vmf_sample(vmfs[0].xyz, vmfs[0].w, XorShift32Vec2(seed));
 
         // Multiple importance sampling
         // score_sum > 0 ? results in black artifacts
@@ -269,19 +270,22 @@ void main()
         wo_p = mix(wo_p,
           mat_pdf(ms, flags, w, n, wo, lambda.x)
           // max(dot(n, wo), 0)/M_PI
+          // 0.5/M_PI
           , bw);
-
+        // TODO: if not sampled bsdf but want to support guiding on transmissive surfaces,
+        // TODO: we'd have to set the transmit flag here in case we intended under the surface!
 #endif
       } // wo scope
-      // ray is below geometric surface
+
+      if((flags & s_transmit) > 0) x.xyz -= 1e-3*ng;
+      else x.xyz += 1e-3*ng;
       wodotn = dot(wo, n);
-      if (wodotn <= 1e-3 || dot(wo, ng) <= 1e-3) break; // dead sample
-      // XXX divide out albedo?
+      // ray is below geometric surface?
+      if((wodotn <= 1e-3 || dot(wo, ng) <= 1e-3) && ((flags & s_transmit) == 0)) break; // dead sample
       // const vec4 bsdf = colour_upsample(albedo, lambda)/M_PI;
       const vec4 bsdf = mat_eval(ms, flags, w, n, wo, lambda);
 
       vec3 x_next = x.xyz, n_next, ng_next;
-
       dist = tmax; // trace ray
       if(cast_ray(wo, x_next, dist, n_next, ng_next, st, mat)) flags = 0;
       if(dist >= tmax) flags = s_envmap;
@@ -291,24 +295,24 @@ void main()
 
       vec4 transmittance = vec4(1);
       vec4 direct_illum = ms.col_emit * transmittance; // Le * T from next vertex
+
       // use full GI (diffuse bounces from light cache)?
       const vec4 lc_incident = any(greaterThan(direct_illum, vec4(0))) ||
         (USE_LIGHT_CACHE_TAIL == 0 && MAX_PATH_LENGTH == 1) ? direct_illum :
         transmittance * colour_upsample(light_cache_get(x_next, n_next).rgb, lambda);
 
-      // TODO without albedo (added below to skip first albedo)
-      contrib *= bsdf * wodotn;
+      if(!specular) contrib *= bsdf * wodotn;
 #if USE_LIGHT_CACHE_TAIL==1
       f = contrib * (bounce < MAX_PATH_LENGTH - 1 ? direct_illum : lc_incident);
 #else
       f = contrib * direct_illum;
 #endif
-      p *= wo_p;
+      if(!specular) p *= wo_p;
       contrib *= transmittance;
 
-#if MCPG_REFERENCE_MODE != 1
+#if MCPG_REFERENCE_MODE!=1
+      if(!specular)
       { // UPDATE MARKOV CHAIN and LIGHT_CACHE
-        // multiply albedo?
         const float mc_f = hsum(lc_incident*bsdf)*wodotn/wo_p;
         if (!isinf(mc_f) && !isnan(mc_f))
         {
@@ -332,7 +336,7 @@ void main()
               mc_states[mc_buffer_index].sum_w = 0.;
           }
         }
-      } // scope braces
+      } // end if !specular
 #endif
 
       x.xyz = x_next;
@@ -340,6 +344,7 @@ void main()
       ng = ng_next; // XXX need this?
       albedo = albedo_next; // XXX and this?
       w = wo;
+      specular = (ms.geo_flags & s_geo_dielectric)>0;
 
       if((flags & (s_emit|s_envmap)) > 0) break; // endpoint found
       if(all(lessThanEqual(contrib, vec4(0.0)))) break; // contribution dropped
