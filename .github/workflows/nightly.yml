@@ -292,6 +292,7 @@ jobs:
         run: |
           export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
           # fails in github ci:
+          # might be in: /opt/homebrew/Cellar/
           # export PKG_CONFIG_PATH=$(find /usr/local/Cellar -name 'pkgconfig' -type d | grep lib/pkgconfig | tr '\n' ':' | sed s/.$//)
           # export PKG_CONFIG_PATH=$(find /usr/homebrew/Cellar -name 'pkgconfig' -type d | grep lib/pkgconfig | tr '\n' ':' | sed s/.$//)
           make -C ${SRC_DIR}
