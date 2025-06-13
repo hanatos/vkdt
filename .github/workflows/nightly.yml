@@ -291,8 +291,9 @@ jobs:
       - name: compile
         run: |
           export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
-          export PKG_CONFIG_PATH=$(find /usr/local/Cellar -name 'pkgconfig' -type d | grep lib/pkgconfig | tr '\n' ':' | sed s/.$//)
-          export PKG_CONFIG_PATH=$(find /usr/homebrew/Cellar -name 'pkgconfig' -type d | grep lib/pkgconfig | tr '\n' ':' | sed s/.$//)
+          # fails in github ci:
+          # export PKG_CONFIG_PATH=$(find /usr/local/Cellar -name 'pkgconfig' -type d | grep lib/pkgconfig | tr '\n' ':' | sed s/.$//)
+          # export PKG_CONFIG_PATH=$(find /usr/homebrew/Cellar -name 'pkgconfig' -type d | grep lib/pkgconfig | tr '\n' ':' | sed s/.$//)
           make -C ${SRC_DIR}
           # and then install etc and test-run as: MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=1 ./vkdt
 
