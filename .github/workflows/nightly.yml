@@ -284,6 +284,10 @@ jobs:
       - name: install dependencies
         run: |
           brew install make pkg-config glfw3 vulkan-validationlayers vulkan-headers rust molten-vk cmake
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: src
       - name: compile
         run: |
           export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
