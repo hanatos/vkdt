@@ -271,6 +271,27 @@ jobs:
           name: artifact-windows-rawler
           retention-days: 1
 
+  macintosh:
+    if: github.repository == 'hanatos/vkdt'
+    name: nightly vkdt macintosh
+    runs-on: macos-14
+    strategy:
+      fail-fast: true
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+    steps:
+      - name: install dependencies
+        run: |
+          brew install make pkg-config glfw3 vulkan-validationlayers vulkan-headers rust molten-vk cmake
+      - name: compile
+        run: |
+          export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
+          export PKG_CONFIG_PATH=$(find /usr/local/Cellar -name 'pkgconfig' -type d | grep lib/pkgconfig | tr '\n' ':' | sed s/.$//)
+          export PKG_CONFIG_PATH=$(find /usr/homebrew/Cellar -name 'pkgconfig' -type d | grep lib/pkgconfig | tr '\n' ':' | sed s/.$//)
+          make -C ${SRC_DIR}
+          # and then install etc and test-run as: MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=1 ./vkdt
+
   upload_to_release:
     permissions:
       contents: write
