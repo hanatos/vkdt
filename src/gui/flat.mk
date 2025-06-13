@@ -39,7 +39,7 @@ GUI_H=gui/gui.h\
       pipe/graph-history.h\
       pipe/graph-defaults.h
 GUI_CFLAGS=$(VKDT_GLFW_CFLAGS)
-GUI_LDFLAGS=-ldl $(VKDT_GLFW_LDFLAGS) -lm $(DYNAMIC)
+GUI_LDFLAGS=$(VKDT_GLFW_LDFLAGS) -lm $(DYNAMIC)
 
 ifeq ($(VKDT_USE_PENTABLET),1)
 GUI_CFLAGS+=-DVKDT_USE_PENTABLET=1

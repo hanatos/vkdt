@@ -59,7 +59,7 @@ export VKDT_USE_ALSA
 
 # build the i-mcraw loader module to load raw video from the motioncam app.
 # it has no additional dependencies but comes with several ten thousand lines of c++ code
-VKDT_USE_MCRAW=1
+VKDT_USE_MCRAW=0
 export VKDT_USE_MCRAW
 
 # for the i-vid module using libavformat/libavcodec to read
@@ -96,12 +96,20 @@ export VKDT_GLFW_CFLAGS VKDT_GLFW_LDFLAGS
 # need vulkan
 VKDT_VULKAN_CFLAGS=$(eval VKDT_VULKAN_CFLAGS :=-DVK_USE_PLATFORM_MACOS_MVK -DVK_ENABLE_BETA_EXTENSIONS $$(shell pkg-config --cflags vulkan))$(VKDT_VULKAN_CFLAGS)
 VKDT_VULKAN_LDFLAGS=$(eval VKDT_VULKAN_LDFLAGS := $$(shell pkg-config --libs vulkan))$(VKDT_VULKAN_LDFLAGS)
-VKDT_VULKAN_CFLAGS+= -DVK_ENABLE_BETA_EXTENSIONS
 export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 
+# Need OpenMP
+OMP_CFLAGS  = -I/opt/homebrew/opt/libomp/include
+OMP_LDFLAGS = -L/opt/homebrew/opt/libomp/lib -lomp
+export OMP_CFLAGS OMP_LDFLAGS
+
 # compiler config
-CC=clang
-CXX=clang++
+CC  = /opt/homebrew/opt/llvm/bin/clang
+CXX = /opt/homebrew/opt/llvm/bin/clang++
+AR  = /opt/homebrew/opt/llvm/bin/llvm-ar
+
+LDFLAGS = -rpath /usr/local/lib
+
 GLSLC=glslangValidator
 GLSLC_FLAGS=--target-env vulkan1.2
 # GLSLC=glslc
@@ -113,4 +121,14 @@ OPT_LDFLAGS=
 AR=ar
 DYNAMIC=-rdynamic -fvisibility=hidden
 
-export CC CXX GLSLC GLSLC_FLAGS OPT_CFLAGS OPT_LDFLAGS AR DYNAMIC
+SEXT = dylib
+
+# Pass the library name as $1
+generate_shared_flags = -dynamiclib -undefined dynamic_lookup -Wl,-install_name,$$1.$(SEXT)
+
+
+# set this to 1 to signal rawspeed to build without processor specific extensions.
+# again, this is important for building packages for distros.
+#RAWSPEED_PACKAGE_BUILD=0
+
+export CC CXX AR LDFLAGS GLSLC GLSLC_FLAGS OPT_CFLAGS OPT_LDFLAGS DYNAMIC RAWSPEED_PACKAGE_BUILD SEXT generate_shared_flags

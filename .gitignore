@@ -8,15 +8,8 @@ cscope.out
 built/
 src/core/version.h
 bin/config.mk
-bin/libvkdt.so
-bin/vkdt
-bin/vkdt-cli
-bin/vkdt-fit
-bin/vkdt-eval-profile
-bin/vkdt-lutinfo
-bin/vkdt-mkclut
-bin/vkdt-mkssf
-bin/vkdt-read-icc
+bin/vkdt*
+bin/libvkdt*
 bin/data/cameras.xml
 bin/modules
 bin/imgui.ini

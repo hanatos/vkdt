@@ -34,8 +34,8 @@ ifneq ($(VKDT_USE_MCRAW), 1)
 endif
 
 # generate list of dso filenames, i.e. modules/*/lib*.so according to MODULES
-MOD_DSOS:=$(foreach mod,$(MODULES),pipe/modules/$(mod)/lib$(mod).so)
-MOD_DSOSXX:=$(foreach mod,$(MODULESXX),pipe/modules/$(mod)/lib$(mod).so)
+MOD_DSOS:=$(foreach mod,$(MODULES),pipe/modules/$(mod)/lib$(mod).$(SEXT))
+MOD_DSOSXX:=$(foreach mod,$(MODULESXX),pipe/modules/$(mod)/lib$(mod).$(SEXT))
 # also all .comp compute shaders will be compiled to spir-v.
 SHD_EXT=comp vert tesc tese geom frag
 SPV:=$(foreach shd,$(SHD_EXT),\
@@ -45,7 +45,7 @@ TOOLTIPS:=$(patsubst %/readme.md,%/ptooltips,$(READMES))
 
 .PHONY: all clean modules
 
-all: ../bin/vkdt-cli ../bin/vkdt-fit ../bin/vkdt modules tools Makefile 
+all: ../bin/vkdt-cli ../bin/vkdt-fit ../bin/vkdt modules tools Makefile
 
 include qvk/flat.mk
 include core/flat.mk
@@ -65,7 +65,7 @@ clean: Makefile
 	# we delete *all* modules, not just the one in MOD_DSOS* because they may be from another branch.
 	# such stale libraries can still cause segfaults because they would be loaded.
 	# at some point we probably need to harden the api such that this still works. maybe.
-	rm -f pipe/modules/*/lib*.so
+	rm -f pipe/modules/*/lib*.$(SEXT)
 	rm -f pipe/modules/*/*.spv
 	rm -f pipe/modules/*/{ctooltips,ptooltips}
 
@@ -103,26 +103,25 @@ gui/%.o: gui/%.c Makefile $(GUI_H) gui/flat.mk
 # main application
 # ======================
 ../bin/vkdt: $(GUI_O) $(QVK_O) $(CORE_O) $(SND_O) $(PIPE_O) $(DB_O) Makefile
-	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(SND_O) $(PIPE_O) $(DB_O) -pie -o $@ \
+	$(CC) $(GUI_O) $(QVK_O) $(CORE_O) $(SND_O) $(PIPE_O) $(DB_O) -o $@ \
     $(LDFLAGS) $(QVK_LDFLAGS) $(GUI_LDFLAGS) $(SND_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 # command line interface
 # ======================
 ../bin/vkdt-cli: $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
-	$(CC) $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -pie -o $@ \
+	$(CC) $(CLI_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -o $@ \
     $(LDFLAGS) $(CLI_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 # parameter optimiser
 # ======================
 ../bin/vkdt-fit: $(FIT_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
-	$(CC) $(FIT_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -pie -o $@ \
+	$(CC) $(FIT_O) $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) -o $@ \
     $(LDFLAGS) $(FIT_LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
 
 # library
 # ======================
-../bin/libvkdt.so: $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
-	$(CC) -shared -nostartfiles -Wl,-soname,libvkdt.so -o $@ $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) \
-    $(LDFLAGS) $(QVK_LDFLAGS) $(PIPE_LDFLAGS) $(CORE_LDFLAGS) $(DB_LDFLAGS) $(OPT_LDFLAGS)
+../bin/libvkdt.$(SEXT): $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O) Makefile
+	$(CC) $(call generate_shared_flags,libvkdt) $(QVK_LDFLAGS) -o $@ $(QVK_O) $(CORE_O) $(PIPE_O) $(DB_O)
 
 # modules
 # ======================
@@ -153,14 +152,14 @@ $(foreach MOD,$(FLATMK),\
   $(eval MOD_$(MOD)_C=$(MOD_C)))
 
 define MOD_RULE
-pipe/modules/$1/lib$1.so: pipe/modules/$1/main.c pipe/modules/$1/flat.mk $(MOD_$(1)_DEPS) $(MOD_GLOBAL_DEPS)
-	$(CC) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS) $(MOD_GLOBAL_LDFLAGS)
+pipe/modules/$1/lib$1.$(SEXT): pipe/modules/$1/main.c pipe/modules/$1/flat.mk $$(MOD_$1_DEPS) $(MOD_GLOBAL_DEPS)
+	$(CC) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $$(MOD_$1_CFLAGS) $(call generate_shared_flags,lib$1) $$< $$(MOD_$1_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $$(MOD_$1_LDFLAGS)
 endef
 $(foreach mod,$(MODULES),$(eval $(call MOD_RULE,$(mod))))
 
 define MOD_RULEXX
-pipe/modules/$1/lib$1.so:pipe/modules/$1/main.cc pipe/modules/$1/flat.mk $(MOD_$(1)_DEPS) $(MOD_GLOBAL_DEPS)
-	$(CXX) $(CXXFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS) $(MOD_GLOBAL_LDFLAGS)
+pipe/modules/$1/lib$1.$(SEXT): pipe/modules/$1/main.cc pipe/modules/$1/flat.mk $$(MOD_$1_DEPS) $(MOD_GLOBAL_DEPS)
+	$(CXX) $(CXXFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $$(MOD_$1_CFLAGS) $$< $$(MOD_$1_C) $(call generate_shared_flags,lib$1) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $$(MOD_$1_LDFLAGS)
 endef
 $(foreach mod,$(MODULESXX),$(eval $(call MOD_RULEXX,$(mod))))
 

@@ -33,6 +33,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 #endif
 
+#define VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME "VK_KHR_portability_subset"
+#define VK_KHR_VALIDATION_LAYER_NAME "VK_LAYER_KHRONOS_validation"
+
 qvk_t qvk =
 {
   .frame_counter = 0,
@@ -41,6 +44,10 @@ qvk_t qvk =
 #define _VK_EXTENSION_DO(a) PFN_##a q##a;
 _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
+
+const char *vk_requested_layers[] = {
+  VK_KHR_VALIDATION_LAYER_NAME,
+};
 
 const char *vk_requested_instance_extensions[] = {
   // debugging:
@@ -158,25 +165,19 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
 
   get_vk_extension_list(NULL, &qvk.num_extensions, &qvk.extensions);
 
-  const char *vk_requested_layers[] = {
-#ifdef QVK_ENABLE_VALIDATION
-    "VK_LAYER_KHRONOS_validation",
-#endif
-    "VK_LAYER_hdr_wsi",
-  };
-  int num_layers = LENGTH(vk_requested_layers) + (enable_hdr_wsi ? 0 : -1);
-
   /* create instance */
   VkInstanceCreateInfo inst_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
     .pApplicationInfo        = &vk_app_info,
-    .enabledLayerCount       = num_layers,
-    .ppEnabledLayerNames     = num_layers ? vk_requested_layers : 0,
-    .enabledExtensionCount   = num_inst_ext_combined,
-    .ppEnabledExtensionNames = (const char * const*)ext,
 #ifdef __APPLE__
     .flags                   = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
 #endif
+#ifdef QVK_ENABLE_VALIDATION
+    .enabledLayerCount       = LENGTH(vk_requested_layers),
+    .ppEnabledLayerNames     = vk_requested_layers,
+#endif
+    .enabledExtensionCount   = num_inst_ext_combined,
+    .ppEnabledExtensionNames = (const char * const*)ext,
   };
 
   {
