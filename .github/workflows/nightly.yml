@@ -156,7 +156,6 @@ jobs:
           #   libglfw3-dev \
           #   zlib1g-dev \
           #   libpugixml-dev \
-          #   libfreetype-dev \
           #   libexiv2-dev \
           #   libasound2-dev \
           #   libavformat-dev \
@@ -322,7 +321,7 @@ jobs:
             appimage
             ===================================================
             the appimage compiles in a lot of features
-            (mlv, v4l, asound, i-vid, o-vid, exiv2, freetype)
+            (mlv, v4l, asound, i-vid, o-vid, exiv2)
             but not all
             (no quake).
             you also currently need the `exiftool` binary installed on your
@@ -349,10 +348,14 @@ jobs:
             ===================
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
             it compiles less features
-            (freetype mlv, i-vid, o-vid)
+            (mlv, i-vid, o-vid)
             and leaves out many
             (no v4l, no sound, no quake, no pentablet support).
             you can help by reporting more issues (or maybe even fixing, if you can ;) ).
+
+            macintosh
+            =========
+            the macintosh version is currently just verifying the build but not creating a nightly dmg image.
 
           files: |
             artifact-appimage-rawler-glfw3.4/*
