@@ -21,6 +21,9 @@ sinclude bin/config.mk
 # SHELL = $(warning [$@ ($?)])$(OLD_SHELL)
 # we need this for some of the more wacky library detection in config.mk:
 SHELL=bash
+ifeq ($(OS), Windows_NT)
+SHELL=msys2
+endif
 export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR SHELL # OLD_SHELL
 
 all: src bin lut
