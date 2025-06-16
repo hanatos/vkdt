@@ -27,13 +27,8 @@ all: src bin lut
 
 prefix?=/usr
 DESTDIR?=
-ifeq ($(OS),Windows_NT)
-VKDTDIR?=$(shell cygpath -u $(DESTDIR)$(prefix)/lib/vkdt)
-VKDTBIN?=$(shell cygpath -u $(DESTDIR)$(prefix)/bin)
-else
 VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
 VKDTBIN?=$(DESTDIR)$(prefix)/bin
-endif
 VKDTLIBDIR?=$(DESTDIR)$(prefix)/lib
 VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
 install-bin: all Makefile
