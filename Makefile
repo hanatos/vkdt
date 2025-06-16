@@ -32,7 +32,7 @@ VKDTDIR?=$(shell cygpath -u $(DESTDIR)$(prefix)/lib/vkdt)
 VKDTBIN?=$(shell cygpath -u $(DESTDIR)$(prefix)/bin)
 else
 VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
-VKDTDIR?=$(DESTDIR)$(prefix)/bin
+VKDTBIN?=$(DESTDIR)$(prefix)/bin
 endif
 VKDTLIBDIR?=$(DESTDIR)$(prefix)/lib
 VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
