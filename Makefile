@@ -58,9 +58,11 @@ bin/data/%.lut: src/%.lut.xz
 	mv $(@:bin/data/%=%) bin/data
 	touch $@
 
+INST_MODULES:=$(notdir $(patsubst %/,%,$(dir $(wildcard bin/modules/*/))))
 install-mod: bin Makefile lut
 	mkdir -p $(VKDTDIR)/modules
-	rsync -avP --rsh=rsh --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include='*/' --exclude='*' bin/modules/ $(VKDTDIR)/modules/
+	@mkdir -p $(foreach mod,$(INST_MODULES),$(VKDTDIR)/modules/$(mod))
+	@$(foreach mod,$(INST_MODULES),cp bin/modules/$(mod)/{params,params.ui,connectors,*tooltips,readme.md,*.spv,*.so} $(VKDTDIR)/modules/$(mod)/ >&/dev/null;)
 	rm -rf $(VKDTDIR)/modules/i-raw/rawloader-c
 	rm -rf $(VKDTDIR)/modules/i-mcraw/mcraw-*
 	cp -rfL bin/data $(VKDTDIR)
