@@ -59,7 +59,7 @@ bin/data/%.lut: src/%.lut.xz
 	mv $(@:bin/data/%=%) bin/data
 	touch $@
 
-INST_MODULES:=$(notdir $(patsubst %/,%,$(dir $(wildcard bin/modules/*/))))
+INST_MODULES:=$(notdir $(patsubst %/,%,$(dir $(wildcard src/pipe/modules/*/))))
 install-mod: bin Makefile lut
 	mkdir -p $(VKDTDIR)/modules
 	@mkdir -p $(foreach mod,$(INST_MODULES),$(VKDTDIR)/modules/$(mod))
