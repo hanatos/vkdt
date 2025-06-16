@@ -12,6 +12,8 @@
 #include "xrand.h"
 #include "upsample.h"
 
+#include <limits.h>
+
 // global configuration:
 // - cfa model: plain gauss sigmoid pca
 // - optimiser: gauss/newton adam nelder/mead

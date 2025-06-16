@@ -310,8 +310,11 @@ void modify_roi_out(
   mod->img_param.whitebalance[3] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[1] = 1.0f;
 
-  float test = mod->img_param.cam_to_rec2020[0];
-  if(!(test == test))
+#ifndef __APPLE__
+  if(isnanf(mod->img_param.cam_to_rec2020[0]))
+#else
+  if(isnan(mod->img_param.cam_to_rec2020[0]))
+#endif
   { // camera matrix not found in exif or compiled without exiv2
     float xyz_to_cam[12], mat[9] = {0};
     if(mod_data->d->mRaw->metadata.colorMatrix.size() > 0)

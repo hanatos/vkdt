@@ -1,3 +1,2 @@
-modules/*/lib*.so
 modules/*/*.spv
-libpipe.so
+lib*

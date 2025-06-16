@@ -6,6 +6,8 @@
 .PHONY:all src clean distclean bin install release cli lut info
 ifeq ($(OS),Windows_NT)
 include bin/config.mk.defaults.w64
+else ifeq ($(OS),Darwin)
+include bin/config.mk.defaults.darwin
 else
 ifeq ($(shell uname),Darwin)
 include bin/config.mk.defaults.osx
@@ -63,7 +65,7 @@ bin/data/%.lut: src/%.lut.xz
 
 install-mod: bin Makefile lut
 	mkdir -p $(VKDTDIR)/modules
-	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include='*/' --exclude='*' bin/modules/ ${VKDTDIR}/modules/
+	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.$(SEXT)' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
 	rm -rf ${VKDTDIR}/modules/i-raw/rawloader-c
 	rm -rf ${VKDTDIR}/modules/i-mcraw/mcraw-*
 	cp -rfL bin/data ${VKDTDIR}
@@ -81,7 +83,7 @@ install-lib: install-mod Makefile src/core/version.h
 	mkdir -p $(VKDTINCDIR)/pipe/modules
 	mkdir -p $(VKDTINCDIR)/core
 	mkdir -p $(VKDTINCDIR)/gui
-	cp -rfL bin/libvkdt.so ${VKDTLIBDIR} 
+	cp -rfL bin/libvkdt.$(SEXT) ${VKDTLIBDIR}
 	cp -rfL src/lib/vkdt.h $(VKDTINCDIR)
 	cp -rfL src/qvk/*.h $(VKDTINCDIR)/qvk
 	cp -rfL src/pipe/*.h $(VKDTINCDIR)/pipe
@@ -132,7 +134,7 @@ CLI=../bin/vkdt-cli ../bin/vkdt-fit
 cli: Makefile bin src/core/version.h
 	$(MAKE) -C src/ $(CLI) tools modules
 
-LIB=../bin/libvkdt.so
+LIB=../bin/libvkdt.$(SEXT)
 lib: Makefile bin src/core/version.h
 	$(MAKE) -C src/ $(LIB) modules
 
@@ -142,8 +144,8 @@ clean:
 distclean:
 	$(shell find . -name "*.o"   -exec rm {} \;)
 	$(shell find . -name "*.spv" -exec rm {} \;)
-	$(shell find . -name "*.so"  -exec rm {} \;)
-	rm -rf bin/vkdt bin/vkdt-fit bin/vkdt-cli bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-lutinfo bin/vkdt-eval-profile bin/libvkdt.so
+	$(shell find . -name "*.$(SEXT)"  -exec rm {} \;)
+	rm -rf bin/vkdt bin/vkdt-fit bin/vkdt-cli bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-lutinfo bin/vkdt-eval-profile bin/libvkdt.$(SEXT)
 	rm -rf src/macadam
 	rm -rf src/mkabney
 	rm -rf bin/data/*.lut
@@ -153,7 +155,7 @@ distclean:
 	$(MAKE) -C src distclean
 
 uninstall-lib:
-	rm -rf $(VKDTLIBDIR)/libvkdt.so $(VKDTLIBDIR)/modules  $(VKDTLIBDIR)/data
+	rm -rf $(VKDTLIBDIR)/libvkdt.$(SEXT) $(VKDTLIBDIR)/modules  $(VKDTLIBDIR)/data
 	rm -rf $(VKDTINCDIR)
 
 bin: Makefile

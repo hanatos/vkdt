@@ -6,12 +6,14 @@ RAWSPEED_L=$(RAWSPEED_I)/build
 MOD_CFLAGS=-std=c++20 -Wall -I$(RAWSPEED_I)/src/librawspeed/ -I$(RAWSPEED_L)/src/ -I$(RAWSPEED_I)/src/external/ $(VKDT_PUGIXML_CFLAGS) $(VKDT_JPEG_CFLAGS)
 MOD_LDFLAGS=-L$(RAWSPEED_L) -lrawspeed -lz $(VKDT_PUGIXML_LDFLAGS) $(VKDT_JPEG_LDFLAGS)
 
-pipe/modules/i-raw/libi-raw.so: $(RAWSPEED_L)/librawspeed.a
+pipe/modules/i-raw/libi-raw.$(SEXT): $(RAWSPEED_L)/librawspeed.a
 
-ifeq ($(CXX),clang++)
+
+CXX_NAME=$(notdir $(CXX))
+ifeq ($(CXX_NAME),clang++)
 MOD_LDFLAGS+=-fopenmp=libomp
 endif
-ifeq ($(CXX),g++)
+ifeq ($(CXX_NAME),g++)
 MOD_LDFLAGS+=-lgomp
 endif
 
@@ -37,7 +39,7 @@ $(RAWSPEED_I)/CMakeLists.txt:
 ifeq ($(VKDT_USE_EXIV2),1)
 MOD_CFLAGS+=$(VKDT_EXIV2_CFLAGS) -DVKDT_USE_EXIV2=1
 MOD_LDFLAGS+=$(VKDT_EXIV2_LDFLAGS)
-pipe/modules/i-raw/libi-raw.so:pipe/modules/i-raw/exif.h
+pipe/modules/i-raw/libi-raw.$(SEXT):pipe/modules/i-raw/exif.h
 endif
 # TODO: cache a hash to the checkout revision and test against what we want
 endif # end rawspeed
@@ -49,7 +51,7 @@ ifeq ($(OS),Windows_NT)
 MOD_LDFLAGS+=-lws2_32 -lntdll -lbcrypt -lkernel32 -ladvapi32
 endif
 MOD_CFLAGS=-Ipipe/modules/i-raw/rawloader-c
-pipe/modules/i-raw/libi-raw.so: pipe/modules/i-raw/rawloader-c/target/release/librawloader.a
+pipe/modules/i-raw/libi-raw.$(SEXT): pipe/modules/i-raw/rawloader-c/target/release/librawloader.a
 
 pipe/modules/i-raw/rawloader-c/target/release/librawloader.a: pipe/modules/i-raw/rawloader-c/lib.rs pipe/modules/i-raw/rawloader-c/Cargo.toml 
 	cd pipe/modules/i-raw/rawloader-c; cargo build --release

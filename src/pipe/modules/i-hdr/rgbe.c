@@ -411,4 +411,3 @@ int RGBE_ReadPixels_RLE(FILE *fp, float *data, int scanline_width,
   free(scanline_buffer);
   return RGBE_RETURN_SUCCESS;
 }
-
