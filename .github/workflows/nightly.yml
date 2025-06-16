@@ -232,6 +232,7 @@ jobs:
         run: |
           echo "OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG" >> ${SRC_DIR}/bin/config.mk
           echo "export OPT_CFLAGS" >> ${SRC_DIR}/bin/config.mk
+          echo "INSTALL_PREFIX_U=$(cygpath -u ${INSTALL_PREFIX})" >> $GITHUB_ENV
       - name: build and install
         run: |
           export PATH=/c/Users/runneradmin/.cargo/bin/:$PATH
@@ -240,7 +241,6 @@ jobs:
           echo "VKDT_USE_EXIV2=0" >> ${SRC_DIR}/bin/config.mk
           echo "export VKDT_USE_EXIV2" >> ${SRC_DIR}/bin/config.mk
           make -C ${SRC_DIR}
-          echo "INSTALL_PREFIX_U=$(cygpath -u ${INSTALL_PREFIX})" >> $GITHUB_ENV
           make DESTDIR=${INSTALL_PREFIX_U} -C ${SRC_DIR} install
       - name: bundle exiftool
         run: |
