@@ -32,12 +32,6 @@ VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
 VKDTBIN?=$(DESTDIR)$(prefix)/bin
 VKDTLIBDIR?=$(DESTDIR)$(prefix)/lib
 VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
-ifeq ($(OS), Windows_NT)
-VKDTDIR?=$(shell cygpath -u $(DESTDIR))$(prefix)/bin
-VKDTBIN?=$(shell cygpath -u $(DESTDIR))$(prefix)/bin
-VKDTLIBDIR?=$(shell cygpath -u $(DESTDIR))$(prefix)/lib
-VKDTINCDIR?=$(shell cygpath -u $(DESTDIR))$(prefix)/include/vkdt
-endif
 install-bin: all Makefile
 	mkdir -p $(VKDTDIR)/lib
 	mkdir -p $(VKDTBIN)
