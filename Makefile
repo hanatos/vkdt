@@ -29,23 +29,25 @@ prefix?=/usr
 DESTDIR?=
 ifeq ($(OS),Windows_NT)
 VKDTDIR?=$(shell cygpath -u $(DESTDIR)$(prefix)/lib/vkdt)
+VKDTBIN?=$(shell cygpath -u $(DESTDIR)$(prefix)/bin)
 else
 VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
+VKDTDIR?=$(DESTDIR)$(prefix)/bin
 endif
 VKDTLIBDIR?=$(DESTDIR)$(prefix)/lib
 VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
 install-bin: all Makefile
 	mkdir -p $(VKDTDIR)/lib
-	mkdir -p $(DESTDIR)$(prefix)/bin
-	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt || true
-	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli || true
-	cp -rfL bin/vkdt ${VKDTDIR}
-	cp -rfL bin/vkdt-cli ${VKDTDIR}
-	cp -rfL bin/exiftool ${VKDTDIR}
-	cp -rfL bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-fit ${VKDTDIR}
-	cp -rfL bin/vkdt-eval-profile bin/vkdt-lutinfo ${VKDTDIR}
-	cp -rfL bin/vkdt-noise-profile bin/vkdt-gallery bin/vkdt-read-icc ${VKDTDIR}
-	cp -rfL bin/darkroom.ui bin/style.txt ${VKDTDIR}
+	mkdir -p $(VKDTBIN)
+	ln -rsf $(VKDTDIR)/vkdt $(VKDTBIN)/vkdt || true
+	ln -rsf $(VKDTDIR)/vkdt-cli $(VKDTBIN)/vkdt-cli || true
+	cp -rfL bin/vkdt $(VKDTDIR)
+	cp -rfL bin/vkdt-cli $(VKDTDIR)
+	cp -rfL bin/exiftool $(VKDTDIR)
+	cp -rfL bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-fit $(VKDTDIR)
+	cp -rfL bin/vkdt-eval-profile bin/vkdt-lutinfo $(VKDTDIR)
+	cp -rfL bin/vkdt-noise-profile bin/vkdt-gallery bin/vkdt-read-icc $(VKDTDIR)
+	cp -rfL bin/darkroom.ui bin/style.txt $(VKDTDIR)
 ifneq ($(OS), Windows_NT)
 ifeq ($(shell uname),Linux)
 	mkdir -p $(DESTDIR)$(prefix)/share/icons/
