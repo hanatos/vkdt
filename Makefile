@@ -62,7 +62,7 @@ INST_MODULES:=$(notdir $(patsubst %/,%,$(dir $(wildcard bin/modules/*/))))
 install-mod: bin Makefile lut
 	mkdir -p $(VKDTDIR)/modules
 	@mkdir -p $(foreach mod,$(INST_MODULES),$(VKDTDIR)/modules/$(mod))
-	@$(foreach mod,$(INST_MODULES),cp bin/modules/$(mod)/{params,params.ui,connectors,*tooltips,readme.md,*.spv,*.so} $(VKDTDIR)/modules/$(mod)/ >&/dev/null;)
+	@$(foreach mod,$(INST_MODULES),cp bin/modules/$(mod)/{params,params.ui,connectors,*tooltips,readme.md,*.spv,*.so} $(VKDTDIR)/modules/$(mod)/ >&/dev/null || true;)
 	rm -rf $(VKDTDIR)/modules/i-raw/rawloader-c
 	rm -rf $(VKDTDIR)/modules/i-mcraw/mcraw-*
 	cp -rfL bin/data $(VKDTDIR)
