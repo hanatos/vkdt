@@ -3,7 +3,7 @@
 # dispatches external builds and calls our main makefile in src.
 # also handles some global settings for compilers and debug flags.
 
-.PHONY:all src clean distclean bin install release cli lut
+.PHONY:all src clean distclean bin install release cli lut info
 ifeq ($(OS),Windows_NT)
 include bin/config.mk.defaults.w64
 else
@@ -160,4 +160,57 @@ ifeq ($(OS),Windows_NT)
 	cp -rf src/pipe/modules bin/
 else
 	ln -sf ../src/pipe/modules bin/
+endif
+
+info: Makefile bin/config.mk
+ifeq ($(VKDT_USE_RAWINPUT), 0)
+	@echo "raw input              : no"
+endif
+ifeq ($(VKDT_USE_RAWINPUT), 1)
+	@echo "raw input              : rawspeed/c++"
+endif
+ifeq ($(VKDT_USE_RAWINPUT), 2)
+	@echo "raw input              : rawler/rust"
+endif
+ifeq ($(VKDT_USE_QUAKE), 0)
+	@echo "quake                  : no"
+endif
+ifeq ($(VKDT_USE_QUAKE), 1)
+	@echo "quake                  : quakespasm"
+endif
+ifeq ($(VKDT_USE_V4L2), 0)
+	@echo "webcam                 : no"
+endif
+ifeq ($(VKDT_USE_V4L2), 1)
+	@echo "webcam                 : v4l2"
+endif
+ifeq ($(VKDT_USE_MLV), 0)
+	@echo "magic lantern raw video: no"
+endif
+ifeq ($(VKDT_USE_MLV), 1)
+	@echo "magic lantern raw video: mlv"
+endif
+ifeq ($(VKDT_USE_ALSA), 0)
+	@echo "sound                  : no"
+endif
+ifeq ($(VKDT_USE_ALSA), 1)
+	@echo "sound                  : alsa"
+endif
+ifeq ($(VKDT_USE_MCRAW), 0)
+	@echo "motioncam raw video    : no"
+endif
+ifeq ($(VKDT_USE_MCRAW), 1)
+	@echo "motioncam raw video    : mcraw"
+endif
+ifeq ($(VKDT_USE_FFMPEG), 0)
+	@echo "ffmpeg                 : no"
+endif
+ifeq ($(VKDT_USE_FFMPEG), 1)
+	@echo "ffmpeg                 : yes"
+endif
+ifeq ($(VKDT_USE_PENTABLET), 0)
+	@echo "pentablet support      : no"
+endif
+ifeq ($(VKDT_USE_PENTABLET), 1)
+	@echo "pentablet support      : no"
 endif
