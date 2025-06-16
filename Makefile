@@ -60,11 +60,11 @@ bin/data/%.lut: src/%.lut.xz
 
 install-mod: bin Makefile lut
 	mkdir -p $(VKDTDIR)/modules
-	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include='*/' --exclude='*' bin/modules/ ${VKDTDIR}/modules/
-	rm -rf ${VKDTDIR}/modules/i-raw/rawloader-c
-	rm -rf ${VKDTDIR}/modules/i-mcraw/mcraw-*
-	cp -rfL bin/data ${VKDTDIR}
-	cp -rfL bin/default* ${VKDTDIR}
+	rsync -avP --rsh=rsh --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include='*/' --exclude='*' bin/modules/ $(VKDTDIR)/modules/
+	rm -rf $(VKDTDIR)/modules/i-raw/rawloader-c
+	rm -rf $(VKDTDIR)/modules/i-mcraw/mcraw-*
+	cp -rfL bin/data $(VKDTDIR)
+	cp -rfL bin/default* $(VKDTDIR)
 
 install: install-bin install-mod Makefile
 
@@ -78,7 +78,7 @@ install-lib: install-mod Makefile src/core/version.h
 	mkdir -p $(VKDTINCDIR)/pipe/modules
 	mkdir -p $(VKDTINCDIR)/core
 	mkdir -p $(VKDTINCDIR)/gui
-	cp -rfL bin/libvkdt.so ${VKDTLIBDIR} 
+	cp -rfL bin/libvkdt.so $(VKDTLIBDIR) 
 	cp -rfL src/lib/vkdt.h $(VKDTINCDIR)
 	cp -rfL src/qvk/*.h $(VKDTINCDIR)/qvk
 	cp -rfL src/pipe/*.h $(VKDTINCDIR)/pipe
