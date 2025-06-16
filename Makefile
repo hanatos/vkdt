@@ -20,19 +20,24 @@ sinclude bin/config.mk
 # SHELL = $(warning [$@ ($^) ($?)])$(OLD_SHELL)
 # SHELL = $(warning [$@ ($?)])$(OLD_SHELL)
 # we need this for some of the more wacky library detection in config.mk:
-ifneq ($(OS), Windows_NT)
 SHELL=bash
-endif
 export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR SHELL # OLD_SHELL
 
 all: src bin lut
 
 prefix?=/usr
 DESTDIR?=
+
 VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
 VKDTBIN?=$(DESTDIR)$(prefix)/bin
 VKDTLIBDIR?=$(DESTDIR)$(prefix)/lib
 VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
+ifeq ($(OS), Windows_NT)
+VKDTDIR=$(shell cygpath -u $(VKDTDIR))
+VKDTBIN=$(shell cygpath -u $(VKDTBIN))
+VKDTLIBDIR=$(shell cygpath -u $(VKDTLIBDIR))
+VKDTINCDIR=$(shell cygpath -u $(VKDTINCDIR))
+endif
 install-bin: all Makefile
 	mkdir -p $(VKDTDIR)/lib
 	mkdir -p $(VKDTBIN)
