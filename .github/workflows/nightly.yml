@@ -267,7 +267,7 @@ jobs:
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          path: ${INSTALL_PREFIX}/usr/lib/vkdt-rawler-${{ env.VERSION }}-${{ env.SYSTEM }}.zip
+          path: ${{ env.INSTALL_PREFIX_U }}/usr/lib/vkdt-rawler-${{ env.VERSION }}-${{ env.SYSTEM }}.zip
           name: artifact-windows-rawler
           retention-days: 1
 
