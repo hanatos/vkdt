@@ -19,7 +19,9 @@ sinclude bin/config.mk
 # OLD_SHELL := $(SHELL)
 # SHELL = $(warning [$@ ($^) ($?)])$(OLD_SHELL)
 # SHELL = $(warning [$@ ($?)])$(OLD_SHELL)
-export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR # OLD_SHELL SHELL
+# we need this for some of the more wacky library detection in config.mk:
+SHELL=bash
+export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR SHELL # OLD_SHELL
 
 all: src bin lut
 
