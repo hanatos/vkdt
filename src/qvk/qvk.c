@@ -134,26 +134,25 @@ qvkDestroyDebugUtilsMessengerEXT(
 
 // this function works without gui and consequently does not init glfw
 VkResult
-qvk_init(const char *preferred_device_name, int preferred_device_id, int window, int enable_hdr_wsi)
+qvk_init(const char *preferred_device_name, int preferred_device_id, int window, int enable_hdr_wsi, int allow_hdr)
 {
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
 
   const char *vk_hdr_instance_extensions[] = {
     // colour management:
-    VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
+    VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME, // some nvidia/debian vk 1.3 doesn't have it, so we make it optional/depend on the hdr kill switch
     // VK_EXT_HDR_METADATA_EXTENSION_NAME, // not present on hyprland
   };
 
-  int hdr = 1;
   /* instance extensions */
   int num_inst_ext_combined = qvk.num_glfw_extensions +
     LENGTH(vk_requested_instance_extensions) +
-    (hdr ?
+    (allow_hdr ?
     LENGTH(vk_hdr_instance_extensions) : 0);
   char **ext = alloca(sizeof(char *) * num_inst_ext_combined);
   memcpy(ext, qvk.glfw_extensions, qvk.num_glfw_extensions * sizeof(*qvk.glfw_extensions));
   memcpy(ext + qvk.num_glfw_extensions, vk_requested_instance_extensions, sizeof(vk_requested_instance_extensions));
-  if(hdr)
+  if(allow_hdr)
     memcpy(ext + qvk.num_glfw_extensions + LENGTH(vk_requested_instance_extensions), vk_hdr_instance_extensions, sizeof(vk_hdr_instance_extensions));
 
   get_vk_extension_list(NULL, &qvk.num_extensions, &qvk.extensions);

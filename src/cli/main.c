@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
   }
   param.output_cnt = MAX(1, output_cnt);
 
-  if(qvk_init(gpu_name, gpu_id, 0, 0)) exit(1);
+  if(qvk_init(gpu_name, gpu_id, 0, 0, 0)) exit(1);
 
   if(!param.p_cfgfile)
   {

@@ -149,5 +149,10 @@ _VK_EXTENSION_LIST
 
 // global initialisation. pick device by that name if it is not null,
 // same for the direct id if it is not negative (use for multiple identical devices)
-VkResult qvk_init(const char *preferred_device_name, int preferred_device_id, int window, int hdr);
+VkResult qvk_init(
+    const char *preferred_device_name,
+    int preferred_device_id,
+    int window,
+    int enable_hdr_wsi,   // load the extra vk layer to support colour management/hdr (linux)
+    int allow_hdr);       // allow the use of hdr extensions/framebuffers if available
 VkResult qvk_cleanup();
