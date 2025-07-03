@@ -11966,7 +11966,7 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
 
     win->rounding = 0.0f;
     win->spacing = nk_vec2(S(4),S(4));
-    win->scrollbar_size = nk_vec2(S(10),S(10));
+    win->scrollbar_size = nk_vec2(S(5),S(5));
     win->min_size = nk_vec2(64,64);
 
     win->combo_border = S(1.0f);
