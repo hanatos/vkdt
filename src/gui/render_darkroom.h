@@ -263,7 +263,11 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   { // only works for param->type == float and count == 3
     if((num % 3) == 0 && num+3 <= count)
     {
-      float r7[] = {0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], ratio[1] };
+      // the full width is not exactly panel_wd but reduced by the window scrollbar size
+      // so we need to compress the widgets some more to align the label:
+      const float rl = 0.161*ratio[0]; // fudge
+      // const float rl = (1.0f/6.0f)*ratio[0];
+      float r7[] = {rl, rl, rl, rl, rl, rl, ratio[1] };
       nk_layout_row(ctx, NK_DYNAMIC, row_height, 7, r7);
       float *val = (float *)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
       struct nk_colorf oldval = {val[0], val[1], val[2], 1.0};
