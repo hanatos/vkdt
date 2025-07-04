@@ -254,6 +254,12 @@ void render_darkroom_favourite()
   modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
   int is_pst = 0;
+  const float pwd = vkdt.state.panel_wd - vkdt.ctx.style.window.scrollbar_size.x - 2*vkdt.ctx.style.window.padding.x;
+  const float w4[] = {
+    0.7f/3.0f*pwd-vkdt.ctx.style.window.spacing.x,
+    0.7f/3.0f*pwd-vkdt.ctx.style.window.spacing.x,
+    0.7f/3.0f*pwd-vkdt.ctx.style.window.spacing.x,
+    0.3f*pwd};
   for(int i=0;i<vkdt.fav_cnt;i++)
   {
     if(vkdt.fav_modid[i] == -1)
@@ -262,7 +268,7 @@ void render_darkroom_favourite()
       int pst = vkdt.fav_parid[i];
       if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
       char *preset = vkdt.fav_preset_name[pst];
-      if(!is_pst++) nk_layout_row_dynamic(&vkdt.ctx, row_height, 4);
+      if(!is_pst++) nk_layout_row(&vkdt.ctx, NK_STATIC, row_height, 4, w4);
       dt_tooltip("apply preset %s", vkdt.fav_preset_name[pst]);
       if(nk_button_label(&vkdt.ctx, vkdt.fav_preset_desc[pst]))
       {
