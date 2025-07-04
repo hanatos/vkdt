@@ -1,3 +1,3 @@
-haze:float:4:0.0
+haze:float:4:1.0:1.0:1.0:1.0
 omega:float:1:0.95
 t0:float:1:0.1
