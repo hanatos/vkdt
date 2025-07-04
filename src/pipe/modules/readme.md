@@ -69,6 +69,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [crop: crop/rotate/perspective correction](./crop/readme.md)
 * [curves: rgb curve widgets](./curves/readme.md)
 * [deconv: deconvolution sharpening](./deconv/readme.md)
+* [dehaze: compute depth map from hazy landscape image and remove haze](./dehaze/readme.md)
 * [denoise: noise reduction based on edge-aware wavelets and noise profiles](./denoise/readme.md)
 * [hotpx: remove impulse noise/stuck pixels](./hotpx/readme.md)
 * [kpn: kernel prediction neural network for denoising](./kpn/readme.md)
