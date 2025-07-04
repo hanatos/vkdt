@@ -1,3 +1,5 @@
-haze:float:4:1.0:1.0:1.0:1.0
-omega:float:1:0.95
+radius:float:1:0.01
+epsilon:float:1:0.01
+strength:float:1:0.95
 t0:float:1:0.1
+haze:float:4:1.0:1.0:1.0:1.0

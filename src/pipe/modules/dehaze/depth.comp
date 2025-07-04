@@ -6,9 +6,11 @@
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  vec4  haze;
-  float omega;
+  float radius;
+  float epsilon;
+  float strength;
   float t0;
+  vec4  haze;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
@@ -28,10 +30,10 @@ void main()
     shm_black[gl_SubgroupID] = black;
   barrier();
   black = min(shm_black[0], shm_black[1]);
-  
-  float t = 1.0 - params.omega * black;
-  rgb = (rgb - A)/max(t, params.t0) + A;
-  // rgb = vec3(t);
 
-  imageStore(img_out, ipos, vec4(rgb, 1));
+  float t = 1.0 - params.strength * black;
+  // unfortunately using a guided blur on a downsampled buffer comes out broken (blur downsamples too much)
+  // if(gl_SubgroupInvocationID == 0 && gl_SubgroupID == 0)
+    //imageStore(img_out, ipos/8, vec4(max(t, params.t0)));
+  imageStore(img_out, ipos, vec4(max(t, params.t0)));
 }
