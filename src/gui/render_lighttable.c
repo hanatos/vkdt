@@ -917,7 +917,7 @@ void render_lighttable_right_panel()
     if(nk_button_label(ctx, "reset history stack"))
     {
       const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-      char filename[1024], realname[PATH_MAX];
+      char filename[PATH_MAX], realname[PATH_MAX];
       for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       {
         dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));

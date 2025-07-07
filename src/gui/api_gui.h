@@ -68,7 +68,7 @@ dt_gui_paste_history()
     return;
   }
   // TODO: background job
-  char filename[1024];
+  char filename[PATH_MAX];
   uint32_t cid = vkdt.wstate.copied_imgid;
   dt_db_image_path(&vkdt.db, cid, filename, sizeof(filename));
   char *src = fs_realpath(filename, 0);
