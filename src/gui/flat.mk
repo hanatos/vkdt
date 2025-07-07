@@ -12,6 +12,7 @@ GUI_H=gui/gui.h\
       gui/render_darkroom.h\
       gui/api.h\
       gui/api_gui.h\
+      gui/hsluv.h\
       gui/font_metrics.h\
       gui/hotkey.h\
       gui/keyaccel.h\

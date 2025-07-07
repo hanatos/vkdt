@@ -6,7 +6,7 @@
 #include "snd/snd.h"
 #include "widget_image_util.h"
 #include "nk.h"
-#include "dtucs.h"
+#include "hsluv.h"
 
 #include <vulkan/vulkan.h>
 #include <math.h>
@@ -328,8 +328,10 @@ rgb2hsv(float r, float g, float b)
   float ucs[3], rgb[] = {r, g, b, 0.0f};
   // rec2020_to_oklab(rgb, ucs);
   // return (struct nk_colorf){modff(1.0f + atan2f(ucs[2], ucs[1])/(2.0f*M_PI), rgb+3), sqrtf(ucs[1]*ucs[1]+ucs[2]*ucs[2]), ucs[0], 1.0};
-  rec2020_to_dtucs(rgb, ucs);
-  return (struct nk_colorf){ modff(1.0f + ucs[0]/(2.0f*M_PI), rgb+3), ucs[1], ucs[2], 1.0};
+  // rec2020_to_dtucs(rgb, ucs);
+  // return (struct nk_colorf){ modff(1.0f + ucs[0]/(2.0f*M_PI), rgb+3), ucs[1], ucs[2], 1.0};
+  rec2020_to_hsluv(rgb, ucs);
+  return (struct nk_colorf){ modff(ucs[0], rgb+3), ucs[1], ucs[2], 1.0};
 }
 
 static inline struct nk_colorf
@@ -347,8 +349,10 @@ hsv2rgb(float h, float s, float v)
   if(v <= 0.0f) return (struct nk_colorf){0,0,0,1.0f};
   // float ucs[3] = {v, s * cosf(2.0f*M_PI*h), s * sinf(2.0f*M_PI*h)}, rgb[3];
   // oklab_to_rec2020(ucs, rgb);
-  float ucs[3] = {h*2.0f*M_PI, s, v}, rgb[3];
-  dtucs_to_rec2020(ucs, rgb);
+  // float ucs[3] = {h*2.0f*M_PI, s, v}, rgb[3];
+  // dtucs_to_rec2020(ucs, rgb);
+  float ucs[3] = {h, s, v}, rgb[3];
+  hsluv_to_rec2020(ucs, rgb);
   return (struct nk_colorf){rgb[0], rgb[1], rgb[2], 1.0f};
 }
 

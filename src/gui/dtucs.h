@@ -56,12 +56,26 @@ xyY_to_dt_UCS_JCH(const struct nk_colorf xyY, const float L_white)
   float M2 = UV_star_prime.r*UV_star_prime.r + UV_star_prime.g*UV_star_prime.g; // square of colorfulness M
   float hue = atan2f(UV_star_prime.g, UV_star_prime.r);
   if(hue < 0.0f) hue += 2.0f*M_PI;
-  float max_M = dt_UCS_max_M[CLAMP((int)(hue * 180.0f/M_PI), 0, 359)];
+  float max_M = dt_UCS_max_M[CLAMP((int)(hue * 180.0f/M_PI + 0.5f), 0, 359)];
   M2 = CLAMP(M2, 0.0, max_M*max_M);
   return (struct nk_colorf){ // should be JCH[0] = powf(L_star / L_white), cz) but we treat only the case where cz = 1
       L_star / L_white,
       15.932993652962535f * powf(L_star, 0.6523997524738018f) * powf(M2, 0.6007557017508491f) / L_white,
       hue};
+}
+static inline float
+dt_UCS_max_C(const struct nk_colorf JCH, const float L_white)
+{
+  float hue = JCH.b;
+  if(hue < 0.0f) hue += 2.0f*M_PI;
+  float max_M = dt_UCS_max_M[CLAMP((int)(hue * 180.0f/M_PI + 0.5f), 0, 359)];
+  float M2 = max_M * max_M;
+  const float L_star = JCH.r * L_white;
+  float C = 15.932993652962535f * powf(L_star, 0.6523997524738018f) * powf(M2, 0.6007557017508491f) / L_white;
+  // now quantise it a bit so it doesn't drift when calling this in iteration
+  // XXX does not help!
+  const int N = 1000;
+  return (int)(C*N + 0.5f)/(float)N;
 }
 static inline struct nk_colorf
 dt_UCS_JCH_to_xyY(const struct nk_colorf JCH, const float L_white)
@@ -71,7 +85,7 @@ dt_UCS_JCH_to_xyY(const struct nk_colorf JCH, const float L_white)
 
   float hue = JCH.b;
   if(hue < 0.0f) hue += 2.0f*M_PI;
-  float max_M = dt_UCS_max_M[CLAMP((int)(hue * 180.0f/M_PI), 0, 359)];
+  float max_M = dt_UCS_max_M[CLAMP((int)(hue * 180.0f/M_PI + 0.5f), 0, 359)];
   M = CLAMP(M, 0.0, max_M);
 
   float UV_starp[] = { M * cosf(JCH.b), M * sin(JCH.b) }; // uv*'
@@ -133,16 +147,23 @@ rec2020_to_dtucs(const float rgb[], float dtucs[])
   float s = 1.0f/(xyz[0]+xyz[1]+xyz[2]);
   struct nk_colorf xyY = { s*xyz[0], s*xyz[1], xyz[1] };
   struct nk_colorf jch = xyY_to_dt_UCS_JCH(xyY, 1.0f);
-  struct nk_colorf hsb = dt_UCS_JCH_to_HSB(jch);
-  dtucs[0] = hsb.r; dtucs[1] = hsb.g; dtucs[2] = hsb.b;
-  // dtucs[0] = jch.b; dtucs[1] = jch.g; dtucs[2] = jch.r;
+  float max_C = dt_UCS_max_C(jch, 1.0f);
+  // struct nk_colorf hsb = dt_UCS_JCH_to_HSB(jch);
+  // dtucs[0] = hsb.r; dtucs[1] = hsb.g; dtucs[2] = hsb.b;
+  // struct nk_colorf hcb = dt_UCS_JCH_to_HCB(jch);
+  // dtucs[0] = hcb.r; dtucs[1] = CLAMP(hcb.g/max_C, 0, 1); dtucs[2] = hcb.b;
+  dtucs[0] = jch.b; dtucs[1] = CLAMP(jch.g/max_C, 0, 1); dtucs[2] = jch.r;
 }
 static inline void
 dtucs_to_rec2020(const float dtucs[], float rgb[])
 {
-  struct nk_colorf hsb = {dtucs[0],dtucs[1],dtucs[2]};
-  struct nk_colorf jch = dt_UCS_HSB_to_JCH(hsb);
-  // struct nk_colorf jch = {dtucs[2],dtucs[1],dtucs[0]};
+  // struct nk_colorf hsb = {dtucs[0],dtucs[1],dtucs[2]};
+  // struct nk_colorf jch = dt_UCS_HSB_to_JCH(hsb);
+  // struct nk_colorf hcb = {dtucs[0],dtucs[1],dtucs[2]};
+  // struct nk_colorf jch = dt_UCS_HCB_to_JCH(hcb);
+  struct nk_colorf jch = {dtucs[2],dtucs[1],dtucs[0]};
+  float max_C = dt_UCS_max_C(jch, 1.0f);
+  jch.g = CLAMP(jch.g, 0, 1)*max_C;
   struct nk_colorf xyY = dt_UCS_JCH_to_xyY(jch, 1.0f);
   float s = xyY.b / xyY.g;
   float xyz[] = {s*xyY.r, s*xyY.g, s*(1.0-xyY.r-xyY.g)};
