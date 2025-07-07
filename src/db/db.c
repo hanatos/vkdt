@@ -81,7 +81,7 @@ compare_labels(const void *a, const void *b, void *arg)
 void
 dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20])
 {
-  char fn[1024], f[1024];
+  char fn[PATH_MAX], f[PATH_MAX];
   dt_db_image_path(db, imgid, fn, sizeof(fn));
   fs_realpath(fn, f);
   size_t off = strnlen(f, sizeof(f));
