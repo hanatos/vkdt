@@ -102,6 +102,7 @@ packages from github nightly ci.
 * improved the [grain module](../src/pipe/modules/grain/readme.md) with additional parameters for low frequency components
 * introduce mouse interaction on `dspy` outputs of modules to change their parameters. 
   the new rgb `curves` module is the first user.
+* use [hsluv](https://www.hsluv.org/) as ui colour picker space
 * re-introduced darkroom mode zoom/pan via gamepad
 * refactored `quake` and `rt` modules to use a unified spectral renderer
 * an implementation of [mcpg](https://www.lalber.org/2025/04/markov-chain-path-guiding/) (Markov chain path guiding) for 3d rendering/quake
