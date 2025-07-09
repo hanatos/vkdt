@@ -1,0 +1,28 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "head.glsl"
+layout(set = 1, binding = 4) uniform sampler2D img_hal;
+layout(push_constant, std140) uniform push_t
+{
+  float scale;
+} push;
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  // load halation + raw exposed film
+  vec3 raw = texture(img_in,  (ipos+0.5)/vec2(imageSize(img_out))).rgb;
+  vec3 hal = texture(img_hal, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
+  vec3 hs = vec3(0.08,0.005,0.001); // halation strength
+  vec3 log_raw = log((raw+hs*hal)/(1.0+hs));
+  vec3 density_cmy = develop_film(log_raw, params.film, ipos, push.scale);
+  if(params.process == 0)
+  {
+    log_raw = enlarger_expose_film_to_paper(density_cmy);
+    density_cmy = develop_print(log_raw);
+  }
+  vec3 rgb = scan(density_cmy);
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}

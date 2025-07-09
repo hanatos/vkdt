@@ -122,13 +122,44 @@ create_nodes(
       "spectra", "read",  "*",    "*",    dt_no_roi,
       "exp",     "write", "rgba", "f16", &module->connector[0].roi);
   float scale = module->connector[0].roi.full_wd / (float)owd;
+  int pid_halation = dt_module_get_param(module->so, dt_token("halation"));
+  int halation = dt_module_param_int(module, pid_halation)[0];
   int pc[] = { *(int*)&scale };
-  const int id_part1 = dt_node_add(graph, module, "filmsim", "part1", owd, oht, 1, sizeof(pc), pc, 5,
-      "exp",     "read",  "*",    "*",    dt_no_roi,
-      "output",  "write", "rgba", "f16", &module->connector[1].roi,
-      "filmsim", "read",  "*",    "*",    dt_no_roi,
-      "spectra", "read",  "*",    "*",    dt_no_roi,
-      "coupler", "read",  "*",    "*",    dt_no_roi);
+  int id_part1, id_part2;
+  if(halation)
+  {
+    id_part1 = dt_node_add(graph, module, "filmsim", "part1h", owd, oht, 1, sizeof(pc), pc, 5,
+        "exp",     "read",  "*",    "*",    dt_no_roi,
+        "output",  "write", "rgba", "f16", &module->connector[1].roi,
+        "filmsim", "read",  "*",    "*",    dt_no_roi,
+        "spectra", "read",  "*",    "*",    dt_no_roi,
+        "coupler", "read",  "*",    "*",    dt_no_roi);
+    id_part2 = dt_node_add(graph, module, "filmsim", "part2", owd, oht, 1, sizeof(pc), pc, 5,
+        "exp",     "read",  "*",    "*",    dt_no_roi,
+        "output",  "write", "rgba", "f16", &module->connector[1].roi,
+        "filmsim", "read",  "*",    "*",    dt_no_roi,
+        "spectra", "read",  "*",    "*",    dt_no_roi,
+        "hal",     "read",  "*",    "*",    dt_no_roi);
+    // default is 200um, i.e. um_per_px = 35mm film * 1000 / 6000px
+    // and so 200/6 = 33px is the *sigma* of the gauss blur here
+    // or 33px is this fraction of 6000px wide:
+    float blur = 0.0055*MAX(owd, oht);
+    const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_part1, 1, 0, 0, blur) : id_part1;
+    CONN(dt_node_connect_named(graph, id_blur,  "output", id_part2, "hal"));
+    CONN(dt_node_connect_named(graph, id_part0, "exp",    id_part2, "exp"));
+    dt_connector_copy(graph, module, 2, id_part2, 2);
+    dt_connector_copy(graph, module, 3, id_part2, 3);
+  }
+  else
+  {
+    const int id = dt_node_add(graph, module, "filmsim", "part1", owd, oht, 1, sizeof(pc), pc, 5,
+        "exp",     "read",  "*",    "*",    dt_no_roi,
+        "output",  "write", "rgba", "f16", &module->connector[1].roi,
+        "filmsim", "read",  "*",    "*",    dt_no_roi,
+        "spectra", "read",  "*",    "*",    dt_no_roi,
+        "coupler", "read",  "*",    "*",    dt_no_roi);
+    id_part1 = id_part2 = id;
+  }
   float blur = 0.015*MAX(owd, oht);
   const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_part0, 1, 0, 0, blur) : id_part0;
   const int cn_blur = blur > 0 ? 1 : 1;
@@ -136,7 +167,7 @@ create_nodes(
   dt_connector_copy(graph, module, 0, id_part0, 0);
   dt_connector_copy(graph, module, 2, id_part0, 2);
   dt_connector_copy(graph, module, 3, id_part0, 3);
-  dt_connector_copy(graph, module, 1, id_part1, 1);
+  dt_connector_copy(graph, module, 1, id_part2, 1);
   dt_connector_copy(graph, module, 2, id_part1, 2);
   dt_connector_copy(graph, module, 3, id_part1, 3);
   CONN(dt_node_connect_named(graph, id_part0, "exp", id_part1, "exp"));
