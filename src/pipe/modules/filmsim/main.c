@@ -56,6 +56,10 @@ check_params(
 {
   int pid_f = dt_module_get_param(module->so, dt_token("film"));
   int pid_p = dt_module_get_param(module->so, dt_token("paper"));
+  int pid_halation = dt_module_get_param(module->so, dt_token("halation"));
+  int halation = dt_module_param_int(module, pid_halation)[0];
+  if(parid == pid_halation && *(int*)oldval != halation)
+    return s_graph_run_all;
   if(parid == pid_f || parid == pid_p)
   { // film or paper changed, update the pre-optimised wb coeffs
     int oldstr = *(int*)oldval;
@@ -134,7 +138,7 @@ create_nodes(
         "filmsim", "read",  "*",    "*",    dt_no_roi,
         "spectra", "read",  "*",    "*",    dt_no_roi,
         "coupler", "read",  "*",    "*",    dt_no_roi);
-    id_part2 = dt_node_add(graph, module, "filmsim", "part2", owd, oht, 1, sizeof(pc), pc, 5,
+    id_part2 = dt_node_add(graph, module, "filmsim", "part2h", owd, oht, 1, sizeof(pc), pc, 5,
         "exp",     "read",  "*",    "*",    dt_no_roi,
         "output",  "write", "rgba", "f16", &module->connector[1].roi,
         "filmsim", "read",  "*",    "*",    dt_no_roi,
@@ -143,7 +147,8 @@ create_nodes(
     // default is 200um, i.e. um_per_px = 35mm film * 1000 / 6000px
     // and so 200/6 = 33px is the *sigma* of the gauss blur here
     // or 33px is this fraction of 6000px wide:
-    float blur = 0.0055*MAX(owd, oht);
+    // float blur = 0.0055*MAX(owd, oht);
+    float blur = 0.0015*MAX(owd, oht);
     const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_part1, 1, 0, 0, blur) : id_part1;
     CONN(dt_node_connect_named(graph, id_blur,  "output", id_part2, "hal"));
     CONN(dt_node_connect_named(graph, id_part0, "exp",    id_part2, "exp"));

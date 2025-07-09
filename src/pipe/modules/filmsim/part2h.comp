@@ -13,10 +13,13 @@ void main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   // load halation + raw exposed film
-  vec3 raw = texture(img_in,  (ipos+0.5)/vec2(imageSize(img_out))).rgb;
+  vec3 log_raw = texture(img_in,  (ipos+0.5)/vec2(imageSize(img_out))).rgb;
   vec3 hal = texture(img_hal, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
-  vec3 hs = vec3(0.08,0.005,0.001); // halation strength
-  vec3 log_raw = log((raw+hs*hal)/(1.0+hs));
+  // vec3 hs = vec3(0.08,0.005,0.001); // halation strength
+  vec3 hs = vec3(0.8,0.05,0.01); // halation strength
+  vec3 raw = pow(vec3(10.0), log_raw);
+  const float one_log10 = 0.43429448190325176;
+  log_raw = log((raw+hs*hal)/(1.0+hs))*one_log10;
   vec3 density_cmy = develop_film(log_raw, params.film, ipos, push.scale);
   if(params.process == 0)
   {

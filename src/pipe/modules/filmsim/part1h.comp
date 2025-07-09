@@ -20,7 +20,7 @@ void main()
     log_raw = texture(img_in, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
 
   log_raw = develop_film_correct_exposure(log_raw, coupler);
-  vec3 raw = exp(log_raw);
+  vec3 raw = pow(vec3(10.0), log_raw);
   // this needs to be blurred/summed for halation
   imageStore(img_out, ipos, vec4(raw, 1));
 }
