@@ -38,6 +38,10 @@ void commit_params(
   int pid_filter_c = dt_module_get_param(module->so, dt_token("filter c"));
   int pid_filter_m = dt_module_get_param(module->so, dt_token("filter m"));
   int pid_filter_y = dt_module_get_param(module->so, dt_token("filter y"));
+  int pid_halation = dt_module_get_param(module->so, dt_token("halation"));
+  int pid_process  = dt_module_get_param(module->so, dt_token("process"));
+  if(dt_module_param_int(module, pid_process)[0] == 2)
+    ((int*)dt_module_param_int(module, pid_halation))[0] = 0;
   if(dt_module_param_float(module, pid_filter_c)[0] == -1.0)
   { // secret flag to signal "we want auto wb please"
     ((float*)dt_module_param_float(module, pid_ev_paper))[0] = wb[film][paper][0];
@@ -86,7 +90,13 @@ check_params(
     int newstr = dt_module_param_int(module, parid)[0];
     if(oldstr != newstr) return s_graph_run_all;
   }
-  // TODO look at align/main.c and copy the if-blur-radius changed logic
+  const int pid_rad = dt_module_get_param(module->so, dt_token("radius"));
+  if(parid == pid_rad)
+  { // halation radius
+    float oldrad = *(float*)oldval;
+    float newrad = dt_module_param_float(module, parid)[0];
+    return dt_api_blur_check_params(oldrad, newrad);
+  }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms is fine
 }
 
@@ -148,7 +158,9 @@ create_nodes(
     // and so 200/6 = 33px is the *sigma* of the gauss blur here
     // or 33px is this fraction of 6000px wide:
     // float blur = 0.0055*MAX(owd, oht);
-    float blur = 0.0015*MAX(owd, oht);
+    const int   pid = dt_module_get_param(module->so, dt_token("radius"));
+    const float par = dt_module_param_float(module, pid)[0];
+    float blur = par*MAX(owd, oht);
     const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_part1, 1, 0, 0, blur) : id_part1;
     CONN(dt_node_connect_named(graph, id_blur,  "output", id_part2, "hal"));
     CONN(dt_node_connect_named(graph, id_part0, "exp",    id_part2, "exp"));

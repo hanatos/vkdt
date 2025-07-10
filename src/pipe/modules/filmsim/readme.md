@@ -8,10 +8,6 @@ take care of wiring the required input look up table files (shipped with the
 vkdt installation). if you want to wire yourself, connect `data/spectra-em.lut`
 and `data/filmsim.lut` to the `spectra` and `filmsim` connectors, respectively.
 
-TODO
-* implement halation
-* map grain params to film iso values
-
 for self contained documentation, i'm summarising from [arctic's post](https://discuss.pixls.us/t/spectral-film-simulations-from-scratch/48209/1) here.
 
 ## the true color of film negatives
@@ -187,3 +183,6 @@ block) and print paper options (second block).
 * `tune m` fine tune the magenta filter. think of this as a red/green tint
 * `tune y` fine tune the yellow filter. think of this as a warm/cold white balance temperature
 * `couplers` amount of developer inhibitor release couplers (affects colourfulness and local contrast)
+* `halation` switch halation on or off, causing a slight colourful blur around high contrast edges
+* `radius` change the radius of the halation effect
+* `strength` the strength of the halation effect per colour channel / layer in the film
