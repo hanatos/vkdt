@@ -1,0 +1,63 @@
+these come in some ssbo:
+struct PointSettings { // see computeshader_move.glsl
+    int typeIndex;
+
+    float defaultScalingFactor;
+
+    float SensorDistance0;
+    float SD_exponent;
+    float SD_amplitude;
+
+    float SensorAngle0;
+    float SA_exponent;
+    float SA_amplitude;
+
+    float RotationAngle0;
+    float RA_exponent;
+    float RA_amplitude;
+
+    float MoveDistance0;
+    float MD_exponent;
+    float MD_amplitude;
+
+    float SensorBias1;
+    float SensorBias2;
+};
+{27.500, 28.040, 0.000, 0.390, 1.400, 0.000, 0.090, 0.846, 1.400, 0.100, 2.031, 0.070, 1.400, 0.030, 15.304}
+
+these as uniforms:
+uniform int width;
+uniform int height;
+uniform uint reset-value;
+uniform float depositFactor;
+uniform int colorModeType;
+uniform int numberOfColorModes;
+uniform float time;
+
+uniform float actionAreaSizeSigma;
+
+uniform float actionX;
+uniform float actionY;
+
+uniform float moveBiasActionX;
+uniform float moveBiasActionY;
+
+#define MAX_NUMBER_OF_WAVES 5
+#define MAX_NUMBER_OF_RANDOM_SPAWN 7
+
+uniform float waveXarray[MAX_NUMBER_OF_WAVES];
+uniform float waveYarray[MAX_NUMBER_OF_WAVES];
+uniform float waveTriggerTimes[MAX_NUMBER_OF_WAVES];
+uniform float waveSavedSigmas[MAX_NUMBER_OF_WAVES];
+
+uniform float mouseXchange;
+uniform float L2Action;
+
+uniform int spawnParticles;
+uniform float spawnFraction;
+uniform int randomSpawnNumber;
+uniform float randomSpawnXarray[MAX_NUMBER_OF_RANDOM_SPAWN];
+uniform float randomSpawnYarray[MAX_NUMBER_OF_RANDOM_SPAWN];
+
+uniform float pixelScaleFactor;
+
