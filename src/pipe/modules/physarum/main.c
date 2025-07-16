@@ -17,6 +17,7 @@ create_nodes(
       "part", "write", "r", "ui32", ROI// uhm really f16 2d position, 2d heading, 2d velocity
       );
   // TODO always clear part-cnt
+  |= s_conn_clear;
 
   int id_deposit = dt_node_add(graph, module, "physarum", "deposit", wd, ht, 1, 0, 0, 2,
       "part-cnt", "read", "r", "ui32", &module->connector[0].roi, // particle count per pixel

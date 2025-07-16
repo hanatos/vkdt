@@ -1,74 +1,13 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #include "shared.glsl"
+#include "head.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
 // By Etienne Jacob, License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
 // Attribution to Sage Jenson's work explained in comments
 
-// warning: these must be compatible with the c++ code
-#define MAX_NUMBER_OF_WAVES 5
-#define MAX_NUMBER_OF_RANDOM_SPAWN 7
-struct PointSettings {
-    int typeIndex;
-
-    float defaultScalingFactor;
-
-    float SensorDistance0;
-    float SD_exponent;
-    float SD_amplitude;
-
-    float SensorAngle0;
-    float SA_exponent;
-    float SA_amplitude;
-
-    float RotationAngle0;
-    float RA_exponent;
-    float RA_amplitude;
-
-    float MoveDistance0;
-    float MD_exponent;
-    float MD_amplitude;
-
-    float SensorBias1;
-    float SensorBias2;
-};
-layout(std140, set = 0, binding = 1) uniform params_t
-{
-  // TODO
-  float decayFactor;
-float time;
-
-float actionAreaSizeSigma;
-
-float actionX;
-float actionY;
-
-float moveBiasActionX;
-float moveBiasActionY;
-
-float waveXarray[MAX_NUMBER_OF_WAVES];
-float waveYarray[MAX_NUMBER_OF_WAVES];
-float waveTriggerTimes[MAX_NUMBER_OF_WAVES];
-float waveSavedSigmas[MAX_NUMBER_OF_WAVES];
-
-float mouseXchange;
-float L2Action;
-
-int spawnParticles;
-float spawnFraction;
-int randomSpawnNumber;
-float randomSpawnXarray[MAX_NUMBER_OF_RANDOM_SPAWN];
-float randomSpawnYarray[MAX_NUMBER_OF_RANDOM_SPAWN];
-
-float pixelScaleFactor;
-	PointSettings params[2];
-} params;
-
-
-
-// layout(std430,binding=5) buffer parameters { PointSettings params[]; };
-layout(set=1,binding=0) uniform image2D trailRead;
+layout(set=1,binding=0) uniform sampler2D trailRead;
 layout(set=1,binding=1,std430) buffer part_cnt { uint particlesCounter[]; };
 layout(set=1,binding=2,std430) buffer particle { uint particlesArray[]; };
 
