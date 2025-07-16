@@ -13,11 +13,10 @@ create_nodes(
       // XXX run on particles
       // wd, ht, 1, 0, 0, 2,
       "trails", "read", "*", "*", dt_no_roi,
-      "part", "write", "r", "ui32", // uhm really f16 2d position, 2d heading, 2d velocity
       "part-cnt", "write", "r", "ui32", &module->connector[0].roi, // particle count per pixel
-      // parameters, two sets of params (are these uniform really?)
+      "part", "write", "r", "ui32", ROI// uhm really f16 2d position, 2d heading, 2d velocity
       );
-  // always clear part-cnt
+  // TODO always clear part-cnt
 
   int id_deposit = dt_node_add(graph, module, "physarum", "deposit", wd, ht, 1, 0, 0, 2,
       "part-cnt", "read", "r", "ui32", &module->connector[0].roi, // particle count per pixel

@@ -1,4 +1,7 @@
-#version 440
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
 // By Etienne Jacob, License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
 // Attribution to Sage Jenson's work explained in comments
@@ -6,38 +9,6 @@
 // warning: these must be compatible with the c++ code
 #define MAX_NUMBER_OF_WAVES 5
 #define MAX_NUMBER_OF_RANDOM_SPAWN 7
-
-#define PI 3.141592
-
-uniform int width;
-uniform int height;
-
-uniform float time;
-
-uniform float actionAreaSizeSigma;
-
-uniform float actionX;
-uniform float actionY;
-
-uniform float moveBiasActionX;
-uniform float moveBiasActionY;
-
-uniform float waveXarray[MAX_NUMBER_OF_WAVES];
-uniform float waveYarray[MAX_NUMBER_OF_WAVES];
-uniform float waveTriggerTimes[MAX_NUMBER_OF_WAVES];
-uniform float waveSavedSigmas[MAX_NUMBER_OF_WAVES];
-
-uniform float mouseXchange;
-uniform float L2Action;
-
-uniform int spawnParticles;
-uniform float spawnFraction;
-uniform int randomSpawnNumber;
-uniform float randomSpawnXarray[MAX_NUMBER_OF_RANDOM_SPAWN];
-uniform float randomSpawnYarray[MAX_NUMBER_OF_RANDOM_SPAWN];
-
-uniform float pixelScaleFactor;
-
 struct PointSettings {
     int typeIndex;
 
@@ -62,64 +33,45 @@ struct PointSettings {
     float SensorBias1;
     float SensorBias2;
 };
-
-layout(std430,binding=5) buffer parameters
+layout(std140, set = 0, binding = 1) uniform params_t
 {
-	PointSettings params[];
-};
+  // TODO
+  float decayFactor;
+float time;
 
-layout(rg16f,binding=0) uniform readonly image2D trailRead;
-layout(std430,binding=3) buffer mutex
-{
-	uint particlesCounter[];
-};
+float actionAreaSizeSigma;
 
-layout(std430, binding=2) buffer particle{
-    uint particlesArray[];
-};
+float actionX;
+float actionY;
 
-///////////////////////////////////////////////////
-// Randomness utils obtained from chatgpt
+float moveBiasActionX;
+float moveBiasActionY;
 
-float random3(vec3 st) {
-    return fract(sin(dot(st.xyz, vec3(12.9898, 78.233, 151.7182))) * 43758.5453123);
-}
+float waveXarray[MAX_NUMBER_OF_WAVES];
+float waveYarray[MAX_NUMBER_OF_WAVES];
+float waveTriggerTimes[MAX_NUMBER_OF_WAVES];
+float waveSavedSigmas[MAX_NUMBER_OF_WAVES];
 
-float noise(vec3 st) {
-    vec3 i = floor(st);
-    vec3 F = fract(st);
+float mouseXchange;
+float L2Action;
 
-    // Calculate the eight corners of the cube
-    float a = random3(i);
-    float b = random3(i + vec3(1.0, 0.0, 0.0));
-    float c = random3(i + vec3(0.0, 1.0, 0.0));
-    float d = random3(i + vec3(1.0, 1.0, 0.0));
-    float e = random3(i + vec3(0.0, 0.0, 1.0));
-    float f = random3(i + vec3(1.0, 0.0, 1.0));
-    float g = random3(i + vec3(0.0, 1.0, 1.0));
-    float h = random3(i + vec3(1.0, 1.0, 1.0));
+int spawnParticles;
+float spawnFraction;
+int randomSpawnNumber;
+float randomSpawnXarray[MAX_NUMBER_OF_RANDOM_SPAWN];
+float randomSpawnYarray[MAX_NUMBER_OF_RANDOM_SPAWN];
 
-    // Smoothly interpolate the noise value
-    vec3 u = F * F * (3.0 - 2.0 * F);
+float pixelScaleFactor;
+	PointSettings params[2];
+} params;
 
-    return mix(mix(mix(a, b, u.x), mix(c, d, u.x), u.y), mix(mix(e, f, u.x), mix(g, h, u.x), u.y), u.z);
-}
 
-// A small, stand-alone 32-bit hashing function.
-// Maps a single uint 'v' into another "scrambled" uint.
-uint pcg_hash(uint v) {
-    // These constants come from PCG-like mixing functions
-    v = v * 747796405u + 2891336453u;
-    uint word = ((v >> ((v >> 28u) + 4u)) ^ v) * 277803737u;
-    return (word >> 22u) ^ word;
-}
-float randFloat(inout uint state) {
-    // Hash and update 'state' each time we want a new random
-    state = pcg_hash(state);
-    // Convert to float in [0..1)
-    //  4294967296 = 2^32
-    return float(state) * (1.0 / 4294967296.0);
-}
+
+// layout(std430,binding=5) buffer parameters { PointSettings params[]; };
+layout(set=1,binding=0) uniform image2D trailRead;
+layout(set=1,binding=1,std430) buffer part_cnt { uint particlesCounter[]; };
+layout(set=1,binding=2,std430) buffer particle { uint particlesArray[]; };
+
 vec2 randomPosFromParticle(in vec2 particlePos) {
     // Convert (x,y) to integer coordinates
     ivec2 ipos = ivec2(floor(particlePos));
@@ -162,11 +114,10 @@ float propagatedWaveFunction(float x, float sigma) {
 // It also increases a counter on the pixel of the particle's new position, which will be used to add deposit in the deposit shader.
 // Counter increased with atomicAdd function to be able to do it with many particles in parallel.
 
-layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
-void main() {
-
-    PointSettings currentParams_1 = params[1]; // "Background Point" parameters
-    PointSettings currentParams_2 = params[0]; // "Pen Point" parameters
+void main()
+{
+    PointSettings currentParams_1 = params.params[1]; // "Background Point" parameters
+    PointSettings currentParams_2 = params.params[0]; // "Pen Point" parameters
 
     vec2 particlePos = unpackUnorm2x16(particlesArray[3 * gl_GlobalInvocationID.x]) * vec2(width, height);
     vec2 currAHeading = unpackUnorm2x16(particlesArray[3 * gl_GlobalInvocationID.x + 1]) * vec2(1.0, 2.0 * PI);
