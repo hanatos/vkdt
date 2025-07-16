@@ -8,11 +8,38 @@ commit_params(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  // TODO: copy our shitton of cryptic parameters to uniforms
-        float *p_wb  = (float*)dt_module_param_float(module, dt_module_get_param(module->so, dt_token("white")));
-  const float  p_tmp = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("temp")))[0];
-  const int    p_cnt = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("cnt")))[0];
+  // the original code says these work well:
+  // const int selected_points[] = {0,5,2,15,3,4,6,1,7,8,9,10,11,12,14,16,13,17,18,19,20,21};
+  // the original code picks two points (bg and cursor) and each have a current and a target point for animation.
+  const int    p_pt_bg = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("back")))[0];
+  const int    p_pt_cr = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("cursor")))[0];
   struct params_t *p = (struct params_t *)module->committed_param;
+  *p = (struct params_t) {
+    .decayFactor = 0.5,
+    .time = graph->frame,
+    .actionAreaSizeSigma = 0.3,
+    .actionX = 0, // TODO gamepad?
+    .actionY = 0,
+    .moveBiasActionX = 0,
+    .moveBiasActionY = 0,
+    .waveXarray = { 0 }, // wd / 2?
+    .waveYarray = { 0 }, // ht / 2?
+    .waveTriggerTimes = { -12345 }, // ???
+    .waveSavedSigmas = { 0.5, 0.5, 0.5, 0.5, 0.5},
+    .mouseXchange = 0,
+    .L2Action = 0,
+    .spawnParticles = 0,
+    .spawnFraction = 0.1,
+    .randomSpawnNumber = 0,
+    .randomSpawnXarray = { 0 },
+    .randomSpawnYarray = { 0 },
+    .pixelScaleFactor = 1,
+    .depositFactor = 0.9,
+    .colorModeType = 1,
+    .numberOfColorModes = 2,
+  };
+  memcpy(p->params+0, ParametersMatrix[p_pt_bg], sizeof(struct PointSettings));
+  memcpy(p->params+1, ParametersMatrix[p_pt_cr], sizeof(struct PointSettings));
 }
 
 int init(dt_module_t *mod)
@@ -31,38 +58,28 @@ create_nodes(
   const int part_cnt = 1000000; // TODO make parameter?
   // TODO init particles somehow (at random? as sphere pointing inward?)
 
+  dt_roi_t roi_part = { .wd = part_cnt, .ht = 3 };
   int id_move = dt_node_add(graph, module, "physarum", "move",
-      // XXX run on particles
-      // wd, ht, 1, 0, 0, 2,
-      "trails", "read", "*", "*", dt_no_roi,
-      "part-cnt", "write", "r", "ui32", &module->connector[0].roi, // particle count per pixel
-      "part", "write", "r", "ui32", ROI// uhm really f16 2d position, 2d heading, 2d velocity
-      );
-  // TODO always clear part-cnt
-  |= s_conn_clear;
+      part_cnt, 1, 1, 0, 0, 3,
+      "trails",   "read",  "*",    "*",     dt_no_roi,
+      "part-cnt", "write", "ssbo", "ui32", &module->connector[0].roi, // particle count per pixel
+      "part",     "write", "ssbo", "ui32", &roi_part);
+  graph->node[id_move].connector[1].flags |= s_conn_clear;     // clear per pixel particle counts
+  graph->node[id_move].connector[2].flags |= s_conn_protected; // particle positions stay with us
 
-  int id_deposit = dt_node_add(graph, module, "physarum", "deposit", wd, ht, 1, 0, 0, 2,
-      "part-cnt", "read", "r", "ui32", &module->connector[0].roi, // particle count per pixel
-      "trail read"
-      "trail write"
-      "output"
+  int id_deposit = dt_node_add(graph, module, "physarum", "deposit", wd, ht, 1, 0, 0, 4,
+      "part-cnt", "read",  "ssbo", "ui32", &module->connector[0].roi,
+      "trailr",   "read",  "*",    "*",     dt_no_roi,
+      "trailw",   "write", "rg",   "f16",  &module->connector[0].roi,
+      "output",   "write", "rgba", "f16",  &module->connector[0].roi);
 
-  int id_diffusion = dt_node_add(graph, module, "physarum", "diffuse", wd, ht, 1, 0, 0, 2,
+  int id_diffuse = dt_node_add(graph, module, "physarum", "diffuse", wd, ht, 1, 0, 0, 2,
       "input",  "read",  "*",  "*",    dt_no_roi,
       "output", "write", "rg", "f16", &module->connector[0].roi);
 
-
-          for (int i = 0; i < GlobalSettings::MAX_NUMBER_OF_WAVES; i++)
-    {
-        waveXarray[i] = GlobalSettings::SIMULATION_WIDTH / 2;
-        waveYarray[i] = GlobalSettings::SIMULATION_HEIGHT / 2;
-        waveTriggerTimes[i] = -12345;
-        waveSavedSigmas[i] = 0.5;
-    }
-
-    for (int i = 0; i < GlobalSettings::MAX_NUMBER_OF_RANDOM_SPAWN; i++)
-    {
-        randomSpawnXarray[i] = GlobalSettings::SIMULATION_WIDTH / 2;
-        randomSpawnYarray[i] = GlobalSettings::SIMULATION_HEIGHT / 2;
-    }
+  CONN(dt_node_connect_named (graph, id_move,    "part-cnt", id_deposit, "part_cnt"));
+  CONN(dt_node_feedback_named(graph, id_diffuse, "output",   id_deposit, "trailr"));
+  CONN(dt_node_feedback_named(graph, id_diffuse, "output",   id_move,    "trails"));
+  CONN(dt_node_feedback_named(graph, id_deposit, "trailw",   id_diffuse, "input"));
+  dt_connector_copy(graph, module, 0, id_deposit, 3); // wire output image
 }

@@ -61,5 +61,9 @@ struct params_t
   int colorModeType;
   int numberOfColorModes;
 
+#ifndef GL_core_profile // c version
+  struct PointSettings params[2];
+#else
   PointSettings params[2];
+#endif
 };

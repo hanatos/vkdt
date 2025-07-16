@@ -3,7 +3,7 @@
 #include "shared.glsl"
 #include "types.h"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
-layout(std140, set = 0, binding = 1) uniform params_t params;
+layout(std140, set = 0, binding = 1) uniform blk { params_t p; } params;
 layout(set=1, binding=0) uniform sampler2D trailRead;
 layout(set=1, binding=1) uniform writeonly image2D trailWrite;
 
@@ -24,7 +24,7 @@ void main() {
 
     vec2 c = csum / pow(2 * kernelSize + 1.0, 2.0);
 
-    float decayed = c.x * decayFactor;
+    float decayed = c.x * params.p.decayFactor;
     vec4 cOutput = vec4(decayed, 0.8 * decayed + 0.2 * c.y, 0, 0);
 	// (It's possible to control some amount of delay with this second color component, this is used for drawing of delayed trail map.)
 

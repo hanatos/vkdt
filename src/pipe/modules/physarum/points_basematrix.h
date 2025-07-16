@@ -4,16 +4,16 @@
 // A new parameter has been added at the end: it's some "sensing scaling factor".
 // This is some tuning to make the original parameters produce better results with the new simulation method.
 
-const int NumberOfBasePoints = 24;
-const int PARAMS_DIMENSION = 15;
+#define NumberOfBasePoints 24
+#define PARAMS_DIMENSION 15
 
 // default exponent when amplitude is 0, to tune for different mixing of Points (sensor distance) (see explanation comments after the matrix)
-const double DE_SD = 2.000;
-const double DE_SA = 1.000;
-const double DE_RA = 1.000;
-const double DE_MD = 3.000;
+const float DE_SD = 2.000;
+const float DE_SA = 1.000;
+const float DE_RA = 1.000;
+const float DE_MD = 3.000;
 
-const double ParametersMatrix[NumberOfBasePoints][PARAMS_DIMENSION] = {
+const float ParametersMatrix[NumberOfBasePoints][PARAMS_DIMENSION] = {
 // // SD0 // SDE // SDA // SA0 // SAE // SAA // RA0 // RAE // RAA // MD0 // MDE // MDA // SB1 // SB2 // SF // see explanation below
     {0.000, 4.000, 0.300, 0.100, 51.32, 20.00, 0.410, 4.000, 0.000, 0.100, 6.000, 0.100, 0.000, 0.000, 22.0}, // 0 <-- A "pure_multiscale"
     {0.000, 28.04, 14.53, 0.090, DE_SA, 0.000, 0.010, 1.400, 1.120, 0.830, DE_MD, 0.000, 0.570, 0.030, 36.0}, // 1 <-- H "hex_hole_open"
