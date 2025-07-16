@@ -55,12 +55,14 @@ create_nodes(
 {
   const int wd = module->connector[0].roi.wd;
   const int ht = module->connector[0].roi.ht;
-  const int part_cnt = 1000000; // TODO make parameter?
+  // const int part_cnt = 1000000; // TODO make parameter?
   // TODO init particles somehow (at random? as sphere pointing inward?)
 
-  dt_roi_t roi_part = { .wd = part_cnt, .ht = 3 };
+  // dt_roi_t roi_part = { .wd = part_cnt, .ht = 3 };
+  dt_roi_t roi_part = { .wd = wd*ht, .ht = 3 };
   int id_move = dt_node_add(graph, module, "physarum", "move",
-      part_cnt, 1, 1, 0, 0, 3,
+      // part_cnt, 1, 1, 0, 0, 3,
+      wd, ht, 1, 0, 0, 3,
       "trails",   "read",  "*",    "*",     dt_no_roi,
       "part-cnt", "write", "ssbo", "ui32", &module->connector[0].roi, // particle count per pixel
       "part",     "write", "ssbo", "ui32", &roi_part);
@@ -77,7 +79,7 @@ create_nodes(
       "input",  "read",  "*",  "*",    dt_no_roi,
       "output", "write", "rg", "f16", &module->connector[0].roi);
 
-  CONN(dt_node_connect_named (graph, id_move,    "part-cnt", id_deposit, "part_cnt"));
+  CONN(dt_node_connect_named (graph, id_move,    "part-cnt", id_deposit, "part-cnt"));
   CONN(dt_node_feedback_named(graph, id_diffuse, "output",   id_deposit, "trailr"));
   CONN(dt_node_feedback_named(graph, id_diffuse, "output",   id_move,    "trails"));
   CONN(dt_node_feedback_named(graph, id_deposit, "trailw",   id_diffuse, "input"));
