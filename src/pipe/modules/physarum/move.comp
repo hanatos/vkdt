@@ -44,10 +44,12 @@ float noise( in vec3 p3 )
   return dot( n, vec3(70.0) );
 }
 
-vec2 randomPosFromParticle(in vec2 particlePos) {
+vec2 randomPosFromParticle(in vec2 particlePos)
+{
     // Convert (x,y) to integer coordinates
     ivec2 ipos = ivec2(floor(particlePos));
 
+    // XXX FIXME: the randomness here is horrible
     // Pack x in the low 16 bits, y in the high 16 bits
     // (Works if width, height <= 65535)
     uint seed = (uint(ipos.x) & 0xFFFFu) | ((uint(ipos.y) & 0xFFFFu) << 16);
@@ -72,14 +74,16 @@ float getGridValue(vec2 pos)
   return texture(trailRead, pos/vec2(textureSize(trailRead, 0))).x;
 }
 
-float senseFromAngle(float angle, vec2 pos, float heading, float so) {
-    return getGridValue(vec2(pos.x + so * cos(heading + angle), pos.y + so * sin(heading + angle)));
+float senseFromAngle(float angle, vec2 pos, float heading, float so)
+{
+  return getGridValue(vec2(pos.x + so * cos(heading + angle), pos.y + so * sin(heading + angle)));
 }
 
-float propagatedWaveFunction(float x, float sigma) {
-    //float waveSigma = 0.5*(0.4 + 0.8*waveActionAreaSizeSigma);
-    float waveSigma = 0.15 + 0.4 * sigma;
-    return float(x <= 0.) * exp(-x * x / waveSigma / waveSigma);
+float propagatedWaveFunction(float x, float sigma)
+{
+  //float waveSigma = 0.5*(0.4 + 0.8*waveActionAreaSizeSigma);
+  float waveSigma = 0.15 + 0.4 * sigma;
+  return float(x <= 0.) * exp(-x * x / waveSigma / waveSigma);
 }
 
 // This is the main shader.
@@ -89,17 +93,33 @@ float propagatedWaveFunction(float x, float sigma) {
 
 void main()
 {
-  const PointSettings currentParams_1 = params.p.params[1]; // "Background Point" parameters
-  const PointSettings currentParams_2 = params.p.params[0]; // "Pen Point" parameters
+  const PointSettings currentParams_1 = params.p.params[0]; // "Background Point" parameters
+  const PointSettings currentParams_2 = params.p.params[1]; // "Pen Point" parameters
 
     vec2 particlePos = unpackUnorm2x16(particlesArray[3 * gl_GlobalInvocationID.x]) * vec2(textureSize(trailRead, 0));
     vec2 currAHeading = unpackUnorm2x16(particlesArray[3 * gl_GlobalInvocationID.x + 1]) * vec2(1.0, 2.0 * M_PI);
     vec2 velocity = unpackHalf2x16(particlesArray[3 * gl_GlobalInvocationID.x + 2]);
+    if(global.frame == 0)
+    {
+      uint seed = 133700 * gl_GlobalInvocationID.x;
+      vec2 sz = textureSize(trailRead,0);
+      // particlePos = textureSize(trailRead,0)*vec2(mrand(seed),mrand(seed));
+      float phi = 2.0*M_PI*mrand(seed);
+      particlePos = vec2(cos(phi),sin(phi))*sqrt(mrand(seed))*min(sz.x,sz.y)/2.5;
+      velocity = -1.0*(particlePos) / sz;
+      currAHeading = vec2(
+          10.0+10*mrand(seed), // something age before respawn
+          M_PI+atan(particlePos.y,particlePos.x));
+      particlePos += sz/2;
+    }
+
+    // DEBUG XXX
+    // particlePos += velocity;
 
     float heading = currAHeading.y;
     vec2 direction = vec2(cos(heading), sin(heading));
 
-    vec2 normalizedPosition = vec2(particlePos.x, particlePos.y)/vec2(textureSize(trailRead,0));
+    vec2 normalizedPosition = particlePos/vec2(textureSize(trailRead,0));
     vec2 normalizedActionPosition = vec2(params.p.actionX, params.p.actionY)/vec2(textureSize(trailRead,0));
 
     // some inputs for noise values used later (not important stuff)
@@ -166,7 +186,8 @@ void main()
     float SD_amplitude_mix = mix(currentParams_1.SD_amplitude, currentParams_2.SD_amplitude, lerper);
     float SD_exponent_mix = mix(currentParams_1.SD_exponent, currentParams_2.SD_exponent, lerper);
 
-    float MoveDistance0_mix = mix(currentParams_1.MoveDistance0, currentParams_2.MoveDistance0, lerper);
+    // XXX FIXME: i think all of these come through as zero
+    float MoveDistance0_mix = 1;//mix(currentParams_1.MoveDistance0, currentParams_2.MoveDistance0, lerper);
     float MD_amplitude_mix = mix(currentParams_1.MD_amplitude, currentParams_2.MD_amplitude, lerper);
     float MD_exponent_mix = mix(currentParams_1.MD_exponent, currentParams_2.MD_exponent, lerper);
 

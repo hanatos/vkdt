@@ -13,7 +13,7 @@ const float DE_SA = 1.000;
 const float DE_RA = 1.000;
 const float DE_MD = 3.000;
 
-const float ParametersMatrix[NumberOfBasePoints][PARAMS_DIMENSION] = {
+const float ParametersMatrix[][PARAMS_DIMENSION] = {
 // // SD0 // SDE // SDA // SA0 // SAE // SAA // RA0 // RAE // RAA // MD0 // MDE // MDA // SB1 // SB2 // SF // see explanation below
     {0.000, 4.000, 0.300, 0.100, 51.32, 20.00, 0.410, 4.000, 0.000, 0.100, 6.000, 0.100, 0.000, 0.000, 22.0}, // 0 <-- A "pure_multiscale"
     {0.000, 28.04, 14.53, 0.090, DE_SA, 0.000, 0.010, 1.400, 1.120, 0.830, DE_MD, 0.000, 0.570, 0.030, 36.0}, // 1 <-- H "hex_hole_open"
@@ -39,6 +39,7 @@ const float ParametersMatrix[NumberOfBasePoints][PARAMS_DIMENSION] = {
     {0.000, 6.370, 5.425, 1.030, 0.000, 0.000, 0.180, 0.289, 0.443, 0.300, 2.200, 0.065, 1.070, 0.040, 19.0}, // 21 <-- V
     {1.464, 20.00, 80.00, 0.260, 2.150, 4.760, 1.513, 2.000, 12.62, 0.385, 12.62, 0.037, 1.000, 0.000, 25.0}, //
     {0.000, 6.000, 100.0, 0.650, 0.175, 1.284, 0.000, 0.600, 5.000, 0.830, 5.395, 20.00, 0.400, 0.000, 8.60}, //
+    {0.000}, // padding
 };
 
 // The parameters of the classic physarum algorithm are sensor distance, sensor angle, rotation angle and move distance.

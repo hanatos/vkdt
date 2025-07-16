@@ -20,8 +20,8 @@ commit_params(
     .actionAreaSizeSigma = 0.3,
     .actionX = 0, // TODO gamepad?
     .actionY = 0,
-    .moveBiasActionX = 0,
-    .moveBiasActionY = 0,
+    .moveBiasActionX = 0.1,
+    .moveBiasActionY = 0.1,
     .waveXarray = { 0 }, // wd / 2?
     .waveYarray = { 0 }, // ht / 2?
     .waveTriggerTimes = { -12345 }, // ???
@@ -62,7 +62,7 @@ create_nodes(
   dt_roi_t roi_part = { .wd = wd*ht, .ht = 3 };
   int id_move = dt_node_add(graph, module, "physarum", "move",
       // part_cnt, 1, 1, 0, 0, 3,
-      wd, ht, 1, 0, 0, 3,
+      wd*ht, 1, 1, 0, 0, 3,
       "trails",   "read",  "*",    "*",     dt_no_roi,
       "part-cnt", "write", "ssbo", "ui32", &module->connector[0].roi, // particle count per pixel
       "part",     "write", "ssbo", "ui32", &roi_part);
