@@ -3,6 +3,25 @@
 #include "points_basematrix.h"
 #include <inttypes.h>
 
+dt_graph_run_t
+input(
+    dt_module_t             *mod,
+    dt_module_input_event_t *p)
+{
+  // we're not interested in mouse over widget input
+  if(!p->grabbed) return 0;
+  if(p->type == 1)
+  { // mouse button
+    int *p_wave = (int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("wave")));
+    p_wave[0] = mod->graph->frame;
+  }
+  else if(p->type == 2)
+  { // mouse position
+
+  }
+  return 0;
+}
+
 void
 commit_params(
     dt_graph_t  *graph,
@@ -16,8 +35,9 @@ commit_params(
   const int    p_pt_bg = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("back")))[0];
   const int    p_pt_cr = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("cursor")))[0];
   const int    p_col   = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("colour")))[0];
+  const int    p_wave  = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("wave")))[0];
   struct params_t *p = (struct params_t *)module->committed_param;
-  *p = (struct params_t) {
+  struct params_t def = {
     .decayFactor = 0.5,
     .time = graph->frame,
     .actionAreaSizeSigma = 0.3,
@@ -25,9 +45,9 @@ commit_params(
     .actionY = ht / 2.0f,
     .moveBiasActionX = 0.1,
     .moveBiasActionY = 0.1,
-    .waveXarray = { wd / 2 },
-    .waveYarray = { ht / 2 },
-    .waveTriggerTimes = { -12345 }, // ???
+    .waveXarray = { 3 * wd / 4 },
+    .waveYarray = { 3 * ht / 4 },
+    .waveTriggerTimes = { -666 },
     .waveSavedSigmas = { 0.5, 0.5, 0.5, 0.5 },
     .mouseXchange = 0,
     .L2Action = 0,
@@ -43,11 +63,20 @@ commit_params(
   };
   if(graph->frame == 0)
   {
+    *p = def;
     memcpy(p->params+0, ParametersMatrix[p_pt_bg], sizeof(struct PointSettings));
     memcpy(p->params+1, ParametersMatrix[p_pt_cr], sizeof(struct PointSettings));
   }
   else
   {
+    if(p_wave)
+    {
+      p->waveTriggerTimes.x = graph->frame;
+      p->L2Action = 1;
+      ((int*)dt_module_param_int(module, dt_module_get_param(module->so, dt_token("wave"))))[0] = 0;
+    }
+    p->time = graph->frame;
+    p->colorModeType = p_col;
     float *f = (float *)p->params+0;
     float *g = (float *)p->params+1;
     const float t = 0.95;

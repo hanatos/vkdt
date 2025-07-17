@@ -1,3 +1,4 @@
 back:int:1:21
 cursor:int:1:21
 colour:int:1:0
+wave:int:1:0

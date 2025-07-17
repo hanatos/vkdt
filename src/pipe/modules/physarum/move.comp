@@ -140,7 +140,7 @@ void main()
     // Section about the "triggered waves" interaction, really a secondary feature
     float waveSum = 0.;
     float noiseVariationFactor = (0.95 + 0.1 * noise(vec3(positionForNoise1.x, positionForNoise1.y, 0.3 * params.time)));
-    float maxWaveTime = 5.0; // in seconds
+    const float maxWaveTime = 500.0; // in frames
 
     for(int i = 0; i < 4; i++) {
         if((params.time - params.waveTriggerTimes[i]) <= maxWaveTime) {
