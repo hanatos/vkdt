@@ -41,8 +41,22 @@ commit_params(
     .colorModeType = p_col,
     .numberOfColorModes = 2,
   };
-  memcpy(p->params+0, ParametersMatrix[p_pt_bg], sizeof(struct PointSettings));
-  memcpy(p->params+1, ParametersMatrix[p_pt_cr], sizeof(struct PointSettings));
+  if(graph->frame == 0)
+  {
+    memcpy(p->params+0, ParametersMatrix[p_pt_bg], sizeof(struct PointSettings));
+    memcpy(p->params+1, ParametersMatrix[p_pt_cr], sizeof(struct PointSettings));
+  }
+  else
+  {
+    float *f = (float *)p->params+0;
+    float *g = (float *)p->params+1;
+    const float t = 0.95;
+    for(int i=0;i<sizeof(struct PointSettings)/sizeof(float);i++)
+    {
+      f[i] = t*f[i] + (1.0f-t)*ParametersMatrix[p_pt_bg][i];
+      g[i] = t*g[i] + (1.0f-t)*ParametersMatrix[p_pt_cr][i];
+    }
+  }
 }
 
 int init(dt_module_t *mod)
