@@ -1,6 +1,7 @@
 // shared definitions of parameter set
-#define MAX_NUMBER_OF_WAVES 4
-#define MAX_NUMBER_OF_RANDOM_SPAWN 8
+#ifndef GL_core_profile // c version
+typedef struct vec4 { float x,y,z,w; } vec4;
+#endif
 
 struct PointSettings
 {
@@ -32,14 +33,6 @@ struct PointSettings
 
 struct params_t
 {
-  // move arrays first for correct alignment
-  float waveXarray[MAX_NUMBER_OF_WAVES];
-  float waveYarray[MAX_NUMBER_OF_WAVES];
-  float waveTriggerTimes[MAX_NUMBER_OF_WAVES];
-  float waveSavedSigmas[MAX_NUMBER_OF_WAVES];
-  float randomSpawnXarray[MAX_NUMBER_OF_RANDOM_SPAWN];
-  float randomSpawnYarray[MAX_NUMBER_OF_RANDOM_SPAWN];
-
   // it follows 16 scalars which is vec4 aligned
   float decayFactor;
   float time;
@@ -63,6 +56,14 @@ struct params_t
   float depositFactor;
   int colorModeType;
   int numberOfColorModes;
+
+  // can't have arrays ase these are padded to vec4
+  vec4 waveXarray;
+  vec4 waveYarray;
+  vec4 waveTriggerTimes;
+  vec4 waveSavedSigmas;
+  vec4 randomSpawnXarray;
+  vec4 randomSpawnYarray;
 
 #ifndef GL_core_profile // c version
   struct PointSettings params[2];

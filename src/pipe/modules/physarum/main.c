@@ -8,24 +8,27 @@ commit_params(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  const int wd = module->connector[0].roi.wd;
+  const int ht = module->connector[0].roi.ht;
   // the original code says these work well:
   // const int selected_points[] = {0,5,2,15,3,4,6,1,7,8,9,10,11,12,14,16,13,17,18,19,20,21};
   // the original code picks two points (bg and cursor) and each have a current and a target point for animation.
   const int    p_pt_bg = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("back")))[0];
   const int    p_pt_cr = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("cursor")))[0];
+  const int    p_col   = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("colour")))[0];
   struct params_t *p = (struct params_t *)module->committed_param;
   *p = (struct params_t) {
     .decayFactor = 0.5,
     .time = graph->frame,
     .actionAreaSizeSigma = 0.3,
-    .actionX = 0, // TODO gamepad?
-    .actionY = 0,
+    .actionX = wd / 2.0f, // TODO gamepad?
+    .actionY = ht / 2.0f,
     .moveBiasActionX = 0.1,
     .moveBiasActionY = 0.1,
-    .waveXarray = { 0 }, // wd / 2?
-    .waveYarray = { 0 }, // ht / 2?
+    .waveXarray = { wd / 2 },
+    .waveYarray = { ht / 2 },
     .waveTriggerTimes = { -12345 }, // ???
-    .waveSavedSigmas = { 0.5, 0.5, 0.5, 0.5, 0.5},
+    .waveSavedSigmas = { 0.5, 0.5, 0.5, 0.5 },
     .mouseXchange = 0,
     .L2Action = 0,
     .spawnParticles = 0,
@@ -35,7 +38,7 @@ commit_params(
     .randomSpawnYarray = { 0 },
     .pixelScaleFactor = 1,
     .depositFactor = 0.9,
-    .colorModeType = 1,
+    .colorModeType = p_col,
     .numberOfColorModes = 2,
   };
   memcpy(p->params+0, ParametersMatrix[p_pt_bg], sizeof(struct PointSettings));

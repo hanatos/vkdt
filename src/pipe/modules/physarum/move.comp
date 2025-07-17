@@ -8,7 +8,7 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 // Attribution to Sage Jenson's work explained in comments
 
 layout(std140, set = 0, binding = 0) uniform global_t { int frame; } global;
-layout(std140, set = 0, binding = 1) uniform blk { params_t p; } params;
+layout(std140, set = 0, binding = 1) uniform blk { params_t params; };
 layout(set=1,binding=0) uniform sampler2D trailRead;
 layout(set=1,binding=1,std430) buffer part_cnt { uint particlesCounter[]; };
 layout(set=1,binding=2,std430) buffer particle { uint particlesArray[]; };
@@ -93,8 +93,8 @@ float propagatedWaveFunction(float x, float sigma)
 
 void main()
 {
-  const PointSettings currentParams_1 = params.p.params[0]; // "Background Point" parameters
-  const PointSettings currentParams_2 = params.p.params[1]; // "Pen Point" parameters
+  const PointSettings currentParams_1 = params.params[0]; // "Background Point" parameters
+  const PointSettings currentParams_2 = params.params[1]; // "Pen Point" parameters
 
     vec2 particlePos = unpackUnorm2x16(particlesArray[3 * gl_GlobalInvocationID.x]) * vec2(textureSize(trailRead, 0));
     vec2 currAHeading = unpackUnorm2x16(particlesArray[3 * gl_GlobalInvocationID.x + 1]) * vec2(1.0, 2.0 * M_PI);
@@ -113,14 +113,11 @@ void main()
       particlePos += sz/2;
     }
 
-    // DEBUG XXX
-    // particlePos += velocity;
-
     float heading = currAHeading.y;
     vec2 direction = vec2(cos(heading), sin(heading));
 
     vec2 normalizedPosition = particlePos/vec2(textureSize(trailRead,0));
-    vec2 normalizedActionPosition = vec2(params.p.actionX, params.p.actionY)/vec2(textureSize(trailRead,0));
+    vec2 normalizedActionPosition = vec2(params.actionX, params.actionY)/vec2(textureSize(trailRead,0));
 
     // some inputs for noise values used later (not important stuff)
     vec2 positionForNoise1 = normalizedPosition;
@@ -134,20 +131,20 @@ void main()
     // looking for "lerper" variable, the parameter for interpolation between the parameters of the 2 Points (Pen/Background)
     vec2 positionFromAction = normalizedPosition - normalizedActionPosition;
     positionFromAction.x *= float(textureSize(trailRead,0).x) / textureSize(trailRead,0).y;
-    float distanceNoiseFactor = (0.9 + 0.2 * noise(vec3(positionForNoise2.x, positionForNoise2.t, 0.6 * params.p.time))); // a bit of noise distortion on distance
+    float distanceNoiseFactor = (0.9 + 0.2 * noise(vec3(positionForNoise2.x, positionForNoise2.t, 0.6 * params.time))); // a bit of noise distortion on distance
     float distanceFromAction = distance(positionFromAction, vec2(0)) * distanceNoiseFactor;
-    float lerper = exp(-distanceFromAction * distanceFromAction / params.p.actionAreaSizeSigma / params.p.actionAreaSizeSigma); // use of a gaussian function: 1 at the center, 0 far from the center
+    float lerper = exp(-distanceFromAction * distanceFromAction / params.actionAreaSizeSigma / params.actionAreaSizeSigma); // use of a gaussian function: 1 at the center, 0 far from the center
     //lerper = diffDist<=actionAreaSizeSigma ? 1 : 0;
     //lerper = particlePos.x/width;
 
-    // Section about the "trigerred waves" interaction, really a secondary feature
+    // Section about the "triggered waves" interaction, really a secondary feature
     float waveSum = 0.;
-    float noiseVariationFactor = (0.95 + 0.1 * noise(vec3(positionForNoise1.x, positionForNoise1.y, 0.3 * params.p.time)));
+    float noiseVariationFactor = (0.95 + 0.1 * noise(vec3(positionForNoise1.x, positionForNoise1.y, 0.3 * params.time)));
     float maxWaveTime = 5.0; // in seconds
 
-    for(int i = 0; i < MAX_NUMBER_OF_WAVES; i++) {
-        if((params.p.time - params.p.waveTriggerTimes[i]) <= maxWaveTime) {
-            vec2 normalizedWaveCenterPosition = vec2(params.p.waveXarray[i], params.p.waveYarray[i])/vec2(textureSize(trailRead, 0));
+    for(int i = 0; i < 4; i++) {
+        if((params.time - params.waveTriggerTimes[i]) <= maxWaveTime) {
+            vec2 normalizedWaveCenterPosition = vec2(params.waveXarray[i], params.waveYarray[i])/vec2(textureSize(trailRead, 0));
             vec2 relDiffWave = normalizedPosition - normalizedWaveCenterPosition;
             relDiffWave.x *= float(textureSize(trailRead,0).x) / textureSize(trailRead,0).y;
             float diffDistWave = distance(relDiffWave, vec2(0));
@@ -155,9 +152,9 @@ void main()
             float dir = (i % 2 == 0) ? 1. : -1.;
 
             float delay = -0.1 + diffDistWave / 0.3 * noiseVariationFactor + 0.4 * pow(0.5 + 0.5 * cos(18. * angleToCenter + 10.0 * dir * diffDistWave), 0.3);
-            float varWave = delay - (params.p.time - params.p.waveTriggerTimes[i]);
-            float sigmaVariation = pow(params.p.waveSavedSigmas[i], 0.75);
-            waveSum += 0.6 * propagatedWaveFunction(varWave, params.p.waveSavedSigmas[i]) * max(0., 1. - 0.3 * diffDistWave / sigmaVariation * noiseVariationFactor);
+            float varWave = delay - (params.time - params.waveTriggerTimes[i]);
+            float sigmaVariation = pow(params.waveSavedSigmas[i], 0.75);
+            waveSum += 0.6 * propagatedWaveFunction(varWave, params.waveSavedSigmas[i]) * max(0., 1. - 0.3 * diffDistWave / sigmaVariation * noiseVariationFactor);
         }
     }
 
@@ -186,8 +183,7 @@ void main()
     float SD_amplitude_mix = mix(currentParams_1.SD_amplitude, currentParams_2.SD_amplitude, lerper);
     float SD_exponent_mix = mix(currentParams_1.SD_exponent, currentParams_2.SD_exponent, lerper);
 
-    // XXX FIXME: i think all of these come through as zero
-    float MoveDistance0_mix = 1;//mix(currentParams_1.MoveDistance0, currentParams_2.MoveDistance0, lerper);
+    float MoveDistance0_mix = mix(currentParams_1.MoveDistance0, currentParams_2.MoveDistance0, lerper);
     float MD_amplitude_mix = mix(currentParams_1.MD_amplitude, currentParams_2.MD_amplitude, lerper);
     float MD_exponent_mix = mix(currentParams_1.MD_exponent, currentParams_2.MD_exponent, lerper);
 
@@ -204,8 +200,8 @@ void main()
     // For a current sensed value S,
     // physarum param = A + B * (S ^ C)
     // These A,B,C parameters are part of the data of a "Point"
-    float sensorDistance = SensorDistance0_mix + SD_amplitude_mix * pow(currentSensedValue, SD_exponent_mix) * params.p.pixelScaleFactor;
-    float moveDistance = MoveDistance0_mix + MD_amplitude_mix * pow(currentSensedValue, MD_exponent_mix) * params.p.pixelScaleFactor;
+    float sensorDistance = SensorDistance0_mix + SD_amplitude_mix * pow(currentSensedValue, SD_exponent_mix) * params.pixelScaleFactor;
+    float moveDistance = MoveDistance0_mix + MD_amplitude_mix * pow(currentSensedValue, MD_exponent_mix) * params.pixelScaleFactor;
     float sensorAngle = SensorAngle0_mix + SA_amplitude_mix * pow(currentSensedValue, SA_exponent_mix);
     float rotationAngle = RotationAngle0_mix + RA_amplitude_mix * pow(currentSensedValue, RA_exponent_mix);
     // 3 * 4 = 12 parameters
@@ -230,9 +226,9 @@ void main()
 
     // Forcing movement with joystick action,
     // using noise to have more or less of this forced movement, because it looked too boring without
-    float noiseValue = noise(vec3(positionForNoise1.x, positionForNoise1.y, 0.8 * params.p.time));
+    float noiseValue = noise(vec3(positionForNoise1.x, positionForNoise1.y, 0.8 * params.time));
     float moveBiasFactor = 5 * lerper * noiseValue;
-    vec2 moveBias = moveBiasFactor * vec2(params.p.moveBiasActionX, params.p.moveBiasActionY);
+    vec2 moveBias = moveBiasFactor * vec2(params.moveBiasActionX, params.moveBiasActionY);
 
     // position update of the classic physarum algorithm, but with a new move bias for fun interaction
     float classicNewPositionX = particlePos.x + moveDistance * cos(newHeading) + moveBias.x;
@@ -242,7 +238,7 @@ void main()
     // probably the weirdest stuff in the code of this project
     velocity *= 0.98;
     float vf = 1.0;
-    float velocityBias = 0.2 * params.p.L2Action;
+    float velocityBias = 0.2 * params.L2Action;
     float vx = velocity.x + vf * cos(newHeading) + velocityBias * moveBias.x;
     float vy = velocity.y + vf * sin(newHeading) + velocityBias * moveBias.y;
 
@@ -252,40 +248,40 @@ void main()
     float inertiaNewPositionX = particlePos.x + dt * vx + moveBias.x;
     float inertiaNewPositionY = particlePos.y + dt * vy + moveBias.y;
 
-    float moveStyleLerper = 0.6 * params.p.L2Action + 0.8 * waveSum; // intensity of use of inertia
+    float moveStyleLerper = 0.6 * params.L2Action + 0.8 * waveSum; // intensity of use of inertia
     // the new position of the particle:
     float px = mix(classicNewPositionX, inertiaNewPositionX, moveStyleLerper);
     float py = mix(classicNewPositionY, inertiaNewPositionY, moveStyleLerper);
 
     // possibility of spawn to other position if spawning action is triggered
-    if(params.p.spawnParticles >= 1) {
+    if(params.spawnParticles >= 1) {
         float randForChoice = random01FromParticle(particlePos * 1.1); // uniform random in [0,1]
 
-        if(randForChoice < params.p.spawnFraction) // probability spawnFraction to spawn
+        if(randForChoice < params.spawnFraction) // probability spawnFraction to spawn
         {
             float randForRadius = random01FromParticle(particlePos * 2.2);
 
-            if(params.p.spawnParticles == 1) // circular spawn
+            if(params.spawnParticles == 1) // circular spawn
             {
                 float randForTheta = random01FromParticle(particlePos * 3.3);
                 float theta = randForTheta * M_PI * 2.0;
-                float r1 = params.p.actionAreaSizeSigma * 0.55 * (0.95 + 0.1 * randForRadius);
+                float r1 = params.actionAreaSizeSigma * 0.55 * (0.95 + 0.1 * randForRadius);
                 float sx = r1 * cos(theta);
                 float sy = r1 * sin(theta);
                 vec2 spos = vec2(sx, sy);
                 spos *= textureSize(trailRead,0).y;
-                px = params.p.actionX + spos.x;
-                py = params.p.actionY + spos.y;
+                px = params.actionX + spos.x;
+                py = params.actionY + spos.y;
             }
-            if(params.p.spawnParticles == 2) // spawn at few places near pen
+            if(params.spawnParticles == 2) // spawn at few places near pen
             {
-                int randForSpawnIndex = int(floor(params.p.randomSpawnNumber * random01FromParticle(particlePos * 4.4)));
-                float sx = params.p.randomSpawnXarray[randForSpawnIndex];
-                float sy = params.p.randomSpawnYarray[randForSpawnIndex];
-                vec2 spos = 0.65 * params.p.actionAreaSizeSigma * vec2(sx, sy) * (0.9 + 0.1 * randForRadius);
+                int randForSpawnIndex = int(floor(params.randomSpawnNumber * random01FromParticle(particlePos * 4.4)));
+                float sx = params.randomSpawnXarray[randForSpawnIndex];
+                float sy = params.randomSpawnYarray[randForSpawnIndex];
+                vec2 spos = 0.65 * params.actionAreaSizeSigma * vec2(sx, sy) * (0.9 + 0.1 * randForRadius);
                 spos *= textureSize(trailRead,0).y;
-                px = params.p.actionX + spos.x;
-                py = params.p.actionY + spos.y;
+                px = params.actionX + spos.x;
+                py = params.actionY + spos.y;
             }
         }
     }

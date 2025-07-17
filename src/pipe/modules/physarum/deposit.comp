@@ -4,7 +4,7 @@
 #include "types.h"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-layout(std140, set = 0, binding = 1) uniform blk { params_t p; } params;
+layout(std140, set = 0, binding = 1) uniform blk { params_t params; };
 layout(set=1,binding=0,std430) buffer part_cnt { uint particlesCounter[]; };
 layout(set=1,binding=1) uniform sampler2D trailRead;
 layout(set=1,binding=2) uniform writeonly image2D trailWrite;
@@ -144,7 +144,7 @@ void main()
 	// a way to define an amount of added trail in function of the number of particles on the pixel
     const float LIMIT = 100.0;
     float limitedCount = min(count, LIMIT);
-    float addedDeposit = sqrt(limitedCount) * params.p.depositFactor;
+    float addedDeposit = sqrt(limitedCount) * params.depositFactor;
 
 	// Trail map update
     float val = prevColor.x + addedDeposit;
@@ -177,45 +177,45 @@ void main()
     float blend = tanh(500.0 * temporalDiff + 2.0 * offset);
     vec3 col2 = vec3(countColorValue);
 
-    if(params.p.colorModeType == 0) // white on black from particle counts
+    if(params.colorModeType == 0) // white on black from particle counts
     {
         col = vec3(countColorValue);
-    } else if(params.p.colorModeType == 1) // "blueish orange/purple"
+    } else if(params.colorModeType == 1) // "blueish orange/purple"
     {
         vec3 col1 = gradPurpleFire(tanh(countColorValue * 1.3));
         vec3 col3 = gradArctic(tanh(countColorValue * 1.3));
         col = mix(col1, col3, blend);
         col = clamp(1.25*col,0.,1.);
-    } else if(params.p.colorModeType == 2) // icy blue
+    } else if(params.colorModeType == 2) // icy blue
     {
         vec3 col1 = gradArctic(fract(tanh(countColorValue * 0.6 + offset) + 0.15));
         col = mix(col1, col2, blend);
-    } else if(params.p.colorModeType == 3) // orange over purple, not very saturated
+    } else if(params.colorModeType == 3) // orange over purple, not very saturated
     {
         vec3 col1 = gradPurpleFire(tanh(countColorValue * 1.3));
         col = mix(col1, col2, blend);
-    } else if(params.p.colorModeType == 4) // gold over dark green
+    } else if(params.colorModeType == 4) // gold over dark green
     {
         vec3 col1 = gradOrangeBlue(tanh(countColorValue * 1.3 + offset));
         col = mix(col1, col2, blend);
-    } else if(params.p.colorModeType == 5) {
+    } else if(params.colorModeType == 5) {
         vec3 col1 = gradNeonInferno(tanh(countColorValue * 1.3));
         col = mix(col1, col2, blend);
-    } else if(params.p.colorModeType == 6) // pink/purple (from z0rg :)
+    } else if(params.colorModeType == 6) // pink/purple (from z0rg :)
     {
         vec3 col1 = gradZorgPurple(fract(tanh(countColorValue * 0.6 + offset) + 0.15)); // weird, but let's keep it like this
         col = mix(col1, col2, blend);
         vec3 col3 = gradArctic(tanh(countColorValue * 1.3));
         col = mix(col1, col3, blend);
         col = clamp(1.5*pow(col,vec3(1.1)),0.,1.);
-    } else if(params.p.colorModeType == 7)
+    } else if(params.colorModeType == 7)
     {
         vec3 col1 = gradNeonInferno(tanh(countColorValue * 1.3));
         // col = mix(col1, col2, blend);
         vec3 col3 = gradArctic(tanh(countColorValue * 1.3));
         col = mix(col1, col3, blend);
         col = clamp(1.1*col,0.,1.);
-    } else if(params.p.colorModeType == 8) // bright is yellow, over blue background, embarassingly experimental
+    } else if(params.colorModeType == 8) // bright is yellow, over blue background, embarassingly experimental
     {
         vec3 col1 = gradOrangeBlue(tanh(countColorValue * 1.3 + offset));
         vec3 colGreen = gradGreen(tanh(countColorValue * 2.3 + offset));
@@ -226,14 +226,14 @@ void main()
         vec3 col6 = 1.25 * mix(col4, col5, tanh(500. * temporalDiff + 2.0 * offset));
         col6 = pow(col6, vec3(2.0));
         col = max(col6, col3);
-    } else if(params.p.colorModeType == 9) // green
+    } else if(params.colorModeType == 9) // green
     {
         vec3 col1 = gradGreen(tanh(countColorValue * 1.3));
         col = mix(col1, col2, blend);
         // vec3 col3 = gradArctic(tanh(countColorValue * 1.3));
         // col = mix(col1, col3, blend);
         // col = clamp(1.1*col,0.,1.);
-    } else if(params.p.colorModeType == 10000) // smooth/blurry cyan with red movement
+    } else if(params.colorModeType == 10000) // smooth/blurry cyan with red movement
     {
 		// Color defined with combination of particle count (red) and trail map (green, blue)
         col = vec3(countColorValue, trailColorValue, trailColorValue);
