@@ -1,18 +1,18 @@
 # physarum: mesmerizing interactive particle simulation
 
-this module uses the glsl shaders from
-https://github.com/Bleuje/interactive-physarum
+this module uses [the glsl shaders from Bleuje's github](https://github.com/Bleuje/interactive-physarum)
 under:
 Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License
 
 this is based on a simulation detailed in the paper
 **Characteristics of Pattern Formation and Evolution in
 Approximations of Physarum Transport Networks,**
-Jeff Jones, Artificial Life 16: 127–153 (2010)
-https://doi.org/10.1162/artl.2010.16.2.16202
+Jeff Jones, [Artificial Life 16: 127–153 (2010)](https://doi.org/10.1162/artl.2010.16.2.16202)
 
-and also there is a nice video explaining the context, by
-Sebastian Lague: https://www.youtube.com/watch?v=X-iSQQgOd1A
+and also there is [a nice video explaining the context, by
+Sebastian Lague](https://www.youtube.com/watch?v=X-iSQQgOd1A)
+
+![physarum](./physarum.jpg)
 
 ## parameters
 
