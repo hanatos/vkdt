@@ -1208,6 +1208,31 @@ void render_lighttable_right_panel()
 #undef NUM_JOBS
     nk_tree_pop(ctx);
   } // end collapsing header "export"
+
+  { // new project from scratch
+    nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
+    static char fname[50] = "new_project";
+    dt_tooltip("enter the filename of the newly created project");
+    nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER,
+        fname, sizeof(fname), nk_filter_default);
+    dt_tooltip("create new empty graph project. useful if you want "
+        "to use render nodes or if the project does not correspond "
+        "1:1 to an image on disk");
+    if(nk_button_label(ctx, "create project"))
+    {
+      char filename[PATH_MAX];
+      snprintf(filename, sizeof(filename), "%s/%s.cfg", vkdt.db.dirname, fname);
+      char newcfg[PATH_MAX];
+      snprintf(newcfg, sizeof(newcfg), "%s/new.cfg", dt_pipe.homedir);
+      if(fs_copy(filename, newcfg))
+      { // no homedir new.cfg, go global:
+        snprintf(newcfg, sizeof(newcfg), "%s/new.cfg", dt_pipe.basedir);
+        fs_copy(filename, newcfg);
+      }
+      snprintf(filename, sizeof(filename), "%s", vkdt.db.dirname);
+      dt_gui_switch_collection(filename); // reload directory
+    }
+  }
   NK_UPDATE_ACTIVE;
   nk_end(&vkdt.ctx); // lt right panel
 }
