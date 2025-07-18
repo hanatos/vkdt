@@ -117,6 +117,7 @@ packages from github nightly ci.
 * [g-csolid](../src/pipe/modules/g-csolid/readme.md) convert drawn brush strokes to 3d geometry
 * [bvh](../src/pipe/modules/bvh/readme.md) 3d geometry sink for ray tracing
 * [i-obj](../src/pipe/modules/i-obj/readme.md) 3d geometry source
+* [physarum](../src/pipe/modules/physarum/readme.md) mesmerizing slime mould particle sim
 
 
 ## diverge branches
