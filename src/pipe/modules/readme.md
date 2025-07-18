@@ -112,11 +112,12 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [resize: add ability to resize buffers](./resize/readme.md)
 * [resnet: gmic convolutional neural network](./resnet/readme.md)
 
-**3d rendering**
+**3d/rendering**
 
 * [accum: accumulate frames in a frame buffer](./accum/readme.md)
 * [bvh: append triangle mesh to ray tracing acceleration structure](./bvh/readme.md)
 * [logo: render the animated vkdt icon](./logo/readme.md)
+* [physarum: mesmerizing interactive particle simulation](./physarum/readme.md)
 * [quake: the 1996 game ray traced based on QSS](./quake/readme.md)
 * [rt: real-time ray tracing](./rt/readme.md)
 * [spheres: shadertoy demo ported for testing](./spheres/readme.md)
