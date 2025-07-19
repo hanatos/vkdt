@@ -24,3 +24,4 @@ Sebastian Lague](https://www.youtube.com/watch?v=X-iSQQgOd1A)
 ## connectors
 
 * `output` the rendered image based on coloured particle locations
+* `mask` optional: input a grey scale image to modulate the pheromone trails

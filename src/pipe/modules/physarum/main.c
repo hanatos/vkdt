@@ -22,6 +22,15 @@ input(
   return 0;
 }
 
+void modify_roi_in(
+    dt_graph_t *graph,
+    dt_module_t *module)
+{
+  module->connector[1].roi.wd = module->connector[1].roi.full_wd;
+  module->connector[1].roi.ht = module->connector[1].roi.full_ht;
+  module->connector[1].roi.scale = 1.0f;
+}
+
 void
 commit_params(
     dt_graph_t  *graph,
@@ -121,9 +130,14 @@ create_nodes(
       "trailw",   "write", "rg",   "f16",  &module->connector[0].roi,
       "output",   "write", "rgba", "f16",  &module->connector[0].roi);
 
-  int id_diffuse = dt_node_add(graph, module, "physarum", "diffuse", wd, ht, 1, 0, 0, 2,
+  int have_mask = dt_connected(module->connector+1);
+  int pc[] = { have_mask };
+  int id_diffuse = dt_node_add(graph, module, "physarum", "diffuse", wd, ht, 1, sizeof(pc), pc, 3,
       "input",  "read",  "*",  "*",    dt_no_roi,
-      "output", "write", "rg", "f16", &module->connector[0].roi);
+      "output", "write", "rg", "f16", &module->connector[0].roi,
+      "mask",   "read",  "*",  "*",    dt_no_roi);
+  if(have_mask) dt_connector_copy(graph, module, 1, id_diffuse, 2);
+  else          CONN(dt_node_connect_named(graph, id_deposit, "trailw", id_diffuse, "mask"));
 
   CONN(dt_node_connect_named (graph, id_move,    "part-cnt", id_deposit, "part-cnt"));
   CONN(dt_node_feedback_named(graph, id_diffuse, "output",   id_deposit, "trailr"));
