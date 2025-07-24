@@ -53,6 +53,7 @@ style_name_to_colour(const char *name)
   if(!strcmp(name, "DT_ACCENT"))                   return  NK_COLOR_DT_ACCENT;
   if(!strcmp(name, "DT_ACCENT_HOVER"))             return  NK_COLOR_DT_ACCENT_HOVER;
   if(!strcmp(name, "DT_ACCENT_ACTIVE"))            return  NK_COLOR_DT_ACCENT_ACTIVE;
+  if(!strcmp(name, "DT_BACKGROUND"))               return  NK_COLOR_DT_BACKGROUND;
   return -1;
 }
 

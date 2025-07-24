@@ -1132,6 +1132,7 @@ static inline void render_darkroom_widgets(
   nk_window_get_scroll(ctx, &offx, &offy);
   struct nk_rect bound = nk_layout_widget_bounds(ctx);
   bound.y -= offy; // account for scrolling: both drawing and mouse events are not relative to scroll window, widget bounds are
+  nk_fill_rect(nk_window_get_canvas(ctx), bound, 0.0, vkdt.style.colour[NK_COLOR_DT_BACKGROUND]);
   bound.h -= ctx->style.tab.padding.y;
   nk_fill_rect(nk_window_get_canvas(ctx), bound, 0.0, ctx->style.tab.background.data.color);
   bound.x += w3[0]; // mouse click: not the disable button

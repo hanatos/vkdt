@@ -11403,7 +11403,7 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     button->userdata                   = nk_handle_ptr(0);
     button->text_alignment             = NK_TEXT_CENTERED;
     button->border                     = S(1.0f);
-    button->rounding                   = S(4.0f);
+    button->rounding                   = S(12.0f);
     button->color_factor_text          = 1.0f;
     button->color_factor_background    = 1.0f;
     button->disabled_factor            = NK_WIDGET_DISABLED_FACTOR;
@@ -11715,7 +11715,7 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     property->userdata      = nk_handle_ptr(0);
     property->padding       = nk_vec2(S(4),S(4));
     property->border        = S(1);
-    property->rounding      = S(10);
+    property->rounding      = S(12);
     property->draw_begin    = 0;
     property->draw_end      = 0;
     property->color_factor  = 1.0f;
@@ -11800,7 +11800,7 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     combo->button_padding   = nk_vec2(0,S(4));
     combo->spacing          = nk_vec2(S(4),0);
     combo->border           = S(1);
-    combo->rounding         = 0;
+    combo->rounding         = S(12);
     combo->color_factor     = 1.0f;
     combo->disabled_factor  = NK_WIDGET_DISABLED_FACTOR;
 
