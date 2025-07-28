@@ -260,15 +260,14 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     KEYFRAME
     nk_label(ctx, str, NK_TEXT_LEFT);
   }
-  else if(param->widget.type == dt_token("hsvknobs") ||
-          param->widget.type == dt_token("rgbknobs"))
-  { // only works for param->type == float and count == 3
-    if((num % 3) == 0 && num+3 <= count)
+  else if(param->widget.type == dt_token("rgbknobs"))
+  { // only works for param->type == float and count == 4
+    if((num % 4) == 0 && num+4 <= count)
     {
-      const float wd = ratio[0]*pwd/6.0f - ctx->style.window.spacing.x;
-      const float w7[] = { wd, wd, wd, wd, wd, wd, ratio[1]*pwd};
-      nk_layout_row(ctx, NK_STATIC, row_height, 7, w7);
-      float *val = (float *)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
+      const float wd = ratio[0]*pwd/7.0f - ctx->style.window.spacing.x;
+      const float w8[] = { wd, wd, wd, wd, wd, wd, wd, ratio[1]*pwd};
+      nk_layout_row(ctx, NK_STATIC, row_height, 8, w8);
+      float *val = (float *)(vkdt.graph_dev.module[modid].param + param->offset) + 4*num;
       struct nk_colorf oldval = {val[0], val[1], val[2], 1.0};
       struct nk_command_buffer *cmd = &vkdt.global_cmd;
       // cache previous hsv so we can reconstruct hue and col for rgb=0
@@ -281,7 +280,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         cc_hsv[hash] = (struct nk_colorf){0};
       }
       const float dead_angle = 60.0f;
-      struct nk_colorf hsv = param->widget.type == dt_token("rgbknobs") ? rgb2hsv_prior(val[0], val[1], val[2], cc_hsv[hash]) : oldval;
+      struct nk_colorf hsv = rgb2hsv_prior(val[0], val[1], val[2], cc_hsv[hash]);
+      const int mode = (int)CLAMP(val[3], 0, 1); // 0 rgb, 1 lshsv
 
 #ifdef ROTARY_ENCODER
 #define ROTARY_KNOB(VAL, M) do {\
@@ -332,48 +332,106 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         }\
       }} while(0)
 
-      dt_tooltip("dt-ucs hue angle");
-      nk_label(ctx, "hue", NK_TEXT_RIGHT);
-      nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
-      struct nk_rect bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // H
-      nk_style_pop_color(ctx);
-      DECORATE(hsv.r, hsv2rgb((k+0.5)/N, .4, 0.6), 1.0f);
-      ROTARY_KNOB(hsv.r, 1.0);
+      if(mode == 0)
+      { // rgb
+        dt_tooltip("red channel");
+        nk_label(ctx, "r", NK_TEXT_RIGHT);
+        nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_f(0.5, 0.1, 0.1, 1.0));
+        struct nk_rect bounds = nk_widget_bounds(ctx);
+        nk_knob_float(ctx, 0.0, val+0, 1.0, 1.0/100.0, NK_DOWN, dead_angle);
+        nk_style_pop_color(ctx);
+        DECORATE(val[0], nk_rgba_f((k+0.5)/N, val[1], val[2], 1.0f), 1.0f/256.0f);
+        ROTARY_KNOB(val[0], 1.0);
 
-      dt_tooltip("dt-ucs colourfulness\nnormalised to max per hue");
-      nk_label(ctx, "col", NK_TEXT_RIGHT);
-      nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 1.0)));
-      bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &hsv.g, 1.0, 1.0/100.0, NK_DOWN, 60.0f); // S
-      nk_style_pop_color(ctx);
-      DECORATE(hsv.g, hsv2rgb(hsv.r, (k+0.5)/N, 0.5), 1.0f);
-      ROTARY_KNOB(hsv.g, 1.0);
+        dt_tooltip("green channel");
+        nk_label(ctx, "g", NK_TEXT_RIGHT);
+        nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_f(0.1, 0.5, 0.1, 1.0));
+        bounds = nk_widget_bounds(ctx);
+        nk_knob_float(ctx, 0.0, val+1, 1.0, 1.0/100.0, NK_DOWN, dead_angle);
+        nk_style_pop_color(ctx);
+        DECORATE(val[1], nk_rgba_f(val[0], (k+0.5)/N, val[2], 1.0f), 1.0f/256.0f);
+        ROTARY_KNOB(val[1], 1.0);
 
-      dt_tooltip("dt-ucs lightness\n0.5 is max/clipping,\n> 0.5 is overdrive");
-      nk_label(ctx, "lit", NK_TEXT_RIGHT);
-      // nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, hsv.b)));
-      bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &hsv.b, 2.0, 1.0/100.0, NK_DOWN, 60.0f); // V
-      // nk_style_pop_color(ctx);
-      DECORATE(hsv.b/2.0, hsv2rgb(hsv.r, hsv.g, 2.0*(k+0.5)/N), 1.0f);
-      ROTARY_KNOB(hsv.b, 2.0);
+        dt_tooltip("blue channel");
+        nk_label(ctx, "b", NK_TEXT_RIGHT);
+        nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_f(0.1, 0.1, 0.5, 1.0));
+        bounds = nk_widget_bounds(ctx);
+        nk_knob_float(ctx, 0.0, val+2, 1.0, 1.0/100.0, NK_DOWN, dead_angle);
+        nk_style_pop_color(ctx);
+        DECORATE(val[2], nk_rgba_f(val[0], val[1], (k+0.5)/N, 1.0f), 1.0f/256.0f);
+        ROTARY_KNOB(val[2], 1.0);
 
+        if(memcmp(&oldval, val, sizeof(float)*3)) change = 1;
+      }
+      else if(mode == 1)
+      { // hsluv
+        dt_tooltip("hsluv hue angle");
+        nk_label(ctx, "hue", NK_TEXT_RIGHT);
+        nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
+        struct nk_rect bounds = nk_widget_bounds(ctx);
+        nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // H
+        nk_style_pop_color(ctx);
+        DECORATE(hsv.r, hsv2rgb((k+0.5)/N, .4, 0.6), 1.0f);
+        ROTARY_KNOB(hsv.r, 1.0);
+
+        dt_tooltip("hsluv colourfulness\nnormalised to max per hue");
+        nk_label(ctx, "col", NK_TEXT_RIGHT);
+        nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 1.0)));
+        bounds = nk_widget_bounds(ctx);
+        nk_knob_float(ctx, 0.0, &hsv.g, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // S
+        nk_style_pop_color(ctx);
+        DECORATE(hsv.g, hsv2rgb(hsv.r, (k+0.5)/N, 0.5), 1.0f);
+        ROTARY_KNOB(hsv.g, 1.0);
+
+        dt_tooltip("hsluv lightness\n0.5 is max/clipping,\n> 0.5 is overdrive");
+        nk_label(ctx, "lit", NK_TEXT_RIGHT);
+        // nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, hsv.b)));
+        bounds = nk_widget_bounds(ctx);
+        nk_knob_float(ctx, 0.0, &hsv.b, 2.0, 1.0/100.0, NK_DOWN, dead_angle); // V
+        // nk_style_pop_color(ctx);
+        DECORATE(hsv.b/2.0, hsv2rgb(hsv.r, hsv.g, 2.0*(k+0.5)/N), 1.0f);
+        ROTARY_KNOB(hsv.b, 2.0);
+
+        struct nk_colorf hsv_old = rgb2hsv_prior(oldval.r, oldval.g, oldval.b, cc_hsv[hash]);
+        if(memcmp(&hsv_old, &hsv, sizeof(float)*3)) change = 1;
+      }
 #undef DECORATE
 #undef ROTARY_KNOB
-      struct nk_colorf hsv_old = param->widget.type == dt_token("rgbknobs") ? rgb2hsv_prior(oldval.r, oldval.g, oldval.b, cc_hsv[hash]) : oldval;
 
-      if(memcmp(&hsv_old, &hsv, sizeof(float)*3)) change = 1;
+      struct nk_vec2 size = { ratio[1]*pwd, ratio[0]*pwd };
+      const char *mode_str[] = { "rgb", "hsluv" };
+      int newmode = mode;
+      enum nk_symbol_type sym_normal = ctx->style.combo.sym_normal;
+      enum nk_symbol_type sym_hover  = ctx->style.combo.sym_hover;
+      enum nk_symbol_type sym_active = ctx->style.combo.sym_active;
+      ctx->style.combo.sym_normal = NK_SYMBOL_NONE;
+      ctx->style.combo.sym_hover  = NK_SYMBOL_NONE;
+      ctx->style.combo.sym_active = NK_SYMBOL_NONE;
+      if(nk_combo_begin_label(ctx, mode_str[mode], size))
+      {
+        nk_layout_row_dynamic(ctx, row_height, 1);
+        if(nk_contextual_item_label(ctx, mode_str[0], NK_TEXT_LEFT)) newmode = 0;
+        if(nk_contextual_item_label(ctx, mode_str[1], NK_TEXT_LEFT)) newmode = 1;
+        nk_combo_end(ctx);
+      }
+      ctx->style.combo.sym_normal = sym_normal;
+      ctx->style.combo.sym_hover  = sym_hover;
+      ctx->style.combo.sym_active = sym_active;
+      if(newmode != mode) change = 1;
       if(change) // don't do this if resetblock triggers change
       {
-        if(param->widget.type == dt_token("rgbknobs"))
-        {
+        if(mode == 1)
+        { // don't convert rgb
           struct nk_colorf rgb = hsv2rgb(hsv.r, hsv.g, hsv.b);
           val[0] = rgb.r; val[1] = rgb.g; val[2] = rgb.b;
         }
-        else memcpy(val, &hsv, sizeof(float)*3);
+        val[3] = newmode;
       }
-      dt_tooltip(param->tooltip);
+      dt_tooltip("%s\n"
+                 "select the colour picker mode of operation:\n"
+                 "rgb: pick rgb channels\n"
+                 "hsluv: pick human friendly hsl",
+                 param->tooltip);
       KEYFRAME
       RESETBLOCK
       nk_label(ctx, str, NK_TEXT_LEFT);
