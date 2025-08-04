@@ -598,6 +598,13 @@ void render_lighttable_right_panel()
     dt_tooltip("how many images per row to display");
     nk_label(ctx, "images/row", NK_TEXT_LEFT);
 
+    if(vkdt.session_type != 1)
+    { // wayland doesn't allow to find out current monitor, fullscreen by using your compositor instead.
+      if(nk_button_label(ctx, vkdt.win.fullscreen ? "un-fullscreen" : "fullscreen"))
+        dt_gui_toggle_fullscreen();
+      nk_label(ctx, "", 0);
+    }
+
     nk_tree_pop(ctx);
   }
 

@@ -151,6 +151,8 @@ typedef struct dt_gui_win_t
   VkSemaphore        sem_image_acquired [DT_GUI_MAX_IMAGES];
   VkSemaphore        sem_render_complete[DT_GUI_MAX_IMAGES];
   uint32_t           sem_fence[DT_GUI_MAX_IMAGES];
+
+  uint32_t           fullscreen;
 }
 dt_gui_win_t;
 

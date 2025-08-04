@@ -638,3 +638,59 @@ dt_gui_set_hdr_metadata(
       &win->swap_chain,
       &meta);
 }
+
+// from a stackoverflow answer. get the monitor that currently covers most of
+// the window area.
+static inline GLFWmonitor*
+dt_gui_get_current_monitor(GLFWwindow *window)
+{
+  int bestoverlap = 0;
+  GLFWmonitor *bestmonitor = NULL;
+
+  int wx, wy, ww, wh;
+  glfwGetWindowPos(window, &wx, &wy);
+  glfwGetFramebufferSize(window, &ww, &wh);
+
+  int nmonitors;
+  GLFWmonitor **monitors = glfwGetMonitors(&nmonitors);
+
+  for (int i = 0; i < nmonitors; i++)
+  {
+    const GLFWvidmode *mode = glfwGetVideoMode(monitors[i]);
+    int mx, my;
+    glfwGetMonitorPos(monitors[i], &mx, &my);
+    int mw = mode->width;
+    int mh = mode->height;
+
+    int overlap =
+      MAX(0, MIN(wx + ww, mx + mw) - MAX(wx, mx)) *
+      MAX(0, MIN(wy + wh, my + mh) - MAX(wy, my));
+
+    if (bestoverlap < overlap)
+    {
+      bestoverlap = overlap;
+      bestmonitor = monitors[i];
+    }
+  }
+  return bestmonitor;
+}
+
+static inline void
+dt_gui_toggle_fullscreen()
+{
+  GLFWmonitor* monitor = dt_gui_get_current_monitor(vkdt.win.window);
+  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+  if(vkdt.win.fullscreen)
+  {
+    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+    int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
+    int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
+    glfwSetWindowMonitor(vkdt.win.window, 0, 0, 0, wd, ht, mode->refreshRate);
+    vkdt.win.fullscreen = 0;
+  }
+  else
+  {
+    glfwSetWindowMonitor(vkdt.win.window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+    vkdt.win.fullscreen = 1;
+  }
+}

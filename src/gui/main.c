@@ -11,6 +11,7 @@
 #include "gui/gui.h"
 #include "gui/render.h"
 #include "gui/view.h"
+#include "gui/api.h"
 #include "db/db.h"
 #include "nk.h"
 
@@ -25,44 +26,6 @@
 #include <math.h>
 
 dt_gui_t vkdt = {0};
-
-int g_fullscreen = 0;
-
-// from a stackoverflow answer. get the monitor that currently covers most of
-// the window area.
-static GLFWmonitor*
-get_current_monitor(GLFWwindow *window)
-{
-  int bestoverlap = 0;
-  GLFWmonitor *bestmonitor = NULL;
-
-  int wx, wy, ww, wh;
-  glfwGetWindowPos(window, &wx, &wy);
-  glfwGetFramebufferSize(window, &ww, &wh);
-
-  int nmonitors;
-  GLFWmonitor **monitors = glfwGetMonitors(&nmonitors);
-
-  for (int i = 0; i < nmonitors; i++)
-  {
-    const GLFWvidmode *mode = glfwGetVideoMode(monitors[i]);
-    int mx, my;
-    glfwGetMonitorPos(monitors[i], &mx, &my);
-    int mw = mode->width;
-    int mh = mode->height;
-
-    int overlap =
-      MAX(0, MIN(wx + ww, mx + mw) - MAX(wx, mx)) *
-      MAX(0, MIN(wy + wh, my + mh) - MAX(wy, my));
-
-    if (bestoverlap < overlap)
-    {
-      bestoverlap = overlap;
-      bestmonitor = monitors[i];
-    }
-  }
-  return bestmonitor;
-}
 
 static inline int
 gamepad_changed(
@@ -111,26 +74,6 @@ joystick_active(void *unused)
 }
 
 static void
-toggle_fullscreen()
-{
-  GLFWmonitor* monitor = get_current_monitor(vkdt.win.window);
-  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-  if(g_fullscreen)
-  {
-    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
-    int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
-    int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
-    glfwSetWindowMonitor(vkdt.win.window, 0, 0, 0, wd, ht, mode->refreshRate);
-    g_fullscreen = 0;
-  }
-  else
-  {
-    glfwSetWindowMonitor(vkdt.win.window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
-    g_fullscreen = 1;
-  }
-}
-
-static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
   dt_view_keyboard(window, key, scancode, action, mods);
@@ -147,7 +90,7 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
   }
   else if(key == GLFW_KEY_F11 && action == GLFW_PRESS)
   {
-    toggle_fullscreen();
+    dt_gui_toggle_fullscreen();
   }
 }
 
@@ -260,7 +203,7 @@ int main(int argc, char *argv[])
 
   // start un-fullscreen on current monitor, we only know which one is that after
   // we created the window in dt_gui_init(). maybe should be a config option:
-  g_fullscreen = 1;
+  vkdt.win.fullscreen = 1;
   dt_gui_recreate_swapchain(&vkdt.win);
   nk_glfw3_resize(vkdt.win.window, vkdt.win.width, vkdt.win.height);
   dt_gui_init_fonts();
@@ -395,7 +338,7 @@ int main(int argc, char *argv[])
       dt_gui_present();
 
     static int bs = 1;
-    if(bs) { toggle_fullscreen(); bs = 0; }
+    if(bs) { dt_gui_toggle_fullscreen(); bs = 0; }
   }
   if(joystick_present) pthread_join(joystick_thread, 0);
 
