@@ -358,6 +358,14 @@ static inline int fs_isdir(const char *dirname, const struct dirent *e)
   // fprintf(stderr, "isdir %s => %d\n", filename, (buf.st_mode & _S_IFDIR) != 0);
   return (buf.st_mode & _S_IFDIR) != 0;
 #else
+  if(e->d_type == DT_UNKNOWN)
+  { // lame filesystem
+    char filename[PATH_MAX];
+    snprintf(filename, sizeof(filename), "%s/%s", dirname, e->d_name);
+    struct stat buf = {0};
+    lstat(filename, &buf);
+    return (buf.st_mode & S_IFMT) == S_IFDIR;
+  }
   return e->d_type == DT_DIR;
 #endif
 }
