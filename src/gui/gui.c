@@ -21,7 +21,7 @@
 void
 dt_gui_style_to_state()
 {
-  vkdt.style.panel_width_frac = dt_rc_get_float(&vkdt.rc, "gui/panel_wd", 0.2f);
+  vkdt.style.panel_width_frac = dt_rc_get_float(&vkdt.rc, "gui/panelwd", 0.2f);
   vkdt.style.border_frac = 0.05f;
   const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
