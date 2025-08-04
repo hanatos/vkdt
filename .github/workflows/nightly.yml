@@ -244,8 +244,9 @@ jobs:
           make DESTDIR=${INSTALL_PREFIX_U} -C ${SRC_DIR} install
       - name: bundle exiftool
         run: |
-          wget https://sourceforge.net/projects/exiftool/files/exiftool-13.33_64.zip/download -o exiftool-13.33_64.zip
-          unzip exiftool-13.33_64.zip
+          wget https://sourceforge.net/projects/exiftool/files/exiftool-13.33_64.zip/download
+          mv download dreggn.zip
+          unzip dreggn.zip
           mv exiftool*/exiftool*exe ${INSTALL_PREFIX_U}/usr/lib/vkdt/exiftool.exe
       - name: check if it runs
         run: |
