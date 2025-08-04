@@ -21,9 +21,9 @@
 void
 dt_gui_style_to_state()
 {
-  vkdt.style.panel_width_frac = 0.2f;
+  vkdt.style.panel_width_frac = dt_rc_get_float(&vkdt.rc, "gui/panel_wd", 0.2f);
   vkdt.style.border_frac = 0.05f;
-  const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * vkdt.win.height;
+  const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
   vkdt.style.fontsize = MAX(5, floorf(20 * vkdt.win.content_scale[1] * dpi_scale));
   float border = MAX(vkdt.style.fontsize * 2 * 1.25, 4); // enough for large 2x font + border
