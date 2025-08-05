@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10.0 FATAL_ERROR)
 
+project(vkdt)
 set(NAME vkdt)
 
 set(SRC_DIR ../../src)
@@ -19,6 +20,7 @@ add_library(native-app-glue STATIC ${ANDROID_NDK}/sources/android/native_app_glu
 
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
 
+include_directories(${SRC_DIR})
 include_directories(${SRC_DIR}/core)
 include_directories(${SRC_DIR}/db)
 include_directories(${SRC_DIR}/gui)

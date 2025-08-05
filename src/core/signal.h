@@ -21,7 +21,7 @@
 #include "db/db.h"
 #include "gui/gui.h"
 
-#if defined(_WIN64) || defined(__APPLE__)
+#if defined(_WIN64) || defined(__APPLE__) || defined(VK_USE_PLATFORM_ANDROID_KHR)
 static inline void dt_set_signal_handlers() {}
 #else
 #include <signal.h>
