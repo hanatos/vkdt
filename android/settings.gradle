@@ -1,0 +1,9 @@
+file('mod').eachDir { sub ->
+    if (sub.name != 'shared') {
+        if (file("mod/$sub.name/build.gradle").exists()) {
+            println("adding module $sub.name")
+            include ":$sub.name"
+            project(":$sub.name").projectDir = new File("mod/$sub.name")
+        }
+    }
+}
