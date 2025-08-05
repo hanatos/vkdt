@@ -670,6 +670,7 @@ void render_darkroom()
         dt_tooltip("level of detail while dragging a slider, for instance. you can set this to higher/coarser than the lod above.");
         nk_tab_property(int, ctx, "#", 1, &vkdt.wstate.lod_interact, 16, 1, 1);
         nk_label(ctx, "dynamic LOD", NK_TEXT_LEFT);
+        vkdt.wstate.lod_interact = MAX(vkdt.wstate.lod_fine, vkdt.wstate.lod_interact); // enfore dynamic is coarser/equal
         nk_tree_pop(ctx);
       }
 
