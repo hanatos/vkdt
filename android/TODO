@@ -1,0 +1,42 @@
+# glfw functions that need wrapping:
+src/gui/api_gui.h
+src/gui/api.h
+src/gui/gui.c
+src/gui/hotkey.h
+src/gui/main.c
+src/gui/nuklear_glfw_vulkan.h
+src/gui/render.c
+src/gui/render_darkroom.c
+src/gui/render_darkroom.h
+src/gui/render_files.c
+src/gui/render_lighttable.c
+src/gui/view.c
+src/gui/widget_image.h
+src/gui/widget_nodes.h
+src/gui/widget_recentcollect.h
+
+# most used:
+glfwPostEmptyEvent
+
+# main work:
+gui.c/main.c
+glfwGetFramebufferSize
+glfwGetTime
+glfwTerminate
+glfwDestroyWindow
+glfwGetJoystickName
+glfwJoystickPresent
+glfwJoystickIsGamepad
+glfwUpdateGamepadMappings
+glfwGetRequiredInstanceExtensions
+
+render.c/render_darkroom/render_lighttable/render_files/widget_image/widget_nodes/hotkey
+glfwSetInputMode
+glfwGetKey
+glfwGetTime
+glfwGetMouseButton
+disable x11 cm stuff/fullscreen stuff (monitor and pos)
+
+
+# use google tutorial for vk loader:
+https://github.com/googlesamples/android-vulkan-tutorials/tree/master
