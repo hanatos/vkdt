@@ -37,6 +37,24 @@ glfwGetTime
 glfwGetMouseButton
 disable x11 cm stuff/fullscreen stuff (monitor and pos)
 
+# gui.c:
+  glfwCreateWindowSurface vs:
+    VkAndroidSurfaceCreateInfoKHR createInfo{
+      .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
+      .pNext = nullptr,
+      .flags = 0,
+      .window = platformWindow};
+
+  CALL_VK(vkCreateAndroidSurfaceKHR(device.instance_, &createInfo, nullptr,
+                                    &device.surface_));
+
+pull out glfwInit and glfwVulkanSupported to main
+init glfw extensions on qvk struct
+set vkdt.win.window to something not 0 (to tell win0 and win1 apart)
+
 
 # use google tutorial for vk loader:
 https://github.com/googlesamples/android-vulkan-tutorials/tree/master
+
+# access resources:
+androidApp->activity->assetManager

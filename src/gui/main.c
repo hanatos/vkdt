@@ -15,8 +15,7 @@
 #include "db/db.h"
 #include "nk.h"
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include <gui/win.h>
 #include <stdio.h>
 #include <time.h>
 #include <sys/types.h>
