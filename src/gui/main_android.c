@@ -3,12 +3,13 @@
 uint8_t glfw_keystate[GLFW_KEY_LAST+1] = {0};
 bool g_initialised = false;
 
-bool initialize(struct android_app* app);
+bool initialise(struct android_app* app);
 void android_main(struct android_app* state);
 void terminate();
 void handle_cmd(struct android_app* app, int32_t cmd);
 uint32_t handle_event(struct android_app *app, AInputEvent *event);
 
+// XXX TODO merge this into main.c with some defines
 void android_main(struct android_app* app)
 {
   app->onAppCmd = handle_cmd;
@@ -38,7 +39,7 @@ int
   while(app->destroyRequested == 0);
 }
 
-bool initialize(struct android_app* app)
+bool initialise(struct android_app* app)
 {
   if(!InitVulkan())
   {
@@ -52,7 +53,7 @@ bool initialize(struct android_app* app)
 
 void terminate()
 {
-  // TODO tear down everything
+  // TODO only finish native activity, do the rest when main exits the loop!
 
   g_initialized = false;
 }
@@ -62,7 +63,7 @@ void handle_cmd(struct android_app* app, int32_t cmd)
   switch (cmd)
   {
     case APP_CMD_INIT_WINDOW:
-      initialize(app);
+      initialise(app);
       break;
     case APP_CMD_WINDOW_RESIZED:
       // TODO grab new size and issue resize callbacks

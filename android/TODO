@@ -43,7 +43,7 @@ disable x11 cm stuff/fullscreen stuff (monitor and pos)
       .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
       .pNext = nullptr,
       .flags = 0,
-      .window = platformWindow};
+      .window = platformWindow}; // XXX what is android_app->window? i think this
 
   CALL_VK(vkCreateAndroidSurfaceKHR(device.instance_, &createInfo, nullptr,
                                     &device.surface_));
