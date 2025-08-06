@@ -18,7 +18,16 @@ void android_main(struct android_app* app)
   android_poll_source* source;
   do
   {
+    // app->looper <- wake this one for glfwPostEmptyEvent
+// void ALooper_wake(ALooper *looper)
+// Wakes the poll asynchronously.
+    // poll once waits until next message comes in:
+    // zero timeout means return immediately, -1 means wait indefinitely
+    // ALooper_pollOnce(int timeoutMillis, int *outFd, int *outEvents, void **outData)
+int
+// Waits for events to be available, with optional timeout in milliseconds.
     // ALooper_pollOnce(focused ? 0 : -1, nullptr, &events, (void**)&source)) > ALOOPER_POLL_TIMEOUT)
+  // deprecated:
     if(ALooper_pollAll(g_initialized ? 1 : 0, 0, &events, &source) >= 0)
       if(source) source->process(app, source);
 

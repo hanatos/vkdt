@@ -10,6 +10,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -DVK_USE_PLATFORM_ANDROID_KHR -DVK_
 file(GLOB CORE_SRC "${SRC_DIR}/core/*.c")
 file(GLOB DB_SRC "${SRC_DIR}/db/*.c")
 file(GLOB GUI_SRC "${SRC_DIR}/gui/*.c")
+# we'll be using main_android.c instead:
+list(REMOVE_ITEM GUI_SRC "${SRC_DIR}/gui/main.c")
 file(GLOB PIPE_SRC "${SRC_DIR}/pipe/*.c")
 file(GLOB QVK_SRC "${SRC_DIR}/qvk/*.c")
 file(GLOB SND_SRC "${SRC_DIR}/snd/*.c")

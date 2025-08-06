@@ -194,6 +194,10 @@ void glfwGetCursorPos(void*, double *x, double *y)
   // XXX grab from cached values
 }
 #define glfwGetTime dt_time
+void glfwSetWindowShouldClose(GLFWwindow *w, int value)
+{
+  if(value) ANativeActivity_finish();
+}
 
 #else
 #define GLFW_INCLUDE_VULKAN
