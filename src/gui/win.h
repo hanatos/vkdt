@@ -14,7 +14,7 @@ typedef struct GLFWwindow GLFWwindow;
 // TODO MOUSE_BUTTON_ and GLFW_MOD_
 
 
-extern uint8_t *glfw_keystate;
+extern uint8_t *g_keystate;
 
 /* printable keys */
 #define GLFW_KEY_SPACE              AKEYCODE_SPACE
@@ -138,7 +138,7 @@ static inline int
 glfwGetKey(GLFWwindow *w, int key)
 {
   if(key < 0 || key > GLFW_KEY_LAST) return 0;
-  return glfw_keystate[key];
+  return g_keystate[key];
 }
 
 #define GLFW_GAMEPAD_BUTTON_A               0
@@ -237,7 +237,8 @@ static inline int glfwGetMouseButton(GLFWwindow *w, int button)
 }
 static void glfwPostEmptyEvent()
 {
-  // TODO: kick the ALooper!
+  struct android_app *app = (struct android_app *)vkdt.win.window;
+  ALooper_wake(app->looper);
 }
 
 #else
