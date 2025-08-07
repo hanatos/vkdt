@@ -24,8 +24,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include "gui/win.h"
 
 NK_API void
 nk_glfw3_init(struct nk_context *ctx, VkRenderPass render_pass, GLFWwindow *win, VkDevice logical_device,

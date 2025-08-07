@@ -2,10 +2,10 @@
 #pragma once
 
 #ifdef __ANDROID__
-
+#include "vulkan_wrapper.h"
+#include "android_native_app_glue.h"
+#include <android/keycodes.h>
 #include <android/log.h>
-#include <vulkan_wrapper.h>
-#include <game-activity/native_app_glue/android_native_app_glue.h>
 
 typedef struct GLFWwindow GLFWwindow;
 
@@ -74,10 +74,10 @@ extern uint8_t *glfw_keystate;
 #define GLFW_KEY_BACKSPACE          AKEYCODE_DEL
 #define GLFW_KEY_INSERT             AKEYCODE_INSERT
 #define GLFW_KEY_DELETE             AKEYCODE_FORWARD_DEL
-// #define GLFW_KEY_RIGHT              ??
-// #define GLFW_KEY_LEFT               ??
-// #define GLFW_KEY_DOWN               ??
-// #define GLFW_KEY_UP                 ??
+#define GLFW_KEY_RIGHT              0 // ??
+#define GLFW_KEY_LEFT               1 // ??
+#define GLFW_KEY_DOWN               2 // ??
+#define GLFW_KEY_UP                 3 // ??
 #define GLFW_KEY_PAGE_UP            AKEYCODE_PAGE_UP
 #define GLFW_KEY_PAGE_DOWN          AKEYCODE_PAGE_DOWN
 #define GLFW_KEY_HOME               AKEYCODE_MOVE_HOME
@@ -99,19 +99,6 @@ extern uint8_t *glfw_keystate;
 #define GLFW_KEY_F10                AKEYCODE_F10
 #define GLFW_KEY_F11                AKEYCODE_F11
 #define GLFW_KEY_F12                AKEYCODE_F12
-#define GLFW_KEY_F13                AKEYCODE_F13
-#define GLFW_KEY_F14                AKEYCODE_F14
-#define GLFW_KEY_F15                AKEYCODE_F15
-#define GLFW_KEY_F16                AKEYCODE_F16
-#define GLFW_KEY_F17                AKEYCODE_F17
-#define GLFW_KEY_F18                AKEYCODE_F18
-#define GLFW_KEY_F19                AKEYCODE_F19
-#define GLFW_KEY_F20                AKEYCODE_F20
-#define GLFW_KEY_F21                AKEYCODE_F21
-#define GLFW_KEY_F22                AKEYCODE_F22
-#define GLFW_KEY_F23                AKEYCODE_F23
-#define GLFW_KEY_F24                AKEYCODE_F24
-#define GLFW_KEY_F25                AKEYCODE_F25
 #define GLFW_KEY_KP_0               AKEYCODE_NUMPAD_0
 #define GLFW_KEY_KP_1               AKEYCODE_NUMPAD_1
 #define GLFW_KEY_KP_2               AKEYCODE_NUMPAD_2
@@ -139,14 +126,14 @@ extern uint8_t *glfw_keystate;
 #define GLFW_KEY_RIGHT_SUPER        AKEYCODE_META_RIGHT
 #define GLFW_KEY_MENU               AKEYCODE_MENU
 
-#define GLFW_KEY_LAST               AKEYCODE_F24
+#define GLFW_KEY_LAST               316
 
 
 #define GLFW_RELEASE 0
 #define GLFW_PRESS 1
 #define GLFW_REPEAT 2
 static inline int
-glfwGetKey(void *, int key)
+glfwGetKey(GLFWwindow *w, int key)
 {
   if(key < 0 || key > GLFW_KEY_LAST) return 0;
   return glfw_keystate[key];
@@ -188,15 +175,58 @@ typedef struct GLFWgamepadstate
 }
 GLFWgamepadstate;
 
-// TODO
-void glfwGetCursorPos(void*, double *x, double *y)
+#define GLFW_MOD_SHIFT           0x0001
+#define GLFW_MOD_CONTROL         0x0002
+#define GLFW_MOD_ALT             0x0004
+#define GLFW_MOD_SUPER           0x0008
+#define GLFW_MOUSE_BUTTON_1         0
+#define GLFW_MOUSE_BUTTON_2         1
+#define GLFW_MOUSE_BUTTON_3         2
+#define GLFW_MOUSE_BUTTON_4         3
+#define GLFW_MOUSE_BUTTON_5         4
+#define GLFW_MOUSE_BUTTON_6         5
+#define GLFW_MOUSE_BUTTON_7         6
+#define GLFW_MOUSE_BUTTON_8         7
+#define GLFW_MOUSE_BUTTON_LAST      GLFW_MOUSE_BUTTON_8
+#define GLFW_MOUSE_BUTTON_LEFT      GLFW_MOUSE_BUTTON_1
+#define GLFW_MOUSE_BUTTON_RIGHT     GLFW_MOUSE_BUTTON_2
+#define GLFW_MOUSE_BUTTON_MIDDLE    GLFW_MOUSE_BUTTON_3
+
+#define GLFW_CURSOR                 0x00033001
+#define GLFW_CURSOR_NORMAL          0x00034001
+#define GLFW_CURSOR_HIDDEN          0x00034002
+#define GLFW_CURSOR_DISABLED        0x00034003
+#define GLFW_CURSOR_CAPTURED        0x00034004
+
+static inline void
+glfwGetCursorPos(GLFWwindow *w, double *x, double *y)
 {
   // XXX grab from cached values
 }
 #define glfwGetTime dt_time
-void glfwSetWindowShouldClose(GLFWwindow *w, int value)
+static inline void glfwSetWindowShouldClose(GLFWwindow *w, int value)
 {
-  if(value) ANativeActivity_finish();
+  struct android_app *app = (struct android_app*)w;
+  if(app && value) ANativeActivity_finish(app->activity);
+} 
+static inline const char *glfwGetClipboardString(GLFWwindow *w)
+{
+  return 0;
+}
+static inline void glfwSetClipboardString(GLFWwindow *w, const char *s) {}
+static inline void
+glfwGetFramebufferSize(GLFWwindow *w, int *wd, int *ht)
+{
+  // TODO
+}
+static inline void glfwSetInputMode(GLFWwindow *w, int cursor, int mode) {}
+static inline int glfwGetMouseButton(GLFWwindow *w, int button)
+{
+  return 0; // TODO grab from cached array
+}
+static void glfwPostEmptyEvent()
+{
+  // TODO: kick the ALooper!
 }
 
 #else

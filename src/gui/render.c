@@ -12,8 +12,6 @@
 #include "render.h"
 #include "widget_draw.h"
 #include "render_view.h"
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 
 static inline int
 style_name_to_colour(const char *name)
@@ -146,13 +144,16 @@ void dt_gui_update_cm()
   int hdr = (vkdt.win.surf_format.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT);
   read_style_colours(&vkdt.ctx, hdr);
 
-  int monitors_cnt;
+  int monitors_cnt = 1;
+  int xpos0 = 0, xpos1 = 0, ypos = 0;
+  const char *name0 = "dspy0", *name1 = "dspy1";
+#ifndef __ANDROID__
   GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
-  const char *name0 = glfwGetMonitorName(monitors[0]);
-  const char *name1 = glfwGetMonitorName(monitors[MIN(monitors_cnt-1, 1)]);
-  int xpos0, xpos1, ypos;
+  name0 = glfwGetMonitorName(monitors[0]);
+  name1 = glfwGetMonitorName(monitors[MIN(monitors_cnt-1, 1)]);
   glfwGetMonitorPos(monitors[0], &xpos0, &ypos);
   glfwGetMonitorPos(monitors[MIN(monitors_cnt-1, 1)], &xpos1, &ypos);
+#endif
   float gamma0[] = {0, 0, 0}; // 0 means use sRGB TRC
   float rec2020_to_dspy0[] = { // to linear sRGB D65
      1.66022709, -0.58754775, -0.07283832,

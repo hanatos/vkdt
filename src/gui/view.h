@@ -1,7 +1,7 @@
 #pragma once
 
 #include "gui/gui.h"
-#include <GLFW/glfw3.h>
+#include "gui/win.h"
 
 int dt_view_switch(dt_gui_view_t view);
 

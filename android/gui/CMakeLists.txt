@@ -15,13 +15,14 @@ list(REMOVE_ITEM GUI_SRC "${SRC_DIR}/gui/main.c")
 file(GLOB PIPE_SRC "${SRC_DIR}/pipe/*.c")
 file(GLOB QVK_SRC "${SRC_DIR}/qvk/*.c")
 file(GLOB SND_SRC "${SRC_DIR}/snd/*.c")
-set(VKDT_SRC ${GUI_SRC} ${CORE_SRC} ${DB_SRC} ${PIPE_SRC} ${QVK_SRC} ${SND_SRC})
+set(VKDT_SRC ${GUI_SRC} ${CORE_SRC} ${DB_SRC} ${PIPE_SRC} ${QVK_SRC} ${SND_SRC} src/main/vulkan_wrapper/vulkan_wrapper.c)
 
 add_library(native-lib SHARED ${VKDT_SRC})
 add_library(native-app-glue STATIC ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
 
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
 
+include_directories(src/main/vulkan_wrapper)
 include_directories(${SRC_DIR})
 include_directories(${SRC_DIR}/core)
 include_directories(${SRC_DIR}/db)
