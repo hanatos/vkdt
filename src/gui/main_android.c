@@ -41,11 +41,6 @@ int
 
 bool initialise(struct android_app* app)
 {
-  if(!InitVulkan())
-  {
-    LOGE("Vulkan is unavailable, install vulkan and re-start");
-    return false;
-  }
   // TODO init the rest of qvk/gui
   // TODO instance extensions: VK_KHR_surface VK_KHR_android_surface
   // TODO device extension: VK_KHR_swapchain

@@ -200,12 +200,21 @@ GLFWgamepadstate;
 #define GLFW_CURSOR_DISABLED        0x00034003
 #define GLFW_CURSOR_CAPTURED        0x00034004
 
+#define GLFW_TRUE 1
+#define GLFW_FALSE 0
+
 static inline void
 glfwGetCursorPos(GLFWwindow *w, double *x, double *y)
 {
   // XXX grab from cached values
 }
 #define glfwGetTime dt_time
+static inline int glfwWindowShouldClose(GLFWwindow *w)
+{
+  struct android_app *app = (struct android_app*)w;
+  if(app) return app->destroyRequested;
+  return 0;
+}
 static inline void glfwSetWindowShouldClose(GLFWwindow *w, int value)
 {
   struct android_app *app = (struct android_app*)w;
