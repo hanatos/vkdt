@@ -1,5 +1,7 @@
 #pragma once
 #include "strexpand.h"
+#include <bits/signal_types.h>
+#include <signal.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <dirent.h>

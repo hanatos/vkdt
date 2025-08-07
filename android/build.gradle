@@ -42,6 +42,7 @@ ext {
     minSdkVersion = 29
     targetSdkVersion = 29
     compileSdkVersion = 29
+    ndkVersion = "29.0.13846066"
     modulePath = '../src/pipe/modules'
     assetPath = '../bin/data'
 }

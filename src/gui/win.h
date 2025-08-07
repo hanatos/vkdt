@@ -2,7 +2,9 @@
 #pragma once
 
 #ifdef __ANDROID__
-#include "vulkan_wrapper.h"
+#include <vulkan/vulkan.h>
+#include <bits/signal_types.h>
+#include <signal.h>
 #include "android_native_app_glue.h"
 #include <android/keycodes.h>
 #include <android/log.h>

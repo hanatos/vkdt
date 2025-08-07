@@ -67,6 +67,8 @@ extern PFN_vkGetFenceStatus vkGetFenceStatus;
 extern PFN_vkWaitForFences vkWaitForFences;
 extern PFN_vkCreateSemaphore vkCreateSemaphore;
 extern PFN_vkDestroySemaphore vkDestroySemaphore;
+extern PFN_vkGetSemaphoreCounterValue vkGetSemaphoreCounterValue;
+extern PFN_vkWaitSemaphores vkWaitSemaphores;
 extern PFN_vkCreateEvent vkCreateEvent;
 extern PFN_vkDestroyEvent vkDestroyEvent;
 extern PFN_vkGetEventStatus vkGetEventStatus;

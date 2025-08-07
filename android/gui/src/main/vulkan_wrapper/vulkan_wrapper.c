@@ -64,6 +64,8 @@ int InitVulkan()
     vkWaitForFences = (dlsym(libvulkan, "vkWaitForFences"));
     vkCreateSemaphore = (dlsym(libvulkan, "vkCreateSemaphore"));
     vkDestroySemaphore = (dlsym(libvulkan, "vkDestroySemaphore"));
+    vkGetSemaphoreCounterValue = (dlsym(libvulkan, "vkGetSemaphoreCounterValue"));
+    vkWaitSemaphoes = (dlsym(libvulkan, "vkWaitSemaphores"));
     vkCreateEvent = (dlsym(libvulkan, "vkCreateEvent"));
     vkDestroyEvent = (dlsym(libvulkan, "vkDestroyEvent"));
     vkGetEventStatus = (dlsym(libvulkan, "vkGetEventStatus"));
@@ -257,6 +259,8 @@ PFN_vkGetFenceStatus vkGetFenceStatus;
 PFN_vkWaitForFences vkWaitForFences;
 PFN_vkCreateSemaphore vkCreateSemaphore;
 PFN_vkDestroySemaphore vkDestroySemaphore;
+PFN_vkGetSemaphoreCounterValue vkGetSemaphoreCounterValue;
+PFN_vkWaitSemaphores vkWaitSemaphores;
 PFN_vkCreateEvent vkCreateEvent;
 PFN_vkDestroyEvent vkDestroyEvent;
 PFN_vkGetEventStatus vkGetEventStatus;
