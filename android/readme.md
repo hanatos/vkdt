@@ -14,8 +14,11 @@ archlinux-java set java-21-openjdk
 # have write permissions. there are better ways 
 # (see https://wiki.archlinux.org/title/Android), but fuck it:
 chown -R you:you /opt/android-sdk
+# back to your own user
 export ANDROID_HOME=/opt/android-sdk
-sdkmanager --licenses
+/opt/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+# until we have modules:
+mkdir mod
 ```
 
 build:
