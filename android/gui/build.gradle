@@ -42,6 +42,17 @@ task copyTask {
         into "assets"
         include 'font_msdf.lut'
     }
+    copy {
+        from '../../src/pipe/modules'
+        into 'assets'
+        include '**/connectors'
+        include '**/ctooltips'
+        include '**/ptooltips'
+        include '**/*.spv'
+        include '**/*.params'
+        include '**/*.params.ui'
+        include '**/readme.md'
+    }
 }
 
 preBuild.dependsOn copyTask
