@@ -14,9 +14,6 @@ typedef struct GLFWwindow GLFWwindow;
 // TODO MOUSE_BUTTON_ and GLFW_MOD_
 
 
-extern uint8_t *g_keystate;
-extern struct android_app *g_app;
-
 /* printable keys */
 #define GLFW_KEY_SPACE              AKEYCODE_SPACE
 #define GLFW_KEY_APOSTROPHE         AKEYCODE_APOSTROPHE
@@ -135,12 +132,6 @@ extern struct android_app *g_app;
 #define GLFW_RELEASE 0
 #define GLFW_PRESS 1
 #define GLFW_REPEAT 2
-static inline int
-glfwGetKey(GLFWwindow *w, int key)
-{
-  if(key < 0 || key > GLFW_KEY_LAST) return 0;
-  return g_keystate[key];
-}
 
 #define GLFW_GAMEPAD_BUTTON_A               0
 #define GLFW_GAMEPAD_BUTTON_B               1
@@ -238,6 +229,21 @@ static inline int glfwGetMouseButton(GLFWwindow *w, int button)
   return 0; // TODO grab from cached array
 }
 void glfwPostEmptyEvent();
+
+extern uint8_t g_keystate[GLFW_KEY_LAST+1];
+extern struct android_app *g_app;
+static inline int
+glfwGetKey(GLFWwindow *w, int key)
+{
+  if(key < 0 || key > GLFW_KEY_LAST) return 0;
+  return g_keystate[key];
+}
+static inline void glfwTerminate() {}
+static inline int glfwGetGamepadState(int joystick_id, GLFWgamepadstate *s)
+{
+  // TODO copy into s
+  return 0; // XXX return > 0 if success!
+}
 #else
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>

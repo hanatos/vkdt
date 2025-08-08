@@ -47,6 +47,7 @@ gamepad_changed(
   return 0;
 }
 
+#ifndef __ANDROID__
 // since in glfw, joysticks can only be polled and have no event interface
 // (see this pull request: https://github.com/glfw/glfw/pull/1590)
 // we need to look for changes in a busy loop in this dedicated thread.
@@ -73,6 +74,7 @@ joystick_active(void *unused)
   }
   return 0;
 }
+#endif
 
 static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -190,7 +192,7 @@ void handle_cmd(struct android_app* app, int32_t cmd)
   }
 }
 
-uint32_t handle_event(struct android_app *app, AInputEvent *event)
+int32_t handle_event(struct android_app *app, AInputEvent *event)
 {
   // TODO call our callbacks, set keystates, set mouse buttons
   if(AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION)
@@ -205,10 +207,12 @@ uint32_t handle_event(struct android_app *app, AInputEvent *event)
       }
       case AINPUT_SOURCE_TOUCHSCREEN:
       {
-        int32_t action = AMotionEvent_getAction(event);
-                for (size_t i = 0; i < AMotionEvent_getPointerCount(event); ++i) {
-            x = AMotionEvent_getX(event, i);
-            y = AMotionEvent_getY(event, i);
+        // TODO grab pointer location / infer tap, double tap, scroll, swipe
+        // TODO and call the appropriate callbacks
+        // int32_t action = AMotionEvent_getAction(event);
+        //         for (size_t i = 0; i < AMotionEvent_getPointerCount(event); ++i) {
+        //     x = AMotionEvent_getX(event, i);
+        //     y = AMotionEvent_getY(event, i);
         break;
       }
     }
@@ -240,16 +244,17 @@ void glfwPostEmptyEvent()
   ALooper_wake(app->looper);
 }
 
-void android_main(struct android_app* state);
+void android_main(struct android_app* app)
 {
+  int argc = 1;
+  char *argv[] = { "android", 0 };
   app->onAppCmd = handle_cmd;
   app->onInputEvent = handle_event;
   int events;
-  android_poll_source* source;
-  while (!g_app)
-    if(ALooper_pollOnce(-1, 0, &events, &source) >= 0)
+  struct android_poll_source* source;
+  while(!g_app)
+    if(ALooper_pollOnce(-1, 0, &events, (void**)&source) >= 0)
       if(source) source->process(app, source);
-  //  TODO repeat this loop below while not app->destroyRequested
 #else
 int main(int argc, char *argv[])
 {
@@ -351,10 +356,7 @@ int main(int argc, char *argv[])
   }
   dt_gui_read_tags();
 
-  // joystick
-#ifdef __ANDROID__
-  const int joystick_present = 0;
-#else
+#ifndef __ANDROID__
   pthread_t joystick_thread;
   const int joystick_present = vkdt.wstate.have_joystick;
   if(joystick_present) pthread_create(&joystick_thread, 0, joystick_active, 0);
@@ -397,7 +399,12 @@ int main(int argc, char *argv[])
     if(vkdt.win1.window)
       nk_glfw3_input_begin(&vkdt.ctx1, vkdt.win1.window, vkdt.session_type == 1);
 
+#ifdef __ANDROID__
+    if(ALooper_pollOnce(-1, 0, &events, (void**)&source) >= 0)
+      if(source) source->process(app, source);
+#else
     glfwWaitEvents();
+#endif
 
     // preserve these after nk_input_end:
     vkdt.wstate.interact_begin = 0;
@@ -429,7 +436,9 @@ int main(int argc, char *argv[])
     static int bs = 1;
     if(bs) { dt_gui_toggle_fullscreen(); bs = 0; }
   }
+#ifndef __ANDROID__
   if(joystick_present) pthread_join(joystick_thread, 0);
+#endif
 
   for(int q=0;q<s_queue_cnt;q++)
     if(qvk.qid[q] == q)

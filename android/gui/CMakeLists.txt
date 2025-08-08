@@ -14,7 +14,7 @@ file(GLOB DB_SRC "${SRC_DIR}/db/*.c")
 file(GLOB GUI_SRC "${SRC_DIR}/gui/*.c")
 file(GLOB PIPE_SRC "${SRC_DIR}/pipe/*.c")
 file(GLOB QVK_SRC "${SRC_DIR}/qvk/*.c")
-file(GLOB SND_SRC "${SRC_DIR}/snd/*.c")
+file(GLOB SND_SRC "${SRC_DIR}/snd/none.c")
 set(VKDT_SRC ${GUI_SRC} ${CORE_SRC} ${DB_SRC} ${PIPE_SRC} ${QVK_SRC} ${SND_SRC}) # src/main/vulkan_wrapper/vulkan_wrapper.c)
 # include_directories(src/main/vulkan_wrapper)
 
@@ -37,5 +37,6 @@ target_link_libraries(
     native-lib
     native-app-glue
     android
+    log
     ${Vulkan_LIBRARIES}
 )

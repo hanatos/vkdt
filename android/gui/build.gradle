@@ -4,7 +4,7 @@ android {
     compileSdkVersion rootProject.ext.compileSdkVersion
     ndkVersion rootProject.ext.ndkVersion
     defaultConfig {
-        ndkVersion "29.0.13846066"
+        ndkVersion "28.2.13676358"
         applicationId "org.dreggn.vkdt"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion

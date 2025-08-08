@@ -149,7 +149,7 @@ dt_gui_win_init_vk(dt_gui_win_t *win)
     .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
     .window = g_app->window
   };
-  QVKR(vkCreateAndroidSurfaceKHR(qvk.instance, &create_info, 0, &win.surface));
+  QVKR(vkCreateAndroidSurfaceKHR(qvk.instance, &create_info, 0, &win->surface));
 #endif
 
   QVKR(dt_gui_recreate_swapchain(win));
