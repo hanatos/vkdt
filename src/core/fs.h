@@ -335,41 +335,6 @@ static inline int fs_isreg(const char *dirname, const struct dirent *e)
 #endif
 }
 
-static inline int fs_isdir_file(const char *filename)
-{
-#ifdef _WIN64
-  struct __stat64 buf = {0};
-  _stat64(filename, &buf);
-  return (buf.st_mode & _S_IFDIR) != 0;
-#else
-  struct stat buf = {0};
-  lstat(filename, &buf);
-  return (buf.st_mode & S_IFMT) == S_IFDIR;
-#endif
-}
-
-static inline int fs_isdir(const char *dirname, const struct dirent *e)
-{
-#ifdef _WIN64
-  char filename[PATH_MAX];
-  struct __stat64 buf;
-  snprintf(filename, sizeof(filename), "%s/%s", dirname, e->d_name);
-  _stat64(filename, &buf);
-  // fprintf(stderr, "isdir %s => %d\n", filename, (buf.st_mode & _S_IFDIR) != 0);
-  return (buf.st_mode & _S_IFDIR) != 0;
-#else
-  if(e->d_type == DT_UNKNOWN)
-  { // lame filesystem
-    char filename[PATH_MAX];
-    snprintf(filename, sizeof(filename), "%s/%s", dirname, e->d_name);
-    struct stat buf = {0};
-    lstat(filename, &buf);
-    return (buf.st_mode & S_IFMT) == S_IFDIR;
-  }
-  return e->d_type == DT_DIR;
-#endif
-}
-
 static inline char*
 fs_realpath(const char *path, char *resolved_path)
 {
@@ -423,6 +388,54 @@ fs_realpath(const char *path, char *resolved_path)
     }
   }
   return NULL;
+#endif
+}
+
+static inline int fs_isdir_file(const char *filename)
+{
+#ifdef _WIN64
+  struct __stat64 buf = {0};
+  _stat64(filename, &buf);
+  return (buf.st_mode & _S_IFDIR) != 0;
+#else
+  struct stat buf = {0};
+  lstat(filename, &buf);
+  return (buf.st_mode & S_IFMT) == S_IFDIR;
+#endif
+}
+
+// this calls `realpath` on symlinks before classification.
+static inline int fs_isdir(const char *dirname, const struct dirent *e)
+{
+#ifdef _WIN64
+  char filename[PATH_MAX];
+  struct __stat64 buf;
+  snprintf(filename, sizeof(filename), "%s/%s", dirname, e->d_name);
+  _stat64(filename, &buf);
+  // fprintf(stderr, "isdir %s => %d\n", filename, (buf.st_mode & _S_IFDIR) != 0);
+  return (buf.st_mode & _S_IFDIR) != 0;
+#else
+  char resolved[PATH_MAX], filename[PATH_MAX];
+  if(e->d_type == DT_UNKNOWN)
+  { // lame filesystem
+    snprintf(filename, sizeof(filename), "%s/%s", dirname, e->d_name);
+    struct stat buf = {0};
+    lstat(filename, &buf);
+
+    if((buf.st_mode & S_IFMT) == S_IFLNK)
+    {
+      fs_realpath(filename, resolved);
+      return fs_isdir_file(resolved);
+    }
+    return (buf.st_mode & S_IFMT) == S_IFDIR;
+  }
+  if(e->d_type == DT_LNK) 
+  {
+    snprintf(filename, sizeof(filename), "%s/%s", dirname, e->d_name);
+    fs_realpath(filename, resolved);
+    return fs_isdir_file(resolved);
+  }
+  return e->d_type == DT_DIR;
 #endif
 }
 
