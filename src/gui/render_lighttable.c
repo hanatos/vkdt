@@ -1140,7 +1140,7 @@ void render_lighttable_right_panel()
         if(f)
         {
           len = fread(text, 1, sizeof(text), f);
-          while(!feof(f) && !ferror(f)) fgetc(f); // drain empty
+          while(!feof(f) && !ferror(f) && (fgetc(f) != EOF)); // drain empty
           text_end = text + len;
           text[len] = 0;
           imgid = vkdt.db.current_imgid;

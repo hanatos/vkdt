@@ -15,6 +15,7 @@ typedef struct GLFWwindow GLFWwindow;
 
 
 extern uint8_t *g_keystate;
+extern struct android_app *g_app;
 
 /* printable keys */
 #define GLFW_KEY_SPACE              AKEYCODE_SPACE
@@ -209,6 +210,7 @@ glfwGetCursorPos(GLFWwindow *w, double *x, double *y)
   // XXX grab from cached values
 }
 #define glfwGetTime dt_time
+static inline void glfwDestroyWindow(GLFWwindow *w) {}
 static inline int glfwWindowShouldClose(GLFWwindow *w)
 {
   struct android_app *app = (struct android_app*)w;
@@ -235,12 +237,7 @@ static inline int glfwGetMouseButton(GLFWwindow *w, int button)
 {
   return 0; // TODO grab from cached array
 }
-static void glfwPostEmptyEvent()
-{
-  struct android_app *app = (struct android_app *)vkdt.win.window;
-  ALooper_wake(app->looper);
-}
-
+void glfwPostEmptyEvent();
 #else
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>

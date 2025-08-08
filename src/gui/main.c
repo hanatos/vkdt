@@ -234,6 +234,12 @@ uint32_t handle_event(struct android_app *app, AInputEvent *event)
   return 0; // did not handle the event
 }
 
+void glfwPostEmptyEvent()
+{
+  struct android_app *app = (struct android_app *)vkdt.win.window;
+  ALooper_wake(app->looper);
+}
+
 void android_main(struct android_app* state);
 {
   app->onAppCmd = handle_cmd;

@@ -1,55 +1,28 @@
-# glfw functions that need wrapping:
-src/gui/api_gui.h
-src/gui/api.h
-src/gui/gui.c
-src/gui/hotkey.h
-src/gui/main.c
-src/gui/nuklear_glfw_vulkan.h
-src/gui/render.c
-src/gui/render_darkroom.c
-src/gui/render_darkroom.h
-src/gui/render_files.c
-src/gui/render_lighttable.c
-src/gui/view.c
-src/gui/widget_image.h
-src/gui/widget_nodes.h
-src/gui/widget_recentcollect.h
+# native android build of vkdt
 
-# most used:
-glfwPostEmptyEvent
+to install the sdk:
 
-# main work:
-gui.c/main.c
-glfwGetFramebufferSize
-glfwGetTime
-glfwTerminate
-glfwDestroyWindow
-glfwGetJoystickName
-glfwJoystickPresent
-glfwJoystickIsGamepad
-glfwUpdateGamepadMappings
-glfwGetRequiredInstanceExtensions
+yay android-sdk-cmdline-tools-latest
+yay android-sdk-build-tools
+yay android-sdk-platform-tools
+yay android-platform
+yay android-tools
+su -
+pacman -Syu jdk21-openjdk
+archlinux-java set java-21-openjdk 
+# have write permissions. there are better ways 
+# (see https://wiki.archlinux.org/title/Android), but fuck it:
+chown -R you:you /opt/android-sdk
+export ANDROID_HOME=/opt/android-sdk
+sdkmanager --licenses
 
-render.c/render_darkroom/render_lighttable/render_files/widget_image/widget_nodes/hotkey
-glfwSetInputMode
-glfwGetKey
-glfwGetTime
-glfwGetMouseButton
-disable x11 cm stuff/fullscreen stuff (monitor and pos)
+build:
+./gradlew assemble
+
+#---
 
 # gui.c:
-  glfwCreateWindowSurface vs:
-    VkAndroidSurfaceCreateInfoKHR createInfo{
-      .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
-      .pNext = nullptr,
-      .flags = 0,
-      .window = platformWindow}; // XXX what is android_app->window? i think this
-
-  CALL_VK(vkCreateAndroidSurfaceKHR(device.instance_, &createInfo, nullptr,
-                                    &device.surface_));
-
 pull out glfwInit and glfwVulkanSupported to main
-init glfw extensions on qvk struct
 set vkdt.win.window to something not 0 (to tell win0 and win1 apart)
 
 

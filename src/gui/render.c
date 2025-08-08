@@ -78,7 +78,7 @@ read_style_colours(struct nk_context *ctx, int hdr)
     char name[128];
     fscanf(f, "%127[^:]:%d:%d:%d:%d%*[^\n]", name, rgba, rgba+1, rgba+2, rgba+3);
     if(!name[0]) break;
-    fgetc(f);
+    if(fgetc(f) == EOF) break;
     int idx = style_name_to_colour(name);
     if(hdr) for(int i=0;i<3;i++)
     {
