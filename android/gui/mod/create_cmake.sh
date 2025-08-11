@@ -27,10 +27,14 @@ done
 
 # dependencies and special stuff:
 cat << EOF >> i-jpg/CMakeLists.txt
+include_directories(${CMAKE_BINARY_DIR}/libjpeg-turbo/src)
+include_directories(${CMAKE_BINARY_DIR}/libjpeg-turbo-build)
 add_dependencies(i-jpg jpeg-turbo)
 target_link_libraries(i-jpg jpeg)
 EOF
 cat << EOF >> o-jpg/CMakeLists.txt
+include_directories(${CMAKE_BINARY_DIR}/libjpeg-turbo/src)
+include_directories(${CMAKE_BINARY_DIR}/libjpeg-turbo-build)
 add_dependencies(o-jpg jpeg-turbo)
 target_link_libraries(o-jpg jpeg)
 EOF
