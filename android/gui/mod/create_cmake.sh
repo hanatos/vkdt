@@ -20,10 +20,26 @@ set(ASS_DIR ../../assets)
 include_directories(\${SRC_DIR})
 include_directories(\${MOD_DIR})
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVKDT_DSO_BUILD")
 add_library($m SHARED \${MOD_DIR}/main.c)
 # target_link_libraries($m z)
 EOF
 done
 
+# dependencies and special stuff:
+cat << EOF >> i-jpg/CMakeLists.txt
+add_dependencies(i-jpg jpeg-turbo)
+target_link_libraries(i-jpg jpeg)
+EOF
+cat << EOF >> o-jpg/CMakeLists.txt
+add_dependencies(o-jpg jpeg-turbo)
+target_link_libraries(o-jpg jpeg)
+EOF
+cat << EOF >> i-bc1/CMakeLists.txt
+target_link_libraries(i-bc1 z)
+EOF
+cat << EOF >> o-bc1/CMakeLists.txt
+target_link_libraries(o-bc1 z)
+EOF
 
 # main.cc

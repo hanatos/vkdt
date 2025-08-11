@@ -6,6 +6,8 @@ set(ASS_DIR ../../assets)
 include_directories(${SRC_DIR})
 include_directories(${MOD_DIR})
 
+set(CMAKE_C_FLAGS " -DVKDT_DSO_BUILD")
 add_library(o-jpg SHARED ${MOD_DIR}/main.c)
+# target_link_libraries(o-jpg z)
 add_dependencies(o-jpg jpeg-turbo)
 target_link_libraries(o-jpg jpeg)

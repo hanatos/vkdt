@@ -6,5 +6,6 @@ set(ASS_DIR ../../assets)
 include_directories(${SRC_DIR})
 include_directories(${MOD_DIR})
 
+set(CMAKE_C_FLAGS " -DVKDT_DSO_BUILD")
 add_library(mv2rot SHARED ${MOD_DIR}/main.c)
 # target_link_libraries(mv2rot z)
