@@ -1,0 +1,10 @@
+set(NAME curves)
+set(MOD curves)
+set(SRC_DIR ../../../../src)
+set(MOD_DIR ${SRC_DIR}/pipe/modules/${MOD})
+set(ASS_DIR ../../assets)
+include_directories(${SRC_DIR})
+include_directories(${MOD_DIR})
+
+add_library(curves SHARED ${MOD_DIR}/main.c)
+# target_link_libraries(curves z)

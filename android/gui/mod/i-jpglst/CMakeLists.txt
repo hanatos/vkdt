@@ -1,0 +1,10 @@
+set(NAME i-jpglst)
+set(MOD i-jpglst)
+set(SRC_DIR ../../../../src)
+set(MOD_DIR ${SRC_DIR}/pipe/modules/${MOD})
+set(ASS_DIR ../../assets)
+include_directories(${SRC_DIR})
+include_directories(${MOD_DIR})
+
+add_library(i-jpglst SHARED ${MOD_DIR}/main.c)
+# target_link_libraries(i-jpglst z)

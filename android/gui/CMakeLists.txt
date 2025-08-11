@@ -41,9 +41,14 @@ target_link_libraries(
     ${Vulkan_LIBRARIES}
 )
 
-file(GLOB V_GLOB LIST_DIRECTORIES true "mod/*")
-foreach(item ${V_GLOB})
-	if(IS_DIRECTORY ${item})
-		add_subdirectory(${item})
-	endif()
-endforeach()
+include(ExternalProject)
+ExternalProject_Add(jpeg-turbo
+  GIT_REPOSITORY    https://github.com/libjpeg-turbo/libjpeg-turbo.git
+  GIT_TAG           main
+  SOURCE_DIR        "${CMAKE_BINARY_DIR}/libjpeg-turbo"
+  BINARY_DIR        "${CMAKE_BINARY_DIR}/libjpeg-turbo-build"
+)
+
+# because everybody loves bloatware we have to list all subdirectories
+# one by one by hand. !@#$)*&
+include(mods.cmake)

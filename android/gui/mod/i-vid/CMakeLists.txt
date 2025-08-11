@@ -1,0 +1,10 @@
+set(NAME i-vid)
+set(MOD i-vid)
+set(SRC_DIR ../../../../src)
+set(MOD_DIR ${SRC_DIR}/pipe/modules/${MOD})
+set(ASS_DIR ../../assets)
+include_directories(${SRC_DIR})
+include_directories(${MOD_DIR})
+
+add_library(i-vid SHARED ${MOD_DIR}/main.c)
+# target_link_libraries(i-vid z)

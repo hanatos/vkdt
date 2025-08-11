@@ -1,0 +1,10 @@
+set(NAME dmlp-t)
+set(MOD dmlp-t)
+set(SRC_DIR ../../../../src)
+set(MOD_DIR ${SRC_DIR}/pipe/modules/${MOD})
+set(ASS_DIR ../../assets)
+include_directories(${SRC_DIR})
+include_directories(${MOD_DIR})
+
+add_library(dmlp-t SHARED ${MOD_DIR}/main.c)
+# target_link_libraries(dmlp-t z)

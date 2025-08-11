@@ -1,0 +1,10 @@
+set(NAME pick)
+set(MOD pick)
+set(SRC_DIR ../../../../src)
+set(MOD_DIR ${SRC_DIR}/pipe/modules/${MOD})
+set(ASS_DIR ../../assets)
+include_directories(${SRC_DIR})
+include_directories(${MOD_DIR})
+
+add_library(pick SHARED ${MOD_DIR}/main.c)
+# target_link_libraries(pick z)
