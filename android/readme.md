@@ -21,6 +21,14 @@ export ANDROID_HOME=/opt/android-sdk
 mkdir mod
 ```
 
+install rustup, not rust, and then
+```bash
+rustup default stable
+cargo build --target aarch64-linux-android --release
+```
+also run a regular build using the makefile system, to generate
+all the required intermediates (tooltips from docs, colour luts, etc).
+
 build:
 ```bash
 ./gradlew assemble

@@ -44,5 +44,13 @@ EOF
 cat << EOF >> o-bc1/CMakeLists.txt
 target_link_libraries(o-bc1 z)
 EOF
+cat << EOF >> i-raw/CMakeLists.txt
+add_library(rawloader STATIC IMPORTED)
+# for whatever reason the cwd is fucked up later so we expand it during parse time:
+file(REAL_PATH \${MOD_DIR} MOD_ABS BASE_DIRECTORY "\${CMAKE_CURRENT_SOURCE_DIR}")
+set_target_properties(rawloader PROPERTIES IMPORTED_LOCATION \${MOD_ABS}/rawloader-c/target/aarch64-linux-android/release/librawloader.a)
+target_link_libraries(i-raw rawloader)
+EOF
+
 
 # main.cc
