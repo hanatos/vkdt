@@ -8,4 +8,4 @@ include_directories(${MOD_DIR})
 
 set(CMAKE_C_FLAGS " -DVKDT_DSO_BUILD")
 add_library(o-bc1 SHARED ${MOD_DIR}/main.c)
-# target_link_libraries(o-bc1 z)
+target_link_libraries(o-bc1 z)

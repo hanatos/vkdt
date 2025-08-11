@@ -22,7 +22,6 @@ include_directories(\${MOD_DIR})
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVKDT_DSO_BUILD")
 add_library($m SHARED \${MOD_DIR}/main.c)
-# target_link_libraries($m z)
 EOF
 done
 
