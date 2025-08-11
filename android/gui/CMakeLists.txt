@@ -45,9 +45,11 @@ target_link_libraries(
 set(ANDROID_VERSION 31)
 set(NDK_PATH /opt/android-sdk/ndk/28.2.13676358/)
 include(ExternalProject)
+# use frozen hash for current main so we don't need
+# internet access all the time
 ExternalProject_Add(jpeg-turbo
   GIT_REPOSITORY    https://github.com/libjpeg-turbo/libjpeg-turbo.git
-  GIT_TAG           main
+  GIT_TAG           f158143ec0caceb7fd3c073205ded90f4e2b98eb
   SOURCE_DIR        "${CMAKE_BINARY_DIR}/libjpeg-turbo"
   BINARY_DIR        "${CMAKE_BINARY_DIR}/libjpeg-turbo-build"
   CMAKE_ARGS        -DANDROID_ABI=arm64-v8a -DANDROID_ARM_MODE=arm -DANDROID_PLATFORM=android-${ANDROID_VERSION} -DANDROID_TOOLCHAIN=clang -DCMAKE_ASM_FLAGS="--target=aarch64-linux-android${ANDROID_VERSION}" -DCMAKE_TOOLCHAIN_FILE=${NDK_PATH}/build/cmake/android.toolchain.cmake

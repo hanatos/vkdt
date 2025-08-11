@@ -202,7 +202,7 @@ void write_sink(
     FILE *f = popen(cmd, "r");
     if(f)
     { // drain empty
-      while(!feof(f) && !ferror(f)) fgetc(f);
+      while(!feof(f) && !ferror(f) && (fgetc(f) != EOF));
       pclose(f);
     }
   }
