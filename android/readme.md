@@ -54,3 +54,13 @@ https://github.com/googlesamples/android-vulkan-tutorials/tree/master
 # access resources:
 androidApp->activity->assetManager
 AAsset* asset = AAssetManager_open(*assetManager, filename, AASSET_MODE_BUFFER);
+
+# debug:
+```
+adb shell
+am start -S -n org.dreggn.vkdt/.VulkanActivity
+```
+and then look at log via 
+```
+logcat | grep vkdt grep " W "
+```
