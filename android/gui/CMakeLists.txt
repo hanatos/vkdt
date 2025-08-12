@@ -7,7 +7,7 @@ find_package(Vulkan REQUIRED)
 
 set(SRC_DIR ../../src)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -DVK_USE_PLATFORM_ANDROID_KHR") # -DVK_NO_PROTOTYPES")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -D__USE_BSD=1 -DVK_USE_PLATFORM_ANDROID_KHR") # -DVK_NO_PROTOTYPES")
 
 file(GLOB CORE_SRC "${SRC_DIR}/core/*.c")
 file(GLOB DB_SRC "${SRC_DIR}/db/*.c")

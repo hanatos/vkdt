@@ -2,11 +2,11 @@
 #include "pipe/global.h"
 // simple resource location indirection management
 
-
 #ifdef __ANDROID__
 #include <stdio.h>
 #include <errno.h>
 #include <android/asset_manager.h>
+#include "android_native_app_glue.h"
 
 static int android_read(void* cookie, char* buf, int size) {
   return AAsset_read((AAsset*)cookie, buf, size);
@@ -25,19 +25,14 @@ static int android_close(void* cookie) {
   return 0;
 }
 
-// must be established by someone else...
-AAssetManager* android_asset_manager;
-void android_fopen_set_asset_manager(AAssetManager* manager) {
-  android_asset_manager = manager;
-}
-
-// XXX TODO put asset manager on dt_pipe globally
-FILE* android_fopen(const char* fname, const char* mode) {
-  if(mode[0] == 'w') return NULL;
+static inline FILE*
+android_fopen(const char* fname, const char* mode)
+{
+  if(mode[0] == 'w') return 0;
 
   AAssetManager *ass = dt_pipe.app->activity->assetManager;
-  AAsset* asset = AAssetManager_open(android_asset_manager, fname, 0);
-  if(!asset) return NULL;
+  AAsset* asset = AAssetManager_open(ass, fname, 0);
+  if(!asset) return 0;
 
   return funopen(asset, android_read, android_write, android_seek, android_close);
 }
@@ -79,12 +74,12 @@ dt_graph_open_resource(
   // if we can't open it in the graph specific search path, try the home directory:
   snprintf(filename, sizeof(filename), "%s/%s", dt_pipe.homedir, fname);
   if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
-  f = fopen(filename, mode);
+  FILE *f = fopen(filename, mode);
   if(f) return f;
   // global basedir/apk
-  snprintf(filename, sizeof(filename), "%s/%s", dt_pipe.basedir, fname);
+  snprintf(filename, sizeof(filename), "%s", fname);
   if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
-  return fopen(filename, mode);
+  return android_fopen(filename, mode);
 }
 
 // take file name param and start frame param and return located raw file name.

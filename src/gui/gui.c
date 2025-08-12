@@ -147,7 +147,7 @@ dt_gui_win_init_vk(dt_gui_win_t *win)
 #else
   VkAndroidSurfaceCreateInfoKHR create_info = {
     .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
-    .window = g_app->window
+    .window = dt_pipe.app->window
   };
   QVKR(vkCreateAndroidSurfaceKHR(qvk.instance, &create_info, 0, &win->surface));
 #endif

@@ -4,6 +4,7 @@
 #include "pipe/graph.h"
 #include "pipe/module.h"
 #include "pipe/modules/localsize.h"
+#include "pipe/res.h"
 
 #include <math.h>
 #include <stdarg.h>

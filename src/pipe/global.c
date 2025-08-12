@@ -2,6 +2,7 @@
 #include "asciiio.h"
 #include "module.h"
 #include "graph.h"
+#include "res.h"
 #include "core/log.h"
 #include "core/fs.h"
 #include "modules/api.h"
