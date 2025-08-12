@@ -48,12 +48,32 @@ pull out glfwInit and glfwVulkanSupported to main
 set vkdt.win.window to something not 0 (to tell win0 and win1 apart)
 
 
-# use google tutorial for vk loader:
-https://github.com/googlesamples/android-vulkan-tutorials/tree/master
-
 # access resources:
 androidApp->activity->assetManager
-AAsset* asset = AAssetManager_open(*assetManager, filename, AASSET_MODE_BUFFER);
+`AAsset* asset = AAssetManager_open(*assetManager, filename, AASSET_MODE_BUFFER);`
+use `android_fopen`
+place android app pointer somewhere on `dt_pipe`?
+
+check `dt_pipe.basedir` accesses, only these go through `android_fopen`!
+* how many fopen do we really have (replace by `dt_fopen`?)
+* only basedir->apk
+* some fopen stuff will undoubtedly go through basedir || homedir (need polymorphism?)
+* images are opened the regular way (raw, mcraw, jpg, ..)
+* need `fs_copy` from apk too
+* have users for plain fopen: mlv,mcraw,hdr,exr.
+* i-lut needs to work with apk, but we can write that manually
+
+open:
+* resource of specific graph (e.g. image for cfg, data/.lut, ..)
+* resource in homedir or basedir (e.g. font, styles, cm,..)
+```
+DTFILE* dt_open(
+    dt_graph_t *g,        // or 0 if not associated with a graph
+    const char *filename, // relative to graph, home, or basedir(apk)
+    const char mode)
+```
+and similar again for filename to hand to c++ or rust (in which case the
+apk/basedir will not work)
 
 # debug:
 ```

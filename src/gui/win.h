@@ -231,7 +231,6 @@ static inline int glfwGetMouseButton(GLFWwindow *w, int button)
 void glfwPostEmptyEvent();
 
 extern uint8_t g_keystate[GLFW_KEY_LAST+1];
-extern struct android_app *g_app;
 static inline int
 glfwGetKey(GLFWwindow *w, int key)
 {

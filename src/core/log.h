@@ -138,10 +138,11 @@ dt_log(
     if(index > sizeof(pre)/sizeof(pre[0])) index = 0;
     va_list args;
     va_start(args, format);
-#ifdef __ANDROID__
-     __android_log_print(ANDROID_LOG_WARN, pre[index], format, args);
-#else
     char str[2048];
+#ifdef __ANDROID__ // android logs are so busy, make sure we can grep for [vkdt]:
+    snprintf(str, sizeof(str), "[vkdt] %s\n", format);
+     __android_log_print(ANDROID_LOG_WARN, pre[index], str, args);
+#else
     snprintf(str, sizeof(str), "%s %s\n", pre[index], format);
     vfprintf(stdout, str, args);
 #endif

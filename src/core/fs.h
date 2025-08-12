@@ -162,12 +162,15 @@ fs_homedir(
     char  *homedir, // output will be copied here
     size_t maxlen)  // allocation size
 {
-#ifndef _WIN64
-  snprintf(homedir, maxlen, "%s/.config/vkdt", getenv("HOME"));
-#else
+#if defined(__ANDROID__)
+  // TODO native activity -> internalDataPath
+  // TODO need to place android pointer garbage somewhere global
+#elif defined(_WIN64)
   char home[MAX_PATH];
   SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
   snprintf(homedir, maxlen, "%s/vkdt/config", home);
+#else
+  snprintf(homedir, maxlen, "%s/.config/vkdt", getenv("HOME"));
 #endif
 }
 
@@ -177,7 +180,10 @@ fs_basedir(
     size_t maxlen)  // allocation size
 {
   basedir[0] = 0;
-#ifdef __linux__
+#if defined(__ANDROID__)
+  // have to use android_fopen etc instead, i.e. go through the asset manager thing.
+  snprintf(basedir, maxlen, "android doesn't have this!\n");
+#elif defined(__linux__)
   // stupid allocation dance because passing basedir directly
   // may or may not require PATH_MAX bytes instead of maxlen
   char *bd = realpath("/proc/self/exe", 0);

@@ -39,12 +39,20 @@ android {
 task copyTask {
     copy {
         from '../../bin/data'
-        into "assets"
+        into "assets/data"
+        include 'bomb.bc1'
+        include 'busybee.bc1'
         include 'font_msdf.lut'
+        include 'font_metrics.lut'
+        include 'filmsim.lut'
+        include 'abney.lut'
+        include 'spectra.lut'
+        include 'spectra-em.lut'
+        include 'spectra-em.lut'
     }
     copy {
         from '../../src/pipe/modules'
-        into 'assets'
+        into 'assets/modules'
         include '**/connectors'
         include '**/ctooltips'
         include '**/ptooltips'
