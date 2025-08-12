@@ -441,7 +441,7 @@ int dt_pipe_global_init(void *appv)
   AAssetDir_rewind(fd);
   while((fn = AAssetDir_getNextFileName(fd)))
   {
-    int err = dt_module_so_load(dt_pipe.module + i, dp->d_name);
+    int err = dt_module_so_load(dt_pipe.module + i, fs_basename((char*)fn));
     if(!err) i++;
   }
   dt_pipe.num_modules = i;

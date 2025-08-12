@@ -11,9 +11,6 @@
 
 typedef struct GLFWwindow GLFWwindow;
 
-// TODO MOUSE_BUTTON_ and GLFW_MOD_
-
-
 /* printable keys */
 #define GLFW_KEY_SPACE              AKEYCODE_SPACE
 #define GLFW_KEY_APOSTROPHE         AKEYCODE_APOSTROPHE

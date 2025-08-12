@@ -20,21 +20,22 @@ set(ASS_DIR ../../assets)
 include_directories(\${SRC_DIR})
 include_directories(\${MOD_DIR})
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVKDT_DSO_BUILD")
+set(CMAKE_C_FLAGS "\${CMAKE_C_FLAGS} -DVKDT_DSO_BUILD -D__USE_BSD=1")
 add_library($m SHARED \${MOD_DIR}/main.c)
+target_link_libraries($m android)
 EOF
 done
 
 # dependencies and special stuff:
 cat << EOF >> i-jpg/CMakeLists.txt
-include_directories(${CMAKE_BINARY_DIR}/libjpeg-turbo/src)
-include_directories(${CMAKE_BINARY_DIR}/libjpeg-turbo-build)
+include_directories(\${CMAKE_BINARY_DIR}/libjpeg-turbo/src)
+include_directories(\${CMAKE_BINARY_DIR}/libjpeg-turbo-build)
 add_dependencies(i-jpg jpeg-turbo)
 target_link_libraries(i-jpg jpeg)
 EOF
 cat << EOF >> o-jpg/CMakeLists.txt
-include_directories(${CMAKE_BINARY_DIR}/libjpeg-turbo/src)
-include_directories(${CMAKE_BINARY_DIR}/libjpeg-turbo-build)
+include_directories(\${CMAKE_BINARY_DIR}/libjpeg-turbo/src)
+include_directories(\${CMAKE_BINARY_DIR}/libjpeg-turbo-build)
 add_dependencies(o-jpg jpeg-turbo)
 target_link_libraries(o-jpg jpeg)
 EOF
