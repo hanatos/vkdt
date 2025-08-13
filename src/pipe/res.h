@@ -1,5 +1,7 @@
 #pragma once
 #include "pipe/global.h"
+#include "core/fs.h"
+#include <dirent.h>
 // simple resource location indirection management
 
 #ifdef __ANDROID__
@@ -122,25 +124,25 @@ dt_res_opendir(const char *dirname, const int inbase)
   if(inbase)
     return AAssetManager_openDir(dt_pipe.app->activity->assetManager, dirname);
 #endif
-  const char dn[PATH_MAX];
+  char dn[PATH_MAX];
   int r = snprintf(dn, sizeof(dn), "%s/%s",
-      inbase ? dt_pipe.basedir : dt_pipe.homedir);
+      inbase ? dt_pipe.basedir : dt_pipe.homedir, dirname);
   if(r >= sizeof(dn)) return 0;
   return opendir(dn);
 }
-static inline void
+static inline int
 dt_res_closedir(void *dir, const int inbase)
 {
 #ifdef __ANDROID__
-  if(inbase) return AAssetDir_close((AAssetDir*)dir);
+  if(inbase) { AAssetDir_close((AAssetDir*)dir); return 0; }
 #endif
   return closedir((DIR*)dir);
 }
 static inline const char*
-dt_res_next_basename(dt_dir_t *dir, const int inbase)
+dt_res_next_basename(void *dir, const int inbase)
 {
 #ifdef __ANDROID__
-  if(inbase) return fs_basename(AAssetDir_getNextFileName((AAssetDir*)dir));
+  if(inbase) return fs_basename((char*)AAssetDir_getNextFileName((AAssetDir*)dir));
 #endif
   struct dirent *dp = readdir((DIR*)dir);
   return dp->d_name;

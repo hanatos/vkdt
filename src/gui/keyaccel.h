@@ -2,7 +2,7 @@
 #include "db/stringpool.h"
 #include "core/log.h"
 #include "core/sort.h"
-#include <dirent.h>
+#include "pipe/res.h"
 
 // this is responsible for managing (user supplied) tiny-presets that can be
 // bound to a button via the hotkey system.
@@ -35,23 +35,19 @@ dt_keyaccel_init(
   dt_stringpool_init(&ka->sp, 2*list_size, 30); // + space for description/comment
   char dirname[PATH_MAX];
   uint32_t id = 0, old_cnt = list_cnt;
-  for(int dir=0;dir<2;dir++)
+  for(int inbase=0;inbase<2;inbase++)
   { // first search home dir, then system wide:
-    size_t r = 0;
-    if(dir) r = snprintf(dirname, sizeof(dirname), "%s/data/keyaccel", dt_pipe.basedir);
-    else    r = snprintf(dirname, sizeof(dirname), "%s/keyaccel", vkdt.db.basedir);
-    if(r >= sizeof(dirname)) continue; // truncated
-    DIR* dirp = opendir(dirname);
+    void* dirp = dt_res_opendir("keyaccel", inbase);
     if(!dirp) continue; // no such directory, we're out
-    struct dirent *ent = 0;
-    while((ent = readdir(dirp)))
+    const char *basename = 0;
+    while((basename = dt_res_next_basename(dirp, inbase)))
     {
       if(list_cnt >= list_size) break;
-      if(ent->d_name[0] == '.') continue; // skip parent directories and hidden files
+      if(basename[0] == '.') continue; // skip parent directories and hidden files
 
       char comment[256] = {0};
       char filename[PATH_MAX];
-      size_t r = snprintf(filename, sizeof(filename), "%s/%s", dirname, ent->d_name);
+      size_t r = snprintf(filename, sizeof(filename), "%s/%s", dirname, basename);
       if(r >= sizeof(filename)) continue; // truncated
       FILE *f = fopen(filename, "rb");
       if(f)
@@ -63,7 +59,7 @@ dt_keyaccel_init(
 
       id++;
       const char *dedup0 = 0, *dedup1 = 0;
-      uint32_t id0 = dt_stringpool_get(&ka->sp, ent->d_name, strlen(ent->d_name), id, &dedup0);
+      uint32_t id0 = dt_stringpool_get(&ka->sp, basename, strlen(basename), id, &dedup0);
       if(id0 != id) continue; // this preset name already inserted (probably local overriding global)
       dt_stringpool_get(&ka->sp, comment, strlen(comment), 0, &dedup1);
       // dt_log(s_log_gui, "[keyaccel] adding hotkey %d %s %s\n", list_cnt, dedup0, dedup1);
@@ -72,7 +68,7 @@ dt_keyaccel_init(
       for(int k=0;k<4;k++) list[list_cnt].key[k] = 0; // these will be set when reading the darkroom.hotkeys config file
       list_cnt++;
     }
-    closedir(dirp);
+    dt_res_closedir(dirp, inbase);
   }
   // sort only the new entries
   if(id) sort(list+old_cnt, list_cnt-old_cnt, sizeof(list[0]), compare_keyaccel, 0);
