@@ -49,31 +49,29 @@ set vkdt.win.window to something not 0 (to tell win0 and win1 apart)
 
 
 # access resources:
-androidApp->activity->assetManager
-`AAsset* asset = AAssetManager_open(*assetManager, filename, AASSET_MODE_BUFFER);`
-use `android_fopen`
-place android app pointer somewhere on `dt_pipe`?
 
-check `dt_pipe.basedir` accesses, only these go through `android_fopen`!
-* how many fopen do we really have (replace by `dt_fopen`?)
-* only basedir->apk
-* some fopen stuff will undoubtedly go through basedir || homedir (need polymorphism?)
-* images are opened the regular way (raw, mcraw, jpg, ..)
-* need `fs_copy` from apk too
+* check `dt_pipe.basedir` accesses, replace by res.h
+  * signal.h -> no android
+  * db.c
+  * thumbnails.c
+  * keyaccel.h
+  * render_darkroom.c
+  * render.c
+  * widget_filteredlist.h
+  * render_lighttable.c
+  * nuklear_glfw_vulkan.h : fonts from apk
+  * graph-run-modules.h
+  * global.c
+  * graph-io.c
+  * graph.c
+  * o-jpg/main.c : embed exif, simply don't
+  * i-raw/main.cc
+  * i-mlv/main.c  : replace basedir by dt_pipe.basedir/res code
+  * i-bc1: dt_graph_get_resource_filename is the right thing? data/busybee.bc1?
+
+* need `fs_copy` from apk too (take FILE)
 * have users for plain fopen: mlv,mcraw,hdr,exr.
 * i-lut needs to work with apk, but we can write that manually
-
-open:
-* resource of specific graph (e.g. image for cfg, data/.lut, ..)
-* resource in homedir or basedir (e.g. font, styles, cm,..)
-```
-DTFILE* dt_open(
-    dt_graph_t *g,        // or 0 if not associated with a graph
-    const char *filename, // relative to graph, home, or basedir(apk)
-    const char mode)
-```
-and similar again for filename to hand to c++ or rust (in which case the
-apk/basedir will not work)
 
 # debug:
 ```

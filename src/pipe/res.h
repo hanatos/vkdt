@@ -100,13 +100,7 @@ dt_graph_get_resource_filename(
     snprintf(tmp, sizeof(tmp), "%s/%s", mod->graph->searchpath, fname);
     snprintf(ret, ret_size, tmp, frame);
     FILE *f = fopen(ret, "rb");
-    if(!f)
-    {
-      snprintf(tmp, sizeof(tmp), "%s/%s", mod->graph->basedir, fname);
-      snprintf(ret, ret_size, tmp, frame);
-      f = fopen(tmp, "rb");
-      if(!f) return 1; // damn that.
-    }
+    if(!f) return 1;
     fclose(f);
   }
   else

@@ -257,7 +257,6 @@ int dt_graph_set_searchpath(
     dt_graph_t *graph,
     const char *filename)
 {
-  snprintf(graph->basedir, sizeof(graph->basedir), "%s", dt_pipe.basedir); // take copy for modules without global access
   char target[PATH_MAX] = {0};
   const char *f = target;
   if(!fs_realpath(filename, target)) f = filename;

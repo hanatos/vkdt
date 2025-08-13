@@ -64,21 +64,8 @@ open_file(
 
   const char *filename = fname;
   char tmpfn[2*PATH_MAX+10]; // replicate api.h:dt_graph_open_resource
-  if(filename[0] != '/') // relative paths
-  {
-    snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->searchpath, fname);
-    filename = tmpfn;
-    FILE *f = fopen(filename, "rb");
-    if(!f)
-    {
-      snprintf(tmpfn, sizeof(tmpfn), "%s/%s", mod->graph->basedir, fname);
-      filename = tmpfn;
-      f = fopen(filename, "rb");
-      if(!f) return 1; // damn that.
-    }
-    fclose(f);
-  }
-
+  if(dt_graph_get_resource_filename(mod, fname, 0, tmpfn, sizeof(tmpfn))) return 1;
+  filename = tmpfn;
   if(mlv_open_clip(&dat->video, filename, 0))//MLV_OPEN_PREVIEW)
     return 1;
 
