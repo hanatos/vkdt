@@ -112,3 +112,44 @@ dt_graph_get_resource_filename(
   }
   return 0;
 }
+
+// open directory in either home or in basedir/apk
+static inline void*
+dt_res_opendir(const char *dirname, const int inbase)
+{
+  if(!dirname) return 0;
+#ifdef __ANDROID__
+  if(inbase)
+    return AAssetManager_openDir(dt_pipe.app->activity->assetManager, dirname);
+#endif
+  const char dn[PATH_MAX];
+  int r = snprintf(dn, sizeof(dn), "%s/%s",
+      inbase ? dt_pipe.basedir : dt_pipe.homedir);
+  if(r >= sizeof(dn)) return 0;
+  return opendir(dn);
+}
+static inline void
+dt_res_closedir(void *dir, const int inbase)
+{
+#ifdef __ANDROID__
+  if(inbase) return AAssetDir_close((AAssetDir*)dir);
+#endif
+  return closedir((DIR*)dir);
+}
+static inline const char*
+dt_res_next_basename(dt_dir_t *dir, const int inbase)
+{
+#ifdef __ANDROID__
+  if(inbase) return fs_basename(AAssetDir_getNextFileName((AAssetDir*)dir));
+#endif
+  struct dirent *dp = readdir((DIR*)dir);
+  return dp->d_name;
+}
+static inline void
+dt_res_rewinddir(void *dir, const int inbase)
+{
+#ifdef __ANDROID__
+  if(inbase) return AAssetDir_rewind((AAssetDir*)dir);
+#endif
+  return rewinddir((DIR*)dir);
+}

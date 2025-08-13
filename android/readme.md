@@ -51,9 +51,6 @@ set vkdt.win.window to something not 0 (to tell win0 and win1 apart)
 # access resources:
 
 * check `dt_pipe.basedir` accesses, replace by res.h
-  * signal.h -> no android
-  * db.c
-  * thumbnails.c
   * keyaccel.h
   * render_darkroom.c
   * render.c
@@ -66,12 +63,10 @@ set vkdt.win.window to something not 0 (to tell win0 and win1 apart)
   * graph.c
   * o-jpg/main.c : embed exif, simply don't
   * i-raw/main.cc
-  * i-mlv/main.c  : replace basedir by dt_pipe.basedir/res code
-  * i-bc1: dt_graph_get_resource_filename is the right thing? data/busybee.bc1?
 
-* need `fs_copy` from apk too (take FILE)
 * have users for plain fopen: mlv,mcraw,hdr,exr.
-* i-lut needs to work with apk, but we can write that manually
+
+TODO: opendir/readdir/closedir wrapper to work with apk
 
 # debug:
 ```

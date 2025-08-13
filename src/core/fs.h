@@ -27,6 +27,23 @@
 #endif
 #include <errno.h>
 
+static inline int
+fs_copy_file(
+    const char *dst,
+    FILE *fsrc)  // copy from file descriptor, enables zlib/apk stuff
+{
+  FILE *fdst = fopen(dst, "wb");
+  if(!fdst) return 1;
+  if(!fsrc) return 2;
+  char buf[BUFSIZ];
+  size_t n;
+  while((n = fread(buf, sizeof(char), sizeof(buf), fsrc)) > 0)
+    if(fwrite(buf, sizeof(char), n, fdst) != n)
+    { fclose(fdst); fclose(fsrc); return 3; }
+  fclose(fdst);
+  return 0;
+}
+
 static inline int // returns zero on success
 fs_copy(
     const char *dst,

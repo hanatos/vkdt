@@ -4,6 +4,7 @@
 #include "core/fs.h"
 #include "core/sort.h"
 #include "pipe/graph-defaults.h"
+#include "pipe/res.h"
 #include "stringpool.h"
 #include "exif.h"
 
@@ -612,8 +613,16 @@ void dt_db_reset_to_defaults(
     fullfn[len-7] = 0;
   dt_token_t input_module = dt_graph_default_input_module(fullfn);
   char defcfg[PATH_MAX+30];
-  snprintf(defcfg, sizeof(defcfg), "%s/default-darkroom.%" PRItkn, dt_pipe.basedir, dt_token_str(input_module));
-  fs_copy(fn, defcfg);
+  snprintf(defcfg, sizeof(defcfg), "default-darkroom.%" PRItkn, dt_token_str(input_module));
+
+  FILE *defcfgf = dt_graph_open_resource(0, 0, defcfg, "rb");
+  if(!defcfgf)
+  {
+    dt_log(s_log_db|s_log_err, "could not copy default cfg for %"PRItkn, dt_token_str(input_module));
+    return;
+  }
+  fs_copy_file(fn, defcfgf);
+  fclose(defcfgf);
   FILE *f = fopen(fn, "ab");
   if(f)
   {

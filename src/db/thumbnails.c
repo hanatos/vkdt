@@ -241,7 +241,7 @@ dt_thumbnails_cache_one(
 #endif
   else
   {
-    char tmp[PATH_MAX];
+    char tmp[PATH_MAX]; // note that basedir might be garbage on android:
     if(snprintf(tmp, sizeof(tmp), "%s/%s", dt_pipe.basedir, deffilename) >= PATH_MAX)
       return VK_INCOMPLETE;
     if(!stat(tmp, &statbuf))
@@ -250,7 +250,9 @@ dt_thumbnails_cache_one(
 #else
       tcfg = statbuf.st_mtime;
 #endif
-    else return VK_INCOMPLETE;
+    // else we can't stat it but it might be fine because android can't
+    // access stuff within the apk, so we leave the timestamp of such
+    // constant files at 0
   }
 
   if(!stat(bc1filename, &statbuf))
@@ -291,8 +293,13 @@ dt_thumbnails_cache_one(
   {
     dt_log(s_log_db, "[thm] running the thumbnail graph failed on image '%s'!", filename);
     // mark as dead
+#ifdef __ANDROID__
+    FILE *f = dt_graph_open_resource(0, 0, "data/bomb.bc1", "rb");
+    fs_copy_file(bc1filename, f);
+#else
     snprintf(cfgfilename, sizeof(cfgfilename), "%s/data/bomb.bc1", dt_pipe.basedir);
     fs_link(cfgfilename, bc1filename);
+#endif
     return 4;
   }
   clock_t end = clock();
@@ -488,10 +495,15 @@ dt_thumbnails_load_one(
     // XXX run through realpath once for windows and / vs \\ confusion?
     uint64_t hash = hash64(filename);
     snprintf(imgfilename, sizeof(imgfilename), "%s/%"PRIx64".bc1", tn->cachedir, hash);
+#ifndef __ANDROID__ // these are the bomb and busybee, should always be in apk
   }
   else if(snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dt_pipe.basedir, filename) >= sizeof(imgfilename)) return VK_INCOMPLETE;
+#endif
   struct stat statbuf = {0};
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
+#ifdef __ANDROID__
+  }
+#endif
 
   dt_graph_reset(graph);
   int m0 = dt_module_add(graph, dt_token("i-bc1"), dt_token("main"));
