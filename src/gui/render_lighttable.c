@@ -1258,7 +1258,7 @@ void render_lighttable()
     {
       static char filter[256] = "all time best";
       static char name[PATH_MAX];
-      int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name), s_filteredlist_allow_new | s_filteredlist_return_short);
+      int ok = filteredlist(0, "tags", filter, name, sizeof(name), s_filteredlist_allow_new | s_filteredlist_return_short);
       if(ok) vkdt.wstate.popup = 0; // got some answer
       nk_popup_end(&vkdt.ctx);
       if(ok == 1)
@@ -1288,7 +1288,7 @@ void render_lighttable()
     {
       char filename[1024] = {0};
       static char filter[256];
-      int ok = filteredlist("%s/data/presets", "%s/presets", filter, filename, sizeof(filename), s_filteredlist_default);
+      int ok = filteredlist("presets", "presets", filter, filename, sizeof(filename), s_filteredlist_default);
       if(ok) vkdt.wstate.popup = 0;
       if(ok == 1)
       {

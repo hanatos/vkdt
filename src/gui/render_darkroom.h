@@ -1364,7 +1364,7 @@ render_darkroom_modals()
     {
       static char filter[256] = "all time best";
       static char name[PATH_MAX];
-      int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name), s_filteredlist_allow_new | s_filteredlist_return_short);
+      int ok = filteredlist(0, "tags", filter, name, sizeof(name), s_filteredlist_allow_new | s_filteredlist_return_short);
       if(ok) vkdt.wstate.popup = 0;
       if(ok == 1)
       {
@@ -1387,7 +1387,7 @@ render_darkroom_modals()
       char filename[1024] = {0};
       static char filter[256];
       if(ret & NK_EDIT_COMMITED) vkdt.wstate.popup_appearing = 1; // re-focus, will trigger enter => accept
-      int ok = filteredlist("%s/modules", 0, filter, filename, sizeof(filename), s_filteredlist_descr_req | s_filteredlist_return_short);
+      int ok = filteredlist("modules", 0, filter, filename, sizeof(filename), s_filteredlist_descr_req | s_filteredlist_return_short);
       if(ok) vkdt.wstate.popup = 0;
       if(ok == 1)
       {
@@ -1547,7 +1547,7 @@ render_darkroom_modals()
       if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
         dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
       static char filter[256];
-      int ok = filteredlist("%s/presets", "%s/presets", filter, filename, sizeof(filename), s_filteredlist_default);
+      int ok = filteredlist("presets", "presets", filter, filename, sizeof(filename), s_filteredlist_default);
       if(ok) vkdt.wstate.popup = 0;
       if(ok == 1)
       {
