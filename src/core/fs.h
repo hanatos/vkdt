@@ -141,7 +141,7 @@ fs_basename(char *str)
 { // don't use basename(3) because there are at least two versions of it which sometimes modify str
   char *c = str; // return str if it contains no '/'
   for(int i=0;str[i]!=0;i++) if(str[i] == '/' || str[i] == '\\') c = str+i;
-  return c+1;
+  return c == str ? str : c+1;
 }
 
 static inline void // ${HOME}/Pictures

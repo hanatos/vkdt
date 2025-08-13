@@ -436,7 +436,11 @@ int dt_pipe_global_init(void *appv)
   }
   int i = 0;
   const char *basename = 0;
-  while((basename = dt_res_next_basename(fd, 1))) i++;
+  while((basename = dt_res_next_basename(fd, 1))) 
+  {
+    dt_log(s_log_pipe, "counting dir %s", basename);
+    i++;
+  }
   dt_pipe.num_modules = i;
   dt_pipe.module = malloc(sizeof(dt_module_so_t)*dt_pipe.num_modules);
   i = 0;

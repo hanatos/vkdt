@@ -55,3 +55,18 @@ EOF
 
 
 # main.cc
+# TODO the c++ stuff: i-exr o-exr i-mcraw
+
+# now create list of modules
+cd ../../../src/pipe/modules
+mods=$(find . -name readme.md | cut -f2 -d/| sort|uniq | grep -v quake | grep -v readme.md)
+cat << EOF > modlist.h
+#pragma once
+static const char *const dt_mod[] = {
+EOF
+for m in $mods
+do
+  echo \"$m\", >> modlist.h
+done
+echo "};" >> modlist.h
+cd -

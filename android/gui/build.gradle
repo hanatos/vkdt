@@ -51,6 +51,14 @@ task copyTask {
         include 'spectra-em.lut'
     }
     copy {
+      from '../../bin/keyaccel'
+      into 'assets/keyaccel'
+    }
+    copy {
+      from '../../bin/presets'
+      into 'assets/presets'
+    }
+    copy {
         from '../../src/pipe/modules'
         into 'assets/modules'
         include '**/connectors'
@@ -60,6 +68,7 @@ task copyTask {
         include '**/*.params'
         include '**/*.params.ui'
         include '**/readme.md'
+        exclude 'readme.md'
     }
 }
 

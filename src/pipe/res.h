@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <android/asset_manager.h>
 #include "android_native_app_glue.h"
+#include "modules/modlist.h"
 
 static int android_read(void* cookie, char* buf, int size) {
   return AAsset_read((AAsset*)cookie, buf, size);
@@ -122,7 +123,10 @@ dt_res_opendir(const char *dirname, const int inbase)
   if(!dirname) return 0;
 #ifdef __ANDROID__
   if(inbase)
+  { // AAARRRGH
+    // if(!strcmp(dirname, "modules")) return calloc(1, sizeof(uint64_t));
     return AAssetManager_openDir(dt_pipe.app->activity->assetManager, dirname);
+  }
 #endif
   char dn[PATH_MAX];
   int r = snprintf(dn, sizeof(dn), "%s/%s",
@@ -134,7 +138,12 @@ static inline int
 dt_res_closedir(void *dir, const int inbase)
 {
 #ifdef __ANDROID__
-  if(inbase) { AAssetDir_close((AAssetDir*)dir); return 0; }
+  if(inbase)
+  {
+    // if(dir <= sizeof(dt_mod)/sizeof(dt_mod[0])) return 0;
+    AAssetDir_close((AAssetDir*)dir);
+    return 0;
+  }
 #endif
   return closedir((DIR*)dir);
 }
@@ -142,7 +151,20 @@ static inline const char*
 dt_res_next_basename(void *dir, const int inbase)
 {
 #ifdef __ANDROID__
-  if(inbase) return fs_basename((char*)AAssetDir_getNextFileName((AAssetDir*)dir));
+  // god fucking damn the android native api. you can't enumerate directories.
+  // all we get is fucking filenames, no subdirs.
+  // TODO:
+  // do the satanically fucked answer to this: hardcode list of modules
+  // in a header compile time and only go through this list in some order,
+  // in case that dir=="modules"
+  if(inbase)
+  {
+    // uint64_t *cnt = dir;
+    // if(cnt <= sizeof(dt_mod)/sizeof(dt_mod[0])) 
+      // return dt_mod[(uint64_t)(*cnt++) - 1];
+    // if(cnt == sizeof(dt_mod)/sizeof(dt_mod[0]) + 1) return 0;
+    return fs_basename((char*)AAssetDir_getNextFileName((AAssetDir*)dir));
+  }
 #endif
   struct dirent *dp = readdir((DIR*)dir);
   return dp->d_name;
@@ -151,7 +173,15 @@ static inline void
 dt_res_rewinddir(void *dir, const int inbase)
 {
 #ifdef __ANDROID__
-  if(inbase) return AAssetDir_rewind((AAssetDir*)dir);
+  if(inbase)
+  {
+    // if(dir <= sizeof(dt_mod)/sizeof(dt_mod[0])) 
+    // {
+    //   *dir = 1;
+    //   return;
+    // }
+    return AAssetDir_rewind((AAssetDir*)dir);
+  }
 #endif
   return rewinddir((DIR*)dir);
 }

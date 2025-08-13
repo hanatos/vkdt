@@ -141,7 +141,7 @@ dt_log(
     char str[2048];
 #ifdef __ANDROID__ // android logs are so busy, make sure we can grep for [vkdt]:
     snprintf(str, sizeof(str), "[vkdt] %s\n", format);
-     __android_log_print(ANDROID_LOG_WARN, pre[index], str, args);
+     __android_log_vprint(ANDROID_LOG_WARN, pre[index], str, args);
 #else
     snprintf(str, sizeof(str), "%s %s\n", pre[index], format);
     vfprintf(stdout, str, args);
