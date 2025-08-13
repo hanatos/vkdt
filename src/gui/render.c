@@ -61,16 +61,7 @@ read_style_colours(struct nk_context *ctx, int hdr)
   // set default colours
   nk_style_default(ctx);
   // see if we can find 
-  FILE *f = 0;
-  char filename[256];
-  if(sizeof(filename) <= snprintf(filename, sizeof(filename), "%s/style.txt", dt_pipe.homedir)) return;
-  f = fopen(filename, "rb");
-  // global basedir
-  if(!f)
-  {
-    if(sizeof(filename) <= snprintf(filename, sizeof(filename), "%s/style.txt", dt_pipe.basedir)) return;
-    f = fopen(filename, "rb");
-  }
+  FILE *f = dt_graph_open_resource(0, 0, "style.txt", "rb");
   if(!f) return;
   while(!feof(f))
   {
@@ -168,14 +159,9 @@ void dt_gui_update_cm()
   { // fake cm for sdr monitors:
     if(monitors_cnt > 2)
       dt_log(s_log_gui, "you have more than 2 monitors attached! only the first two will be colour managed!");
-    char tmp[PATH_MAX+100] = {0};
-    snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.homedir, name0);
-    FILE *f = fopen(tmp, "r");
-    if(!f)
-    {
-      snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name0);
-      f = fopen(tmp, "r");
-    }
+    char tmp[PATH_MAX] = {0};
+    snprintf(tmp, sizeof(tmp), "display.%s", name0);
+    FILE *f = dt_graph_open_resource(0, 0, tmp, "rb");
     if(f)
     {
       dt_log(s_log_gui, "loading display profile %s", tmp);
@@ -188,13 +174,8 @@ void dt_gui_update_cm()
     else dt_log(s_log_gui, "no display profile file display.%s, using sRGB!", name0);
     if(monitors_cnt > 1)
     {
-      snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.homedir, name1);
-      f = fopen(tmp, "r");
-      if(!f)
-      {
-        snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.basedir, name1);
-        f = fopen(tmp, "r");
-      }
+      snprintf(tmp, sizeof(tmp), "display.%s", name1);
+      f = dt_graph_open_resource(0, 0, tmp, "rb");
       if(f)
       {
         dt_log(s_log_gui, "loading display profile %s", tmp);
