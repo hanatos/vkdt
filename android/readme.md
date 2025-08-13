@@ -47,20 +47,6 @@ in the most ridiculous places (like the `native_app_glue/android_native_app_glue
 pull out glfwInit and glfwVulkanSupported to main
 set vkdt.win.window to something not 0 (to tell win0 and win1 apart)
 
-
-# access resources:
-
-* check `dt_pipe.basedir` accesses, replace by res.h
-  * render_lighttable.c
-  * nuklear_glfw_vulkan.h : fonts from apk
-  * graph-run-modules.h
-  * graph.c
-  * o-jpg/main.c : embed exif, simply don't
-  * i-raw/main.cc
-
-TODO
-filteredlist needs two strings? overwrite mode..
-
 # assets
 move to consistent place, i.e. presets and keyaccels out of data/
 

@@ -176,6 +176,7 @@ void write_sink(
   jpeg_destroy_compress(&cinfo);
   fclose(f);
 
+#ifndef __ANDROID__
   const int copy_exif = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("exif")))[0];
   if(copy_exif)
   {
@@ -206,4 +207,5 @@ void write_sink(
       pclose(f);
     }
   }
+#endif
 }
