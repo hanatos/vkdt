@@ -43,19 +43,14 @@ in the most ridiculous places (like the `native_app_glue/android_native_app_glue
 
 #---
 
-# gui.c:
-pull out glfwInit and glfwVulkanSupported to main
-set vkdt.win.window to something not 0 (to tell win0 and win1 apart)
-
-# assets
-move to consistent place, i.e. presets and keyaccels out of data/
-
 # debug:
 ```
+./gradlew installDebug
 adb shell
 am start -S -n org.dreggn.vkdt/.VulkanActivity
 ```
 and then look at log via 
 ```
-logcat | grep vkdt grep " W "
+adb shell
+logcat | grep vkdt | grep " W "
 ```

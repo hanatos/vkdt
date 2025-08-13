@@ -86,14 +86,8 @@ static inline void
 dt_keyaccel_exec(const char *key)
 { // first search home dir, then global dir. ingest preset line by line, with history
   char filename[PATH_MAX];
-  snprintf(filename, sizeof(filename), "%s/keyaccel/%s", vkdt.db.basedir, key);
-  FILE *f = fopen(filename, "rb");
-  if(!f)
-  {
-    size_t r = snprintf(filename, sizeof(filename), "%s/data/keyaccel/%s", dt_pipe.basedir, key);
-    if(r >= sizeof(filename)) return; // truncated
-    f = fopen(filename, "rb");
-  }
+  snprintf(filename, sizeof(filename), "keyaccel/%s", key);
+  FILE *f = dt_graph_open_resource(0, 0, filename, "rb");
   if(!f) return; // out of luck today
   uint32_t lno = 0;
   char line[300000];

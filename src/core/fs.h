@@ -180,8 +180,7 @@ fs_homedir(
     size_t maxlen)  // allocation size
 {
 #if defined(__ANDROID__)
-  // TODO native activity -> internalDataPath
-  // TODO need to place android pointer garbage somewhere global
+  homedir[0] = 0;
 #elif defined(_WIN64)
   char home[MAX_PATH];
   SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
@@ -199,7 +198,7 @@ fs_basedir(
   basedir[0] = 0;
 #if defined(__ANDROID__)
   // have to use android_fopen etc instead, i.e. go through the asset manager thing.
-  snprintf(basedir, maxlen, "android doesn't have this!\n");
+  snprintf(basedir, maxlen, "%s", "nosuch");
 #elif defined(__linux__)
   // stupid allocation dance because passing basedir directly
   // may or may not require PATH_MAX bytes instead of maxlen

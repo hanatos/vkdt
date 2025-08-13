@@ -421,7 +421,11 @@ int dt_pipe_global_init(void *appv)
   (void)setlocale(LC_ALL, "C"); // make sure we write and parse floats correctly
   // setup search directory
   fs_basedir(dt_pipe.basedir, sizeof(dt_pipe.basedir));
+#ifndef __ANDROID__
   fs_homedir(dt_pipe.homedir, sizeof(dt_pipe.homedir));
+#else
+  snprintf(dt_pipe.homedir, sizeof(dt_pipe.homedir), "%s", dt_pipe.app->activity->internalDataPath);
+#endif
   dt_log(s_log_pipe, "base directory %s", dt_pipe.basedir);
   dt_log(s_log_pipe, "home directory %s", dt_pipe.homedir);
   void *fd = dt_res_opendir("modules", 1);

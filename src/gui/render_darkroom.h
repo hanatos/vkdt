@@ -1512,9 +1512,9 @@ render_darkroom_modals()
       if(ok == 2)
       {
         char filename[PATH_MAX+100];
-        snprintf(filename, sizeof(filename), "%s/presets", vkdt.db.basedir);
+        snprintf(filename, sizeof(filename), "%s/presets", dt_pipe.homedir);
         fs_mkdir_p(filename, 0755);
-        snprintf(filename, sizeof(filename), "%s/presets/%s.pst", vkdt.db.basedir, preset);
+        snprintf(filename, sizeof(filename), "%s/presets/%s.pst", dt_pipe.homedir, preset);
         FILE *f = fopen(filename, "wb");
         if(f)
         {
