@@ -51,22 +51,15 @@ set vkdt.win.window to something not 0 (to tell win0 and win1 apart)
 # access resources:
 
 * check `dt_pipe.basedir` accesses, replace by res.h
-  * keyaccel.h
   * render_darkroom.c
   * render.c
   * widget_filteredlist.h
   * render_lighttable.c
   * nuklear_glfw_vulkan.h : fonts from apk
   * graph-run-modules.h
-  * global.c
-  * graph-io.c
   * graph.c
   * o-jpg/main.c : embed exif, simply don't
   * i-raw/main.cc
-
-* have users for plain fopen: mlv,mcraw,hdr,exr.
-
-TODO: opendir/readdir/closedir wrapper to work with apk
 
 # debug:
 ```

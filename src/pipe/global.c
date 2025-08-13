@@ -424,58 +424,27 @@ int dt_pipe_global_init(void *appv)
   fs_homedir(dt_pipe.homedir, sizeof(dt_pipe.homedir));
   dt_log(s_log_pipe, "base directory %s", dt_pipe.basedir);
   dt_log(s_log_pipe, "home directory %s", dt_pipe.homedir);
-#ifdef __ANDROID__
-  AAssetManager *am = dt_pipe.app->activity->assetManager;
-  AAssetDir *fd = AAssetManager_openDir(am, "modules");
+  void *fd = dt_res_opendir("modules", 1);
   if (!fd)
   {
     dt_log(s_log_pipe, "[global init] cannot open modules directory!");
     return 1;
   }
   int i = 0;
-  const char *fn = 0;
-  while((fn = AAssetDir_getNextFileName(fd))) i++;
+  const char *basename = 0;
+  while((basename = dt_res_next_basename(fd, 1))) i++;
   dt_pipe.num_modules = i;
   dt_pipe.module = malloc(sizeof(dt_module_so_t)*dt_pipe.num_modules);
   i = 0;
-  AAssetDir_rewind(fd);
-  while((fn = AAssetDir_getNextFileName(fd)))
+  dt_res_rewinddir(fd, 1);
+  while((basename = dt_res_next_basename(fd, 1)))
   {
-    int err = dt_module_so_load(dt_pipe.module + i, fs_basename((char*)fn));
+    int err = dt_module_so_load(dt_pipe.module + i, basename);
     if(!err) i++;
   }
   dt_pipe.num_modules = i;
   dt_log(s_log_pipe, "loaded %d modules", dt_pipe.num_modules);
-  AAssetDir_close(fd);
-#else
-  char mod[PATH_MAX+20];
-  snprintf(mod, sizeof(mod), "%s/modules", dt_pipe.basedir);
-  struct dirent *dp;
-  DIR *fd = opendir(mod);
-  if (!fd)
-  {
-    dt_log(s_log_pipe, "[global init] cannot open modules directory!");
-    return 1;
-  }
-  int i = 0;
-  while((dp = readdir(fd)))
-    if(fs_isdir(mod, dp)) i++;
-  dt_pipe.num_modules = i;
-  dt_pipe.module = malloc(sizeof(dt_module_so_t)*dt_pipe.num_modules);
-  i = 0;
-  rewinddir(fd);
-  while((dp = readdir(fd)))
-  {
-    if(fs_isdir(mod, dp))
-    {
-      int err = dt_module_so_load(dt_pipe.module + i, dp->d_name);
-      if(!err) i++;
-    }
-  }
-  dt_pipe.num_modules = i;
-  dt_log(s_log_pipe, "loaded %d modules", dt_pipe.num_modules);
-  closedir(fd);
-#endif
+  dt_res_closedir(fd, 1);
   // now sort modules alphabetically for convenience in gui later:
   qsort(dt_pipe.module, dt_pipe.num_modules, sizeof(dt_pipe.module[0]), &compare_module_name);
   return 0;
