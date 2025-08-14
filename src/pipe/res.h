@@ -122,6 +122,7 @@ dt_graph_get_resource_filename(
   return 0;
 }
 
+static int dt_res_mod = 0;
 // open directory in either home or in basedir/apk
 // note: for android, this is *not thread-safe*!
 static inline void*
@@ -131,10 +132,10 @@ dt_res_opendir(const char *dirname, const int inbase)
 #ifdef __ANDROID__
   if(inbase)
   { // AAARRRGH
-    // TODO: for modules/, return pointer to static int referencing dt_mod.
-    // TODO: this is necessarily static because this way we can tell further down in the other methods
-    // TODO: that dir is pointing there, so it has to be the modules directory
-    // if(!strcmp(dirname, "modules")) return calloc(1, sizeof(uint64_t));
+    // for modules/, return pointer to static int referencing dt_mod.
+    // this is necessarily static because this way we can tell further down in the other methods
+    // that dir is pointing there, so it has to be the modules directory
+    if(!strcmp(dirname, "modules")) { dt_res_mod = 0; return &dt_res_mod; }
     return AAssetManager_openDir(dt_pipe.app->activity->assetManager, dirname);
   }
 #endif
@@ -150,7 +151,7 @@ dt_res_closedir(void *dir, const int inbase)
 #ifdef __ANDROID__
   if(inbase)
   {
-    // if(dir <= sizeof(dt_mod)/sizeof(dt_mod[0])) return 0;
+    if(dir == &dt_res_mod) return 0;
     AAssetDir_close((AAssetDir*)dir);
     return 0;
   }
@@ -169,10 +170,12 @@ dt_res_next_basename(void *dir, const int inbase)
   // in case that dir=="modules"
   if(inbase)
   {
-    // uint64_t *cnt = dir;
-    // if(cnt <= sizeof(dt_mod)/sizeof(dt_mod[0])) 
-      // return dt_mod[(uint64_t)(*cnt++) - 1];
-    // if(cnt == sizeof(dt_mod)/sizeof(dt_mod[0]) + 1) return 0;
+    if(dir == &dt_res_mod) 
+    {
+      if(dt_res_mod < sizeof(dt_mod)/sizeof(dt_mod[0])) 
+        return dt_mod[dt_res_mod++];
+      else return 0;
+    }
     return fs_basename((char*)AAssetDir_getNextFileName((AAssetDir*)dir));
   }
 #endif
@@ -185,11 +188,11 @@ dt_res_rewinddir(void *dir, const int inbase)
 #ifdef __ANDROID__
   if(inbase)
   {
-    // if(dir <= sizeof(dt_mod)/sizeof(dt_mod[0])) 
-    // {
-    //   *dir = 1;
-    //   return;
-    // }
+    if(dir == &dt_res_mod) 
+    {
+      dt_res_mod = 0;
+      return;
+    }
     return AAssetDir_rewind((AAssetDir*)dir);
   }
 #endif

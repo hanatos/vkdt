@@ -17,13 +17,15 @@ chown -R you:you /opt/android-sdk
 # back to your own user
 export ANDROID_HOME=/opt/android-sdk
 /opt/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-# until we have modules:
-mkdir mod
 ```
+
+something to create modlist.h, i.e. call `create_cmake.sh`
 
 install rustup, not rust, and then
 ```bash
 rustup default stable
+rustup target add aarch64-linux-android
+cd src/pipe/modules/i-raw/rawloader-c
 cargo build --target aarch64-linux-android --release
 ```
 also run a regular build using the makefile system, to generate
