@@ -80,9 +80,15 @@ dt_graph_open_resource(
   FILE *f = fopen(filename, mode);
   if(f) return f;
   // global basedir/apk
+#ifdef __ANRDOID__
   snprintf(filename, sizeof(filename), "%s", fname);
   if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
   return android_fopen(filename, mode);
+#else
+  snprintf(filename, sizeof(filename), "%s/%s", dt_pipe.basedir, fname);
+  if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
+  return fopen(filename, mode);
+#endif
 }
 
 // take file name param and start frame param and return located raw file name.
@@ -117,6 +123,7 @@ dt_graph_get_resource_filename(
 }
 
 // open directory in either home or in basedir/apk
+// note: for android, this is *not thread-safe*!
 static inline void*
 dt_res_opendir(const char *dirname, const int inbase)
 {
@@ -124,6 +131,9 @@ dt_res_opendir(const char *dirname, const int inbase)
 #ifdef __ANDROID__
   if(inbase)
   { // AAARRRGH
+    // TODO: for modules/, return pointer to static int referencing dt_mod.
+    // TODO: this is necessarily static because this way we can tell further down in the other methods
+    // TODO: that dir is pointing there, so it has to be the modules directory
     // if(!strcmp(dirname, "modules")) return calloc(1, sizeof(uint64_t));
     return AAssetManager_openDir(dt_pipe.app->activity->assetManager, dirname);
   }
