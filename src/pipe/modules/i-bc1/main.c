@@ -14,6 +14,7 @@ typedef struct gzresFILE
 
 static int gzread_res(void* cookie, char* buf, int size)
 { // from the zlib example code zpipe.c:
+#if 1
   gzresFILE *gf = (gzresFILE *)cookie;
 
   do { // outer loop reads more input chunks into our buffer
@@ -41,6 +42,7 @@ static int gzread_res(void* cookie, char* buf, int size)
       wpos = size - gf->strm.avail_out;
     } while (gf->strm.avail_in > 0 && gf->strm.avail_out > 0);
   } while (gf->strm.avail_out > 0);
+#endif
   return size;
 }
 
@@ -84,10 +86,14 @@ void modify_roi_out(
 {
   // load only header
   const char *filename = dt_module_param_string(mod, 0);
+  snprintf(mod->graph->gui_msg_buf, 100, "got %s", filename);
   uint32_t header[4] = {0};
-  FILE *inner = dt_graph_open_resource( mod->graph, 0, filename, "rb");
-  FILE *f = gzopen_res(inner); // will close inner fd when closing
-  if(!f || fread(header, 1, sizeof(uint32_t)*4, f) != sizeof(uint32_t)*4)
+  FILE *inner = dt_graph_open_resource(mod->graph, 0, filename, "rb");
+  return;
+  FILE *f = 0; // will close inner fd when closing f
+  if(!inner ||
+     !(f = gzopen_res(inner)) ||
+     fread(header, 1, sizeof(uint32_t)*4, f) != sizeof(uint32_t)*4)
   {
     fprintf(stderr, "[i-bc1] %s: can't open file!\n", filename);
     if(f) fclose(f);
@@ -97,7 +103,7 @@ void modify_roi_out(
   if(header[0] != dt_token("bc1z") || header[1] != 1)
   {
     fprintf(stderr, "[i-bc1] %s: wrong magic number or version!\n", filename);
-    fclose(f);
+    if(f) fclose(f);
     return;
   }
   const uint32_t wd = 4*(header[2]/4), ht = 4*(header[3]/4);
@@ -105,7 +111,7 @@ void modify_roi_out(
   mod->connector[0].roi.full_ht = ht;
   mod->img_param.colour_primaries = s_colour_primaries_2020;
   mod->img_param.colour_trc       = s_colour_trc_srgb;
-  fclose(f);
+  if(f) fclose(f);
 }
 
 int read_source(

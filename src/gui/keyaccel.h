@@ -33,7 +33,6 @@ dt_keyaccel_init(
     const int      list_size) // allocation size of the array
 {
   dt_stringpool_init(&ka->sp, 2*list_size, 30); // + space for description/comment
-  char dirname[PATH_MAX];
   uint32_t id = 0, old_cnt = list_cnt;
   for(int inbase=0;inbase<2;inbase++)
   { // first search home dir, then system wide:
@@ -47,9 +46,9 @@ dt_keyaccel_init(
 
       char comment[256] = {0};
       char filename[PATH_MAX];
-      size_t r = snprintf(filename, sizeof(filename), "%s/%s", dirname, basename);
+      size_t r = snprintf(filename, sizeof(filename), "keyaccel/%s", basename);
       if(r >= sizeof(filename)) continue; // truncated
-      FILE *f = fopen(filename, "rb");
+      FILE *f = dt_graph_open_resource(0, 0, filename, "rb");
       if(f)
       { // try to read comment line
         fscanf(f, "# %255[^\n]", comment);

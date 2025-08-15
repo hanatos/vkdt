@@ -22,6 +22,9 @@ add_library(native-lib SHARED ${VKDT_SRC})
 add_library(native-app-glue STATIC ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
 
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
+# or?
+# set(CMAKE_C_VISIBILITY_PRESET hidden)
+# set(CMAKE_SHARED_LINKER_FLAGS  "${CMAKE_SHARED_LINKER_FLAGS} -rdynamic -fvisibility=hidden")
 
 include_directories(${Vulkan_INCLUDE_DIR})
 include_directories(${SRC_DIR})

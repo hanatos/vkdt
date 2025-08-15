@@ -49,7 +49,11 @@ dt_thumbnails_init(
 {
   memset(tn, 0, sizeof(*tn));
 
+#ifdef __ANDROID__
+  snprintf(tn->cachedir, sizeof(tn->cachedir), "%s/cache", dt_pipe.app->activity->internalDataPath);
+#else
   fs_cachedir(tn->cachedir, sizeof(tn->cachedir));
+#endif
   int err = fs_mkdir_p(tn->cachedir, 0755);
   if(err && errno != EEXIST)
   {
@@ -495,15 +499,17 @@ dt_thumbnails_load_one(
     // XXX run through realpath once for windows and / vs \\ confusion?
     uint64_t hash = hash64(filename);
     snprintf(imgfilename, sizeof(imgfilename), "%s/%"PRIx64".bc1", tn->cachedir, hash);
-#ifndef __ANDROID__ // these are the bomb and busybee, should always be in apk
   }
-  else if(snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dt_pipe.basedir, filename) >= sizeof(imgfilename)) return VK_INCOMPLETE;
-#endif
+  else
+#ifdef __ANDROID__
+    if(snprintf(imgfilename, sizeof(imgfilename), "%s", filename) >= sizeof(imgfilename)) return VK_INCOMPLETE;
+#else
+    if(snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dt_pipe.basedir, filename) >= sizeof(imgfilename)) return VK_INCOMPLETE;
   struct stat statbuf = {0};
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
-#ifdef __ANDROID__
-  }
 #endif
+
+  dt_log(s_log_err, "thumbnail graph stuff!! image file name %s", imgfilename);
 
   dt_graph_reset(graph);
   int m0 = dt_module_add(graph, dt_token("i-bc1"), dt_token("main"));
@@ -544,7 +550,10 @@ dt_thumbnails_load_one(
   // set param for rawinput
   // get module
   dt_module_set_param_string(graph->module + m0, dt_token("filename"), imgfilename);
+  dt_log(s_log_err, "filename for module %d is %s", m0, dt_module_param_string(graph->module+m0, 0));
+  dt_log(s_log_err, "filename should be %s", imgfilename);
 
+  dt_log(s_log_err, "running first half of graph!!");
   // run graph only up to roi computations to get size
   // run all <= create nodes
   dt_graph_run_t run = ~-(s_graph_run_create_nodes<<1);
@@ -553,6 +562,7 @@ dt_thumbnails_load_one(
     dt_log(s_log_err, "[thm] failed to run first half of graph!");
     return VK_INCOMPLETE;
   }
+  dt_log(s_log_err, "graph finished running!!");
 
   // now grab roi size from graph's main output node
   th->wd = graph->module[m1].connector[0].roi.full_wd;
@@ -598,6 +608,7 @@ dt_thumbnails_load_one(
   // TODO: could do batch cleanup in case we need memory:
   // walk lru list from front and kill all contents (see above)
   // but leave list as it is
+  dt_log(s_log_err, "vulkan memory created!!");
 
   assert(mem);
   th->mem    = mem;
@@ -636,11 +647,13 @@ dt_thumbnails_load_one(
   img_dset.dstSet    = th->dset;
   img_info.imageView = th->image_view;
   vkUpdateDescriptorSets(qvk.device, 1, &img_dset, 0, NULL);
+  dt_log(s_log_err, "vulkan image created!!");
 
   // now run the rest of the graph and copy over VkImage
   // let graph render into our thumbnail:
   graph->thumbnail_image = tn->thumb[*thumb_index].image;
 
+  dt_log(s_log_err, "running second half of graph!!");
   clock_t beg = clock();
   // run all the rest we didn't run above
   if(dt_graph_run(graph, ~run) != VK_SUCCESS)
@@ -654,6 +667,7 @@ dt_thumbnails_load_one(
   // reset here too to make sure cleanup() is called on all modules.
   // this releases file descriptors and webcams etc.
   dt_graph_reset(graph);
+  dt_log(s_log_err, "done!!");
 
   return VK_SUCCESS;
 }

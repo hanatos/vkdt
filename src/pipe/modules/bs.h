@@ -9,9 +9,15 @@
 #define DECLARE_VAR(type,name) static type * p ## name;
 #define DECLARE_PTR(type,name) static type *name;
 
-#define LOAD_FUNCC(name) if(!(name=(name ## _t)dlsym(dlopen(0,RTLD_LAZY),#name))) do { fprintf(stderr, "bs " #name " %s\n", dlerror()); return 1; } while(0)
-#define LOAD_VARC(type,name) if(!(p ## name=(type *)dlsym(dlopen(0,RTLD_LAZY),#name))) do { fprintf(stderr, "bs " #name " %s\n", dlerror()); return 1; } while(0)
-#define LOAD_PTRC(type,name) if(!(name=*(type **)dlsym(dlopen(0,RTLD_LAZY),#name))) do { fprintf(stderr, "bs " #name " %s\n", dlerror()); return 1; } while(0)
+#ifdef __ANDROID__
+#define MAINDSO "libnative-lib.so"
+#else
+#define MAINDSO 0
+#endif
+
+#define LOAD_FUNCC(name) if(!(name=(name ## _t)dlsym(dlopen(MAINDSO,RTLD_LAZY),#name))) do { fprintf(stderr, "bs " #name " %s\n", dlerror()); return 1; } while(0)
+#define LOAD_VARC(type,name) if(!(p ## name=(type *)dlsym(dlopen(MAINDSO,RTLD_LAZY),#name))) do { fprintf(stderr, "bs " #name " %s\n", dlerror()); return 1; } while(0)
+#define LOAD_PTRC(type,name) if(!(name=*(type **)dlsym(dlopen(MAINDSO,RTLD_LAZY),#name))) do { fprintf(stderr, "bs " #name " %s\n", dlerror()); return 1; } while(0)
 
 // forward declare stuff
 typedef uint64_t dt_token_t;
@@ -29,6 +35,7 @@ DECLARE_FUNC(int,   dt_module_add,      (dt_graph_t *graph, dt_token_t name, dt_
 DECLARE_FUNC(char*, dt_graph_write_connection_ascii, (dt_graph_t *graph, const int m, const int i, char *line, size_t size, int allow_empty));
 DECLARE_FUNC(char*, dt_graph_write_param_ascii,  (const dt_graph_t *graph, const int m, const int p, char *line, size_t size, char **eop));
 DECLARE_FUNC(char*, dt_graph_write_module_ascii, (const dt_graph_t *graph, const int m, char *line, size_t size));
+DECLARE_FUNC(FILE*, dt_graph_open_resource, (const dt_graph_t *graph, const int f, const char *fn, const char *mode));
 DECLARE_VAR(dt_pipe_global_t, dt_pipe);
 // DECLARE_VAR(dt_log_t,         dt_log_global);
 DECLARE_VAR(qvk_t,            qvk);
@@ -52,6 +59,7 @@ dt_module_bs_init()
   LOAD_FUNCC(dt_graph_write_connection_ascii);
   LOAD_FUNCC(dt_graph_write_param_ascii);
   LOAD_FUNCC(dt_graph_write_module_ascii);
+  LOAD_FUNCC(dt_graph_open_resource);
   return 0;
 }
 #endif

@@ -65,8 +65,8 @@ task copyTask {
         include '**/ctooltips'
         include '**/ptooltips'
         include '**/*.spv'
-        include '**/*.params'
-        include '**/*.params.ui'
+        include '**/params'
+        include '**/params.ui'
         include '**/readme.md'
         exclude 'readme.md'
     }

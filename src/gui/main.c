@@ -322,6 +322,7 @@ int main(int argc, char *argv[])
   dt_thumbnails_init(&vkdt.thumbnail_gen, 400, 400, 0, 0);
   dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3000, 1ul<<30);
   dt_db_init(&vkdt.db);
+
   char *filename = 0;
   {
     char defpath[1024];
@@ -337,10 +338,13 @@ int main(int argc, char *argv[])
   }
   if(!filename || fs_isdir_file(filename))
   {
+  dt_log(s_log_err, "initing for null filename");
+
     vkdt.view_mode = -1;
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, filename);
     dt_view_switch(s_view_lighttable);
     dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
+  dt_log(s_log_err, "inited for null filename");
   }
   else
   {

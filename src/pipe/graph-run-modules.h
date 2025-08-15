@@ -33,6 +33,7 @@ dt_graph_run_modules_upload_uniforms(
 static inline void
 create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
 {
+  dt_log(s_log_err, "graph run modules create nodes!!");
   for(int i=0;i<module->num_connectors;i++)
     module->connector[i].bypass_mi =
       module->connector[i].bypass_mc = -1;
@@ -183,6 +184,7 @@ init_connector_images(dt_graph_t *graph)
 static inline void
 modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 {
+  dt_log(s_log_err, "graph run modify_roi_out on module %"PRItkn, dt_token_str(module->name));
   // =========================================================
   // manage img_param metadata propagated along with the graph
   int input = dt_module_get_connector(module, dt_token("input"));
@@ -241,7 +243,13 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   // execute callback if present, or run default
   if(!module->disabled && module->so->modify_roi_out)
   {
+  dt_log(s_log_err, "graph now calling modify_roi_out on module %"PRItkn, dt_token_str(module->name));
+
+  dt_log(s_log_err, "filename for module %d is %s", module - module->graph->module, dt_module_param_string(module, 0));
+  // FILE *f = android_fopen(dt_module_param_string(module, 0), "rb");
     module->so->modify_roi_out(graph, module);
+  dt_log(s_log_err, "graph just called modify_roi_out on module %"PRItkn, dt_token_str(module->name));
+  dt_log(s_log_err, "got: %s", module->graph->gui_msg_buf);
     // mark roi in of all outputs as uninitialised:
     for(int i=0;i<module->num_connectors;i++)
       if(dt_connector_output(module->connector+i))
@@ -394,6 +402,7 @@ dt_graph_run_modules(
     uint32_t          *modid,
     dt_module_flags_t *module_flags)
 {
+  dt_log(s_log_err, "graph run modules!!");
   int cnt = 0;
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;
@@ -435,6 +444,7 @@ dt_graph_run_modules(
     (*run & (s_graph_run_roi | s_graph_run_alloc | s_graph_run_create_nodes)))
     QVKL(&qvk.queue[qvk.qid[graph->queue_name]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[graph->queue_name]].queue)); // probably enough to wait on gui queue fence
 
+  dt_log(s_log_err, "graph run modules allocations!!");
   if(*run & s_graph_run_alloc)
   {
     vkDestroyDescriptorSetLayout(qvk.device, graph->uniform_dset_layout, 0);
@@ -461,6 +471,7 @@ dt_graph_run_modules(
       QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->uniform_dset_layout));
     }
   }
+  dt_log(s_log_err, "graph run modules allocations done!!");
 
   // ==============================================
   // first pass: find output rois
@@ -479,6 +490,7 @@ dt_graph_run_modules(
         modify_roi_out(graph, graph->module + modid[i]);
   }
 
+  dt_log(s_log_err, "graph run modules done roi_out!!");
 
   // we want to make sure the last output/display is initialised.
   // if the roi out is 0, probably reading some sources went wrong and we need

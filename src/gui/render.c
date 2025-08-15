@@ -128,8 +128,6 @@ void dt_gui_init_fonts()
   nk_style_from_table(&vkdt.ctx, vkdt.style.colour);
 }
 
-// TODO pull out into function to be called after swapchain *re-*creation: (not the first time)
-// TODO depends on window/ctx
 void dt_gui_update_cm()
 {
   int hdr = (vkdt.win.surf_format.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT);

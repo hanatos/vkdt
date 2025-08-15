@@ -200,6 +200,7 @@ void dt_db_load_directory(
     dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
     return;
   }
+  dt_log(s_log_err, "loaded busybee thumbnail");
 
   DIR *dp = dirname ? opendir(dirname) : 0;
   if(!dp)

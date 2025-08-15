@@ -139,6 +139,7 @@ fs_dirname(char *str)
 static inline char* // returns pointer to empty string (end of str) if str ends in '/'
 fs_basename(char *str)
 { // don't use basename(3) because there are at least two versions of it which sometimes modify str
+  if(!str) return 0;
   char *c = str; // return str if it contains no '/'
   for(int i=0;str[i]!=0;i++) if(str[i] == '/' || str[i] == '\\') c = str+i;
   return c == str ? str : c+1;
@@ -163,14 +164,16 @@ fs_cachedir(
   char  *cachedir,
   size_t maxlen)
 {
-#ifndef _WIN64
-  // TODO: getenv(XDG_CACHE_HOME)
-  const char *home = getenv("HOME");
-  snprintf(cachedir, maxlen, "%s/.cache/vkdt", home);
-#else
+#if defined(__ANDROID__)
+  cachedir[0] = 0; // can't access dt_pipe.app->activity-> here
+#elif defined(_WIN64)
   char home[MAX_PATH];
   SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
   snprintf(cachedir, maxlen, "%s/vkdt/cache", home);
+#else
+  // TODO: getenv(XDG_CACHE_HOME)
+  const char *home = getenv("HOME");
+  snprintf(cachedir, maxlen, "%s/.cache/vkdt", home);
 #endif
 }
 

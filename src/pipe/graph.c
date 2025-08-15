@@ -347,6 +347,7 @@ VkResult dt_graph_run(
     }
     QVKR(dt_graph_run_modules(graph, &run, modid, &module_flags));
   } // end scope, done with modules
+  dt_log(s_log_err, "graph run modules done!!");
 
   // if no more action than generating the output roi was requested, exit now:
   if(run < s_graph_run_create_nodes<<1) return VK_SUCCESS;
@@ -397,19 +398,23 @@ VkResult dt_graph_run(
     int dynamic_array = 0;
     QVKR(dt_graph_run_nodes_allocate(graph, &run, nodeid, cnt, &dynamic_array));
 
+  dt_log(s_log_err, "graph run nodes allocate done!!");
     // upload all source data to staging memory
     QVKR(dt_graph_run_nodes_upload(graph, run, nodeid, cnt, module_flags, dynamic_array));
 
+  dt_log(s_log_err, "graph run nodes upload!!");
     // now upload uniform data before submitting the command buffer. this runs
     // on module scope, but needs to interlude here, so ray tracing nodes can
     // cut the tri_cnt of dynamic geo that is known after upload. animated nodes
     // should do this in commit_params (and need to find out their respective node
     // from the modules)
     QVKR(dt_graph_run_modules_upload_uniforms(graph, run));
+  dt_log(s_log_err, "graph run nodes upload uniforms done!!");
 
     // record command buffer, including memory barriers for transfers (to uniforms and staging)
     QVKR(dt_graph_run_nodes_record_cmd(graph, run, nodeid, cnt, module_flags));
   } // end scope, done with nodes
+  dt_log(s_log_err, "graph run nodes done!!");
 
   if(run & s_graph_run_alloc)
   { // output memory statistics if we did any allocation at all
