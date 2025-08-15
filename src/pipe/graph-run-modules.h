@@ -243,13 +243,7 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   // execute callback if present, or run default
   if(!module->disabled && module->so->modify_roi_out)
   {
-  dt_log(s_log_err, "graph now calling modify_roi_out on module %"PRItkn, dt_token_str(module->name));
-
-  dt_log(s_log_err, "filename for module %d is %s", module - module->graph->module, dt_module_param_string(module, 0));
-  // FILE *f = android_fopen(dt_module_param_string(module, 0), "rb");
     module->so->modify_roi_out(graph, module);
-  dt_log(s_log_err, "graph just called modify_roi_out on module %"PRItkn, dt_token_str(module->name));
-  dt_log(s_log_err, "got: %s", module->graph->gui_msg_buf);
     // mark roi in of all outputs as uninitialised:
     for(int i=0;i<module->num_connectors;i++)
       if(dt_connector_output(module->connector+i))

@@ -48,7 +48,6 @@ dt_graph_open_resource(
     const char       *fname,   // file name template (basename contains exactly "%04d")
     const char       *mode)    // open mode "r" or "w" etc will be passed to fopen
 {
-  dt_log(s_log_err, "hi from open resource, fname %s", fname);
   char fstr[5] = {0}, *c = 0;
   snprintf(fstr, sizeof(fstr), "%04d", frame); // for security reasons don't use user-supplied fname as format string
   char filename[2*PATH_MAX+10];
@@ -62,7 +61,6 @@ dt_graph_open_resource(
     if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
     return fopen(filename, mode);  // absolute path
   }
-  dt_log(s_log_err, "hi2");
   if(graph && graph->searchpath[0])
   { // for relative paths, add search path
     snprintf(filename, sizeof(filename), "%s/%s", graph->searchpath, fname);
@@ -70,7 +68,6 @@ dt_graph_open_resource(
     FILE *f = fopen(filename, mode);
     if(f) return f;
   }
-  dt_log(s_log_err, "hi3");
   // if we can't open it in the graph specific search path, try the home directory:
   snprintf(filename, sizeof(filename), "%s/%s", dt_pipe.homedir, fname);
   if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
@@ -78,7 +75,6 @@ dt_graph_open_resource(
   if(f) return f;
   // global basedir/apk
 #ifdef __ANDROID__
-  dt_log(s_log_err, "hi from open resource android branch");
   snprintf(filename, sizeof(filename), "%s", fname);
   if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
   return android_fopen(filename, mode);

@@ -14,7 +14,7 @@ typedef struct gzresFILE
 
 static int gzread_res(void* cookie, char* buf, int size)
 { // from the zlib example code zpipe.c:
-#if 1
+#if 0
   gzresFILE *gf = (gzresFILE *)cookie;
 
   do { // outer loop reads more input chunks into our buffer
@@ -86,10 +86,8 @@ void modify_roi_out(
 {
   // load only header
   const char *filename = dt_module_param_string(mod, 0);
-  snprintf(mod->graph->gui_msg_buf, 100, "got %s", filename);
   uint32_t header[4] = {0};
   FILE *inner = dt_graph_open_resource(mod->graph, 0, filename, "rb");
-  return;
   FILE *f = 0; // will close inner fd when closing f
   if(!inner ||
      !(f = gzopen_res(inner)) ||
