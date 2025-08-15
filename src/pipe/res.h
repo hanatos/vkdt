@@ -80,7 +80,7 @@ dt_graph_open_resource(
   FILE *f = fopen(filename, mode);
   if(f) return f;
   // global basedir/apk
-#ifdef __ANRDOID__
+#ifdef __ANDROID__
   snprintf(filename, sizeof(filename), "%s", fname);
   if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
   return android_fopen(filename, mode);

@@ -96,6 +96,7 @@ dt_module_so_load(
   char filename[PATH_MAX], line[8192];
 #ifdef __ANDROID__ // has these in the regular ld path:
   snprintf(filename, sizeof(filename), "lib%s.so", dirname);
+  // lack of isreg_file produces some errors on loading. do we care?
 #else
   snprintf(filename, sizeof(filename), "%s/modules/%s/lib%s.so", dt_pipe.basedir, dirname, dirname);
   if(fs_isreg_file(filename))
@@ -300,7 +301,6 @@ dt_module_so_load(
     }
     fclose(f);
   }
-
   // read connector info
   snprintf(filename, sizeof(filename), "modules/%s/connectors", dirname);
   f = dt_graph_open_resource(0, 0, filename, "rb");
@@ -436,11 +436,7 @@ int dt_pipe_global_init(void *appv)
   }
   int i = 0;
   const char *basename = 0;
-  while((basename = dt_res_next_basename(fd, 1))) 
-  {
-    dt_log(s_log_pipe, "counting dir %s", basename);
-    i++;
-  }
+  while((basename = dt_res_next_basename(fd, 1))) i++;
   dt_pipe.num_modules = i;
   dt_pipe.module = malloc(sizeof(dt_module_so_t)*dt_pipe.num_modules);
   i = 0;
