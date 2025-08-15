@@ -562,7 +562,9 @@ dt_thumbnails_load_one(
     dt_log(s_log_err, "[thm] failed to run first half of graph!");
     return VK_INCOMPLETE;
   }
-  dt_log(s_log_err, "graph finished running!!");
+  dt_log(s_log_err, "graph finished running!! %d x %d",
+      graph->module[m0].connector[0].roi.full_wd,
+      graph->module[m0].connector[0].roi.full_ht);
 
   // now grab roi size from graph's main output node
   th->wd = graph->module[m1].connector[0].roi.full_wd;

@@ -244,6 +244,10 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   if(!module->disabled && module->so->modify_roi_out)
   {
     module->so->modify_roi_out(graph, module);
+    dt_log(s_log_err, "modify_roi_out done %d x %d msg %s",
+        module->connector[0].roi.full_wd,
+        module->connector[0].roi.full_ht,
+        graph->gui_msg_buf);
     // mark roi in of all outputs as uninitialised:
     for(int i=0;i<module->num_connectors;i++)
       if(dt_connector_output(module->connector+i))

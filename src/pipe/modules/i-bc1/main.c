@@ -7,6 +7,7 @@
 #define CHUNK 16384
 typedef struct gzresFILE
 {
+  dt_graph_t *g;
   z_stream strm;
   unsigned char in[CHUNK];
   FILE *f;
@@ -14,7 +15,6 @@ typedef struct gzresFILE
 
 static int gzread_res(void* cookie, char* buf, int size)
 { // from the zlib example code zpipe.c:
-  // XXX FIXME: this doesn't work!
   gzresFILE *gf = (gzresFILE *)cookie;
   do { // outer loop reads more input chunks into our buffer
     if(gf->strm.avail_in == 0)
@@ -31,6 +31,7 @@ static int gzread_res(void* cookie, char* buf, int size)
       gf->strm.next_out  = (uint8_t*)buf + wpos;
       int ret = inflate(&gf->strm, Z_NO_FLUSH);
       // assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
+    snprintf(gf->g->gui_msg_buf, 100, "[i-bc1] ret wpos %d zlib %d %s\n", wpos, ret, gf->strm.msg);
       switch (ret) {
         case Z_NEED_DICT:
         case Z_DATA_ERROR:
@@ -61,16 +62,17 @@ int gzclose_res(void *cookie)
   return 0;
 }
 
-FILE *gzopen_res(FILE *f)
+FILE *gzopen_res(FILE *f, dt_graph_t *g)
 {
   gzresFILE *gf = malloc(sizeof(*gf));
+  gf->g = g;
   /* allocate inflate state */
   gf->strm.zalloc = Z_NULL;
   gf->strm.zfree = Z_NULL;
   gf->strm.opaque = Z_NULL;
   gf->strm.avail_in = 0;
   gf->strm.next_in = Z_NULL;
-  int ret = inflateInit(&gf->strm);
+  int ret = inflateInit2(&gf->strm, 16);
   if (ret != Z_OK) return 0;
   gf->f = f; // remember inner so we can close it
   return funopen(gf, gzread_res, gzwrite_res, gzseek_res, gzclose_res);
@@ -87,11 +89,13 @@ void modify_roi_out(
   uint32_t header[4] = {0};
   FILE *inner = dt_graph_open_resource(mod->graph, 0, filename, "rb");
   FILE *f = 0; // will close inner fd when closing f
+  int ret = 0;
   if(!inner ||
-     !(f = gzopen_res(inner)) ||
-     fread(header, 1, sizeof(uint32_t)*4, f) != sizeof(uint32_t)*4)
+     !(f = gzopen_res(inner, graph)) || // XXX FIXME: does not work!
+     (ret = fread(header, 1, sizeof(uint32_t)*4, f)) != sizeof(uint32_t)*4)
   {
     fprintf(stderr, "[i-bc1] %s: can't open file!\n", filename);
+    snprintf(mod->graph->gui_msg_buf, 100, "[i-bc1] %s: can't open file! ret %d\n", filename, ret);
     if(f) fclose(f);
     return;
   }
@@ -99,6 +103,7 @@ void modify_roi_out(
   if(header[0] != dt_token("bc1z") || header[1] != 1)
   {
     fprintf(stderr, "[i-bc1] %s: wrong magic number or version!\n", filename);
+    snprintf(mod->graph->gui_msg_buf, 100, "[i-bc1] %s: wrong magic number or version %d\n", filename, header[0]);
     if(f) fclose(f);
     return;
   }
@@ -118,8 +123,8 @@ int read_source(
   const char *filename = dt_module_param_string(mod, 0);
   uint32_t header[4] = {0};
   FILE *inner = dt_graph_open_resource(mod->graph, 0, filename, "rb");
-  FILE *f = gzopen_res(inner); // will close inner fd when closing
-  if(!f || fread(header, 1, sizeof(uint32_t)*4, f) != sizeof(uint32_t)*4)
+  FILE *f = 0; // will close inner fd when closing
+  if(!inner || !(f = gzopen_res(inner, mod->graph)) || fread(header, 1, sizeof(uint32_t)*4, f) != sizeof(uint32_t)*4)
   {
     fprintf(stderr, "[i-bc1] %s: can't open file!\n", filename);
     if(f) fclose(f);
