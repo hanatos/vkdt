@@ -14,9 +14,8 @@ typedef struct gzresFILE
 
 static int gzread_res(void* cookie, char* buf, int size)
 { // from the zlib example code zpipe.c:
-#if 0
+  // XXX FIXME: this doesn't work!
   gzresFILE *gf = (gzresFILE *)cookie;
-
   do { // outer loop reads more input chunks into our buffer
     if(gf->strm.avail_in == 0)
     { // no more input data, read from our stream
@@ -42,7 +41,6 @@ static int gzread_res(void* cookie, char* buf, int size)
       wpos = size - gf->strm.avail_out;
     } while (gf->strm.avail_in > 0 && gf->strm.avail_out > 0);
   } while (gf->strm.avail_out > 0);
-#endif
   return size;
 }
 
@@ -74,8 +72,8 @@ FILE *gzopen_res(FILE *f)
   gf->strm.next_in = Z_NULL;
   int ret = inflateInit(&gf->strm);
   if (ret != Z_OK) return 0;
-  gf->f = funopen(gf, gzread_res, gzwrite_res, gzseek_res, gzclose_res);
-  return gf->f;
+  gf->f = f; // remember inner so we can close it
+  return funopen(gf, gzread_res, gzwrite_res, gzseek_res, gzclose_res);
 }
 
 // this callback is responsible to set the full_{wd,ht} dimensions on the
