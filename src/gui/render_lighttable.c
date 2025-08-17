@@ -1128,8 +1128,8 @@ void render_lighttable_right_panel()
       text[0] = 0; text_end = text;
       const char *rccmd = dt_rc_get(&vkdt.rc, "gui/metadata/command", def_cmd);
       dt_sanitize_user_string((char*)rccmd); // be sure nothing evil is in here. we won't change the length so we don't care about const.
-      char cmd[PATH_MAX], imgpath[PATH_MAX];
-      snprintf(cmd, sizeof(cmd), "%s '", rccmd);
+      char cmd[2*PATH_MAX], imgpath[PATH_MAX];
+      snprintf(cmd, PATH_MAX, "%s '", rccmd);
       dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, imgpath, sizeof(imgpath));
       fs_realpath(imgpath, cmd+strlen(cmd)); // use GNU extension: fill path even if it doesn't exist
       size_t len = strnlen(cmd, sizeof(cmd));
