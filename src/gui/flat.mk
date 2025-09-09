@@ -21,6 +21,7 @@ GUI_H=gui/gui.h\
       gui/widget_export.h\
       gui/widget_filebrowser.h\
       gui/widget_filteredlist.h\
+      gui/widget_tooltip.h\
       gui/widget_image.h\
       gui/widget_nodes.h\
       gui/widget_recentcollect.h\
