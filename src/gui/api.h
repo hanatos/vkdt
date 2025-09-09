@@ -1,6 +1,8 @@
 #pragma once
+#include "core/fs.h"
 #include "pipe/anim.h"
 #include "pipe/graph-history.h"
+#include "pipe/graph-defaults.h"
 #include "gui/gui.h"
 #include "gui/darkroom.h"
 #include "pipe/draw.h"
@@ -430,6 +432,78 @@ dt_gui_lt_duplicate()
   char dir[PATH_MAX]; // reload directory:
   snprintf(dir, sizeof(dir), "%s", vkdt.db.dirname);
   dt_gui_switch_collection(dir);
+}
+
+// applies the preset refered to by `filename' to all
+// currently selected images. will append instead of overwriting history.
+static inline int // returns 0 on success
+dt_gui_lt_append_preset(const char *preset)
+{
+  if(!vkdt.db.selection_cnt) return 1; // no images selected
+  FILE *fin = fopen(preset, "rb");
+  if(!fin)
+  {
+    dt_gui_notification("could not open preset %s!", preset);
+    return 2;
+  }
+  fseek(fin, 0, SEEK_END);
+  size_t fsize = ftell(fin);
+  fseek(fin, 0, SEEK_SET);
+  uint8_t *buf = (uint8_t*)malloc(fsize);
+  fread(buf, fsize, 1, fin);
+  fclose(fin);
+  const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+  char filename[PATH_MAX];
+  for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
+  {
+    dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
+    char dst[PATH_MAX];
+    fs_realpath(filename, dst);
+    FILE *fout = fopen(dst, "ab");
+    if(fout)
+    {
+      size_t pos = ftell(fout);
+      if(pos == 0)
+      { // no pre-existing cfg, copy defaults
+        dt_token_t input_module = dt_graph_default_input_module(filename);
+        char graph_cfg[PATH_MAX+100];
+        snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.homedir, dt_token_str(input_module));
+        FILE *f = fopen(graph_cfg, "rb");
+        if(!f)
+        {
+          snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
+          f = fopen(graph_cfg, "rb");
+        }
+        if(!f)
+        {
+          dt_gui_notification("could not open default graph %s!", graph_cfg);
+        }
+        else
+        {
+          fseek(f, 0, SEEK_END);
+          size_t fsize2 = ftell(f);
+          fseek(f, 0, SEEK_SET);
+          uint8_t *buf2 = (uint8_t*)malloc(fsize2);
+          fread(buf2, fsize2, 1, f);
+          fclose(f);
+          fwrite(buf2, fsize2, 1, fout);
+          free(buf2);
+          filename[strlen(filename)-4] = 0; // cut off .cfg
+          fprintf(fout, "param:%"PRItkn":main:filename:%s\n", dt_token_str(input_module), filename);
+        }
+      }
+      // now append preset
+      fwrite(buf, fsize, 1, fout);
+      fclose(fout);
+    }
+  }
+  dt_thumbnails_cache_list(
+      &vkdt.thumbnail_gen,
+      &vkdt.db,
+      sel, vkdt.db.selection_cnt,
+      &glfwPostEmptyEvent);
+  free(buf);
+  return 0;
 }
 
 static inline void

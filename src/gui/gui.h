@@ -192,8 +192,8 @@ typedef struct dt_gui_t
   dt_token_t fav_file_modid[20];
   dt_token_t fav_file_insid[20];
   dt_token_t fav_file_parid[20];
-  char fav_preset_name[4][64];
-  char fav_preset_desc[4][64];
+  char fav_preset_name[16][64];
+  char fav_preset_desc[16][64];
 
   // list of recently used tags
   int  tag_cnt;

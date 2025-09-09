@@ -1098,6 +1098,35 @@ void render_lighttable_right_panel()
             &glfwPostEmptyEvent);
       }
     } // end if multiple images are selected
+    { // ==============================================================
+      // fav preset buttons
+      int is_pst = 0;
+      const float pwd = ctx->current->layout->bounds.w - 3.0f*vkdt.ctx.style.window.spacing.x;
+      const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
+      const float w4[] = {pwd/4.0f, pwd/4.0f, pwd/4.0f, pwd/4.0f};
+      for(int i=0;i<vkdt.fav_cnt;i++)
+      {
+        if(vkdt.fav_modid[i] != -1) continue;
+        int pst = vkdt.fav_parid[i];
+        if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
+        char *preset = vkdt.fav_preset_name[pst];
+        if(!is_pst++) nk_layout_row(&vkdt.ctx, NK_STATIC, row_height, 4, w4);
+        dt_tooltip("apply preset %s", vkdt.fav_preset_name[pst]);
+        if(nk_button_label(&vkdt.ctx, vkdt.fav_preset_desc[pst]))
+        {
+          char filename[PATH_MAX];
+          snprintf(filename, sizeof(filename), "%s/presets/%s.pst", dt_pipe.homedir, preset);
+          uint32_t err = dt_gui_lt_append_preset(filename);
+          if(err)
+          {
+            snprintf(filename, sizeof(filename), "%s/data/presets/%s.pst", dt_pipe.basedir, preset);
+            err = dt_gui_lt_append_preset(filename);
+          }
+          if(err)
+            dt_gui_notification("failed to read preset %s", filename);
+        }
+      }
+    } // end fav presets
     nk_tree_pop(ctx);
   } // end collapsing header "selected"
 
@@ -1291,73 +1320,7 @@ void render_lighttable()
       static char filter[256];
       int ok = filteredlist("%s/data/presets", "%s/presets", filter, filename, sizeof(filename), s_filteredlist_default);
       if(ok) vkdt.wstate.popup = 0;
-      if(ok == 1)
-      {
-        FILE *fin = fopen(filename, "rb");
-        if(!fin)
-        { // also fails if src is 0
-          dt_gui_notification("could not open preset %s!", filename);
-        }
-        else
-        {
-          fseek(fin, 0, SEEK_END);
-          size_t fsize = ftell(fin);
-          fseek(fin, 0, SEEK_SET);
-          uint8_t *buf = (uint8_t*)malloc(fsize);
-          fread(buf, fsize, 1, fin);
-          fclose(fin);
-          const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-          for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
-          {
-            dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
-            char dst[PATH_MAX];
-            fs_realpath(filename, dst);
-            FILE *fout = fopen(dst, "ab");
-            if(fout)
-            {
-              size_t pos = ftell(fout);
-              if(pos == 0)
-              { // no pre-existing cfg, copy defaults
-                dt_token_t input_module = dt_graph_default_input_module(filename);
-                char graph_cfg[PATH_MAX+100];
-                snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.homedir, dt_token_str(input_module));
-                FILE *f = fopen(graph_cfg, "rb");
-                if(!f)
-                {
-                  snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
-                  f = fopen(graph_cfg, "rb");
-                }
-                if(!f)
-                {
-                  dt_gui_notification("could not open default graph %s!", graph_cfg);
-                }
-                else
-                {
-                  fseek(f, 0, SEEK_END);
-                  size_t fsize2 = ftell(f);
-                  fseek(f, 0, SEEK_SET);
-                  uint8_t *buf2 = (uint8_t*)malloc(fsize2);
-                  fread(buf2, fsize2, 1, f);
-                  fclose(f);
-                  fwrite(buf2, fsize2, 1, fout);
-                  free(buf2);
-                  filename[strlen(filename)-4] = 0; // cut off .cfg
-                  fprintf(fout, "param:%"PRItkn":main:filename:%s\n", dt_token_str(input_module), filename);
-                }
-              }
-              // now append preset
-              fwrite(buf, fsize, 1, fout);
-              fclose(fout);
-            }
-          }
-          dt_thumbnails_cache_list(
-              &vkdt.thumbnail_gen,
-              &vkdt.db,
-              sel, vkdt.db.selection_cnt,
-              &glfwPostEmptyEvent);
-          free(buf);
-        } // if fin
-      } // end if ok == 1
+      if(ok == 1) dt_gui_lt_append_preset(filename);
     }
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
@@ -1400,6 +1363,7 @@ int lighttable_enter()
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_right,     "move right");
   vkdt.wstate.copied_imgid = -1u; // reset to invalid
   vkdt.wstate.lighttable_images_per_row = dt_rc_get_int(&vkdt.rc, "gui/images_per_line", 6);
+  dt_gui_read_favs("darkroom.ui"); // read these for fav presets here, too
   return 0;
 }
 
