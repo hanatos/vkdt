@@ -302,7 +302,6 @@ void render_lighttable_center()
         g_scroll_colid = -1;
       }
     }
-    if(row.y - vkdt.ctx.current->scrollbar.y > content.y + 10*content.h) break; // okay this list is really long
 
     // precache
     if((i % ipl) == 0)
@@ -318,6 +317,8 @@ void render_lighttable_center()
       nk_label(&vkdt.ctx, "", 0);
       continue;
     }
+
+    if(row.y - vkdt.ctx.current->scrollbar.y > content.y + 3*content.h) break; // okay this list is really long
 
     // set cursor to first visible image if it wasn't set before:
     if(g_image_cursor == -2) g_image_cursor = i;
