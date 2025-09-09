@@ -11397,7 +11397,7 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     button->text_normal                = table[NK_COLOR_TEXT];
     button->text_hover                 = table[NK_COLOR_TEXT];
     button->text_active                = table[NK_COLOR_TEXT];
-    button->padding                    = nk_vec2(S(2.0f),S(2.0f));
+    button->padding                    = nk_vec2(S(0.0f),S(0.0f));
     button->image_padding              = nk_vec2(0.0f, 0.0f);
     button->touch_padding              = nk_vec2(0.0f, 0.0f);
     button->userdata                   = nk_handle_ptr(0);
@@ -11796,8 +11796,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     combo->sym_normal       = NK_SYMBOL_TRIANGLE_DOWN;
     combo->sym_hover        = NK_SYMBOL_TRIANGLE_DOWN;
     combo->sym_active       = NK_SYMBOL_TRIANGLE_DOWN;
-    combo->content_padding  = nk_vec2(S(4),S(4));
-    combo->button_padding   = nk_vec2(0,S(4));
+    combo->content_padding  = nk_vec2(S(12),S(4));
+    combo->button_padding   = nk_vec2(S(0),S(4));
     combo->spacing          = nk_vec2(S(4),0);
     combo->border           = S(1);
     combo->rounding         = S(12);
@@ -16623,7 +16623,7 @@ nk_widget_text(struct nk_command_buffer *o, struct nk_rect b,
     } else if (a & NK_TEXT_ALIGN_CENTERED) {
         label.w = NK_MAX(1, 2 * t->padding.x + (float)text_width);
         label.x = (b.x + t->padding.x + ((b.w - 2 * t->padding.x) - label.w) / 2);
-        label.x = NK_MAX(b.x + t->padding.x, label.x);
+        // label.x = NK_MAX(b.x + t->padding.x, label.x);
         label.w = NK_MIN(b.x + b.w, label.x + label.w);
         if (label.w >= label.x) label.w -= label.x;
     } else if (a & NK_TEXT_ALIGN_RIGHT) {

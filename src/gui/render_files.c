@@ -261,6 +261,8 @@ void render_files()
           struct nk_rect bb = nk_widget_bounds(ctx);
           nk_prog(ctx, 1024*progress, 1024, nk_false);
           char text[50];
+          bb.x += ctx->style.progress.padding.x;
+          bb.y += ctx->style.progress.padding.y;
           snprintf(text, sizeof(text), "%.0f%%", 100.0*progress);
           nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
           if(nk_button_label(ctx, "abort")) job[k].abort = 1;

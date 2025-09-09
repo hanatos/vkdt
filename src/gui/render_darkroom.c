@@ -579,6 +579,8 @@ void render_darkroom()
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
       }
       char text[50];
+      bb.x += ctx->style.progress.padding.x;
+      bb.y += ctx->style.progress.padding.y;
       snprintf(text, sizeof(text), "frame %d/%d", vkdt.state.anim_frame, vkdt.state.anim_max_frame);
       nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
     }
