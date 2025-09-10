@@ -281,6 +281,17 @@ void render_lighttable_center()
   }
 
   nk_style_push_vec2(&vkdt.ctx, &vkdt.ctx.style.window.spacing, nk_vec2(spacing, spacing));
+
+  // precache round robin
+  const int iv = 5;
+  static int cacheline = 0;
+  dt_thumbnails_load_list(
+      &vkdt.thumbnails,
+      &vkdt.db,
+      vkdt.db.collection,
+      cacheline, MIN(vkdt.db.collection_cnt, cacheline+iv));
+  cacheline += iv;
+  if(cacheline > vkdt.db.collection_cnt) cacheline = 0;
   for(int i=0;i<vkdt.db.collection_cnt;i++)
   {
     struct nk_rect row = nk_widget_bounds(&vkdt.ctx);
@@ -303,10 +314,8 @@ void render_lighttable_center()
       }
     }
 
-    // precache
-    // XXX this is laggy TODO do less but more often, keep cache marker
-    // TODO how to reset the cache marker?
-    if(row.y - vkdt.ctx.current->scrollbar.y <= content.y + 3*content.h)
+    // precache this line
+    if(row.y - vkdt.ctx.current->scrollbar.y <= content.y + content.h)
     if((i % ipl) == 0)
       dt_thumbnails_load_list(
           &vkdt.thumbnails,
