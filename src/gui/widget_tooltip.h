@@ -20,26 +20,26 @@ dt_tooltip(const char *fmt, ...)
     {
       nk_layout_row_static(&vkdt.ctx, font->height, MIN(w, vkdt.state.panel_wd)-pad, 1);
       while(c < text + len)
-      {
+      { // go through all the text
         char *bp = c;
         for(char *cc=c;*cc!='\n'&&cc<text+len;cc++)
-        {
+        { // go through line to find potential breakpoint
           if(*cc==' ')
-          {
+          { // test this cc for breakpoint
             float w = font->width(font->userdata, font->height, c, cc-c);
             if(w > vkdt.state.panel_wd-pad)
-            {
+            { // this runs over, we need to break
+              if(bp == c) bp = cc; // one gigantically long word, break right after it
               if(bp > text) *bp = '\n';
               break;
             }
-            bp = cc;
+            bp = cc; // else remember space character as potential next breakpoint
           }
           else if(cc==text+len-1) bp = cc;
           else if(cc[1]=='\n') bp = cc+1;
         }
         if(*bp == '\n') *bp = 0;
         nk_label(&vkdt.ctx, c, NK_TEXT_LEFT);
-        if(bp == c) break; // fuckit, no spaces found
         c = bp+1;
       }
       nk_tooltip_end(&vkdt.ctx);

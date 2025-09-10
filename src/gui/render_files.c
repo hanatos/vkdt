@@ -1,7 +1,8 @@
 // rendering for the files view
+#include "core/fs.h"
 #include "gui/gui.h"
 #include "gui/view.h"
-#include "core/fs.h"
+#include "gui/job_copy.h"
 #include "gui/render_view.h"
 #include "gui/hotkey.h"
 #include "gui/widget_filebrowser.h"
@@ -47,65 +48,6 @@ void set_cwd(const char *dir, int up)
   size_t len = strlen(filebrowser.cwd);
   if(filebrowser.cwd[len-1] != '/') strcpy(filebrowser.cwd + len, "/");
   dt_filebrowser_cleanup(&filebrowser); // make it re-read cwd
-}
-
-typedef struct copy_job_t
-{ // copy contents of a folder
-  char src[1000], dst[1000];
-  struct dirent *ent;
-  uint32_t cnt;
-  uint32_t move;  // set to non-zero to remove src after copy
-  _Atomic uint32_t abort;
-  _Atomic uint32_t state;
-  int taskid;
-} copy_job_t;
-void copy_job_cleanup(void *arg)
-{ // task is done, every thread will call this (but we put only one)
-  copy_job_t *j = (copy_job_t *)arg;
-  if(j->ent) free(j->ent);
-  j->state = 2;
-}
-void copy_job_work(uint32_t item, void *arg)
-{
-  copy_job_t *j = (copy_job_t *)arg;
-  if(j->abort) return;
-  char src[1300], dst[1300];
-  snprintf(src, sizeof(src), "%s/%s", j->src, j->ent[item].d_name);
-  snprintf(dst, sizeof(dst), "%s/%s", j->dst, j->ent[item].d_name);
-  if(fs_copy(dst, src)) j->abort = 2;
-  else if(j->move) fs_delete(src);
-  glfwPostEmptyEvent(); // redraw status bar
-}
-int copy_job(
-    copy_job_t *j,
-    const char *dst, // destination directory
-    const char *src) // source directory
-{
-  j->abort = 0;
-  j->state = 1;
-  snprintf(j->src, sizeof(j->src), "%.*s", (int)sizeof(j->src)-1, src);
-  snprintf(j->dst, sizeof(j->dst), "%.*s", (int)sizeof(j->dst)-1, dst);
-  fs_mkdir_p(j->dst, 0777); // try and potentially fail to create destination directory
-
-  DIR* dirp = opendir(j->src);
-  j->cnt = 0;
-  struct dirent *ent = 0;
-  if(!dirp) return 2;
-  // first count valid entries
-  while((ent = readdir(dirp)))
-    if(!fs_isdir(j->src, ent))
-      j->cnt++;
-  if(!j->cnt) return 2;
-  rewinddir(dirp); // second pass actually record stuff
-  j->ent = (struct dirent *)malloc(sizeof(j->ent[0])*j->cnt);
-  j->cnt = 0;
-  while((ent = readdir(dirp)))
-    if(!fs_isdir(j->src, ent))
-      j->ent[j->cnt++] = *ent;
-  closedir(dirp);
-
-  j->taskid = threads_task("copy", j->cnt, -1, j, copy_job_work, copy_job_cleanup);
-  return j->taskid;
 }
 
 void render_files()
@@ -191,7 +133,7 @@ void render_files()
       nk_tree_pop(ctx);
     } // end collapsing header "recent collections"
 
-    static copy_job_t job[4] = {{{0}}};
+    static dt_job_copy_t job[4] = {{{0}}};
     int active = job[0].state | job[1].state | job[2].state | job[3].state;
     if(nk_tree_push(ctx, NK_TREE_TAB, "import", active ? NK_MAXIMIZED : NK_MINIMIZED))
     {
@@ -219,6 +161,8 @@ void render_files()
       const char *copy_mode_str = "keep original\0delete original\0\0";
       nk_combobox_string(ctx, copy_mode_str, &copy_mode, 0x7fff, row_height, size);
       nk_label(ctx, "overwrite", NK_TEXT_LEFT);
+      const float r2[] = {ratio[1], ratio[0]};
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, r2);
       for(int k=0;k<4;k++)
       { // list of four jobs to copy stuff simultaneously
         if(job[k].state == 0)
@@ -248,7 +192,7 @@ void render_files()
               job[k].move = copy_mode;
               char dst[1000];
               fs_expand_import_filename(pattern, strlen(pattern), dst, sizeof(dst), dest);
-              copy_job(job+k, dst, filebrowser.cwd);
+              dt_job_copy(job+k, dst, filebrowser.cwd);
               nk_label(ctx, "", 0);
             }
           }

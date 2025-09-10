@@ -15,6 +15,7 @@ GUI_H=gui/gui.h\
       gui/hsluv.h\
       gui/font_metrics.h\
       gui/hotkey.h\
+      gui/job_copy.h\
       gui/keyaccel.h\
       gui/widget_dopesheet.h\
       gui/widget_draw.h\

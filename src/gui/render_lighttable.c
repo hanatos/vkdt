@@ -304,6 +304,9 @@ void render_lighttable_center()
     }
 
     // precache
+    // XXX this is laggy TODO do less but more often, keep cache marker
+    // TODO how to reset the cache marker?
+    if(row.y - vkdt.ctx.current->scrollbar.y <= content.y + 3*content.h)
     if((i % ipl) == 0)
       dt_thumbnails_load_list(
           &vkdt.thumbnails,
@@ -317,8 +320,6 @@ void render_lighttable_center()
       nk_label(&vkdt.ctx, "", 0);
       continue;
     }
-
-    if(row.y - vkdt.ctx.current->scrollbar.y > content.y + 3*content.h) break; // okay this list is really long
 
     // set cursor to first visible image if it wasn't set before:
     if(g_image_cursor == -2) g_image_cursor = i;
