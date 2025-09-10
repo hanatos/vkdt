@@ -171,7 +171,7 @@ void render_files()
             break;
           dt_tooltip("copy contents of %s\nto %s,\n%s",
               filebrowser.cwd, pattern, copy_mode ? "delete original files after copying" : "keep original files");
-          if(nk_button_label(ctx, "copy"))
+          if(nk_button_label(ctx, copy_mode ? "move" : "copy"))
           { // make sure we don't start a job that is already running in another job[.]
             int duplicate = 0;
             for(int k2=0;k2<4;k2++)

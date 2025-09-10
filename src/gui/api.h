@@ -489,7 +489,8 @@ dt_gui_lt_append_preset(const char *preset)
           fwrite(buf2, fsize2, 1, fout);
           free(buf2);
           filename[strlen(filename)-4] = 0; // cut off .cfg
-          fprintf(fout, "param:%"PRItkn":main:filename:%s\n", dt_token_str(input_module), filename);
+          fprintf(fout, "param:%"PRItkn":main:filename:%s\n", dt_token_str(input_module),
+              vkdt.db.image[sel[i]].filename);
         }
       }
       // now append preset

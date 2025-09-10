@@ -2,6 +2,7 @@
 #include "core/version.h"
 #include "gui/view.h"
 #include "gui/gui.h"
+#include "gui/job_copy.h"
 #include "db/thumbnails.h"
 #include "db/rc.h"
 #include "db/hash.h"
@@ -1256,7 +1257,11 @@ void render_lighttable_right_panel()
     nk_tree_pop(ctx);
   } // end collapsing header "export"
 
-  { // new project from scratch
+  static dt_job_copy_t job[4] = {{{0}}};
+  int active = job[0].state | job[1].state | job[2].state | job[3].state;
+  if(nk_tree_push(ctx, NK_TREE_TAB, "files", active ? NK_MAXIMIZED : NK_MINIMIZED))
+  {
+    // new project from scratch
     nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
     static char fname[50] = "new_project";
     dt_tooltip("enter the filename of the newly created project");
@@ -1279,7 +1284,93 @@ void render_lighttable_right_panel()
       snprintf(filename, sizeof(filename), "%s", vkdt.db.dirname);
       dt_gui_switch_collection(filename); // reload directory
     }
-  }
+
+    if(vkdt.db.selection_cnt)
+    { // copy jobs
+      nk_layout_row_dynamic(ctx, row_height/2, 1);
+      nk_label(ctx, "", 0);
+      const float ratio[] = {0.7f, 0.3f};
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+      static char pattern[100] = {0};
+      if(pattern[0] == 0) snprintf(pattern, sizeof(pattern), "%s", dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}"));
+      dt_tooltip("destination directory pattern. expands the following:\n"
+          "${home} - home directory\n"
+          "${date} - YYYYMMDD date\n"
+          "${yyyy} - four char year\n"
+          "${dest} - dest string just below");
+      nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, pattern, sizeof(pattern), nk_filter_default);
+      nk_label(ctx, "destination", NK_TEXT_LEFT);
+      static char dest[20];
+      dt_tooltip(
+          "enter a descriptive string to be used as the ${dest} variable when expanding\n"
+          "the 'gui/copy_destination' pattern from the config.rc file. it is currently\n"
+          "`%s'", pattern);
+      nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, dest, sizeof(dest), nk_filter_default);
+      nk_label(ctx, "dest", NK_TEXT_LEFT);
+      static int32_t copy_mode = 0;
+      int32_t num_idle = 0;
+      const char *copy_mode_str = "keep original\0delete original\0\0";
+      nk_combobox_string(ctx, copy_mode_str, &copy_mode, 0x7fff, row_height, size);
+      nk_label(ctx, "overwrite", NK_TEXT_LEFT);
+      const float r2[] = {ratio[1], ratio[0]};
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, r2);
+      for(int k=0;k<4;k++)
+      { // list of four jobs to copy stuff simultaneously
+        if(job[k].state == 0)
+        { // idle job
+          if(num_idle++) // show at max one idle job
+            break;
+          dt_tooltip("copy selection from %s\nto %s,\n%s",
+              vkdt.db.dirname, pattern, copy_mode ? "delete original files after copying" : "keep original files");
+          if(nk_button_label(ctx, copy_mode ? "move" : "copy"))
+          {
+            job[k].move = copy_mode;
+            char dst[1000];
+            fs_expand_import_filename(pattern, strlen(pattern), dst, sizeof(dst), dest);
+            dt_job_copy(job+k, dst, "vkdt.db.sel");
+            nk_label(ctx, "", 0);
+          }
+          else nk_label(ctx, "", 0);
+        }
+        else if(job[k].state == 1)
+        { // running
+          dt_tooltip("copying %s to %s", job[k].src, job[k].dst);
+          float progress = threads_task_progress(job[k].taskid);
+          struct nk_rect bb = nk_widget_bounds(ctx);
+          nk_prog(ctx, 1024*progress, 1024, nk_false);
+          char text[50];
+          bb.x += ctx->style.progress.padding.x;
+          bb.y += ctx->style.progress.padding.y;
+          snprintf(text, sizeof(text), "%.0f%%", 100.0*progress);
+          nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
+          if(nk_button_label(ctx, "abort")) job[k].abort = 1;
+        }
+        else
+        { // done/aborted
+          dt_tooltip(
+              job[k].abort == 1 ? "copy from %s aborted by user. click to reset" :
+             (job[k].abort == 2 ? "copy from %s incomplete. file system full?\nclick to reset" :
+              "copy from %s done. click to reset"),
+             job[k].src);
+          if(nk_button_label(ctx, job[k].abort ? "aborted" : "done"))
+          { // reset
+            job[k].state = 0;
+          }
+          if(!job[k].abort)
+          {
+            dt_tooltip("open %s in lighttable mode", job[k].dst);
+            if(nk_button_label(ctx, "view copied files"))
+            {
+              dt_gui_switch_collection(job[k].dst);
+              job[k].state = 0;
+            }
+          }
+          else nk_label(ctx, "", 0);
+        }
+      } // end for jobs
+    } // end if selection_cnt > 0
+    nk_tree_pop(ctx);
+  } // end collapsing header "files"
   NK_UPDATE_ACTIVE;
   nk_end(&vkdt.ctx); // lt right panel
 }
