@@ -284,7 +284,7 @@ jobs:
     steps:
       - name: install dependencies
         run: |
-          brew install make pkg-config glfw3 vulkan-validationlayers vulkan-headers rust molten-vk cmake
+          brew install make glfw3 vulkan-validationlayers vulkan-headers rust molten-vk
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
