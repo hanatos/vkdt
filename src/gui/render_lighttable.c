@@ -1204,59 +1204,7 @@ void render_lighttable_right_panel()
   } // end collapsing header "metadata"
 
   // ==============================================================
-  // export selection
-  if(vkdt.db.selection_cnt > 0 && nk_tree_push(ctx, NK_TREE_TAB, "export selection", 
-        g_hotkey == s_hotkey_export ? NK_FORCE_MAXIMIZED : NK_MINIMIZED))
-  {
-    static dt_export_widget_t w = {0};
-    dt_export(&w);
-    const float ratio[] = {0.7f, 0.3f};
-    nk_layout_row(ctx, NK_DYNAMIC, 0, 2, ratio);
-#define NUM_JOBS 4
-    static export_job_t job[NUM_JOBS] = {{0}};
-    int32_t num_idle = 0;
-    for(int k=0;k<NUM_JOBS;k++)
-    { // list of jobs to export stuff simultaneously
-      if(job[k].state == 2) job[k].state = 0; // reset
-      if(job[k].state == 0)
-      { // idle job
-        if(num_idle++)
-        { // show at max one idle job
-          break;
-        }
-        dt_tooltip("export current selection");
-        if(g_hotkey == s_hotkey_export || nk_button_label(ctx, "export"))
-        { // TODO: make sure we don't start a job that is already running in another job[.]
-          export_job(job+k, &w);
-          g_hotkey = -1;
-        }
-        nk_label(ctx, "", 0);
-      }
-      else if(job[k].cnt > 0 && threads_task_running(job[k].taskid))
-      { // running
-        struct nk_rect bb = nk_widget_bounds(ctx);
-        float progress = threads_task_progress(job[k].taskid);
-        nk_prog(ctx, 100*progress, 100, nk_false);
-        char text[50];
-        snprintf(text, sizeof(text), "%d%%", (int)(100.0*progress));
-        nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
-        if(nk_button_label(ctx, "abort")) job[k].abort = 1;
-        // technically a race condition on frame_cnt being inited by graph
-        // loading during the async job. do we care?
-        if(job[k].graph.frame_cnt > 1)
-        {
-          bb = nk_widget_bounds(ctx);
-          nk_prog(ctx, job[k].graph.frame, job[k].graph.frame_cnt, nk_false);
-          snprintf(text, sizeof(text), "frame %d/%d", job[k].graph.frame, job[k].graph.frame_cnt);
-          nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
-          nk_label(ctx, "", 0);
-        }
-      }
-    }
-#undef NUM_JOBS
-    nk_tree_pop(ctx);
-  } // end collapsing header "export"
-
+  // files header
   static dt_job_copy_t job[4] = {{{0}}};
   int active = job[0].state | job[1].state | job[2].state | job[3].state;
   if(nk_tree_push(ctx, NK_TREE_TAB, "files", active ? NK_MAXIMIZED : NK_MINIMIZED))
@@ -1371,6 +1319,61 @@ void render_lighttable_right_panel()
     } // end if selection_cnt > 0
     nk_tree_pop(ctx);
   } // end collapsing header "files"
+
+  // ==============================================================
+  // export selection
+  if(vkdt.db.selection_cnt > 0 && nk_tree_push(ctx, NK_TREE_TAB, "export selection", 
+        g_hotkey == s_hotkey_export ? NK_FORCE_MAXIMIZED : NK_MINIMIZED))
+  {
+    static dt_export_widget_t w = {0};
+    dt_export(&w);
+    const float ratio[] = {0.7f, 0.3f};
+    nk_layout_row(ctx, NK_DYNAMIC, 0, 2, ratio);
+#define NUM_JOBS 4
+    static export_job_t job[NUM_JOBS] = {{0}};
+    int32_t num_idle = 0;
+    for(int k=0;k<NUM_JOBS;k++)
+    { // list of jobs to export stuff simultaneously
+      if(job[k].state == 2) job[k].state = 0; // reset
+      if(job[k].state == 0)
+      { // idle job
+        if(num_idle++)
+        { // show at max one idle job
+          break;
+        }
+        dt_tooltip("export current selection");
+        if(g_hotkey == s_hotkey_export || nk_button_label(ctx, "export"))
+        { // TODO: make sure we don't start a job that is already running in another job[.]
+          export_job(job+k, &w);
+          g_hotkey = -1;
+        }
+        nk_label(ctx, "", 0);
+      }
+      else if(job[k].cnt > 0 && threads_task_running(job[k].taskid))
+      { // running
+        struct nk_rect bb = nk_widget_bounds(ctx);
+        float progress = threads_task_progress(job[k].taskid);
+        nk_prog(ctx, 100*progress, 100, nk_false);
+        char text[50];
+        snprintf(text, sizeof(text), "%d%%", (int)(100.0*progress));
+        nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
+        if(nk_button_label(ctx, "abort")) job[k].abort = 1;
+        // technically a race condition on frame_cnt being inited by graph
+        // loading during the async job. do we care?
+        if(job[k].graph.frame_cnt > 1)
+        {
+          bb = nk_widget_bounds(ctx);
+          nk_prog(ctx, job[k].graph.frame, job[k].graph.frame_cnt, nk_false);
+          snprintf(text, sizeof(text), "frame %d/%d", job[k].graph.frame, job[k].graph.frame_cnt);
+          nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
+          nk_label(ctx, "", 0);
+        }
+      }
+    }
+#undef NUM_JOBS
+    nk_tree_pop(ctx);
+  } // end collapsing header "export"
+
   NK_UPDATE_ACTIVE;
   nk_end(&vkdt.ctx); // lt right panel
 }
