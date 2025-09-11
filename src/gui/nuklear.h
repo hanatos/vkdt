@@ -4861,7 +4861,7 @@ struct nk_draw_command {
 
 struct nk_draw_list {
     struct nk_rect clip_rect;
-    struct nk_vec2 circle_vtx[12];
+    struct nk_vec2 circle_vtx[24];
     struct nk_convert_config config;
 
     struct nk_buffer *buffer;
@@ -10516,10 +10516,10 @@ nk_draw_list_path_rect_to(struct nk_draw_list *list, struct nk_vec2 a,
         nk_draw_list_path_line_to(list, b);
         nk_draw_list_path_line_to(list, nk_vec2(a.x,b.y));
     } else {
-        nk_draw_list_path_arc_to_fast(list, nk_vec2(a.x + r, a.y + r), r, 6, 9);
-        nk_draw_list_path_arc_to_fast(list, nk_vec2(b.x - r, a.y + r), r, 9, 12);
-        nk_draw_list_path_arc_to_fast(list, nk_vec2(b.x - r, b.y - r), r, 0, 3);
-        nk_draw_list_path_arc_to_fast(list, nk_vec2(a.x + r, b.y - r), r, 3, 6);
+        nk_draw_list_path_arc_to_fast(list, nk_vec2(a.x + r, a.y + r), r, 12, 18);
+        nk_draw_list_path_arc_to_fast(list, nk_vec2(b.x - r, a.y + r), r, 18, 24);
+        nk_draw_list_path_arc_to_fast(list, nk_vec2(b.x - r, b.y - r), r,  0,  6);
+        nk_draw_list_path_arc_to_fast(list, nk_vec2(a.x + r, b.y - r), r,  6, 12);
     }
 }
 NK_API void
