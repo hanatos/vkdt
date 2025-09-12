@@ -164,8 +164,8 @@ dt_filebrowser(
 #endif
   nk_style_pop_font(ctx);
   int spacing = 0;
-  nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(spacing,spacing));
-  nk_style_push_vec2(ctx, &ctx->style.window.group_padding, nk_vec2(0,0));
+  nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(ctx->style.window.spacing.x, spacing));
+  nk_style_push_vec2(ctx, &ctx->style.window.group_padding, nk_vec2(ctx->style.window.group_padding.x,0));
   row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   int scroll_to = -1;
 
