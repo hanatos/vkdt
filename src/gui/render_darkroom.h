@@ -264,9 +264,9 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   { // only works for param->type == float and count == 4
     if((num % 4) == 0 && num+4 <= count)
     {
-      const float wd = ratio[0]*pwd/7.0f - ctx->style.window.spacing.x;
-      const float w8[] = { wd, wd, wd, wd, wd, wd, wd, ratio[1]*pwd};
-      nk_layout_row(ctx, NK_STATIC, row_height, 8, w8);
+      const float wd = ratio[0]*pwd/5.0f - ctx->style.window.spacing.x;
+      const float w5[] = { wd, wd, wd, 2*wd, ratio[1]*pwd};
+      nk_layout_row(ctx, NK_STATIC, row_height, 5, w5);
       float *val = (float *)(vkdt.graph_dev.module[modid].param + param->offset) + 4*num;
       struct nk_colorf oldval = {val[0], val[1], val[2], 1.0};
       struct nk_command_buffer *cmd = &vkdt.global_cmd;
@@ -334,8 +334,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
 
       if(mode == 0)
       { // rgb
-        dt_tooltip("red channel");
-        nk_label(ctx, "r", NK_TEXT_RIGHT);
         nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_f(0.5, 0.1, 0.1, 1.0));
         struct nk_rect bounds = nk_widget_bounds(ctx);
         nk_knob_float(ctx, 0.0, val+0, 1.0, 1.0/100.0, NK_DOWN, dead_angle);
@@ -343,8 +341,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         DECORATE(val[0], nk_rgba_f((k+0.5)/N, val[1], val[2], 1.0f), 1.0f/256.0f);
         ROTARY_KNOB(val[0], 1.0);
 
-        dt_tooltip("green channel");
-        nk_label(ctx, "g", NK_TEXT_RIGHT);
         nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_f(0.1, 0.5, 0.1, 1.0));
         bounds = nk_widget_bounds(ctx);
         nk_knob_float(ctx, 0.0, val+1, 1.0, 1.0/100.0, NK_DOWN, dead_angle);
@@ -352,8 +348,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         DECORATE(val[1], nk_rgba_f(val[0], (k+0.5)/N, val[2], 1.0f), 1.0f/256.0f);
         ROTARY_KNOB(val[1], 1.0);
 
-        dt_tooltip("blue channel");
-        nk_label(ctx, "b", NK_TEXT_RIGHT);
         nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_f(0.1, 0.1, 0.5, 1.0));
         bounds = nk_widget_bounds(ctx);
         nk_knob_float(ctx, 0.0, val+2, 1.0, 1.0/100.0, NK_DOWN, dead_angle);
@@ -365,8 +359,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       }
       else if(mode == 1)
       { // hsluv
-        dt_tooltip("hsluv hue angle");
-        nk_label(ctx, "hue", NK_TEXT_RIGHT);
         nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
         struct nk_rect bounds = nk_widget_bounds(ctx);
         nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // H
@@ -374,8 +366,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         DECORATE(hsv.r, hsv2rgb((k+0.5)/N, .4, 0.6), 1.0f);
         ROTARY_KNOB(hsv.r, 1.0);
 
-        dt_tooltip("hsluv colourfulness\nnormalised to max per hue");
-        nk_label(ctx, "col", NK_TEXT_RIGHT);
         nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 1.0)));
         bounds = nk_widget_bounds(ctx);
         nk_knob_float(ctx, 0.0, &hsv.g, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // S
@@ -383,8 +373,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         DECORATE(hsv.g, hsv2rgb(hsv.r, (k+0.5)/N, 0.5), 1.0f);
         ROTARY_KNOB(hsv.g, 1.0);
 
-        dt_tooltip("hsluv lightness\n0.5 is max/clipping,\n> 0.5 is overdrive");
-        nk_label(ctx, "lit", NK_TEXT_RIGHT);
         // nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, hsv.b)));
         bounds = nk_widget_bounds(ctx);
         nk_knob_float(ctx, 0.0, &hsv.b, 2.0, 1.0/100.0, NK_DOWN, dead_angle); // V
@@ -399,24 +387,9 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
 #undef ROTARY_KNOB
 
       struct nk_vec2 size = { ratio[1]*pwd, ratio[0]*pwd };
-      const char *mode_str[] = { "rgb", "hsluv" };
+      const char *mode_str = "rgb\0hsluv\0\0";
       int newmode = mode;
-      enum nk_symbol_type sym_normal = ctx->style.combo.sym_normal;
-      enum nk_symbol_type sym_hover  = ctx->style.combo.sym_hover;
-      enum nk_symbol_type sym_active = ctx->style.combo.sym_active;
-      ctx->style.combo.sym_normal = NK_SYMBOL_NONE;
-      ctx->style.combo.sym_hover  = NK_SYMBOL_NONE;
-      ctx->style.combo.sym_active = NK_SYMBOL_NONE;
-      if(nk_combo_begin_label(ctx, mode_str[mode], size))
-      {
-        nk_layout_row_dynamic(ctx, row_height, 1);
-        if(nk_contextual_item_label(ctx, mode_str[0], NK_TEXT_LEFT)) newmode = 0;
-        if(nk_contextual_item_label(ctx, mode_str[1], NK_TEXT_LEFT)) newmode = 1;
-        nk_combo_end(ctx);
-      }
-      ctx->style.combo.sym_normal = sym_normal;
-      ctx->style.combo.sym_hover  = sym_hover;
-      ctx->style.combo.sym_active = sym_active;
+      nk_combobox_string(ctx, mode_str, &newmode, 0x7fff, row_height, size);
       if(newmode != mode) change = 1;
       if(change) // don't do this if resetblock triggers change
       {
@@ -1316,6 +1289,9 @@ static inline void render_darkroom_widgets(
     }
     for(int i=0;i<arr[curr].so->num_params;i++)
       render_darkroom_widget(curr, i, 0);
+    // add a bit of extra panel space to be able to scroll down:
+    nk_layout_row_dynamic(ctx, 10*row_height, 1);
+    nk_label(ctx, "", 0);
   }
 }
 
