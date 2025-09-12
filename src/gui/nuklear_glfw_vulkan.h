@@ -1311,9 +1311,9 @@ void nk_glfw3_create_cmd(
         VK_SHADER_STAGE_ALL, dev->push_constant_size-sizeof(float),
         sizeof(float), &str);
 
-    VkRect2D scissor = {
-      .offset.x      = (int32_t)(NK_MAX(cmd->clip_rect.x, 0.f)),
-      .offset.y      = (int32_t)(NK_MAX(cmd->clip_rect.y, 0.f)),
+    VkRect2D scissor = { // anti-aliasing needs one more pixel to the left/top:
+      .offset.x      = (int32_t)(NK_MAX(cmd->clip_rect.x-1, 0.f)),
+      .offset.y      = (int32_t)(NK_MAX(cmd->clip_rect.y-1, 0.f)),
       .extent.width  = (uint32_t)(cmd->clip_rect.w),
       .extent.height = (uint32_t)(cmd->clip_rect.h),
     };
