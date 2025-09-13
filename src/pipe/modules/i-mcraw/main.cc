@@ -77,7 +77,7 @@ open_file(
   dat->wd = metadata["width"];
   dat->ht = metadata["height"];
   std::vector<double> wb = metadata["asShotNeutral"];
-  for(int k=0;k<4;k++) dat->as_shot_neutral[k] = 1.0/wb[k];
+  for(int k=0;k<3;k++) dat->as_shot_neutral[k] = 1.0/wb[k];
 
   // load gainmap  
   int uncropped_wd = metadata["originalWidth"];
@@ -171,17 +171,29 @@ void cleanup(dt_module_t *mod)
 dt_graph_run_t
 check_params(
     dt_module_t *module,
-    uint32_t     parid,
+    uint32_t     pid,
     uint32_t     num,
     void        *oldval)
 {
-  if(parid == 1 || parid == 2) // noise model
+  buf_t *dat = (buf_t *)module->data;
+  int pid_start = dt_module_get_param(module->so, dt_token("start"));
+  if(pid == pid_start)
+  {
+    int mxcnt = dat->dec->getFrames().size();
+    int endfr = MIN(mxcnt, module->graph->frame_cnt + *((int*)oldval));
+    int start = CLAMP(dt_module_param_int(module, pid)[0], 0, mxcnt-1);
+    if(module->graph->frame_cnt > 1) // keep single frame extracts single
+      module->graph->frame_cnt = MAX(1, MIN(endfr, mxcnt)-start);
+    return s_graph_run_record_cmd_buf;
+  }
+  if(pid == 1 || pid == 2) // noise model
   {
     const float noise_a = dt_module_param_float(module, 1)[0];
     const float noise_b = dt_module_param_float(module, 2)[0];
     module->img_param.noise_a = noise_a;
     module->img_param.noise_b = noise_b;
-    return s_graph_run_all; // need no do modify_roi_out again to read noise model from file
+    if(noise_a == 0.0 && noise_b == 0.0)
+      return s_graph_run_all; // need to do modify_roi_out again to read noise model from file
   }
   return s_graph_run_record_cmd_buf;
 }
@@ -194,7 +206,7 @@ void modify_roi_out(
 {
   // load image if not happened yet
   const char *filename = dt_module_param_string(mod, 0);
-  if(open_file(mod, filename)) return;
+  if(open_file(mod, filename)) return; // return on error (not if already loaded)
   buf_t *dat= (buf_t *)mod->data;
   const uint32_t wd = dat->wd;
   const uint32_t ht = dat->ht;
@@ -404,7 +416,9 @@ int read_source(
   const int blocks = dat->rwd * dat->ht / 64;
   const int rblock = ((blocks+63)/64)*64;
   const std::vector<motioncam::Timestamp> &frame_list = dat->dec->getFrames();
-  int frame = CLAMP(mod->graph->frame, (int)0, (int)(frame_list.size()-1));
+  int pid_start = dt_module_get_param(mod->so, dt_token("start"));
+  int start = MAX(dt_module_param_int(mod, pid_start)[0], 0);
+  int frame = CLAMP(mod->graph->frame+start, (int)0, (int)(frame_list.size()-1));
   size_t out_data_max_len = sizeof(uint16_t) * rblock * 64;
 
   if(p->node->kernel == dt_token("bitcnt"))
