@@ -99,6 +99,11 @@ typedef struct dt_db_t
   // currently selected image (when switching to darkroom mode, e.g.)
   uint32_t current_imgid;
   uint32_t current_colid;
+
+  // exif time offsets for a couple of cameras:
+  int64_t timeoffset[10];
+  int     timeoffset_cnt;
+  dt_stringpool_t timeoffset_model;
 }
 dt_db_t;
 
