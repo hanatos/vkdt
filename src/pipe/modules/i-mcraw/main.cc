@@ -451,8 +451,15 @@ int audio(
   buf_t *dat = (buf_t *)mod->data;
   if(!dat || !dat->filename[0]) return 0;
 
+  // guess chunk offset by start frame
+  int pid_start = dt_module_get_param(mod->so, dt_token("start"));
+  int start = MAX(dt_module_param_int(mod, pid_start)[0], 0);
+  int mxcnt = dat->dec->getFrames().size();
+  float t = start / (float)mxcnt;
+
   int channels   = dat->dec->numAudioChannels();
   int chunk_size = dat->audio_chunks[0].second.size() / channels; // is in number of samples, but already vec<int16>
+  sample_beg += t * chunk_size * dat->audio_chunks.size();
   int chunk_id   = CLAMP((int)(sample_beg / chunk_size), (int)0, (int)(dat->audio_chunks.size()-1));
   int chunk_off  = CLAMP((int)(sample_beg - chunk_id * chunk_size), (int)0, (int)(chunk_size-1));
   // find right audio chunk for frame by timestamp, i.e. audio_chunk.first (so far they seem to be always zero?)
