@@ -22,6 +22,32 @@ this screenshot shows the import in progress in the files view:
 
 [![files import](files-import.jpg)](files-import.jpg)
 
+oops, you've imported old files that were still on your memory card? don't worry,
+the `files` expander in lighttable mode allows you to select a bunch and move
+them away to another folder after the fact. note that you could conceivably do
+it this way in the first place: open the mounted memory card in lighttable mode
+and just move away or copy selected images from there. this seems useful because
+you can actually see the thumbnails and you can use advanced collection/filtering.
+on the downside the memory card reader is probably very slow.
+
+## sorting images
+
+you can sort images by create date, to view them in chronological order.
+if you used multiple cameras during acquisition, they might have inconsistent
+clocks. to counter this, `vkdt` supports time stamp offsets per folder.
+you can put extra lines into `vkdt.db` to specify the offset for each
+camera model. this is an example:
+```
+time offset:Fujifilm X100T:0:0:0:0:0:-15375600
+time offset:Canon EOS 5D Mark II:0:0:0:0:0:-3600
+time offset:MOTION:0:0:0:0:0:-7200
+```
+`MOTION` stands for mcraw raw videos created by the motioncam app. the six
+numbers after the camera model are (signed) values for year, month, day, hour,
+minute, and seconds. since it's a bit wacky to convert seconds to years/months
+and the other way around, this assumes a static 30 day month and a static 365
+day year. you can also just give the offset in seconds, as done above.
+
 ## tools for rating
 
 to rate images both in lighttable and darkroom views, there are keyboard
