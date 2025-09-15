@@ -732,7 +732,6 @@ void render_lighttable_right_panel()
     if(!ft->filetype) ft->active &= ~(1<<s_prop_filetype);
     else              ft->active |=   1<<s_prop_filetype;
 
-#if 0
     nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
     int filename = (ft->active >> s_prop_filename)&1;
     res = nk_combo_string(ctx, "any\0filter by\0\0", filename, 0xffff, row_height, size);
@@ -744,9 +743,12 @@ void render_lighttable_right_panel()
     nk_label(ctx, "filename", NK_TEXT_LEFT);
     if(ft->active & (1<<s_prop_filename))
     {
-      // TODO
+      dt_tooltip("regular expression to match file names");
+      nk_flags ret = nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER,
+          ft->filename, sizeof(ft->filename), nk_filter_default);
+      if(ret & NK_EDIT_COMMITED)
+        update_collection = 1;
     }
-#endif
     nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
     int createdate = (ft->active >> s_prop_createdate)&1;
     res = nk_combo_string(ctx, "any\0filter by\0\0", createdate, 0xffff, row_height, size);

@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include <regex.h>
 
 void
 dt_db_init(dt_db_t *db)
@@ -146,6 +147,9 @@ void
 dt_db_update_collection(dt_db_t *db)
 {
   // filter
+  regex_t regex;
+  if(db->collection_filter.active & (1<<s_prop_filename))
+    regcomp(&regex, db->collection_filter.filename, 0);
   char createdate[20];
   db->collection_cnt = 0;
   for(int k=0;k<db->image_cnt;k++)
@@ -159,7 +163,7 @@ dt_db_update_collection(dt_db_t *db)
         case s_prop_none:
           break;
         case s_prop_filename:
-          if(!strstr(db->image[k].filename, db->collection_filter.filename)) goto discard;
+          if(regexec(&regex, db->image[k].filename, 0, 0, 0)) goto discard;
           break;
         case s_prop_rating:
           if(db->collection_filter.rating_cmp == 0 && !(db->image[k].rating >= db->collection_filter.rating)) goto discard;
@@ -182,6 +186,8 @@ dt_db_update_collection(dt_db_t *db)
     db->collection[db->collection_cnt++] = k;
 discard:;
   }
+  if(db->collection_filter.active & (1<<s_prop_filename))
+    regfree(&regex);
   // TODO: use db/tests/parallel radix sort
   switch(db->collection_sort)
   {
