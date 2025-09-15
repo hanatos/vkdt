@@ -96,6 +96,7 @@ packages from github nightly ci.
 * dynamic lod (option to render low res when dragging sliders/drawing masks)
 * keyframe interpolation modes (ease-in, ease-out, ..)
 * keyframed brush strokes (for real time hand drawn text for instance)
+* mcraw input supports trimming from left (and right as always)
 * vkdt-rendered logo (looks best in hdr mode)
 * improved wayland support (better than x11)
 * [i-lut](../src/pipe/modules/i-lut/readme.md) now supports lists of input files, useful for textures/3d rendering
@@ -103,6 +104,10 @@ packages from github nightly ci.
 * introduce mouse interaction on `dspy` outputs of modules to change their parameters. 
   the new rgb `curves` module is the first user.
 * use [hsluv](https://www.hsluv.org/) as ui colour picker space
+* lighttable: can filter filenames by regular expression now
+* lighttable: allow moving selected files around on disk
+* lighttable: access favourite preset buttons from here too
+* backend time offset support for sorting images from multiple cameras
 * re-introduced darkroom mode zoom/pan via gamepad
 * refactored `quake` and `rt` modules to use a unified spectral renderer
 * an implementation of [mcpg](https://www.lalber.org/2025/04/markov-chain-path-guiding/) (Markov chain path guiding) for 3d rendering/quake
