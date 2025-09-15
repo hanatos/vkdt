@@ -92,6 +92,7 @@ dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20])
   else f[off] = 0;
 
   char model[32];
+  model[0] = 0;
   dt_db_exif_mini(f, createdate, model, sizeof(model));
 
 #ifndef _WIN64 // oh whatever. is this dead os really worth all the trouble?

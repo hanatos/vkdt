@@ -6,6 +6,7 @@
 #include "db/thumbnails.h"
 #include "db/rc.h"
 #include "db/hash.h"
+#include "db/exif.h"
 #include "core/fs.h"
 #include "pipe/graph-defaults.h"
 #include "gui/render_view.h"
@@ -1202,6 +1203,21 @@ void render_lighttable_right_panel()
       nk_label(&vkdt.ctx, c, NK_TEXT_LEFT);
       c = cc+1;
     }
+#if 0
+    { // DEBUG time offsets
+    char model[100] = {0}, createdate[20] = {0};
+    char imgpath[PATH_MAX];
+    dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, imgpath, sizeof(imgpath));
+    imgpath[strlen(imgpath)-4] = 0;
+    fs_createdate(imgpath, createdate);
+    nk_label(ctx, createdate, NK_TEXT_LEFT); // stat modified timestamp
+    dt_db_exif_mini(imgpath, createdate, model, sizeof(model));
+    nk_label(ctx, model, NK_TEXT_LEFT);      // model name
+    nk_label(ctx, createdate, NK_TEXT_LEFT); // date we found in exif
+    dt_db_read_createdate(&vkdt.db, vkdt.db.current_imgid, createdate);
+    nk_label(ctx, createdate, NK_TEXT_LEFT); // date we found in exif adjusted by time offset of folder
+    } // DEBUG
+#endif
     nk_tree_pop(ctx);
   } // end collapsing header "metadata"
 

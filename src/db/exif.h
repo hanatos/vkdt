@@ -12,6 +12,8 @@ dt_db_exif_mini(
     char       *model,
     size_t      model_size)
 {
+  if(model_size) model[0] = 0;
+  createdate[0] = 0;
   FILE *f = fopen(filename, "rb");
   if(!f) return 1;
 
