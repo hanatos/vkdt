@@ -94,6 +94,7 @@ dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20])
   char model[32];
   dt_db_exif_mini(f, createdate, model, sizeof(model));
 
+#ifndef _WIN64 // oh whatever. is this dead os really worth all the trouble?
   // now consider the model/time offset table stored in the vkdt.db folder structure
   uint32_t i = dt_stringpool_get((dt_stringpool_t*)&db->timeoffset_model, model, strlen(model), -1u, 0);
   i = CLAMP(i, 0, sizeof(db->timeoffset)/sizeof(db->timeoffset[0])-1);
@@ -107,6 +108,7 @@ dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20])
   gmtime_r(&t, &tm);
   strftime(createdate, 20, "%Y:%m:%d %T", &tm);
   // fprintf(stderr, "backconv - off %ld %s\n", to, createdate);
+#endif
 }
 
 static int
