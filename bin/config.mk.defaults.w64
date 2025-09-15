@@ -109,7 +109,7 @@ GLSLC_FLAGS=--target-env vulkan1.2
 # GLSLC_FLAGS=--target-env=vulkan1.2
 CFLAGS=-I/c/msys64/ucrt64/include -I.
 CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -I/c/msys64/ucrt64/include
-LDFLAGS=-L/c/msys64/ucrt64/lib
+LDFLAGS=-L/c/msys64/ucrt64/lib -lc
 export CFLAGS CXXFLAGS LDFLAGS
 
 # optimised flags, you may want to use -march=x86-64 for distro builds:
