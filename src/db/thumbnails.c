@@ -487,7 +487,7 @@ dt_thumbnails_load_one(
   { // only hash images that aren't straight from our resource directory:
     // XXX run through realpath once for windows and / vs \\ confusion?
     uint64_t hash = hash64(filename);
-    snprintf(imgfilename, sizeof(imgfilename), "%s/%"PRIx64".bc1", tn->cachedir, hash);
+    if(snprintf(imgfilename, sizeof(imgfilename), "%s/%"PRIx64".bc1", tn->cachedir, hash) >= sizeof(imgfilename)) return VK_INCOMPLETE;
   }
   else if(snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dt_pipe.basedir, filename) >= sizeof(imgfilename)) return VK_INCOMPLETE;
   struct stat statbuf = {0};
