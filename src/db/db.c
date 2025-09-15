@@ -473,7 +473,7 @@ static inline int64_t
 dt_db_parse_timeoffset(const char *str)
 {
   int64_t Y, M, D, h, m, s;
-  sscanf(str, "%ld:%ld:%ld:%ld:%ld:%ld", &Y, &M, &D, &h, &m, &s);
+  sscanf(str, "%"PRId64":%"PRId64":%"PRId64":%"PRId64":%"PRId64":%"PRId64, &Y, &M, &D, &h, &m, &s);
   // i hate calendars, and none of this makes any sense:
   return s + 60*(m + 60*(h + 24*(D + 30*M + 365*Y)));
 }
@@ -567,7 +567,7 @@ int dt_db_write(const dt_db_t *db, const char *filename, int append)
     { // query value of this string and write time offset in seconds
       uint32_t pos = dt_stringpool_get((dt_stringpool_t*)&db->timeoffset_model, db->timeoffset_model.buf+i, len, -1u, 0);
       if(pos != -1u && pos < sizeof(db->timeoffset)/sizeof(db->timeoffset[0]))
-        fprintf(f, "time offset:%s:0:0:0:0:0:%ld\n", db->timeoffset_model.buf+i, db->timeoffset[pos]);
+        fprintf(f, "time offset:%s:0:0:0:0:0:%"PRId64"\n", db->timeoffset_model.buf+i, db->timeoffset[pos]);
     }
     i += len+1; // eat terminating 0, too
   }
