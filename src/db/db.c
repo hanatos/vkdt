@@ -517,7 +517,6 @@ int dt_db_read(dt_db_t *db, const char *filename)
       uint32_t i = dt_stringpool_get(&db->timeoffset_model, what, strlen(what), db->timeoffset_cnt++, 0);
       i = CLAMP(i, 0, sizeof(db->timeoffset)/sizeof(db->timeoffset[0])-1);
       db->timeoffset[i] = to;
-      fprintf(stderr, "read time offset %d = %ld (from %s), model %s\n", i, to, val, what);
       continue;
     }
 
