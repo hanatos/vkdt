@@ -1150,8 +1150,8 @@ static inline void render_darkroom_widgets(
   struct nk_context *ctx = &vkdt.ctx;
   const float pwd = vkdt.state.panel_wd - ctx->style.window.scrollbar_size.x - 2*ctx->style.window.padding.x;
   const float w3[] = {
-    0.06f*pwd-ctx->style.window.spacing.x,
-    0.88f*pwd-ctx->style.window.spacing.x,
+    0.06f*pwd,
+    0.88f*pwd-2*ctx->style.window.spacing.x,
     0.06f*pwd};
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
