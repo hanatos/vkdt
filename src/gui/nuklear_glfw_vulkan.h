@@ -1314,8 +1314,8 @@ void nk_glfw3_create_cmd(
     VkRect2D scissor = { // anti-aliasing needs one more pixel to the left/top:
       .offset.x      = (int32_t)(NK_MAX(cmd->clip_rect.x-1, 0.f)),
       .offset.y      = (int32_t)(NK_MAX(cmd->clip_rect.y-1, 0.f)),
-      .extent.width  = (uint32_t)(cmd->clip_rect.w),
-      .extent.height = (uint32_t)(cmd->clip_rect.h),
+      .extent.width  = (uint32_t)(cmd->clip_rect.w+1),
+      .extent.height = (uint32_t)(cmd->clip_rect.h+1),
     };
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
     vkCmdDrawIndexed(command_buffer, cmd->elem_count, 1, index_offset, 0, 0);
