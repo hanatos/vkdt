@@ -159,8 +159,9 @@ compute_coefficients(
   }
 }
 
-void commit_params(dt_graph_t *graph, dt_module_t *module)
+void modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 {
+  module->connector[1].roi = module->connector[0].roi;
   const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
   if(!img_param) return;
   // mark image matrix from here on as rec2020/identity
@@ -175,6 +176,12 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   module->img_param.cam_to_rec2020[8] = 1.0;
   module->img_param.colour_primaries = s_colour_primaries_2020;
   module->img_param.colour_trc       = s_colour_trc_linear;
+}
+
+void commit_params(dt_graph_t *graph, dt_module_t *module)
+{
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  if(!img_param) return;
 
   float *f = (float *)module->committed_param;
   uint32_t *i = (uint32_t *)module->committed_param;

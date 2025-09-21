@@ -1346,7 +1346,7 @@ void render_lighttable_right_panel()
     static dt_export_widget_t w = {0};
     dt_export(&w);
     const float ratio[] = {0.7f, 0.3f};
-    nk_layout_row(ctx, NK_DYNAMIC, 0, 2, ratio);
+    nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
 #define NUM_JOBS 4
     static export_job_t job[NUM_JOBS] = {{0}};
     int32_t num_idle = 0;
@@ -1373,6 +1373,8 @@ void render_lighttable_right_panel()
         float progress = threads_task_progress(job[k].taskid);
         nk_prog(ctx, 100*progress, 100, nk_false);
         char text[50];
+        bb.x += ctx->style.progress.padding.x;
+        bb.y += ctx->style.progress.padding.y;
         snprintf(text, sizeof(text), "%d%%", (int)(100.0*progress));
         nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
         if(nk_button_label(ctx, "abort")) job[k].abort = 1;
@@ -1382,6 +1384,8 @@ void render_lighttable_right_panel()
         {
           bb = nk_widget_bounds(ctx);
           nk_prog(ctx, job[k].graph.frame, job[k].graph.frame_cnt, nk_false);
+          bb.x += ctx->style.progress.padding.x;
+          bb.y += ctx->style.progress.padding.y;
           snprintf(text, sizeof(text), "frame %d/%d", job[k].graph.frame, job[k].graph.frame_cnt);
           nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
           nk_label(ctx, "", 0);

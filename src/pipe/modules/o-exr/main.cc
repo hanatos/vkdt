@@ -22,6 +22,8 @@ void write_sink(
   const char *basename = dt_module_param_string(mod, 0);
   fprintf(stderr, "[o-exr] writing '%s'\n", basename);
   uint16_t *p16 = (uint16_t *)buf;
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(mod->graph, mod, dt_token("input"));
+  if(!img_param) return;
 
   const int wd = mod->connector[0].roi.wd;
   const int ht = mod->connector[0].roi.ht;
@@ -83,10 +85,10 @@ void write_sink(
   EXRAttribute custom_attributes[] = {{
     "chromaticities",
     "chromaticities",
-    (unsigned char*)(chromaticities[CLAMP(mod->img_param.colour_primaries, 0, 7)]),
+    (unsigned char*)(chromaticities[CLAMP(img_param->colour_primaries, 0, 7)]),
     sizeof(chromaticities[0]),
   },{
-    "trc", "char", (unsigned char*)trc[CLAMP(mod->img_param.colour_trc, 0, 7)], sizeof(trc[CLAMP(mod->img_param.colour_trc, 0, 7)]),
+    "trc", "char", (unsigned char*)trc[CLAMP(img_param->colour_trc, 0, 7)], sizeof(trc[CLAMP(img_param->colour_trc, 0, 7)]),
   }};
   hdr.custom_attributes = custom_attributes;
   hdr.num_custom_attributes = sizeof(custom_attributes)/sizeof(custom_attributes[0]);
