@@ -90,6 +90,8 @@ dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20])
   size_t off = strnlen(f, sizeof(f));
   if(off > 4) f[off - 4] = 0;
   else f[off] = 0;
+  if(off > 7 && f[off-7] == '_' && f[off-6] >= '0' && f[off-6] <= '9' && f[off-5] >= '0' && f[off-5] <= '9') 
+    f[off-7] = 0; // for duplicates, for instance IMG_9999.CR2_01.cfg
 
   char model[32];
   model[0] = 0;
