@@ -908,33 +908,6 @@ void render_lighttable_right_panel()
     nk_label(ctx, "", 0);
 
     // ==============================================================
-    // delete images
-    static int really_delete = 0;
-    if(really_delete) { if(nk_button_label(ctx, "no, don't delete!")) really_delete = 0; }
-    else
-    {
-      dt_tooltip("will ask you again");
-      if(nk_button_label(ctx, "delete image[s]")) really_delete = 1;
-    }
-
-    if(really_delete)
-    {
-      dt_tooltip(
-          "this button will physically delete the .cfg files of the selection.\n"
-          "it will only delete the source image file if its filename is\n"
-          "exacty the .cfg file name without the .cfg postfix.\n"
-          "this means duplicates or tag collections will keep the source\n"
-          "image file name on disk untouched, but only remove the duplicate\n"
-          "or the tag from the image");
-      if(nk_button_label(ctx, "*really* delete image[s]"))
-      {
-        dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
-        really_delete = 0;
-      }
-    }
-    else nk_label(ctx, "", 0);
-
-    // ==============================================================
     // reset history stack
     if(nk_button_label(ctx, "reset history stack"))
     {
@@ -1227,6 +1200,7 @@ void render_lighttable_right_panel()
   int active = job[0].state | job[1].state | job[2].state | job[3].state;
   if(nk_tree_push(ctx, NK_TREE_TAB, "files", active ? NK_MAXIMIZED : NK_MINIMIZED))
   {
+    // ==============================================================
     // new project from scratch
     nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
     static char fname[50] = "new_project";
@@ -1251,6 +1225,39 @@ void render_lighttable_right_panel()
       dt_gui_switch_collection(filename); // reload directory
     }
 
+    // ==============================================================
+    // delete images
+    if(vkdt.db.selection_cnt)
+    {
+      static int really_delete = 0;
+      if(really_delete) { if(nk_button_label(ctx, "no, don't delete!")) really_delete = 0; }
+      else
+      {
+        dt_tooltip("will ask you again");
+        if(nk_button_label(ctx, "delete image[s]")) really_delete = 1;
+      }
+
+      if(really_delete)
+      {
+        dt_tooltip(
+            "this button will physically delete the .cfg files of the selection.\n"
+            "it will only delete the source image file if its filename is\n"
+            "exacty the .cfg file name without the .cfg postfix.\n"
+            "this means duplicates or tag collections will keep the source\n"
+            "image file name on disk untouched, but only remove the duplicate\n"
+            "or the tag from the image");
+        if(nk_button_label(ctx, "*really* delete image[s]"))
+        {
+          dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
+          really_delete = 0;
+        }
+      }
+      else nk_label(ctx, "", 0);
+    }
+
+
+    // ==============================================================
+    // copy/move
     if(vkdt.db.selection_cnt)
     { // copy jobs
       nk_layout_row_dynamic(ctx, row_height/2, 1);
