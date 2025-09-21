@@ -11799,7 +11799,7 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     combo->content_padding  = nk_vec2(S(12),S(4));
     combo->button_padding   = nk_vec2(S(0),S(4));
     combo->spacing          = nk_vec2(S(4),0);
-    combo->border           = S(1);
+    combo->border           = S(0);
     combo->rounding         = S(12);
     combo->color_factor     = 1.0f;
     combo->disabled_factor  = NK_WIDGET_DISABLED_FACTOR;
