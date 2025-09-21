@@ -1289,9 +1289,11 @@ static inline void render_darkroom_widgets(
     }
     for(int i=0;i<arr[curr].so->num_params;i++)
       render_darkroom_widget(curr, i, 0);
-    // add a bit of extra panel space to be able to scroll down:
-    nk_layout_row_dynamic(ctx, 10*row_height, 1);
-    nk_label(ctx, "", 0);
+    if(vkdt.view_mode == s_view_darkroom)
+    { // add a bit of extra panel space to be able to scroll down:
+      nk_layout_row_dynamic(ctx, 10*row_height, 1);
+      nk_label(ctx, "", 0);
+    }
   }
 }
 
