@@ -20,7 +20,7 @@ you need to profile your display (follow the instructions in [the excellent
 dcamprof article mirrored by rawtherapee](https://rawtherapee.com/mirror/dcamprof/argyll-display.html)),
 apply the TRC with dispwin, and supply the matrix to `vkdt`. the latter is
 currently done by running `vkdt read-icc` which will generate a
-`display.profile` file containing the extracted gamma and colour matrix.
+`display.profile` file containing the extracted gamma and colour matrix (the matrix maps from internal rec2020 to display space, so if your monitor runs rec2020 this should be an identity matrix).
 
 such a file, if found in the bin directory
 during run time, `vkdt` will pick it up and load it to the gpu.
