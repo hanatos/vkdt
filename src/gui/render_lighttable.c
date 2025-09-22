@@ -576,6 +576,7 @@ void render_lighttable_right_panel()
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   const struct nk_vec2 size = {vkdt.state.panel_wd*0.95, vkdt.state.panel_wd*0.95};
 
+  if(vkdt.wstate.fullscreen_view) return;
   if(!nk_begin(ctx, "lighttable panel right", bounds, 0))
   {
     NK_UPDATE_ACTIVE;
@@ -610,13 +611,6 @@ void render_lighttable_right_panel()
     nk_tab_property(int, ctx, "#", 2, &vkdt.wstate.lighttable_images_per_row, 16, 1, 1);
     dt_tooltip("how many images per row to display");
     nk_label(ctx, "images/row", NK_TEXT_LEFT);
-
-    if(vkdt.session_type != 1)
-    { // wayland doesn't allow to find out current monitor, fullscreen by using your compositor instead.
-      if(nk_button_label(ctx, vkdt.win.fullscreen ? "un-fullscreen" : "fullscreen"))
-        dt_gui_toggle_fullscreen();
-      nk_label(ctx, "", 0);
-    }
 
     nk_tree_pop(ctx);
   }
@@ -1487,7 +1481,7 @@ int lighttable_enter()
   g_scroll_offset = abs(g_scroll_offset);
   g_image_cursor = -1;
   if(vkdt.wstate.history_view)    dt_gui_dr_toggle_history();
-  if(vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
+  if(vkdt.wstate.fullscreen_view) dt_gui_toggle_fullscreen_view();
   dt_gamepadhelp_set(dt_gamepadhelp_ps,              "toggle this help");
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "go to file browser");
   dt_gamepadhelp_set(dt_gamepadhelp_button_cross,    "enter darkroom");
@@ -1495,6 +1489,7 @@ int lighttable_enter()
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_down,      "move down");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_left,      "move left");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_right,     "move right");
+  dt_gamepadhelp_set(dt_gamepadhelp_R1,              "show/hide right panel");
   vkdt.wstate.copied_imgid = -1u; // reset to invalid
   vkdt.wstate.lighttable_images_per_row = dt_rc_get_int(&vkdt.rc, "gui/images_per_line", 6);
   dt_gui_read_favs("darkroom.ui"); // read these for fav presets here, too
@@ -1546,6 +1541,10 @@ void lighttable_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepads
   {
     if(g_image_cursor < 0) g_image_cursor = -2;
     else g_image_cursor = MIN(vkdt.db.collection_cnt-1, g_image_cursor+1);
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER))
+  {
+    dt_gui_toggle_fullscreen_view();
   }
 #undef PRESSED
 }

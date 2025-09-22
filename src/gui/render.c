@@ -337,7 +337,7 @@ void dt_gui_ungrab_mouse()
 {
   glfwSetInputMode(vkdt.win.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   vkdt.wstate.grabbed = 0;
-  dt_gui_dr_unset_fullscreen_view();
+  dt_gui_unset_fullscreen_view();
 }
 
 typedef struct dt_gamepadhelp_t

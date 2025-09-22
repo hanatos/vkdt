@@ -319,7 +319,7 @@ dt_gui_dr_pers_adjust(
 }
 
 static inline void
-dt_gui_dr_toggle_fullscreen_view()
+dt_gui_toggle_fullscreen_view()
 {
   vkdt.wstate.fullscreen_view ^= 1;
   if(vkdt.wstate.fullscreen_view)
@@ -339,15 +339,15 @@ dt_gui_dr_toggle_fullscreen_view()
 }
 
 static inline void
-dt_gui_dr_set_fullscreen_view()
+dt_gui_set_fullscreen_view()
 {
-  if(!vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
+  if(!vkdt.wstate.fullscreen_view) dt_gui_toggle_fullscreen_view();
 }
 
 static inline void
-dt_gui_dr_unset_fullscreen_view()
+dt_gui_unset_fullscreen_view()
 {
-  if(vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
+  if(vkdt.wstate.fullscreen_view) dt_gui_toggle_fullscreen_view();
 }
 
 static inline void
@@ -395,14 +395,14 @@ static inline void
 dt_gui_dr_enter_fullscreen_view()
 {
   if(!vkdt.wstate.fullscreen_view)
-    dt_gui_dr_toggle_fullscreen_view();
+    dt_gui_toggle_fullscreen_view();
 }
 
 static inline void
 dt_gui_dr_leave_fullscreen_view()
 {
   if(vkdt.wstate.fullscreen_view)
-    dt_gui_dr_toggle_fullscreen_view();
+    dt_gui_toggle_fullscreen_view();
 }
 
 static inline void

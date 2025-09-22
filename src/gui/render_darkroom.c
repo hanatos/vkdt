@@ -139,7 +139,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     {
       dt_gui_ungrab_mouse();
       p.type = -1; // disconnect event
-      dt_gui_dr_unset_fullscreen_view();
+      dt_gui_unset_fullscreen_view();
       // if this came from a camera button, we want to record the new camera in history:
       if(vkdt.wstate.active_widget_modid >= 0)
         dt_graph_history_append(&vkdt.graph_dev, vkdt.wstate.active_widget_modid, vkdt.wstate.active_widget_parid, 2.0);
@@ -206,7 +206,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       dt_view_switch(s_view_nodes);
       break;
     case s_hotkey_fullscreen:
-      dt_gui_dr_toggle_fullscreen_view();
+      dt_gui_toggle_fullscreen_view();
       break;
     case s_hotkey_dopesheet:
       dt_gui_dr_toggle_dopesheet();
@@ -1165,6 +1165,7 @@ darkroom_enter()
   dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "upvote and next");
   dt_gamepadhelp_set(dt_gamepadhelp_button_square, "downvote and next");
   dt_gamepadhelp_set(dt_gamepadhelp_L2, "zoom out");
+  dt_gamepadhelp_set(dt_gamepadhelp_R1, "show/hide right panel");
   dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in");
   dt_gamepadhelp_set(dt_gamepadhelp_L3, "reset zoom");
   // dt_gamepadhelp_set(dt_gamepadhelp_R3, "reset focussed control");
@@ -1269,7 +1270,10 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
   {
     dt_image_reset_zoom(&vkdt.wstate.img_widget);
   }
-  // TODO: right shoulder fullscreen?
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER))
+  {
+    dt_gui_toggle_fullscreen_view();
+  }
 
   dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
   if(out_main)

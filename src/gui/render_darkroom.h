@@ -986,7 +986,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           dt_module_input_event_t p = { 0 };
           dt_module_t *mod = vkdt.graph_dev.module + modid;
           dt_gui_grab_mouse();
-          dt_gui_dr_set_fullscreen_view();
+          dt_gui_set_fullscreen_view();
           if(modid >= 0)
             if(mod->so->input) mod->so->input(mod, &p);
           dt_gui_dr_anim_start();
