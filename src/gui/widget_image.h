@@ -13,7 +13,8 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
   if(main && vkdt.wstate.active_widget_modid >= 0)
   { // on-canvas widget interaction
     do_events = 0; // by default disable std events (zoom/pan) if there is overlay
-    struct nk_vec2 pos = ctx->input.mouse.pos;
+    struct nk_vec2 pos  = ctx->input.mouse.pos;
+    struct nk_vec2 cpos = ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos;
     const dt_token_t widget = vkdt.graph_dev.module[
         vkdt.wstate.active_widget_modid].so->param[
         vkdt.wstate.active_widget_parid]->widget.type;
@@ -150,7 +151,15 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
         if(edge_hovered == 3) q = q2;
         nk_fill_polygon(buf, q, 4, (struct nk_color){0x77,0x77,0x77,0x77});
 
-        float v[] = {pos.x, pos.y}, n[2] = {0};
+        static float epos[2];
+        if(nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_LEFT))
+        { // remember offset mouse clicked pos<->original edge
+          float ced[2] = {
+            vkdt.wstate.state[vkdt.wstate.selected],
+            vkdt.wstate.state[vkdt.wstate.selected]};
+          dt_image_to_view(&vkdt.wstate.img_widget, ced, epos);
+        }
+        float v[] = {epos[0]+pos.x-cpos.x, epos[1]+pos.y-cpos.y}, n[2] = {0};
         dt_image_from_view(&vkdt.wstate.img_widget, v, n);
         float edge = vkdt.wstate.selected < 2 ? n[0] : n[1];
         dt_gui_dr_crop_adjust(edge, 0);
