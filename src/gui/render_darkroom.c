@@ -25,6 +25,7 @@
 #include "gui/widget_draw.h"
 #include "gui/widget_thumbnail.h"
 #include "gui/widget_image.h"
+#include "gui/widget_radial_menu.h"
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -344,6 +345,14 @@ void render_darkroom()
     dt_view_switch(s_view_lighttable);
     gui.pgupdn = 0;
     return;
+  }
+
+  if(vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].down)
+  {
+    dt_radial_menu(&vkdt.ctx,
+        vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked_pos.x,
+        vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked_pos.y,
+        vkdt.win.height/3.0);
   }
 
   const int disabled = vkdt.wstate.popup;

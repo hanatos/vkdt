@@ -25,6 +25,7 @@ GUI_H=gui/gui.h\
       gui/widget_tooltip.h\
       gui/widget_image.h\
       gui/widget_nodes.h\
+      gui/widget_radial_menu.h\
       gui/widget_recentcollect.h\
       gui/widget_thumbnail.h\
       gui/view.h\
