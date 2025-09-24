@@ -166,6 +166,16 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     return;
   }
 
+  if(vkdt.wstate.active_radial_menu_modid >= 0)
+  {
+    if(action == GLFW_PRESS && (
+          key == GLFW_KEY_ESCAPE ||
+          key == GLFW_KEY_CAPS_LOCK ||
+          key == GLFW_KEY_ENTER))
+      vkdt.wstate.active_radial_menu_modid = -1;
+    return;
+  }
+
   gui.hotkey = action == GLFW_PRESS ? hk_get_hotkey(hk_darkroom, hk_darkroom_cnt, key) : -1;
   if(action != GLFW_PRESS) return; // only handle key down events
   switch(gui.hotkey)
@@ -349,10 +359,33 @@ void render_darkroom()
 
   if(vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].down)
   {
-    dt_radial_menu(&vkdt.ctx,
+    // TODO load such list from fav sliders/buttons
+    const char *text[] = {"one", "two", "three", "four", "five", "six"};
+    int sel = dt_radial_menu(&vkdt.ctx,
         vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked_pos.x,
         vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked_pos.y,
-        vkdt.win.height/3.0);
+        vkdt.win.height/3.0,
+        6, text);
+    if(sel > -1)
+    {
+      // TODO buttons just press them
+      // TODO sliders set active modid
+      vkdt.wstate.active_radial_menu_modid = -1;
+      for(int m=0;m<vkdt.graph_dev.num_modules&&
+          vkdt.wstate.active_radial_menu_modid == -1;m++)
+        if(vkdt.graph_dev.module[m].name == dt_token("colour"))
+          vkdt.wstate.active_radial_menu_modid = m;
+      if(vkdt.wstate.active_radial_menu_modid > -1)
+        vkdt.wstate.active_radial_menu_parid =
+          dt_module_get_param(vkdt.graph_dev.module[
+              vkdt.wstate.active_radial_menu_modid].so, dt_token("exposure"));
+    }
+  }
+  else if(vkdt.wstate.active_radial_menu_modid > -1)
+  { // slider active:
+    int modid = vkdt.wstate.active_radial_menu_modid;
+    int parid = vkdt.wstate.active_radial_menu_parid;
+    dt_radial_slider(&vkdt.ctx, modid, parid);
   }
 
   const int disabled = vkdt.wstate.popup;
@@ -1056,6 +1089,8 @@ darkroom_enter()
   dt_image_reset_zoom(&vkdt.wstate.img_widget);
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.active_widget_parid = -1;
+  vkdt.wstate.active_radial_menu_modid = -1;
+  vkdt.wstate.active_radial_menu_parid = -1;
   vkdt.wstate.mapped = 0;
   vkdt.wstate.selected = -1;
   uint32_t imgid = dt_db_current_imgid(&vkdt.db);
