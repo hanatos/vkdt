@@ -357,35 +357,73 @@ void render_darkroom()
     return;
   }
 
+  // TODO and if hovering over center and no other widget active and not grabbed
+  // TODO and else if gamepad button
   if(vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].down)
   {
-    // TODO load such list from fav sliders/buttons
-    const char *text[] = {"one", "two", "three", "four", "five", "six"};
+    static int  wcnt = 0;
+    static char wtxt[20][50];
+    static const char *wtxtptr[20];
+    static int  wmodid[20];
+    static int  wparid[20];
+    if(vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked)
+    { // when first clicked, collect our list from custom favs
+      wcnt = 0;
+      for(int i=0;i<vkdt.fav_cnt&&wcnt<20;i++)
+      {
+        int modid = vkdt.fav_modid[i];
+        int parid = vkdt.fav_parid[i];
+        if(modid == -1)
+        {
+          int pst = parid;
+          if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
+          snprintf(wtxt[wcnt], 50, "apply preset %s", vkdt.fav_preset_name[pst]);
+          wmodid[wcnt] = -1;
+          wparid[wcnt] = pst;
+          wtxtptr[wcnt] = wtxt[wcnt];
+          wcnt++;
+          continue;
+        }
+        const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
+        if(param->widget.type == dt_token("slider"))
+        { // currently the only supported kind of widget
+          snprintf(wtxt[wcnt], 50, "%"PRItkn" %"PRItkn,
+              dt_token_str(vkdt.graph_dev.module[modid].name),
+              dt_token_str(param->name));
+          wmodid[wcnt] = modid;
+          wparid[wcnt] = parid;
+          wtxtptr[wcnt] = wtxt[wcnt];
+          wcnt++;
+        }
+      }
+    }
+
     int sel = dt_radial_menu(&vkdt.ctx,
         vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked_pos.x,
         vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked_pos.y,
         vkdt.win.height/3.0,
-        6, text);
+        wcnt, wtxtptr);
     if(sel > -1)
     {
-      // TODO buttons just press them
-      // TODO sliders set active modid
       vkdt.wstate.active_radial_menu_modid = -1;
-      for(int m=0;m<vkdt.graph_dev.num_modules&&
-          vkdt.wstate.active_radial_menu_modid == -1;m++)
-        if(vkdt.graph_dev.module[m].name == dt_token("colour"))
-          vkdt.wstate.active_radial_menu_modid = m;
-      if(vkdt.wstate.active_radial_menu_modid > -1)
-        vkdt.wstate.active_radial_menu_parid =
-          dt_module_get_param(vkdt.graph_dev.module[
-              vkdt.wstate.active_radial_menu_modid].so, dt_token("exposure"));
+      if(wmodid[sel] == -1)
+      { // preset button
+        // int pst = wparid[sel];
+        // TODO apply it
+      }
+      else
+      {
+        vkdt.wstate.active_radial_menu_modid = wmodid[sel];
+        vkdt.wstate.active_radial_menu_parid = wparid[sel];
+      }
     }
   }
   else if(vkdt.wstate.active_radial_menu_modid > -1)
-  { // slider active:
+  { // radial menu widget active:
     int modid = vkdt.wstate.active_radial_menu_modid;
     int parid = vkdt.wstate.active_radial_menu_parid;
-    dt_radial_slider(&vkdt.ctx, modid, parid);
+    if(dt_radial_widget(&vkdt.ctx, modid, parid))
+      vkdt.wstate.active_radial_menu_modid = vkdt.wstate.active_radial_menu_parid = -1;
   }
 
   const int disabled = vkdt.wstate.popup;
