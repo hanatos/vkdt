@@ -19,29 +19,36 @@ dt_radial_menu(
   int ret = -1;
   for(int k=0;k<N;k++)
   {
-    float x[] = {
-      cx + cosf(phi+0.013) * r1,           cy + sinf(phi+0.013) * r1,
-      cx + cosf(phi+delta_phi-0.013) * r1, cy + sinf(phi+delta_phi-0.013) * r1,
-      cx + cosf(phi+delta_phi-0.013) * r0, cy + sinf(phi+delta_phi-0.013) * r0,
-      cx + cosf(phi+0.013) * r0,           cy + sinf(phi+0.013) * r0};
+#define NSEG 10 // number of vertices on linearly segmented arc
+    float x[4*NSEG];
+    for(int s=0;s<NSEG;s++)
+    {
+      const float b = 0.02; // border between panels
+      const float a = phi + b + s/(NSEG-1.0f)*(delta_phi-2*b);
+      const float sa = sinf(a), ca = cosf(a);
+      x[2*s+0]       = cx + ca * r1;
+      x[2*s+1]       = cy + sa * r1;
+      x[4*NSEG-2-2*s+0] = cx + ca * r0;
+      x[4*NSEG-2-2*s+1] = cy + sa * r0;
+    }
     struct nk_color c = vkdt.style.colour[NK_COLOR_BUTTON];
     if(mphi > phi && mphi < phi+delta_phi)
     {
       ret = k;
       c = vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER];
     }
-    // TODO maybe want to fill a rounder wedge at least on the outside radial part?
-    nk_fill_polygon(cmd, x, 4, c);
+    nk_fill_polygon(cmd, x, 2*NSEG, c);
     float aa[4] = {
-      MIN(MIN(x[0], x[2]), MIN(x[4], x[6])),
+      MIN(MIN(x[0], x[2]), MIN(x[4], x[4*NSEG-2])),
       MIN(MIN(x[1], x[3]), MIN(x[5], x[7])),
-      MAX(MAX(x[0], x[2]), MAX(x[4], x[6])),
+      MAX(MAX(x[0], x[2]), MAX(x[4], x[4*NSEG-2])),
       MAX(MAX(x[1], x[3]), MAX(x[5], x[7]))};
     struct nk_rect bb = {aa[0], aa[1], aa[2]-aa[0], aa[3]-aa[1]};
     nk_draw_text(cmd, bb, text[k], strlen(text[k]), nk_glfw3_font(0),
             (struct nk_color){0,0,0,0xff},
             (struct nk_color){0xff,0xff,0xff,0xff});
     phi += delta_phi;
+#undef NSEG
   }
   return ret;
 }
