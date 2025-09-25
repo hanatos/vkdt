@@ -3,8 +3,6 @@ use libc::{c_void, c_char};
 use std::ffi::CStr;
 use std::str;
 use std::cmp;
-use std::fs::File;
-use std::io::BufReader;
 use std::convert::TryInto;
 use rawler::Result;
 use rawler::imgop::xyz::Illuminant;
@@ -14,6 +12,7 @@ use rawler::decoders::WellKnownIFD;
 use rawler::tags::DngTag;
 use rawler::formats::tiff::Value;
 use rawler::rawimage::RawPhotometricInterpretation;
+use rawler::rawsource::RawSource;
 
 #[repr(C)]
 pub struct c_rawimage {
@@ -69,10 +68,9 @@ fn data_to_c(src: &Vec<u8>, ptr: &mut *mut c_void, len: &mut u32)
 
 unsafe fn copy_metadata(path : &str, rawimg : *mut c_rawimage) -> Result<()>
 {
-  let input = BufReader::new(File::open(&path).map_err(|e| rawler::RawlerError::with_io_error("load into buffer", &path, e))?);
-  let mut rawfile = rawler::RawFile::new(&path, input);
-  let decoder = rawler::get_decoder(&mut rawfile)?;
-  let md = decoder.raw_metadata(&mut rawfile, RawDecodeParams::default())?;
+  let rawfile = RawSource::new(path.as_ref())?;
+  let decoder = rawler::get_decoder(&rawfile)?;
+  let md = decoder.raw_metadata(&rawfile, &RawDecodeParams::default())?;
   // let iso = u32::from(md.exif.iso_speed.unwrap()); // is already u32 and should be preferred?
   match md.exif.iso_speed_ratings { Some(v) => { (*rawimg).iso          = u32::from(v) as f32; } None => {}}
   match md.exif.fnumber           { Some(v) => { (*rawimg).aperture     = v.try_into().ok().unwrap(); } None => {}}
