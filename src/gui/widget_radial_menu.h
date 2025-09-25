@@ -40,13 +40,24 @@ dt_radial_menu(
       c = vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER];
     }
     nk_fill_polygon(cmd, x, 2*NSEG, c);
-    float aa[4] = {
-      MIN(MIN(x[0], x[2*NSEG-4]), MIN(x[2*NSEG-2], x[4*NSEG-2])),
-      MIN(MIN(x[1], x[2*NSEG-3]), MIN(x[2*NSEG-1], x[4*NSEG-1])),
-      MAX(MAX(x[0], x[2*NSEG-4]), MAX(x[2*NSEG-2], x[4*NSEG-2])),
-      MAX(MAX(x[1], x[2*NSEG-3]), MAX(x[2*NSEG-1], x[4*NSEG-1]))};
-    struct nk_rect bb = {aa[0], aa[1], aa[2]-aa[0], aa[3]-aa[1]};
-    // TODO structure these all left and right of the menu, we don't want to rotate fonts
+    // approximate bounding box of wedge:
+    // float aa[4] = {
+    //   MIN(MIN(x[0], x[2*NSEG+0]), MIN(x[2*NSEG-2], x[4*NSEG-2])),
+    //   MIN(MIN(x[1], x[2*NSEG+1]), MIN(x[2*NSEG-1], x[4*NSEG-1])),
+    //   MAX(MAX(x[0], x[2*NSEG+0]), MAX(x[2*NSEG-2], x[4*NSEG-2])),
+    //   MAX(MAX(x[1], x[2*NSEG+1]), MAX(x[2*NSEG-1], x[4*NSEG-1]))};
+    // struct nk_rect bb = {aa[0], aa[1], aa[2]-aa[0], aa[3]-aa[1]};
+    // box in two lists where height comes from center of outer wedge arc
+    // struct nk_rect bb = {
+    //   cx+(dx>0?1:-1)*radius/2 - (dx>0?0:radius/2),
+    //   x[2*(NSEG/2)+1], radius/2, 30};
+    // center of mass of wedge
+    struct nk_rect bb = {
+      (2*x[0] + x[2*NSEG+0] + 2*x[2*NSEG-2] + x[4*NSEG-2])/6.0f - radius/4,
+      (2*x[1] + x[2*NSEG+1] + 2*x[2*NSEG-1] + x[4*NSEG-1])/6.0f - 15,
+      radius/2, 30};
+    // visualise the box:
+    // nk_stroke_rect(cmd, bb, 0.0f, 2.0f, vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
     nk_draw_text(cmd, bb, text[k], strlen(text[k]), nk_glfw3_font(0),
             (struct nk_color){0,0,0,0xff},
             (struct nk_color){0xff,0xff,0xff,0xff});
@@ -62,20 +73,31 @@ dt_radial_widget(
     int    modid,
     int    parid)
 {
-  // TODO if nk double clicked or something, close this too (or even reset, as customary?)
-  // TODO: something like in dr mode:
-  // if(!dt_gui_input_blocked() && nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
-  // but ensure we block input if the radial widget is active
   const double throttle = 2.0; // min delay for same param in history, in seconds
-  struct nk_command_buffer *cmd = &vkdt.global_cmd;
+  const int num = 0; // can't do multi-dimensional values now
   const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
   const dt_token_t widget = param->widget.type;
   if(widget != dt_token("slider")) return 1;
+  float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+  float oldval = val[0];
+  int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
+  int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
+  struct nk_rect bounds = {win_x, win_y, win_w, win_h};
+  if(nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
+  { // reset param
+    memcpy(vkdt.graph_dev.module[modid].param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
+    dt_graph_run_t flags = s_graph_run_none;
+    if(vkdt.graph_dev.module[modid].so->check_params)
+      flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+    vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
+    vkdt.graph_dev.active_module = modid;
+    dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+    return 1;
+  }
+  // but ensure we block input if the radial widget is active
+  struct nk_command_buffer *cmd = &vkdt.global_cmd;
   if(param->type == dt_token("float"))
   {
-    const int num = 0; // can't do multi-dimensional values now
-    float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
-    float oldval = val[0];
     const float min = param->widget.min;
     const float max = param->widget.max;
     float x = vkdt.state.center_x, w = vkdt.state.center_wd;

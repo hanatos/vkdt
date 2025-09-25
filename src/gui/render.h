@@ -63,6 +63,7 @@ void dt_gamepadhelp_push();
 void dt_gamepadhelp_pop();
 static inline int dt_gui_input_blocked()
 {
-  return vkdt.wstate.popup | vkdt.wstate.grabbed | vkdt.wstate.nk_active;
+  return vkdt.wstate.popup || vkdt.wstate.grabbed || vkdt.wstate.nk_active ||
+    (vkdt.wstate.active_radial_menu_modid >= 0);
 }
 void dt_gamepadhelp();

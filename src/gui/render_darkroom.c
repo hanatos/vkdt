@@ -155,6 +155,17 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   }
   if(vkdt.wstate.popup == s_popup_edit_hotkeys)
     return hk_keyboard(hk_darkroom, window, key, scancode, action, mods);
+
+  if(vkdt.wstate.active_radial_menu_modid >= 0)
+  { // radial menus block input, so check this before checking block
+    if(action == GLFW_PRESS && (
+          key == GLFW_KEY_ESCAPE ||
+          key == GLFW_KEY_CAPS_LOCK ||
+          key == GLFW_KEY_ENTER))
+      vkdt.wstate.active_radial_menu_modid = -1;
+    return;
+  }
+
   if(dt_gui_input_blocked()) return;
 
   if(vkdt.wstate.active_widget_modid >= 0)
@@ -163,16 +174,6 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     { // abort all widget interaction
       widget_end();
     }
-    return;
-  }
-
-  if(vkdt.wstate.active_radial_menu_modid >= 0)
-  {
-    if(action == GLFW_PRESS && (
-          key == GLFW_KEY_ESCAPE ||
-          key == GLFW_KEY_CAPS_LOCK ||
-          key == GLFW_KEY_ENTER))
-      vkdt.wstate.active_radial_menu_modid = -1;
     return;
   }
 
