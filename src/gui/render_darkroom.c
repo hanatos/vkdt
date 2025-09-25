@@ -358,15 +358,23 @@ void render_darkroom()
     return;
   }
 
+#if 1 // TODO move this to widget_radial_menu.h and put into a function.
   // TODO and if hovering over center and no other widget active and not grabbed
   // TODO and else if gamepad button
-  if(vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].down)
+  // GLFWgamepadstate gamepad;
+  // glfwGetGamepadState(vkdt.wstate.joystick_id, &gamepad);
+  int radial_mouse_activated = !dt_gui_input_blocked() &&
+    nk_input_is_mouse_hovering_rect(&vkdt.ctx.input, bounds) &&
+    vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].down;
+  int radial_gamepad_activated = 0;//gamepad.buttons[GLFW_GAMEPAD_BUTTON_LEFT_BUMPER];
+  if(radial_gamepad_activated || radial_mouse_activated)
   {
     static int  wcnt = 0;
     static char wtxt[20][50];
     static const char *wtxtptr[20];
     static int  wmodid[20];
     static int  wparid[20];
+    // XXX this only if mouse, find something that works for gamepad too?
     if(vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked)
     { // when first clicked, collect our list from custom favs
       wcnt = 0;
@@ -400,6 +408,8 @@ void render_darkroom()
     }
 
     int sel = dt_radial_menu(&vkdt.ctx,
+        // XXX or screen center win_x etc, if gamepad
+        // TODO also pass it the gamepad state/axes
         vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked_pos.x,
         vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked_pos.y,
         vkdt.win.height/3.0,
@@ -409,6 +419,7 @@ void render_darkroom()
       vkdt.wstate.active_radial_menu_modid = -1;
       if(wmodid[sel] == -1)
       { // preset button, apply it
+        // XXX FIXME make sure this closes the menu! only trigger if mouse released
         int pst = wparid[sel];
         char filename[512];
         const char *preset = vkdt.fav_preset_name[pst];
@@ -436,6 +447,7 @@ void render_darkroom()
     if(dt_radial_widget(&vkdt.ctx, modid, parid))
       vkdt.wstate.active_radial_menu_modid = vkdt.wstate.active_radial_menu_parid = -1;
   }
+#endif
 
   const int disabled = vkdt.wstate.popup;
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));

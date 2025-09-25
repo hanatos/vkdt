@@ -1,6 +1,6 @@
 #pragma once
 
-// TODO when mouse released on wedge, activate widget
+// TODO pass gamepad state or null if mouse
 static inline int // return selected entry, or -1
 dt_radial_menu(
     struct nk_context *ctx,
@@ -13,6 +13,7 @@ dt_radial_menu(
   struct nk_command_buffer *cmd = &vkdt.global_cmd;
   float phi =  -M_PI, delta_phi = (2.0f*M_PI)/N,
         r0 = 0.3*radius, r1 = radius;
+  // XXX TODO only mouse if not gamepad
   const struct nk_vec2 pos = ctx->input.mouse.pos;
   float dx = pos.x-cx, dy = pos.y-cy;
   const float mphi = (dx*dx+dy*dy>r0*r0) ? atan2f(pos.y-cy, pos.x-cx) : -666;
@@ -67,6 +68,7 @@ dt_radial_menu(
   return ret;
 }
 
+// TODO pass gamepad state
 static inline int // return non-zero if done and the state should be cleared
 dt_radial_widget(
     struct nk_context *ctx,
