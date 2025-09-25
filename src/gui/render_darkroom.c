@@ -408,9 +408,19 @@ void render_darkroom()
     {
       vkdt.wstate.active_radial_menu_modid = -1;
       if(wmodid[sel] == -1)
-      { // preset button
-        // int pst = wparid[sel];
-        // TODO apply it
+      { // preset button, apply it
+        int pst = wparid[sel];
+        char filename[512];
+        const char *preset = vkdt.fav_preset_name[pst];
+        snprintf(filename, sizeof(filename), "%s/presets/%s.pst", dt_pipe.homedir, preset);
+        uint32_t err_lno = render_darkroom_apply_preset(filename);
+        if(err_lno == -1u)
+        {
+          snprintf(filename, sizeof(filename), "%s/data/presets/%s.pst", dt_pipe.basedir, preset);
+          err_lno = render_darkroom_apply_preset(filename);
+        }
+        if(err_lno)
+          dt_gui_notification("failed to read preset %s line %u", filename, err_lno);
       }
       else
       {
