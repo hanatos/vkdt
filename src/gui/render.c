@@ -12,6 +12,7 @@
 #include "render.h"
 #include "widget_draw.h"
 #include "render_view.h"
+#include "widget_radial_menu_dr-fwd.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -401,4 +402,10 @@ void dt_gamepadhelp()
       nk_draw_text(buf, rect, g_gamepadhelp.help[g_gamepadhelp.sp][k], strlen(g_gamepadhelp.help[g_gamepadhelp.sp][k]), nk_glfw3_font(1), nk_rgb(0,0,0), nk_rgb(255,255,255));
     }
   }
+}
+
+int dt_gui_input_blocked()
+{
+  return vkdt.wstate.popup || vkdt.wstate.grabbed || vkdt.wstate.nk_active ||
+    dt_radial_menu_dr_active(&vkdt.wstate.radial_menu_dr);
 }

@@ -5,6 +5,7 @@
 #include "db/rc.h"
 #include "snd/snd.h"
 #include "widget_image_util.h"
+#include "widget_radial_menu_dr-fwd.h"
 #include "nk.h"
 #include "hsluv.h"
 
@@ -78,8 +79,6 @@ typedef struct dt_gui_wstate_t
   int      active_widget_parid; // parameter id
   int      active_widget_parnm; // number of parameter (if multi count)
   int      active_widget_parsz; // size of parameter to copy
-  int      active_radial_menu_modid;
-  int      active_radial_menu_parid;
   struct nk_rect active_dspy_bound;
   int      selected;
   float    aspect;
@@ -95,6 +94,8 @@ typedef struct dt_gui_wstate_t
   uint32_t copied_imgid;        // imgid copied for copy/paste
   char    *module_names_buf;
   const char **module_names;
+
+  dt_radial_menu_dr_t radial_menu_dr;
 
   threads_mutex_t notification_mutex;
   double notification_time;     // time the message appeared

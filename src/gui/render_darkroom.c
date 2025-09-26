@@ -25,7 +25,6 @@
 #include "gui/widget_draw.h"
 #include "gui/widget_thumbnail.h"
 #include "gui/widget_image.h"
-#include "gui/widget_radial_menu.h"
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -121,6 +120,7 @@ static struct gui_state_data_t
 // goes here because the keyframe code depends on the above defines/hotkeys
 // could probably pass a function pointer instead.
 #include "gui/render_darkroom.h"
+#include "gui/widget_radial_menu_dr.h"
 
 void
 darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
@@ -156,13 +156,13 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   if(vkdt.wstate.popup == s_popup_edit_hotkeys)
     return hk_keyboard(hk_darkroom, window, key, scancode, action, mods);
 
-  if(vkdt.wstate.active_radial_menu_modid >= 0)
+  if(dt_radial_menu_dr_active(&vkdt.wstate.radial_menu_dr))
   { // radial menus block input, so check this before checking block
     if(action == GLFW_PRESS && (
           key == GLFW_KEY_ESCAPE ||
           key == GLFW_KEY_CAPS_LOCK ||
           key == GLFW_KEY_ENTER))
-      vkdt.wstate.active_radial_menu_modid = -1;
+      dt_radial_menu_dr_close(&vkdt.wstate.radial_menu_dr);
     return;
   }
 
@@ -358,96 +358,7 @@ void render_darkroom()
     return;
   }
 
-#if 1 // TODO move this to widget_radial_menu.h and put into a function.
-  // TODO and if hovering over center and no other widget active and not grabbed
-  // TODO and else if gamepad button
-  // GLFWgamepadstate gamepad;
-  // glfwGetGamepadState(vkdt.wstate.joystick_id, &gamepad);
-  int radial_mouse_activated = !dt_gui_input_blocked() &&
-    nk_input_is_mouse_hovering_rect(&vkdt.ctx.input, bounds) &&
-    vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].down;
-  int radial_gamepad_activated = 0;//gamepad.buttons[GLFW_GAMEPAD_BUTTON_LEFT_BUMPER];
-  if(radial_gamepad_activated || radial_mouse_activated)
-  {
-    static int  wcnt = 0;
-    static char wtxt[20][50];
-    static const char *wtxtptr[20];
-    static int  wmodid[20];
-    static int  wparid[20];
-    // XXX this only if mouse, find something that works for gamepad too?
-    if(vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked)
-    { // when first clicked, collect our list from custom favs
-      wcnt = 0;
-      for(int i=0;i<vkdt.fav_cnt&&wcnt<20;i++)
-      {
-        int modid = vkdt.fav_modid[i];
-        int parid = vkdt.fav_parid[i];
-        if(modid == -1)
-        {
-          int pst = parid;
-          if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
-          snprintf(wtxt[wcnt], 50, "apply preset %s", vkdt.fav_preset_name[pst]);
-          wmodid[wcnt] = -1;
-          wparid[wcnt] = pst;
-          wtxtptr[wcnt] = wtxt[wcnt];
-          wcnt++;
-          continue;
-        }
-        const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
-        if(param->widget.type == dt_token("slider"))
-        { // currently the only supported kind of widget
-          snprintf(wtxt[wcnt], 50, "%"PRItkn" %"PRItkn,
-              dt_token_str(vkdt.graph_dev.module[modid].name),
-              dt_token_str(param->name));
-          wmodid[wcnt] = modid;
-          wparid[wcnt] = parid;
-          wtxtptr[wcnt] = wtxt[wcnt];
-          wcnt++;
-        }
-      }
-    }
-
-    int sel = dt_radial_menu(&vkdt.ctx,
-        // XXX or screen center win_x etc, if gamepad
-        // TODO also pass it the gamepad state/axes
-        vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked_pos.x,
-        vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked_pos.y,
-        vkdt.win.height/3.0,
-        wcnt, wtxtptr);
-    if(sel > -1)
-    {
-      vkdt.wstate.active_radial_menu_modid = -1;
-      if(wmodid[sel] == -1)
-      { // preset button, apply it
-        // XXX FIXME make sure this closes the menu! only trigger if mouse released
-        int pst = wparid[sel];
-        char filename[512];
-        const char *preset = vkdt.fav_preset_name[pst];
-        snprintf(filename, sizeof(filename), "%s/presets/%s.pst", dt_pipe.homedir, preset);
-        uint32_t err_lno = render_darkroom_apply_preset(filename);
-        if(err_lno == -1u)
-        {
-          snprintf(filename, sizeof(filename), "%s/data/presets/%s.pst", dt_pipe.basedir, preset);
-          err_lno = render_darkroom_apply_preset(filename);
-        }
-        if(err_lno)
-          dt_gui_notification("failed to read preset %s line %u", filename, err_lno);
-      }
-      else
-      {
-        vkdt.wstate.active_radial_menu_modid = wmodid[sel];
-        vkdt.wstate.active_radial_menu_parid = wparid[sel];
-      }
-    }
-  }
-  else if(vkdt.wstate.active_radial_menu_modid > -1)
-  { // radial menu widget active:
-    int modid = vkdt.wstate.active_radial_menu_modid;
-    int parid = vkdt.wstate.active_radial_menu_parid;
-    if(dt_radial_widget(&vkdt.ctx, modid, parid))
-      vkdt.wstate.active_radial_menu_modid = vkdt.wstate.active_radial_menu_parid = -1;
-  }
-#endif
+  dt_radial_menu_dr(&vkdt.wstate.radial_menu_dr, bounds);
 
   const int disabled = vkdt.wstate.popup;
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
@@ -1150,8 +1061,7 @@ darkroom_enter()
   dt_image_reset_zoom(&vkdt.wstate.img_widget);
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.active_widget_parid = -1;
-  vkdt.wstate.active_radial_menu_modid = -1;
-  vkdt.wstate.active_radial_menu_parid = -1;
+  dt_radial_menu_dr_close(&vkdt.wstate.radial_menu_dr);
   vkdt.wstate.mapped = 0;
   vkdt.wstate.selected = -1;
   uint32_t imgid = dt_db_current_imgid(&vkdt.db);
@@ -1345,7 +1255,10 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
 #define PRESSED(A) curr->buttons[A] && !last->buttons[A]
   if(PRESSED(GLFW_GAMEPAD_BUTTON_B))
   {
-    dt_view_switch(s_view_lighttable);
+    if(dt_radial_menu_dr_active(&vkdt.wstate.radial_menu_dr))
+      dt_radial_menu_dr_reset(&vkdt.wstate.radial_menu_dr);
+    else
+      dt_view_switch(s_view_lighttable);
   }
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_RIGHT))
   {

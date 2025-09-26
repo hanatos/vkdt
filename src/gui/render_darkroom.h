@@ -1,5 +1,6 @@
 #pragma once
 // some routines shared between node editor and darkroom mode
+#include "widget_tooltip.h"
 
 static inline void
 dt_gui_set_lod(int lod)

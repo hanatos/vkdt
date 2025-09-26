@@ -61,9 +61,5 @@ void dt_gamepadhelp_set(dt_gamepadhelp_input_t which, const char *str);
 void dt_gamepadhelp_clear();
 void dt_gamepadhelp_push();
 void dt_gamepadhelp_pop();
-static inline int dt_gui_input_blocked()
-{
-  return vkdt.wstate.popup || vkdt.wstate.grabbed || vkdt.wstate.nk_active ||
-    (vkdt.wstate.active_radial_menu_modid >= 0);
-}
+int dt_gui_input_blocked();
 void dt_gamepadhelp();

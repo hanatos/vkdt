@@ -1,22 +1,21 @@
 #pragma once
 
-// TODO pass gamepad state or null if mouse
 static inline int // return selected entry, or -1
 dt_radial_menu(
     struct nk_context *ctx,
-    float  cx,
+    float  cx,     // center of wheel
     float  cy,
-    float  radius,
+    float  radius, // radius of menu wheel
+    float  mx,     // cursor position
+    float  my,
     int    N,
     const char *text[])
 {
   struct nk_command_buffer *cmd = &vkdt.global_cmd;
   float phi =  -M_PI, delta_phi = (2.0f*M_PI)/N,
         r0 = 0.3*radius, r1 = radius;
-  // XXX TODO only mouse if not gamepad
-  const struct nk_vec2 pos = ctx->input.mouse.pos;
-  float dx = pos.x-cx, dy = pos.y-cy;
-  const float mphi = (dx*dx+dy*dy>r0*r0) ? atan2f(pos.y-cy, pos.x-cx) : -666;
+  float dx = mx-cx, dy = my-cy;
+  const float mphi = (dx*dx+dy*dy>r0*r0) ? atan2f(my-cy, mx-cx) : -666;
   int ret = -1;
   for(int k=0;k<N;k++)
   {
@@ -68,12 +67,13 @@ dt_radial_menu(
   return ret;
 }
 
-// TODO pass gamepad state
 static inline int // return non-zero if done and the state should be cleared
 dt_radial_widget(
     struct nk_context *ctx,
     int    modid,
-    int    parid)
+    int    parid,
+    float *ax,   // gamepad axis x, or 0
+    float *ay)
 {
   const double throttle = 2.0; // min delay for same param in history, in seconds
   const int num = 0; // can't do multi-dimensional values now
@@ -85,21 +85,19 @@ dt_radial_widget(
   int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
   int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
   struct nk_rect bounds = {win_x, win_y, win_w, win_h};
+  dt_graph_run_t flags = s_graph_run_none;
+  int ret = 1;
   if(nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
   { // reset param
     memcpy(vkdt.graph_dev.module[modid].param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
-    dt_graph_run_t flags = s_graph_run_none;
-    if(vkdt.graph_dev.module[modid].so->check_params)
-      flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-    vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
-    vkdt.graph_dev.active_module = modid;
-    dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+    goto changed;
     return 1;
   }
   // but ensure we block input if the radial widget is active
   struct nk_command_buffer *cmd = &vkdt.global_cmd;
   if(param->type == dt_token("float"))
   {
+    ret = 0;
     const float min = param->widget.min;
     const float max = param->widget.max;
     float x = vkdt.state.center_x, w = vkdt.state.center_wd;
@@ -108,17 +106,29 @@ dt_radial_widget(
     nk_fill_rect(cmd, box, 0, vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
     // TODO write module/instance/param name to screen
     // TODO two triangles at min and max
-    if(ctx->input.mouse.buttons[NK_BUTTON_LEFT].down)
+    if(ax && ay)
+    {
+      if(fabsf(ax[0]) > fabsf(ay[0]))
+        val[0] += copysignf(MAX(0, fabsf(ax[0])-0.01f), ax[0]) * (max-min) * 0.002f;
+      else
+        val[0] -= copysignf(MAX(0, fabsf(ay[0])-0.01f), ay[0]) * (max-min) * 0.01f;
+      goto changed;
+    }
+    else if(ctx->input.mouse.buttons[NK_BUTTON_LEFT].down)
     {
       const struct nk_vec2 pos = ctx->input.mouse.pos;
       val[0] = min + (max-min)*(pos.x - x)/w;
-      dt_graph_run_t flags = s_graph_run_none;
-      if(vkdt.graph_dev.module[modid].so->check_params)
-        flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-      vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
-      vkdt.graph_dev.active_module = modid;
-      dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      goto changed;
     }
   }
-  return 0;
+  if(0)
+  {
+changed:
+    if(vkdt.graph_dev.module[modid].so->check_params)
+      flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+    vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
+    vkdt.graph_dev.active_module = modid;
+    dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+  }
+  return ret;
 }
