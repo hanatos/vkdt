@@ -1253,7 +1253,12 @@ void
 darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr)
 {
 #define PRESSED(A) curr->buttons[A] && !last->buttons[A]
-  if(PRESSED(GLFW_GAMEPAD_BUTTON_B))
+  if(PRESSED(GLFW_GAMEPAD_BUTTON_A))
+  {
+    if(dt_radial_menu_dr_active(&vkdt.wstate.radial_menu_dr))
+      dt_radial_menu_dr_close(&vkdt.wstate.radial_menu_dr);
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_B))
   {
     if(dt_radial_menu_dr_active(&vkdt.wstate.radial_menu_dr))
       dt_radial_menu_dr_reset(&vkdt.wstate.radial_menu_dr);

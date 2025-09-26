@@ -109,10 +109,10 @@ dt_radial_widget(
     if(ax && ay)
     {
       if(fabsf(ax[0]) > fabsf(ay[0]))
-        val[0] += copysignf(MAX(0, fabsf(ax[0])-0.01f), ax[0]) * (max-min) * 0.002f;
+        val[0] += copysignf(MAX(0, fabsf(ax[0])-0.04f), ax[0]) * (max-min) * 0.002f;
       else
-        val[0] -= copysignf(MAX(0, fabsf(ay[0])-0.01f), ay[0]) * (max-min) * 0.01f;
-      goto changed;
+        val[0] -= copysignf(MAX(0, fabsf(ay[0])-0.04f), ay[0]) * (max-min) * 0.01f;
+      if(val[0] != oldval) goto changed;
     }
     else if(ctx->input.mouse.buttons[NK_BUTTON_LEFT].down)
     {
