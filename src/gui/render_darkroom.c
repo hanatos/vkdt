@@ -1179,6 +1179,7 @@ darkroom_enter()
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_left, "prev image");
   dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "upvote and next");
   dt_gamepadhelp_set(dt_gamepadhelp_button_square, "downvote and next");
+  dt_gamepadhelp_set(dt_gamepadhelp_L1, "hold to show menu, use with right stick");
   dt_gamepadhelp_set(dt_gamepadhelp_L2, "zoom out");
   dt_gamepadhelp_set(dt_gamepadhelp_R1, "show/hide right panel");
   dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in");

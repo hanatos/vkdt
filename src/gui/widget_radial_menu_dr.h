@@ -102,8 +102,8 @@ dt_radial_menu_dr(
   if(m->state == s_radial_menu_dr_widget)
   { // radial menu widget active:
     if(dt_radial_widget(&vkdt.ctx, m->modid, m->parid,
-        m->mouse ? 0 : gamepad.axes+GLFW_GAMEPAD_AXIS_RIGHT_X,
-        m->mouse ? 0 : gamepad.axes+GLFW_GAMEPAD_AXIS_RIGHT_Y))
+        gamepad.buttons[GLFW_GAMEPAD_BUTTON_LEFT_BUMPER] ? (m->mouse ? 0 : gamepad.axes+GLFW_GAMEPAD_AXIS_RIGHT_X) : 0,
+        gamepad.buttons[GLFW_GAMEPAD_BUTTON_LEFT_BUMPER] ? (m->mouse ? 0 : gamepad.axes+GLFW_GAMEPAD_AXIS_RIGHT_Y) : 0))
       dt_radial_menu_dr_close(m);
   }
 }
