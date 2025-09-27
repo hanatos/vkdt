@@ -87,8 +87,19 @@ read_plain(
   fseek(lut->f, lut->data_begin, SEEK_SET);
   int datatype = lut->header.datatype;
   if(datatype >= dt_lut_header_ssbo_f16) datatype -= dt_lut_header_ssbo_f16;
-  size_t sz = datatype == dt_lut_header_f16 ? sizeof(uint16_t) : sizeof(float);
-  fread(out, lut->header.wd*(uint64_t)lut->header.ht*(uint64_t)lut->header.channels, sz, lut->f);
+  size_t sz =
+    datatype == dt_lut_header_f16 ? sizeof(uint16_t) :
+    datatype == dt_lut_header_ui8 ? sizeof(uint8_t) : sizeof(float);
+  if(lut->header.channels == 3)
+  { // need to pad to 4
+    for(int k=0;k<lut->header.wd*lut->header.ht;k++)
+    {
+      // TODO: do that for f16 and float too:
+      memset(((uint8_t*)out) + 4*sz*k, 255, 4*sz);
+      fread(((uint8_t*)out) + 4*sz*k, 3, sz, lut->f);
+    }
+  }
+  else fread(out, lut->header.wd*(uint64_t)lut->header.ht*(uint64_t)lut->header.channels, sz, lut->f);
   return 0;
 }
 
@@ -187,17 +198,19 @@ void modify_roi_out(
     mod->connector[0].roi.full_ht = lut->header.ht;
   }
   // adjust output connector channels:
-  if(lut->header.channels == 1) mod->connector[0].chan   = dt_token("r");
-  if(lut->header.channels == 2) mod->connector[0].chan   = dt_token("rg");
-  if(lut->header.channels == 4) mod->connector[0].chan   = dt_token("rgba");
+  if(lut->header.channels == 1) mod->connector[0].chan = dt_token("r");
+  if(lut->header.channels == 2) mod->connector[0].chan = dt_token("rg");
+  if(lut->header.channels == 3) mod->connector[0].chan = dt_token("rgba");
+  if(lut->header.channels == 4) mod->connector[0].chan = dt_token("rgba");
   int dtype = lut->header.datatype;
   if(dtype >= dt_lut_header_ssbo_f16)
   {
     mod->connector[0].chan = dt_token("ssbo");
     dtype -= dt_lut_header_ssbo_f16;
   }
-  if(dtype == 0) mod->connector[0].format = dt_token("f16");
-  if(dtype == 1) mod->connector[0].format = dt_token("f32");
+  if(dtype == dt_lut_header_ui8) mod->connector[0].format = dt_token("ui8");
+  if(dtype == dt_lut_header_f16) mod->connector[0].format = dt_token("f16");
+  if(dtype == dt_lut_header_f32) mod->connector[0].format = dt_token("f32");
   for(int k=0;k<4;k++)
   {
     mod->img_param.black[k]        = 0.0f;

@@ -20,6 +20,10 @@ dt_graph_default_input_module(
     return dt_token("i-exr");
   if(!strncasecmp(filename+len-off, ".hdr", 4))
     return dt_token("i-hdr");
+  if(!strncasecmp(filename+len-off, ".lut", 4))
+    return dt_token("i-lut");
+  if(!strncasecmp(filename+len-off, ".bc1", 4))
+    return dt_token("i-bc1");
   if(!strncasecmp(filename+len-off, ".mov", 4) ||
      !strncasecmp(filename+len-off, ".mp4", 4))
     return dt_token("i-vid");

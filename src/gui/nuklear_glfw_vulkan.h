@@ -17,6 +17,8 @@
 #include "shd.h"
 #include "qvk/qvk.h"
 #include "gui/gui.h"
+#include "core/lut.h"
+#include "gui/font_metrics.h"
 #endif
 
 #include <assert.h>
@@ -30,8 +32,9 @@ nk_glfw3_init(struct nk_context *ctx, VkRenderPass render_pass, GLFWwindow *win,
               VkPhysicalDevice physical_device,
               VkDeviceSize max_vertex_buffer, VkDeviceSize max_element_buffer);
 NK_API void nk_glfw3_shutdown(void);
-NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas);
-NK_API void nk_glfw3_font_stash_end(struct nk_context *ctx, VkCommandBuffer cmd, VkQueue graphics_queue);
+NK_API struct nk_user_font *nk_glfw3_font(int which);
+NK_API int  nk_glfw3_font_load(const char *fontfile, int fontsize,
+    VkCommandBuffer cmd, VkQueue graphics_queue);
 NK_API void nk_glfw3_font_cleanup();
 NK_API void nk_glfw3_input_begin(struct nk_context *ctx, GLFWwindow *win, const int enable_grab);
 NK_API void nk_glfw3_input_end  (struct nk_context *ctx, GLFWwindow *win, const int enable_grab);
@@ -131,7 +134,8 @@ static struct nk_glfw
   VkPhysicalDevice physical_device;
   VkSampler sampler;
   struct nk_draw_null_texture tex_null;
-  struct nk_font_atlas atlas;
+  struct nk_user_font font[3];
+  dt_font_t dtfont;
   VkImage font_image;
   VkImageView font_image_view;
   VkDeviceMemory font_memory;
@@ -161,6 +165,7 @@ NK_API void nk_glfw3_setup_display_colour_management(
     memcpy(dev->push_constant+24, &maxval, sizeof(maxval));
     memcpy(dev->push_constant+25, &xpos, sizeof(xpos));
     memcpy(dev->push_constant+26, &xpos1, sizeof(xpos1));
+    dev->push_constant_size += sizeof(float); // keep one for font strength
   }
 }
 
@@ -196,11 +201,11 @@ nk_glfw3_create_sampler()
     .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
     .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
     .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-    .mipLodBias = 0.0f,
+    .mipLodBias = .0f,
     .compareEnable = VK_FALSE,
     .compareOp = VK_COMPARE_OP_ALWAYS,
     .minLod = 0.0f,
-    .maxLod = 0.0f,
+    .maxLod = 10.0f,
     .borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
   };
   return vkCreateSampler(glfw.logical_device, &sampler_info, NULL, &glfw.sampler);
@@ -558,7 +563,7 @@ NK_API VkResult nk_glfw3_device_create(
 {
   dev->max_vertex_buffer  = max_vertex_buffer;
   dev->max_element_buffer = max_element_buffer;
-  dev->push_constant_size = (2*(3+9)+3)*sizeof(float);
+  dev->push_constant_size = (2*(3+9)+3+1)*sizeof(float);
   nk_buffer_init_default(&dev->cmds);
   dev->render_pass = render_pass;
 
@@ -581,7 +586,7 @@ NK_API VkResult nk_glfw3_device_create(
   return nk_glfw3_create_render_resources(dev);
 }
 
-NK_INTERN VkResult
+NK_INTERN uint64_t
 nk_glfw3_device_upload_atlas(
     VkCommandBuffer cmd,
     VkQueue graphics_queue,
@@ -597,7 +602,6 @@ nk_glfw3_device_upload_atlas(
     VkCommandBufferBeginInfo begin_info;
     VkImageMemoryBarrier image_memory_barrier;
     VkBufferImageCopy buffer_copy_region;
-    VkImageMemoryBarrier image_shader_memory_barrier;
     VkFence fence;
     VkFenceCreateInfo fence_create;
     VkSubmitInfo submit_info;
@@ -610,21 +614,23 @@ nk_glfw3_device_upload_atlas(
     memset(&image_info, 0, sizeof(VkImageCreateInfo));
     image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     image_info.imageType = VK_IMAGE_TYPE_2D;
+    // image_info.format = VK_FORMAT_R32G32B32A32_SFLOAT;
     image_info.format = VK_FORMAT_R8G8B8A8_UNORM;
     image_info.extent.width = (uint32_t)width;
     image_info.extent.height = (uint32_t)height;
     image_info.extent.depth = 1;
-    image_info.mipLevels = 1;
+    const int mip_levels = 4;
+    image_info.mipLevels = mip_levels;
     image_info.arrayLayers = 1;
     image_info.samples = VK_SAMPLE_COUNT_1_BIT;
     image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
     image_info.usage =
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     result = vkCreateImage(glfw.logical_device, &image_info, NULL, &glfw.font_image);
-    if(result != VK_SUCCESS) return result;
+    if(result != VK_SUCCESS) return 0;
 
     vkGetImageMemoryRequirements(
         glfw.logical_device, glfw.font_image, &mem_reqs);
@@ -638,10 +644,10 @@ nk_glfw3_device_upload_atlas(
 
     result = vkAllocateMemory(glfw.logical_device, &alloc_info, NULL,
                               &glfw.font_memory);
-    if(result != VK_SUCCESS) return result;
+    if(result != VK_SUCCESS) return 0;
     result = vkBindImageMemory(glfw.logical_device, glfw.font_image,
                                glfw.font_memory, 0);
-    if(result != VK_SUCCESS) return result;
+    if(result != VK_SUCCESS) return 0;
 
     memset(&buffer_info, 0, sizeof(VkBufferCreateInfo));
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -651,7 +657,7 @@ nk_glfw3_device_upload_atlas(
 
     result = vkCreateBuffer(glfw.logical_device, &buffer_info, NULL,
                             &staging_buffer.buffer);
-    if(result != VK_SUCCESS) return result;
+    if(result != VK_SUCCESS) return 0;
     vkGetBufferMemoryRequirements(glfw.logical_device, staging_buffer.buffer,
                                   &mem_reqs);
 
@@ -663,14 +669,24 @@ nk_glfw3_device_upload_atlas(
 
     result = vkAllocateMemory(glfw.logical_device, &alloc_info, NULL,
                               &staging_buffer.memory);
-    if(result != VK_SUCCESS) return result;
+    if(result != VK_SUCCESS) return 0;
     result = vkBindBufferMemory(glfw.logical_device, staging_buffer.buffer,
                                 staging_buffer.memory, 0);
-    if(result != VK_SUCCESS) return result;
+    if(result != VK_SUCCESS) return 0;
 
     result = vkMapMemory(glfw.logical_device, staging_buffer.memory, 0, alloc_info.allocationSize, 0, (void **)&data);
-    if(result != VK_SUCCESS) return result;
-    memcpy(data, image, width * height * 4);
+    if(result != VK_SUCCESS) return 0;
+    if(image)
+    { // if something went wrong, render uninitialised memory instead.
+      // memcpy(data, image, width * height * 4 * sizeof(float));
+      for(int k=0;k<width*height;k++)
+      {
+        ((uint8_t*)data)[4*k+0] = ((uint8_t*)image)[3*k+0];
+        ((uint8_t*)data)[4*k+1] = ((uint8_t*)image)[3*k+1];
+        ((uint8_t*)data)[4*k+2] = ((uint8_t*)image)[3*k+2];
+        ((uint8_t*)data)[4*k+3] = 255;
+      }
+    }
     vkUnmapMemory(glfw.logical_device, staging_buffer.memory);
 
     memset(&begin_info, 0, sizeof(VkCommandBufferBeginInfo));
@@ -681,7 +697,7 @@ nk_glfw3_device_upload_atlas(
     buffer during render anyway
     */
     result = vkBeginCommandBuffer(cmd, &begin_info);
-    if(result != VK_SUCCESS) return result;
+    if(result != VK_SUCCESS) return 0;
 
     memset(&image_memory_barrier, 0, sizeof(VkImageMemoryBarrier));
     image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -692,7 +708,7 @@ nk_glfw3_device_upload_atlas(
     image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     image_memory_barrier.subresourceRange.aspectMask =
         VK_IMAGE_ASPECT_COLOR_BIT;
-    image_memory_barrier.subresourceRange.levelCount = 1;
+    image_memory_barrier.subresourceRange.levelCount = mip_levels;
     image_memory_barrier.subresourceRange.layerCount = 1;
     image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
@@ -711,34 +727,84 @@ nk_glfw3_device_upload_atlas(
         cmd, staging_buffer.buffer, glfw.font_image,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffer_copy_region);
 
-    memset(&image_shader_memory_barrier, 0, sizeof(VkImageMemoryBarrier));
-    image_shader_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    image_shader_memory_barrier.image = glfw.font_image;
-    image_shader_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    image_shader_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    image_shader_memory_barrier.oldLayout =
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    image_shader_memory_barrier.newLayout =
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    image_shader_memory_barrier.subresourceRange.aspectMask =
-        VK_IMAGE_ASPECT_COLOR_BIT;
-    image_shader_memory_barrier.subresourceRange.levelCount = 1;
-    image_shader_memory_barrier.subresourceRange.layerCount = 1;
-    image_shader_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-    image_shader_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+  VkImageMemoryBarrier barrier = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .image = glfw.font_image,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .subresourceRange.baseArrayLayer = 0,
+    .subresourceRange.layerCount = 1,
+    .subresourceRange.levelCount = 1,
+    .subresourceRange.baseMipLevel = 0,
+  };
 
-    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0,
-                         NULL, 1, &image_shader_memory_barrier);
+  for (uint32_t i = 1; i < mip_levels; i++)
+  {
+    barrier.subresourceRange.baseMipLevel = i - 1;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    vkCmdPipelineBarrier(cmd,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+        0, NULL,
+        0, NULL,
+        1, &barrier);
+    VkImageBlit blit = {
+      .srcOffsets = {{ 0, 0, 0 }, { width, height, 1 }},
+      .srcSubresource = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .mipLevel = i - 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+      },
+      .dstOffsets = {{ 0, 0, 0 }, { width > 1 ? width / 2 : 1, height > 1 ? height / 2 : 1, 1 }},
+      .dstSubresource = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .mipLevel = i,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+      },
+    };
+    vkCmdBlitImage(cmd,
+        glfw.font_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        glfw.font_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1, &blit,
+        VK_FILTER_LINEAR);
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(cmd,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+        0, NULL,
+        0, NULL,
+        1, &barrier);
+    if(width  > 1) width  /= 2;
+    if(height > 1) height /= 2;
+  }
+  barrier.subresourceRange.baseMipLevel = mip_levels - 1;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+  vkCmdPipelineBarrier(cmd,
+      VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+      0, NULL,
+      0, NULL,
+      1, &barrier);
 
     result = vkEndCommandBuffer(cmd);
-    if(result != VK_SUCCESS) return result;
+    if(result != VK_SUCCESS) return 0;
 
     memset(&fence_create, 0, sizeof(VkFenceCreateInfo));
     fence_create.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 
     result = vkCreateFence(glfw.logical_device, &fence_create, NULL, &fence);
-    if(result != VK_SUCCESS) return result;
+    if(result != VK_SUCCESS) return 0;
 
     memset(&submit_info, 0, sizeof(VkSubmitInfo));
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -746,10 +812,10 @@ nk_glfw3_device_upload_atlas(
     submit_info.pCommandBuffers = &cmd;
 
     result = vkQueueSubmit(graphics_queue, 1, &submit_info, fence);
-    if(result != VK_SUCCESS) return result;
+    if(result != VK_SUCCESS) return 0;
     result =
         vkWaitForFences(glfw.logical_device, 1, &fence, VK_TRUE, UINT64_MAX);
-    if(result != VK_SUCCESS) return result;
+    if(result != VK_SUCCESS) return 0;
 
     vkDestroyFence(glfw.logical_device, fence, NULL);
 
@@ -763,11 +829,11 @@ nk_glfw3_device_upload_atlas(
     image_view_info.format = image_info.format;
     image_view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     image_view_info.subresourceRange.layerCount = 1;
-    image_view_info.subresourceRange.levelCount = 1;
+    image_view_info.subresourceRange.levelCount = mip_levels;
 
     result = vkCreateImageView(glfw.logical_device, &image_view_info, NULL,
                                &glfw.font_image_view);
-    if(result != VK_SUCCESS) return result;
+    if(result != VK_SUCCESS) return 0;
 
     VkDescriptorImageInfo descriptor_image_info = {
       .sampler     = glfw.sampler,
@@ -784,7 +850,7 @@ nk_glfw3_device_upload_atlas(
       .pImageInfo      = &descriptor_image_info,
     };
     vkUpdateDescriptorSets(glfw.logical_device, 1, &descriptor_write, 0, NULL);
-    return VK_SUCCESS;
+    return (uint64_t)glfw.font_dset;
 }
 
 NK_INTERN void nk_glfw3_destroy_render_resources(struct nk_glfw_device *dev)
@@ -828,15 +894,12 @@ NK_API
 void nk_glfw3_shutdown(void)
 {
   vkDeviceWaitIdle(glfw.logical_device);
+  nk_glfw3_font_cleanup();
   vkDestroyDescriptorSetLayout(glfw.logical_device, glfw.font_dset_layout, NULL);
   vkDestroyDescriptorPool(glfw.logical_device, glfw.descriptor_pool, NULL);
-  nk_font_atlas_clear(&glfw.atlas);
   vkDestroySampler(glfw.logical_device, glfw.sampler, NULL);
   nk_glfw3_device_destroy(&glfw.d0);
   if(glfw.w1.win) nk_glfw3_device_destroy(&glfw.d1);
-  vkDestroyImage(glfw.logical_device, glfw.font_image, NULL);
-  vkDestroyImageView(glfw.logical_device, glfw.font_image_view, NULL);
-  vkFreeMemory(glfw.logical_device, glfw.font_memory, NULL);
 
   memset(&glfw, 0, sizeof(glfw));
 }
@@ -846,32 +909,130 @@ NK_API void nk_glfw3_font_cleanup()
   vkDestroyImage(glfw.logical_device, glfw.font_image, 0);
   vkDestroyImageView(glfw.logical_device, glfw.font_image_view, 0);
   vkFreeMemory(glfw.logical_device, glfw.font_memory, 0);
-  nk_font_atlas_cleanup(&glfw.atlas);
+  dt_font_cleanup(&glfw.dtfont);
 }
 
-NK_API void nk_glfw3_font_stash_begin(struct nk_font_atlas **atlas)
+float dt_font_text_width(nk_handle handle, float height, const char *text, int text_len)
 {
-  nk_font_atlas_init_default(&glfw.atlas);
-  nk_font_atlas_begin(&glfw.atlas);
-  *atlas = &glfw.atlas;
+  int glyph_len = 1, pos = 0;
+  float text_width = 0;
+  while (glyph_len && pos < text_len)
+  {
+    nk_rune codepoint;
+    glyph_len = nk_utf_decode(text + pos, &codepoint, text_len - pos);
+    if(!glyph_len) break;
+    // TODO query kern table if appropriate
+    int idx = dt_font_glyph(&glfw.dtfont, codepoint);
+    const dt_font_glyph_t *g = glfw.dtfont.glyph + idx;
+    const float sx = g->height_to_em*height;
+    text_width += sx * g->advance;
+    pos += glyph_len;
+  }
+  return text_width;
 }
 
-NK_API void nk_glfw3_font_stash_end(
-    struct nk_context *ctx,
+void dt_font_query_glyph(
+    nk_handle handle,
+    float font_height,
+    struct nk_user_font_glyph *glyph,
+    nk_rune codepoint,
+    nk_rune next_codepoint)
+{
+  int idx = dt_font_glyph(&glfw.dtfont, codepoint);
+  // numbers come to us in EM units, font_height in nk is line height (asc+desc)
+  const dt_font_glyph_t *g = glfw.dtfont.glyph + idx;
+  const float sx = g->height_to_em*font_height;
+  const float sy = g->height_to_em*font_height;
+  glyph->offset.x = sx*g->pbox_x;
+  glyph->offset.y = sy + sy*g->pbox_y;
+  glyph->width    = sx*g->pbox_w;
+  glyph->height   = sy*g->pbox_h;
+  glyph->xadvance = sx*g->advance;
+  // these are atlas texture uv coordinates
+  glyph->uv[0].x = g->tbox_x;
+  glyph->uv[0].y = g->tbox_y;
+  glyph->uv[1].x = g->tbox_x + g->tbox_w;
+  glyph->uv[1].y = g->tbox_y + g->tbox_h;
+}
+
+NK_API struct nk_user_font *nk_glfw3_font(
+    int which)
+{
+  return glfw.font+which;
+}
+
+NK_API int nk_glfw3_font_load(
+    const char *fontfile,
+    int fontsize,
     VkCommandBuffer cmd,
     VkQueue graphics_queue)
 {
-  const void *image;
-  int w, h;
-  image = nk_font_atlas_bake(&glfw.atlas, &w, &h, NK_FONT_ATLAS_RGBA32);
-  nk_glfw3_device_upload_atlas(cmd, graphics_queue, image, w, h);
-  nk_font_atlas_end(
-      &glfw.atlas,
-      nk_handle_ptr(glfw.font_dset),
-      &glfw.tex_null);
+  int err = 0;
+  uint64_t texid = 0;
+  dt_lut_header_t header;
+  char tmp[PATH_MAX] = {0};
+  snprintf(tmp, sizeof(tmp), "%s/data/%s_msdf.lut", dt_pipe.homedir, fontfile);
+  FILE *f = fopen(tmp, "rb");
+  if(!f)
+  {
+    snprintf(tmp, sizeof(tmp), "%s/data/%s_msdf.lut", dt_pipe.basedir, fontfile);
+    f = fopen(tmp, "rb");
+  }
+  if(!f)
+  {
+    fprintf(stderr, "[nk] could not find msdf font lut `%s'!\n", fontfile);
+    err = 1;
+  }
+  else
+  {
+    if(fread(&header, sizeof(dt_lut_header_t), 1, f) != 1 ||
+        header.version < dt_lut_header_version ||
+        header.channels != 3 || // 4 ||
+        header.datatype != dt_lut_header_ui8) // f32)
+    {
+      fprintf(stderr, "[nk] could not load msdf font lut from `%s'!\n", tmp);
+      fclose(f);
+      err = 2;
+    }
+    else
+    {
+      // void *image = malloc(sizeof(float)*4*header.wd*header.ht);
+      // fread(image, sizeof(float), 4*header.wd*header.ht, f);
+      void *image = malloc(sizeof(uint8_t)*3*header.wd*header.ht);
+      fread(image, sizeof(uint8_t), 3*header.wd*header.ht, f);
+      fclose(f);
+      texid = nk_glfw3_device_upload_atlas(cmd, graphics_queue, image, header.wd, header.ht);
+      free(image);
+    }
+  }
+  if(err)
+    texid = nk_glfw3_device_upload_atlas(cmd, graphics_queue, 0, 32, 32);
+  glfw.font[0].userdata.ptr = &glfw;
+  glfw.font[0].height = fontsize;
+  glfw.font[0].width = &dt_font_text_width;
+  glfw.font[0].query = &dt_font_query_glyph;
+  glfw.font[0].texture.ptr = (void*)texid;
+  glfw.font[1] = glfw.font[0];
+  glfw.font[2] = glfw.font[0];
+  glfw.font[1].height = floorf(1.5*fontsize);
+  glfw.font[2].height = 2*fontsize;
 
-  if (glfw.atlas.default_font)
-    nk_style_set_font(ctx, &glfw.atlas.default_font->handle);
+  snprintf(tmp, sizeof(tmp), "%s/data/%s_metrics.lut", dt_pipe.homedir, fontfile);
+  f = fopen(tmp, "rb");
+  if(!f)
+  {
+    snprintf(tmp, sizeof(tmp), "%s/data/%s_metrics.lut", dt_pipe.basedir, fontfile);
+    f = fopen(tmp, "rb");
+  }
+  if(!f)
+  {
+    fprintf(stderr, "[nk] could not find font metrics lut `%s'!\n", tmp);
+    err = 3;
+  }
+  dt_font_read(&glfw.dtfont, f);
+  glfw.dtfont.default_glyph = dt_font_glyph(&glfw.dtfont, '*');
+  if(f) fclose(f);
+  return err;
 }
 
 NK_API void nk_glfw3_input_begin(struct nk_context *ctx, GLFWwindow *w, const int enable_grab)
@@ -1144,11 +1305,17 @@ void nk_glfw3_create_cmd(
     }
     if(!cmd->elem_count) continue;
 
-    VkRect2D scissor = {
-      .offset.x      = (int32_t)(NK_MAX(cmd->clip_rect.x, 0.f)),
-      .offset.y      = (int32_t)(NK_MAX(cmd->clip_rect.y, 0.f)),
-      .extent.width  = (uint32_t)(cmd->clip_rect.w),
-      .extent.height = (uint32_t)(cmd->clip_rect.h),
+    float str = cmd->strength;
+    if(!cmd->texture.ptr) str = -1.0f;
+    vkCmdPushConstants(command_buffer, dev->pipeline_layout,
+        VK_SHADER_STAGE_ALL, dev->push_constant_size-sizeof(float),
+        sizeof(float), &str);
+
+    VkRect2D scissor = { // anti-aliasing needs one more pixel to the left/top:
+      .offset.x      = (int32_t)(NK_MAX(cmd->clip_rect.x-1, 0.f)),
+      .offset.y      = (int32_t)(NK_MAX(cmd->clip_rect.y-1, 0.f)),
+      .extent.width  = (uint32_t)(cmd->clip_rect.w+1),
+      .extent.height = (uint32_t)(cmd->clip_rect.h+1),
     };
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
     vkCmdDrawIndexed(command_buffer, cmd->elem_count, 1, index_offset, 0, 0);

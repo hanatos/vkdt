@@ -2,9 +2,11 @@
 #include "core/version.h"
 #include "gui/view.h"
 #include "gui/gui.h"
+#include "gui/job_copy.h"
 #include "db/thumbnails.h"
 #include "db/rc.h"
 #include "db/hash.h"
+#include "db/exif.h"
 #include "core/fs.h"
 #include "pipe/graph-defaults.h"
 #include "gui/render_view.h"
@@ -247,7 +249,6 @@ void render_lighttable_center()
 
   if(vkdt.db.collection_cnt == 0)
   {
-    // nk_style_push_font(&vkdt.ctx, &dt_gui_get_font(1)->handle);
     nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_ht/5, 1);
     nk_label(&vkdt.ctx, "", 0);
     nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_ht/3, 3);
@@ -257,7 +258,6 @@ void render_lighttable_center()
         "try to relax the filter in the right panel in the `collect' expander. "
         "to open another directory press escape to go to the file browser.", vkdt.db.dirname, vkdt.db.image_cnt);
     nk_label(&vkdt.ctx, "", 0);
-    // nk_style_pop_font(&vkdt.ctx);
     NK_UPDATE_ACTIVE;
     nk_end(&vkdt.ctx);
     nk_style_pop_style_item(&vkdt.ctx);
@@ -283,6 +283,17 @@ void render_lighttable_center()
   }
 
   nk_style_push_vec2(&vkdt.ctx, &vkdt.ctx.style.window.spacing, nk_vec2(spacing, spacing));
+
+  // precache round robin
+  const int iv = 5;
+  static int cacheline = 0;
+  dt_thumbnails_load_list(
+      &vkdt.thumbnails,
+      &vkdt.db,
+      vkdt.db.collection,
+      cacheline, MIN(vkdt.db.collection_cnt, cacheline+iv));
+  cacheline += iv;
+  if(cacheline > vkdt.db.collection_cnt) cacheline = 0;
   for(int i=0;i<vkdt.db.collection_cnt;i++)
   {
     struct nk_rect row = nk_widget_bounds(&vkdt.ctx);
@@ -304,9 +315,9 @@ void render_lighttable_center()
         g_scroll_colid = -1;
       }
     }
-    if(row.y - vkdt.ctx.current->scrollbar.y > content.y + 10*content.h) break; // okay this list is really long
 
-    // precache
+    // precache this line
+    if(row.y - vkdt.ctx.current->scrollbar.y <= content.y + content.h)
     if((i % ipl) == 0)
       dt_thumbnails_load_list(
           &vkdt.thumbnails,
@@ -435,7 +446,7 @@ render_lighttable_header()
     nk_layout_row_dynamic(&vkdt.ctx, 0.93*vkdt.state.center_y, 1);
     struct nk_rect bounds = nk_widget_bounds(&vkdt.ctx);
     nk_label(&vkdt.ctx, "", 0);
-    nk_style_push_font(&vkdt.ctx, &dt_gui_get_font(2)->handle);
+    nk_style_push_font(&vkdt.ctx, nk_glfw3_font(2));
     recently_used_collections_draw(bounds, vkdt.db.dirname, &vkdt.db.collection_filter);
     nk_style_pop_font(&vkdt.ctx);
   }
@@ -565,6 +576,7 @@ void render_lighttable_right_panel()
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   const struct nk_vec2 size = {vkdt.state.panel_wd*0.95, vkdt.state.panel_wd*0.95};
 
+  if(vkdt.wstate.fullscreen_view) return;
   if(!nk_begin(ctx, "lighttable panel right", bounds, 0))
   {
     NK_UPDATE_ACTIVE;
@@ -636,10 +648,8 @@ void render_lighttable_right_panel()
     ctx->style.combo.sym_hover  = old1;
     ctx->style.combo.sym_active = old2;
     resi = ft->active & (1<<s_prop_rating) ? CLAMP(ft->rating, 0, 5) : 0;
-    nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
     resi = nk_combo_string(ctx, "\ue836\0\ue838\0\ue838\ue838\0\ue838\ue838\ue838\0\ue838\ue838\ue838\ue838\0\ue838\ue838\ue838\ue838\ue838\0\0", resi, 0xffff, row_height, size);
 
-    nk_style_pop_font(ctx);
     if(resi != ft->rating) 
     {
       if(resi == 0) ft->active &= ~(1<<s_prop_rating);
@@ -717,7 +727,6 @@ void render_lighttable_right_panel()
     if(!ft->filetype) ft->active &= ~(1<<s_prop_filetype);
     else              ft->active |=   1<<s_prop_filetype;
 
-#if 0
     nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
     int filename = (ft->active >> s_prop_filename)&1;
     res = nk_combo_string(ctx, "any\0filter by\0\0", filename, 0xffff, row_height, size);
@@ -729,9 +738,12 @@ void render_lighttable_right_panel()
     nk_label(ctx, "filename", NK_TEXT_LEFT);
     if(ft->active & (1<<s_prop_filename))
     {
-      // TODO
+      dt_tooltip("regular expression to match file names");
+      nk_flags ret = nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER,
+          ft->filename, sizeof(ft->filename), nk_filter_default);
+      if(ret & NK_EDIT_COMMITED)
+        update_collection = 1;
     }
-#endif
     nk_layout_row(ctx, NK_STATIC, row_height, 2, ratio);
     int createdate = (ft->active >> s_prop_createdate)&1;
     res = nk_combo_string(ctx, "any\0filter by\0\0", createdate, 0xffff, row_height, size);
@@ -890,38 +902,11 @@ void render_lighttable_right_panel()
     nk_label(ctx, "", 0);
 
     // ==============================================================
-    // delete images
-    static int really_delete = 0;
-    if(really_delete) { if(nk_button_label(ctx, "no, don't delete!")) really_delete = 0; }
-    else
-    {
-      dt_tooltip("will ask you again");
-      if(nk_button_label(ctx, "delete image[s]")) really_delete = 1;
-    }
-
-    if(really_delete)
-    {
-      dt_tooltip(
-          "this button will physically delete the .cfg files of the selection.\n"
-          "it will only delete the source image file if its filename is\n"
-          "exacty the .cfg file name without the .cfg postfix.\n"
-          "this means duplicates or tag collections will keep the source\n"
-          "image file name on disk untouched, but only remove the duplicate\n"
-          "or the tag from the image");
-      if(nk_button_label(ctx, "*really* delete image[s]"))
-      {
-        dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
-        really_delete = 0;
-      }
-    }
-    else nk_label(ctx, "", 0);
-
-    // ==============================================================
     // reset history stack
     if(nk_button_label(ctx, "reset history stack"))
     {
       const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-      char filename[1024], realname[PATH_MAX];
+      char filename[PATH_MAX], realname[PATH_MAX];
       for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
       {
         dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
@@ -1095,6 +1080,35 @@ void render_lighttable_right_panel()
             &glfwPostEmptyEvent);
       }
     } // end if multiple images are selected
+    { // ==============================================================
+      // fav preset buttons
+      int is_pst = 0;
+      const float pwd = ctx->current->layout->bounds.w - 3.0f*vkdt.ctx.style.window.spacing.x;
+      const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
+      const float w4[] = {pwd/4.0f, pwd/4.0f, pwd/4.0f, pwd/4.0f};
+      for(int i=0;i<vkdt.fav_cnt;i++)
+      {
+        if(vkdt.fav_modid[i] != -1) continue;
+        int pst = vkdt.fav_parid[i];
+        if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
+        char *preset = vkdt.fav_preset_name[pst];
+        if(!is_pst++) nk_layout_row(&vkdt.ctx, NK_STATIC, row_height, 4, w4);
+        dt_tooltip("apply preset %s", vkdt.fav_preset_name[pst]);
+        if(nk_button_label(&vkdt.ctx, vkdt.fav_preset_desc[pst]))
+        {
+          char filename[PATH_MAX];
+          snprintf(filename, sizeof(filename), "%s/presets/%s.pst", dt_pipe.homedir, preset);
+          uint32_t err = dt_gui_lt_append_preset(filename);
+          if(err)
+          {
+            snprintf(filename, sizeof(filename), "%s/data/presets/%s.pst", dt_pipe.basedir, preset);
+            err = dt_gui_lt_append_preset(filename);
+          }
+          if(err)
+            dt_gui_notification("failed to read preset %s", filename);
+        }
+      }
+    } // end fav presets
     nk_tree_pop(ctx);
   } // end collapsing header "selected"
 
@@ -1103,13 +1117,30 @@ void render_lighttable_right_panel()
     nk_layout_row_static(ctx, row_height, vkdt.state.panel_wd, 1);
     static uint32_t imgid = -1u;
     static char text[2048], *text_end = text;
+    static int looked_for_exiftool = 0; // only go looking for it once
     if(imgid != vkdt.db.current_imgid)
     {
+      const char *exiftool_path[] = {"/usr/bin", "/usr/bin/vendor_perl", "/usr/local/bin", dt_pipe.basedir };
+      static char def_cmd[PATH_MAX] = {0};
+      if(!looked_for_exiftool)
+      {
+        for(int k=0;k<4;k++)
+        {
+          char test[PATH_MAX];
+          snprintf(test, sizeof(test), "%s/exiftool", exiftool_path[k]);
+          if(fs_isreg_file(test))
+          { // found at least a file here
+            snprintf(def_cmd, sizeof(def_cmd), "%s/exiftool -l -createdate -aperture -shutterspeed -iso", exiftool_path[k]);
+            break;
+          }
+        }
+        looked_for_exiftool = 1;
+      }
       text[0] = 0; text_end = text;
-      const char *rccmd = dt_rc_get(&vkdt.rc, "gui/metadata/command", "/usr/bin/exiftool -l -createdate -aperture -shutterspeed -iso");
+      const char *rccmd = dt_rc_get(&vkdt.rc, "gui/metadata/command", def_cmd);
       dt_sanitize_user_string((char*)rccmd); // be sure nothing evil is in here. we won't change the length so we don't care about const.
-      char cmd[PATH_MAX], imgpath[PATH_MAX];
-      snprintf(cmd, sizeof(cmd), "%s '", rccmd);
+      char cmd[2*PATH_MAX], imgpath[PATH_MAX];
+      snprintf(cmd, PATH_MAX, "%s '", rccmd);
       dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, imgpath, sizeof(imgpath));
       fs_realpath(imgpath, cmd+strlen(cmd)); // use GNU extension: fill path even if it doesn't exist
       size_t len = strnlen(cmd, sizeof(cmd));
@@ -1139,8 +1170,174 @@ void render_lighttable_right_panel()
       nk_label(&vkdt.ctx, c, NK_TEXT_LEFT);
       c = cc+1;
     }
+#if 0
+    { // DEBUG time offsets
+    char model[100] = {0}, createdate[20] = {0};
+    char imgpath[PATH_MAX];
+    dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, imgpath, sizeof(imgpath));
+    imgpath[strlen(imgpath)-4] = 0;
+    fs_createdate(imgpath, createdate);
+    nk_label(ctx, createdate, NK_TEXT_LEFT); // stat modified timestamp
+    dt_db_exif_mini(imgpath, createdate, model, sizeof(model));
+    nk_label(ctx, model, NK_TEXT_LEFT);      // model name
+    nk_label(ctx, createdate, NK_TEXT_LEFT); // date we found in exif
+    dt_db_read_createdate(&vkdt.db, vkdt.db.current_imgid, createdate);
+    nk_label(ctx, createdate, NK_TEXT_LEFT); // date we found in exif adjusted by time offset of folder
+    } // DEBUG
+#endif
     nk_tree_pop(ctx);
   } // end collapsing header "metadata"
+
+  // ==============================================================
+  // files header
+  static dt_job_copy_t job[4] = {{{0}}};
+  int active = job[0].state | job[1].state | job[2].state | job[3].state;
+  if(nk_tree_push(ctx, NK_TREE_TAB, "files", active ? NK_MAXIMIZED : NK_MINIMIZED))
+  {
+    // ==============================================================
+    // new project from scratch
+    nk_layout_row_dynamic(&vkdt.ctx, row_height, 2);
+    static char fname[50] = "new_project";
+    dt_tooltip("enter the filename of the newly created project");
+    nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER,
+        fname, sizeof(fname), nk_filter_default);
+    dt_tooltip("create new empty graph project. useful if you want "
+        "to use render nodes or if the project does not correspond "
+        "1:1 to an image on disk");
+    if(nk_button_label(ctx, "create project"))
+    {
+      char filename[PATH_MAX];
+      snprintf(filename, sizeof(filename), "%s/%s.cfg", vkdt.db.dirname, fname);
+      char newcfg[PATH_MAX];
+      snprintf(newcfg, sizeof(newcfg), "%s/new.cfg", dt_pipe.homedir);
+      if(fs_copy(filename, newcfg))
+      { // no homedir new.cfg, go global:
+        snprintf(newcfg, sizeof(newcfg), "%s/new.cfg", dt_pipe.basedir);
+        fs_copy(filename, newcfg);
+      }
+      snprintf(filename, sizeof(filename), "%s", vkdt.db.dirname);
+      dt_gui_switch_collection(filename); // reload directory
+    }
+
+    // ==============================================================
+    // delete images
+    if(vkdt.db.selection_cnt)
+    {
+      static int really_delete = 0;
+      if(really_delete) { if(nk_button_label(ctx, "no, don't delete!")) really_delete = 0; }
+      else
+      {
+        dt_tooltip("will ask you again");
+        if(nk_button_label(ctx, "delete image[s]")) really_delete = 1;
+      }
+
+      if(really_delete)
+      {
+        dt_tooltip(
+            "this button will physically delete the .cfg files of the selection.\n"
+            "it will only delete the source image file if its filename is\n"
+            "exacty the .cfg file name without the .cfg postfix.\n"
+            "this means duplicates or tag collections will keep the source\n"
+            "image file name on disk untouched, but only remove the duplicate\n"
+            "or the tag from the image");
+        if(nk_button_label(ctx, "*really* delete image[s]"))
+        {
+          dt_db_remove_selected_images(&vkdt.db, &vkdt.thumbnails, 1);
+          really_delete = 0;
+        }
+      }
+      else nk_label(ctx, "", 0);
+    }
+
+
+    // ==============================================================
+    // copy/move
+    if(vkdt.db.selection_cnt)
+    { // copy jobs
+      nk_layout_row_dynamic(ctx, row_height/2, 1);
+      nk_label(ctx, "", 0);
+      const float ratio[] = {0.7f, 0.3f};
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+      static char pattern[100] = {0};
+      if(pattern[0] == 0) snprintf(pattern, sizeof(pattern), "%s", dt_rc_get(&vkdt.rc, "gui/copy_destination", "${home}/Pictures/${date}_${dest}"));
+      dt_tooltip("destination directory pattern. expands the following:\n"
+          "${home} - home directory\n"
+          "${date} - YYYYMMDD date\n"
+          "${yyyy} - four char year\n"
+          "${dest} - dest string just below");
+      nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, pattern, sizeof(pattern), nk_filter_default);
+      nk_label(ctx, "destination", NK_TEXT_LEFT);
+      static char dest[20];
+      dt_tooltip(
+          "enter a descriptive string to be used as the ${dest} variable when expanding\n"
+          "the 'gui/copy_destination' pattern from the config.rc file. it is currently\n"
+          "`%s'", pattern);
+      nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, dest, sizeof(dest), nk_filter_default);
+      nk_label(ctx, "dest", NK_TEXT_LEFT);
+      static int32_t copy_mode = 0;
+      int32_t num_idle = 0;
+      const char *copy_mode_str = "keep original\0delete original\0\0";
+      nk_combobox_string(ctx, copy_mode_str, &copy_mode, 0x7fff, row_height, size);
+      nk_label(ctx, "overwrite", NK_TEXT_LEFT);
+      const float r2[] = {ratio[1], ratio[0]};
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, r2);
+      for(int k=0;k<4;k++)
+      { // list of four jobs to copy stuff simultaneously
+        if(job[k].state == 0)
+        { // idle job
+          if(num_idle++) // show at max one idle job
+            break;
+          dt_tooltip("copy selection from %s\nto %s,\n%s",
+              vkdt.db.dirname, pattern, copy_mode ? "delete original files after copying" : "keep original files");
+          if(nk_button_label(ctx, copy_mode ? "move" : "copy"))
+          {
+            job[k].move = copy_mode;
+            char dst[1000];
+            fs_expand_import_filename(pattern, strlen(pattern), dst, sizeof(dst), dest);
+            dt_job_copy(job+k, dst, "vkdt.db.sel");
+            nk_label(ctx, "", 0);
+          }
+          else nk_label(ctx, "", 0);
+        }
+        else if(job[k].state == 1)
+        { // running
+          dt_tooltip("copying %s to %s", job[k].src, job[k].dst);
+          float progress = threads_task_progress(job[k].taskid);
+          struct nk_rect bb = nk_widget_bounds(ctx);
+          nk_prog(ctx, 1024*progress, 1024, nk_false);
+          char text[50];
+          bb.x += ctx->style.progress.padding.x;
+          bb.y += ctx->style.progress.padding.y;
+          snprintf(text, sizeof(text), "%.0f%%", 100.0*progress);
+          nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
+          if(nk_button_label(ctx, "abort")) job[k].abort = 1;
+        }
+        else
+        { // done/aborted
+          dt_tooltip(
+              job[k].abort == 1 ? "copy from %s aborted by user. click to reset" :
+             (job[k].abort == 2 ? "copy from %s incomplete. file system full?\nclick to reset" :
+              "copy from %s done. click to reset"),
+             job[k].src);
+          if(nk_button_label(ctx, job[k].abort ? "aborted" : "done"))
+          { // reset
+            job[k].state = 0;
+          }
+          if(!job[k].abort)
+          {
+            dt_tooltip("open %s in lighttable mode", job[k].dst);
+            if(nk_button_label(ctx, "view copied files"))
+            {
+              dt_gui_switch_collection(job[k].dst);
+              job[k].state = 0;
+            }
+          }
+          else nk_label(ctx, "", 0);
+        }
+      } // end for jobs
+    } // end if selection_cnt > 0
+    nk_tree_pop(ctx);
+  } // end collapsing header "files"
 
   // ==============================================================
   // export selection
@@ -1150,7 +1347,7 @@ void render_lighttable_right_panel()
     static dt_export_widget_t w = {0};
     dt_export(&w);
     const float ratio[] = {0.7f, 0.3f};
-    nk_layout_row(ctx, NK_DYNAMIC, 0, 2, ratio);
+    nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
 #define NUM_JOBS 4
     static export_job_t job[NUM_JOBS] = {{0}};
     int32_t num_idle = 0;
@@ -1177,8 +1374,10 @@ void render_lighttable_right_panel()
         float progress = threads_task_progress(job[k].taskid);
         nk_prog(ctx, 100*progress, 100, nk_false);
         char text[50];
+        bb.x += ctx->style.progress.padding.x;
+        bb.y += ctx->style.progress.padding.y;
         snprintf(text, sizeof(text), "%d%%", (int)(100.0*progress));
-        nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
+        nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
         if(nk_button_label(ctx, "abort")) job[k].abort = 1;
         // technically a race condition on frame_cnt being inited by graph
         // loading during the async job. do we care?
@@ -1186,8 +1385,10 @@ void render_lighttable_right_panel()
         {
           bb = nk_widget_bounds(ctx);
           nk_prog(ctx, job[k].graph.frame, job[k].graph.frame_cnt, nk_false);
+          bb.x += ctx->style.progress.padding.x;
+          bb.y += ctx->style.progress.padding.y;
           snprintf(text, sizeof(text), "frame %d/%d", job[k].graph.frame, job[k].graph.frame_cnt);
-          nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
+          nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
           nk_label(ctx, "", 0);
         }
       }
@@ -1195,6 +1396,7 @@ void render_lighttable_right_panel()
 #undef NUM_JOBS
     nk_tree_pop(ctx);
   } // end collapsing header "export"
+
   NK_UPDATE_ACTIVE;
   nk_end(&vkdt.ctx); // lt right panel
 }
@@ -1246,73 +1448,7 @@ void render_lighttable()
       static char filter[256];
       int ok = filteredlist("%s/data/presets", "%s/presets", filter, filename, sizeof(filename), s_filteredlist_default);
       if(ok) vkdt.wstate.popup = 0;
-      if(ok == 1)
-      {
-        FILE *fin = fopen(filename, "rb");
-        if(!fin)
-        { // also fails if src is 0
-          dt_gui_notification("could not open preset %s!", filename);
-        }
-        else
-        {
-          fseek(fin, 0, SEEK_END);
-          size_t fsize = ftell(fin);
-          fseek(fin, 0, SEEK_SET);
-          uint8_t *buf = (uint8_t*)malloc(fsize);
-          fread(buf, fsize, 1, fin);
-          fclose(fin);
-          const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-          for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
-          {
-            dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
-            char dst[PATH_MAX];
-            fs_realpath(filename, dst);
-            FILE *fout = fopen(dst, "ab");
-            if(fout)
-            {
-              size_t pos = ftell(fout);
-              if(pos == 0)
-              { // no pre-existing cfg, copy defaults
-                dt_token_t input_module = dt_graph_default_input_module(filename);
-                char graph_cfg[PATH_MAX+100];
-                snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.homedir, dt_token_str(input_module));
-                FILE *f = fopen(graph_cfg, "rb");
-                if(!f)
-                {
-                  snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
-                  f = fopen(graph_cfg, "rb");
-                }
-                if(!f)
-                {
-                  dt_gui_notification("could not open default graph %s!", graph_cfg);
-                }
-                else
-                {
-                  fseek(f, 0, SEEK_END);
-                  size_t fsize2 = ftell(f);
-                  fseek(f, 0, SEEK_SET);
-                  uint8_t *buf2 = (uint8_t*)malloc(fsize2);
-                  fread(buf2, fsize2, 1, f);
-                  fclose(f);
-                  fwrite(buf2, fsize2, 1, fout);
-                  free(buf2);
-                  filename[strlen(filename)-4] = 0; // cut off .cfg
-                  fprintf(fout, "param:%"PRItkn":main:filename:%s\n", dt_token_str(input_module), filename);
-                }
-              }
-              // now append preset
-              fwrite(buf, fsize, 1, fout);
-              fclose(fout);
-            }
-          }
-          dt_thumbnails_cache_list(
-              &vkdt.thumbnail_gen,
-              &vkdt.db,
-              sel, vkdt.db.selection_cnt,
-              &glfwPostEmptyEvent);
-          free(buf);
-        } // if fin
-      } // end if ok == 1
+      if(ok == 1) dt_gui_lt_append_preset(filename);
     }
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
@@ -1345,16 +1481,18 @@ int lighttable_enter()
   g_scroll_offset = abs(g_scroll_offset);
   g_image_cursor = -1;
   if(vkdt.wstate.history_view)    dt_gui_dr_toggle_history();
-  if(vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
+  if(vkdt.wstate.fullscreen_view) dt_gui_toggle_fullscreen_view();
   dt_gamepadhelp_set(dt_gamepadhelp_ps,              "toggle this help");
-  // dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "back to files");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "go to file browser");
   dt_gamepadhelp_set(dt_gamepadhelp_button_cross,    "enter darkroom");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_up,        "move up");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_down,      "move down");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_left,      "move left");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_right,     "move right");
+  dt_gamepadhelp_set(dt_gamepadhelp_R1,              "show/hide right panel");
   vkdt.wstate.copied_imgid = -1u; // reset to invalid
   vkdt.wstate.lighttable_images_per_row = dt_rc_get_int(&vkdt.rc, "gui/images_per_line", 6);
+  dt_gui_read_favs("darkroom.ui"); // read these for fav presets here, too
   return 0;
 }
 
@@ -1380,6 +1518,10 @@ void lighttable_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepads
       dt_view_switch(s_view_darkroom);
     }
   }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_B))
+  {
+    dt_view_switch(s_view_files);
+  }
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_UP))
   {
     if(g_image_cursor < 0) g_image_cursor = -2;
@@ -1399,6 +1541,10 @@ void lighttable_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepads
   {
     if(g_image_cursor < 0) g_image_cursor = -2;
     else g_image_cursor = MIN(vkdt.db.collection_cnt-1, g_image_cursor+1);
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER))
+  {
+    dt_gui_toggle_fullscreen_view();
   }
 #undef PRESSED
 }

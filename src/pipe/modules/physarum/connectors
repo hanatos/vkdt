@@ -1,0 +1,2 @@
+output:write:rgba:f16
+mask:read:*:*

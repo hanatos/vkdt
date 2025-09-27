@@ -27,6 +27,7 @@ targets, such as the main view and histograms.
 * [minimally invasive folder-based image database](src/db/readme.md)
 * [command line utility](src/cli/readme.md)
 * [real time magic lantern raw video (mlv) processing](src/pipe/modules/i-mlv/readme.md)
+* [GPU decoder for MotionCam raw video](src/pipe/modules/i-mcraw/readme.md)
 * [10-bit display output](src/pipe/modules/test10b/readme.md)
 * [automatic parameter optimisation](src/fit/readme.md), for instance to fit vignetting
 * [heavy handed processing](src/pipe/modules/kpn-t/readme.md) at almost realistic speeds
@@ -44,6 +45,10 @@ also there is a [nixos package](https://search.nixos.org/packages?channel=unstab
 which you can use to try out/run on any linux distro, for instance:
 ```
   nix-shell -p vkdt
+```
+and if you're on arch, there is a vkdt-git package in aur:
+```
+  yay vkdt-git
 ```
 
 
@@ -101,7 +106,7 @@ and we may link to some others, too.
 * libjpeg
 * video io: libavformat libavcodec (minimum version 6)
 * sound: libasound2
-* build: make, pkg-config, clang, rsync, sed, xxd
+* build: make, pkg-config, clang, sed, xxd
 
 the full list of packages used to build the nightly appimages can be found in the [workflow yaml file](.github/workflows/nightly.yml).
 

@@ -42,6 +42,7 @@ main()
 
   vec3  rgb  = texelFetch(img_in, ipos, 0).rgb;
   float zone = clamp(params.num_zones, 2, 7) * texture(img_zone, (ipos+0.5)/imageSize(img_out)).r;
+  zone = clamp(zone, 0, params.num_zones);
   float i = floor(zone);
   float f = fract(zone);
   float ev = 0.0;

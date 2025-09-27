@@ -115,6 +115,13 @@ jobs:
           cd ..
           echo "VKDT_USE_PENTABLET=1" >> bin/config.mk
           echo "export VKDT_USE_PENTABLET" >> bin/config.mk
+      - name: update config.mk for rawler
+        if: matrix.raw.backend == 'rawler'
+        run: |
+          cat >> bin/config.mk << 'EOF'
+          VKDT_USE_RAWINPUT=2
+          export VKDT_USE_RAWINPUT
+          EOF
       - name: update config.mk for rawspeed
         if: matrix.raw.backend == 'rawspeed'
         run: |
@@ -149,7 +156,6 @@ jobs:
           #   libglfw3-dev \
           #   zlib1g-dev \
           #   libpugixml-dev \
-          #   libfreetype-dev \
           #   libexiv2-dev \
           #   libasound2-dev \
           #   libavformat-dev \
@@ -189,6 +195,7 @@ jobs:
           install: >-
             git
             rsync
+            findutils
             make
             zip
             unzip
@@ -199,7 +206,6 @@ jobs:
             gcc-libs:p
             dlfcn:p
             glfw:p
-            freetype:p
             ffmpeg:p
             vulkan-devel:p
             glslang:p
@@ -226,6 +232,7 @@ jobs:
         run: |
           echo "OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG" >> ${SRC_DIR}/bin/config.mk
           echo "export OPT_CFLAGS" >> ${SRC_DIR}/bin/config.mk
+          echo "INSTALL_PREFIX_U=$(cygpath -u ${INSTALL_PREFIX})" >> $GITHUB_ENV
       - name: build and install
         run: |
           export PATH=/c/Users/runneradmin/.cargo/bin/:$PATH
@@ -234,15 +241,16 @@ jobs:
           echo "VKDT_USE_EXIV2=0" >> ${SRC_DIR}/bin/config.mk
           echo "export VKDT_USE_EXIV2" >> ${SRC_DIR}/bin/config.mk
           make -C ${SRC_DIR}
-          make DESTDIR=${INSTALL_PREFIX} -C ${SRC_DIR} install
+          make DESTDIR=${INSTALL_PREFIX_U} -C ${SRC_DIR} install
       - name: bundle exiftool
         run: |
-          wget https://exiftool.org/exiftool-13.16_64.zip
-          unzip exiftool-13.16_64.zip
-          mv exiftool*/exiftool*exe ${INSTALL_PREFIX}/usr/lib/vkdt/exiftool.exe
+          wget https://sourceforge.net/projects/exiftool/files/exiftool-13.33_64.zip/download
+          mv download dreggn.zip
+          unzip dreggn.zip
+          mv exiftool*/exiftool*exe ${INSTALL_PREFIX_U}/usr/lib/vkdt/exiftool.exe
       - name: check if it runs
         run: |
-          ${INSTALL_PREFIX}/usr/lib/vkdt/vkdt.exe --version
+          ${INSTALL_PREFIX_U}/usr/lib/vkdt/vkdt.exe --version
       - name: get version info
         run: |
           cd ${SRC_DIR}
@@ -250,7 +258,7 @@ jobs:
           ([[ ${MSYSTEM_CARCH} == x86_64 ]] && echo "SYSTEM=win64" || echo "SYSTEM=woa64") >> $GITHUB_ENV
       - name: create zip package
         run: |
-          cd ${INSTALL_PREFIX}/usr/lib
+          cd ${INSTALL_PREFIX_U}/usr/lib
           # find and copy required libraries
           ldd vkdt/vkdt.exe | grep '/ucrt64/bin/' | awk '{print($1)}' > dllhell
           find vkdt/ -name "*lib*.so" -exec ldd {} \; | grep '/ucrt64/bin/' | awk '{print($1)}' | sort | uniq >> dllhell
@@ -260,9 +268,36 @@ jobs:
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.INSTALL_PREFIX}}/usr/lib/vkdt-rawler-${{ env.VERSION }}-${{ env.SYSTEM }}.zip
+          path: ${{ env.INSTALL_PREFIX }}/usr/lib/vkdt-rawler-${{ env.VERSION }}-${{ env.SYSTEM }}.zip
           name: artifact-windows-rawler
           retention-days: 1
+
+  macintosh:
+    if: github.repository == 'hanatos/vkdt'
+    name: nightly vkdt macintosh
+    runs-on: macos-14
+    strategy:
+      fail-fast: true
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+    steps:
+      - name: install dependencies
+        run: |
+          brew install make glfw3 vulkan-validationlayers vulkan-headers rust molten-vk
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: src
+      - name: compile
+        run: |
+          export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
+          # fails in github ci:
+          # might be in: /opt/homebrew/Cellar/
+          # export PKG_CONFIG_PATH=$(find /usr/local/Cellar -name 'pkgconfig' -type d | grep lib/pkgconfig | tr '\n' ':' | sed s/.$//)
+          # export PKG_CONFIG_PATH=$(find /usr/homebrew/Cellar -name 'pkgconfig' -type d | grep lib/pkgconfig | tr '\n' ':' | sed s/.$//)
+          make -C ${SRC_DIR}
+          # and then install etc and test-run as: MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=1 ./vkdt
 
   upload_to_release:
     permissions:
@@ -288,7 +323,7 @@ jobs:
             appimage
             ===================================================
             the appimage compiles in a lot of features
-            (mlv, v4l, asound, i-vid, o-vid, exiv2, freetype)
+            (mlv, v4l, asound, i-vid, o-vid, exiv2)
             but not all
             (no quake).
             you also currently need the `exiftool` binary installed on your
@@ -315,10 +350,14 @@ jobs:
             ===================
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
             it compiles less features
-            (freetype mlv, i-vid, o-vid)
+            (mlv, i-vid, o-vid)
             and leaves out many
             (no v4l, no sound, no quake, no pentablet support).
             you can help by reporting more issues (or maybe even fixing, if you can ;) ).
+
+            macintosh
+            =========
+            the macintosh version is currently just verifying the build but not creating a nightly dmg image.
 
           files: |
             artifact-appimage-rawler-glfw3.4/*

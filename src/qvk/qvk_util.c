@@ -34,6 +34,30 @@ qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_prop)
 }
 
 const char *
+qvk_colourspace_to_string(VkColorSpaceKHR c)
+{
+  switch(c) {
+  case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR: return "sRGB nonlinear";
+  case VK_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT: return "display P3";
+  case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT: return "sRGB linear";
+  case VK_COLOR_SPACE_DISPLAY_P3_LINEAR_EXT: return "display P3 linear";
+  case VK_COLOR_SPACE_DCI_P3_NONLINEAR_EXT: return "DCI P3 nonlinear";
+  case VK_COLOR_SPACE_BT709_LINEAR_EXT: return "BT709 linear";
+  case VK_COLOR_SPACE_BT709_NONLINEAR_EXT: return "BT709 nonlinear";
+  case VK_COLOR_SPACE_BT2020_LINEAR_EXT: return "BT2020 linear";
+  case VK_COLOR_SPACE_HDR10_ST2084_EXT: return "HDR10 ST2084";
+  case VK_COLOR_SPACE_DOLBYVISION_EXT: return "dolbyvision (deprecated)";
+  case VK_COLOR_SPACE_HDR10_HLG_EXT: return "HDR10 HLG";
+  case VK_COLOR_SPACE_ADOBERGB_LINEAR_EXT: return "Adobe RGB linear";
+  case VK_COLOR_SPACE_ADOBERGB_NONLINEAR_EXT: return "Adobe RGB nonlinear";
+  case VK_COLOR_SPACE_PASS_THROUGH_EXT: return "pass through";
+  case VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT: return "ext sRGB nonlinear";
+  case VK_COLOR_SPACE_DISPLAY_NATIVE_AMD: return "display native";
+  default: return "AAARRGHH";
+  }
+}
+
+const char *
 qvk_result_to_string(VkResult result)
 {
   switch(result) {

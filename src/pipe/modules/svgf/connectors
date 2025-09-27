@@ -1,5 +1,5 @@
 mv:read:rg:f16
-input:read:*:*
+irr:read:ssbo:f32
 albedo:read:*:*
 output:write:rgba:f32
 gbufp:read:*:f32

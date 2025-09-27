@@ -18,14 +18,15 @@
 #include <dirent.h>
 #include <inttypes.h>
 
-static void
-style_to_state()
+void
+dt_gui_style_to_state()
 {
-  vkdt.style.panel_width_frac = 0.2f;
-  const float pwd = vkdt.style.panel_width_frac * (16.0/9.0) * vkdt.win.height;
+  vkdt.style.panel_width_frac = dt_rc_get_float(&vkdt.rc, "gui/panelwd", 0.2f);
+  vkdt.style.border_frac = 0.05f;
+  const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-  const float fontsize = 2.0f * vkdt.win.content_scale[1] * 19 * dpi_scale; // 2x fontsize: heading
-  float border = MAX(fontsize * 1.1, 4);
+  vkdt.style.fontsize = MAX(5, floorf(20 * vkdt.win.content_scale[1] * dpi_scale));
+  float border = MAX(vkdt.style.fontsize * 2 * 1.25, 4); // enough for large 2x font + border
   border = MIN(border, (vkdt.win.width  - pwd)/2);
   border = MIN(border,  vkdt.win.height/2);
   // TODO clamp to sane values, in case our min size request is ignored
@@ -51,7 +52,6 @@ framebuffer_size_callback(GLFWwindow* w, int width, int height)
     win->width = width; win->height = height;
     dt_gui_recreate_swapchain(win);
     nk_glfw3_resize(w, win->width, win->height);
-    dt_gui_init_fonts(); // actually we don't wan this here, but we assume content scale changes also changes framebuffer.
   }
 }
 
@@ -75,13 +75,13 @@ void window_content_scale_callback(GLFWwindow* w, float xscale, float yscale)
   {
     vkdt.win.content_scale[0] = xscale;
     vkdt.win.content_scale[1] = yscale;
-    // would like to trigger a font re-render, unfortunately this here doesn't happen in sync with swapchain creation.
   }
   else
   {
     vkdt.win1.content_scale[0] = xscale;
     vkdt.win1.content_scale[1] = yscale;
   }
+  dt_gui_init_fonts(); // content scale scales fonts
 }
 
 static inline void
@@ -182,7 +182,7 @@ dt_gui_win_init_vk(dt_gui_win_t *win)
 int dt_gui_init()
 {
   memset(&vkdt, 0, sizeof(vkdt));
-  vkdt.graph_res = -1;
+  vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE;
   const char *session_type = getenv("XDG_SESSION_TYPE");
   if     (!session_type)                    vkdt.session_type = -1;
   else if(!strcmp(session_type, "x11"))     vkdt.session_type =  0;
@@ -191,6 +191,12 @@ int dt_gui_init()
 #ifdef _WIN64
   vkdt.session_type = 666;
 #endif
+
+  const char *hdr_wsi = getenv("ENABLE_HDR_WSI");
+  int enable_hdr_wsi = 0;
+  if     (!hdr_wsi)              enable_hdr_wsi = 0;
+  else if(!strcmp(hdr_wsi, "1")) enable_hdr_wsi = 1;
+  if(enable_hdr_wsi) dt_log(s_log_gui, "attempting to load HDR WSI aux layer");
 
   if(!glfwInit())
   {
@@ -251,7 +257,8 @@ int dt_gui_init()
   const char *gpu_name = dt_rc_get(&vkdt.rc, "qvk/device_name", "null");
   if(!strcmp(gpu_name, "null")) gpu_name = 0;
   int gpu_id = dt_rc_get_int(&vkdt.rc, "qvk/device_id", -1);
-  if(qvk_init(gpu_name, gpu_id, 1))
+  int allow_hdr = dt_rc_get_int(&vkdt.rc, "gui/allowhdr", 0);
+  if(qvk_init(gpu_name, gpu_id, 1, enable_hdr_wsi, allow_hdr))
   {
     dt_log(s_log_err|s_log_gui, "init vulkan failed");
     return 1;
@@ -259,25 +266,44 @@ int dt_gui_init()
 
   if(dt_gui_win_init_vk(&vkdt.win)) return 1;
 
-  // joystick detection:
-  vkdt.wstate.have_joystick = glfwJoystickPresent(GLFW_JOYSTICK_1);
-  if(vkdt.wstate.have_joystick && glfwJoystickIsGamepad(GLFW_JOYSTICK_1))
+  // joystick detection: find first gamepad.
+  FILE *f = fopen("/usr/share/sdl/gamecontrollerdb.txt", "r");
+  if(f)
+  { // load additional controller descriptions from file above if present
+    fseek(f, SEEK_END, 0);
+    size_t sz = ftell(f);
+    fseek(f, SEEK_SET, 0);
+    char *buf = malloc(sz);
+    fread(buf, 1, sz, f);
+    fclose(f);
+    dt_log(s_log_gui, "loading additional gamepad maps from gamecontrollerdb");
+    glfwUpdateGamepadMappings(buf);
+    free(buf);
+  }
+  vkdt.wstate.have_joystick = 0;
+  for(int js=GLFW_JOYSTICK_1;!vkdt.wstate.have_joystick&&js<GLFW_JOYSTICK_LAST;js++)
   {
-    const char *name = glfwGetJoystickName(GLFW_JOYSTICK_1);
-    dt_log(s_log_gui, "found gamepad %s", name);
-    const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 1);
-    if(disable)
+    if(glfwJoystickPresent(js) && glfwJoystickIsGamepad(js))
     {
-      vkdt.wstate.have_joystick = 0;
-      dt_log(s_log_gui, "disabling joystick due to explicit config request. enable by");
-      dt_log(s_log_gui, "setting 'intgui/disable_joystick:0' in ~/.config/vkdt/config.rc");
-    }
-    else
-    {
-      vkdt.wstate.have_joystick = 1;
+      const char *name = glfwGetJoystickName(js);
+      dt_log(s_log_gui, "found gamepad %s", name);
+      const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 1);
+      if(disable)
+      {
+        vkdt.wstate.have_joystick = 0;
+        dt_log(s_log_gui, "disabling joystick due to explicit config request. enable by");
+        dt_log(s_log_gui, "setting 'intgui/disable_joystick:0' in ~/.config/vkdt/config.rc");
+      }
+      else
+      {
+        vkdt.wstate.have_joystick = 1;
+        vkdt.wstate.joystick_id = js;
+        break;
+      }
     }
   }
-  else dt_log(s_log_gui, "no joysticks found");
+  if(!vkdt.wstate.have_joystick)
+    dt_log(s_log_gui, "no gamepad found");
 
   dt_gui_init_nk();
 
@@ -321,10 +347,9 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
   VkSurfaceFormatKHR *avail_surface_formats = alloca(sizeof(VkSurfaceFormatKHR) * num_formats);
   vkGetPhysicalDeviceSurfaceFormatsKHR(qvk.physical_device, win->surface, &num_formats, avail_surface_formats);
 
-  dt_log(s_log_qvk, "available surface formats:");
-  for(int i = 0; i < num_formats; i++)
-    dt_log(s_log_qvk, qvk_format_to_string(avail_surface_formats[i].format));
-
+  // dt_log(s_log_gui, "available surface formats:");
+  // for(int i = 0; i < num_formats; i++)
+  //   dt_log(s_log_gui, qvk_format_to_string(avail_surface_formats[i].format));
 
   VkFormat acceptable_formats[] = {
     // VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB,
@@ -332,25 +357,30 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
     VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM,
     VK_FORMAT_R8G8B8_UNORM, VK_FORMAT_B8G8R8_UNORM,
   };
+  VkColorSpaceKHR acceptable_colorspace[] = {
+    // VK_COLOR_SPACE_HDR10_HLG_EXT,    // does not work in hyprland
+    dt_rc_get_int(&vkdt.rc, "gui/allowhdr", 0) ?
+    VK_COLOR_SPACE_HDR10_ST2084_EXT:    // pq does.
+    VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,  // fallback in case hdr is forced off
+    // VK_COLOR_SPACE_PASS_THROUGH_EXT, // is what we want for custom cm
+    VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,  // is what we get
+  };
 
-  for(int i = 0; i < LENGTH(acceptable_formats); i++) {
-    for(int j = 0; j < num_formats; j++)
-      if(acceptable_formats[i] == avail_surface_formats[j].format) {
-        win->surf_format = avail_surface_formats[j];
-        // please don't mess with our colour management.
-        // see https://github.com/KhronosGroup/Vulkan-Docs/issues/2307
-        // but apparently they will figure it out eventually.
-        // it appears until then the default behaviour might be already what we need.
-        // in fact it seems the situation is even worse. if i try to do this:
-        // qvk.surf_format.colorSpace = VK_COLOR_SPACE_PASS_THROUGH_EXT;
-        // the validation layers shout at me. this means there seems to be *no* way
-        // to ask for pass through behaviour (and if there was it would be ignored downstream, see above)
-        // fts
-        dt_log(s_log_qvk, "using %s and colour space %d",
-            qvk_format_to_string(win->surf_format.format), win->surf_format.colorSpace);
-        goto out;
-      }
-  }
+  for(int i = 0; i < LENGTH(acceptable_formats); i++)
+    for(int k = 0; k < LENGTH(acceptable_colorspace); k++)
+      for(int j = 0; j < num_formats; j++)
+        if(acceptable_formats[i] == avail_surface_formats[j].format)
+          if(acceptable_colorspace[k] == avail_surface_formats[j].colorSpace)
+          {
+            win->surf_format = avail_surface_formats[j];
+            dt_log(s_log_qvk, "using %s and colour space %s",
+                qvk_format_to_string(win->surf_format.format), qvk_colourspace_to_string(win->surf_format.colorSpace));
+            if(!dt_rc_get_int(&vkdt.rc, "gui/allowhdr", 0))
+              dt_log(s_log_qvk, "hdr disallowed in config file, set `intgui/allowhdr:1` to enable");
+            goto out;
+          }
+  dt_log(s_log_gui|s_log_err, "could not find a suitable surface format!");
+  return VK_INCOMPLETE;
 out:;
 
   uint32_t num_present_modes = 0;
@@ -448,7 +478,7 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
   if(win->render_pass)
     vkDestroyRenderPass(qvk.device, win->render_pass, 0);
   QVKR(dt_gui_create_swapchain(win));
-  style_to_state();
+  dt_gui_style_to_state();
 
   // create the render pass
   VkAttachmentDescription attachment_desc = {
@@ -491,8 +521,6 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
   };
   QVKR(vkCreateRenderPass(qvk.device, &info, 0, &win->render_pass));
 
-  // XXX TODO need to pass new render pass to nk/glfw3?
-
   // create framebuffers
   VkImageView attachment[1] = {};
   VkFramebufferCreateInfo fb_create_info = {
@@ -524,6 +552,8 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
   }
   win->frame_index = 0;
   win->sem_index = 0;
+
+  dt_gui_set_hdr_metadata(win, 1000.0f, 0.0f, 1000.0f, 70.0f);
   return VK_SUCCESS;
 }
 
@@ -612,7 +642,7 @@ dt_gui_win_render(struct nk_context *ctx, dt_gui_win_t *win)
 
   // submit command buffer
   vkCmdEndRenderPass(win->command_buffer[i]);
-  const int len = vkdt.graph_res == VK_SUCCESS ? 2 : 1;
+  const int len = vkdt.graph_res[vkdt.graph_dev.double_buffer] == VK_SUCCESS ? 2 : 1;
   VkPipelineStageFlags wait_stage[] = { 
     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT|VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, };
@@ -836,8 +866,11 @@ dt_gui_read_favs(
     if(mod == dt_token("preset"))
     {
       if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
-      snprintf(vkdt.fav_preset_name[pst], sizeof(vkdt.fav_preset_name[0]), "%s", line);
-      char *colon = strstr(vkdt.fav_preset_name[pst], ":");
+      snprintf(vkdt.fav_preset_desc[pst], sizeof(vkdt.fav_preset_desc[0]), "%s", line);
+      char *colon = strstr(vkdt.fav_preset_desc[pst], ":");
+      if(colon) colon[0] = 0;
+      if(colon) snprintf(vkdt.fav_preset_name[pst], sizeof(vkdt.fav_preset_name[0]), "%s", colon+1);
+      colon = strstr(vkdt.fav_preset_name[pst], ":");
       if(colon) colon[0] = 0;
       mod  = UINT64_MAX;
       parm = pst++;
@@ -871,7 +904,8 @@ dt_gui_write_favs(
   for(int k=0;k<vkdt.fav_file_cnt;k++)
   {
     if(vkdt.fav_file_modid[k] == UINT64_MAX)
-      fprintf(f, "preset:%s\n", vkdt.fav_preset_name[vkdt.fav_file_parid[k]]);
+      fprintf(f, "preset:%s:%s\n", vkdt.fav_preset_desc[vkdt.fav_file_parid[k]],
+          vkdt.fav_preset_name[vkdt.fav_file_parid[k]]);
 
     else
       fprintf(f, "%"PRItkn":%"PRItkn":%"PRItkn"\n", dt_token_str(vkdt.fav_file_modid[k]), dt_token_str(vkdt.fav_file_insid[k]), dt_token_str(vkdt.fav_file_parid[k]));
@@ -1008,7 +1042,7 @@ void dt_gui_win1_open()
   nk_init_default(&vkdt.ctx1, 0);
   nk_style_default(&vkdt.ctx1);
   nk_style_from_table(&vkdt.ctx1, vkdt.style.colour);
-  nk_style_set_font(&vkdt.ctx1, &dt_gui_get_font(0)->handle);
+  nk_style_set_font(&vkdt.ctx1, nk_glfw3_font(0));
   nk_glfw3_win1_open(&vkdt.ctx1, vkdt.win1.render_pass, vkdt.win1.window, 
       vkdt.win1.num_swap_chain_images * 2560*1024,
       vkdt.win1.num_swap_chain_images * 640*1024);

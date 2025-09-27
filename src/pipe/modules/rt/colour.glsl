@@ -26,6 +26,25 @@ vec3 cmf_1931(float lambda)
   return vec3(xFit_1931(lambda), yFit_1931(lambda), zFit_1931(lambda));
 }
 
+vec3 colour_to_linear_srgb(
+    vec4 X,       // value of the estimator f(lambda_i) / p(lambda_0)
+    vec4 lambda,  // wavelengths, lambda.x is the hero wavelength
+    vec4 herop)   // factors in the pdf of the current sample if sampled by lambda_i that actually depend on lambda.
+{                 // that is, for a path x it is p(x, lambda_i) divided by the common parts shared by all lambda_i
+  float sumhp = herop.x+herop.y+herop.z+herop.w;
+  X *= herop / sumhp; // balance heuristic
+  const mat3 xyz_to_srgb = mat3(
+       3.240479,-0.969256, 0.055648,
+      -1.537150, 1.875991,-0.204043,
+      -0.498535, 0.041556, 1.057311);
+  vec3 xyz = vec3(0.0);
+  xyz += vec3(xFit_1931(lambda.x), yFit_1931(lambda.x), zFit_1931(lambda.x)) * X.x;
+  xyz += vec3(xFit_1931(lambda.y), yFit_1931(lambda.y), zFit_1931(lambda.y)) * X.y;
+  xyz += vec3(xFit_1931(lambda.z), yFit_1931(lambda.z), zFit_1931(lambda.z)) * X.z;
+  xyz += vec3(xFit_1931(lambda.w), yFit_1931(lambda.w), zFit_1931(lambda.w)) * X.w;
+  return xyz_to_srgb * xyz;
+}
+
 vec3 colour_to_rgb(
     vec4 X,       // value of the estimator f(lambda_i) / p(lambda_0)
     vec4 lambda,  // wavelengths, lambda.x is the hero wavelength

@@ -1,3 +1,4 @@
 thrs:slider:0:0.2
 mode:combo:off:check gamut:check exposure:check gamut and exposure
 gamut:combo:no limit:spectral locus:rec2020:rec709
+channels:bitmask:red:green:blue

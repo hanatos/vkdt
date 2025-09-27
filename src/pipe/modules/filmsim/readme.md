@@ -8,10 +8,6 @@ take care of wiring the required input look up table files (shipped with the
 vkdt installation). if you want to wire yourself, connect `data/spectra-em.lut`
 and `data/filmsim.lut` to the `spectra` and `filmsim` connectors, respectively.
 
-TODO
-* implement halation
-* map grain params to film iso values
-
 for self contained documentation, i'm summarising from [arctic's post](https://discuss.pixls.us/t/spectral-film-simulations-from-scratch/48209/1) here.
 
 ## the true color of film negatives
@@ -143,6 +139,21 @@ cp filmsim.lut ~/.config/vkdt/data
 and in any case wire an `i-lut` module with filename `data/filmsim.lut` to the
 `filmsim` input connector.
 
+to update the film stock to new upstream data from agx-emulsion,
+a few steps are necessary:
+
+* the new stock needs to be listed at the top of `mklut-profiles.py` before running the python script,
+* `params.ui` should list the film and paper entries in te same order as in the script,
+* the precomputed white balance values for the enlarger filters have to be computed for the new stock. see the top of `wb.h` for instructions on how to run the optimiser,
+* if the total number of film stock changed, this needs to be reflected in `head.glsl`, the line `const int s_paper_offset = 15; // first paper in data list/lut` has to be the number of films (because the papers come right after that in the same file).
+
+finally, the new `filmsim.lut` needs to be checked into git, which is done by creating
+the compressed version and moving it to the `src/` directory:
+```
+tar cvJf filmsim.lut.xz filmsim.lut
+mv filmsim.lut src/
+```
+
 ## connectors
 
 * `input` scene referred linear rec2020 (after the colour module)
@@ -172,3 +183,6 @@ block) and print paper options (second block).
 * `tune m` fine tune the magenta filter. think of this as a red/green tint
 * `tune y` fine tune the yellow filter. think of this as a warm/cold white balance temperature
 * `couplers` amount of developer inhibitor release couplers (affects colourfulness and local contrast)
+* `halation` switch halation on or off, causing a slight colourful blur around high contrast edges
+* `radius` change the radius of the halation effect
+* `strength` the strength of the halation effect per colour channel / layer in the film

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/threads.h"
+#include "db/stringpool-fwd.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -28,19 +29,6 @@ typedef struct dt_image_t
   uint16_t    labels;    // each bit is one colour label flag, 1<<15 is selected bit
 }
 dt_image_t;
-
-// forward declare for stringpool.h so we don't have to include it here.
-typedef struct dt_stringpool_entry_t dt_stringpool_entry_t;
-typedef struct dt_stringpool_t
-{
-  uint32_t entry_max;
-  dt_stringpool_entry_t *entry;
-
-  uint32_t buf_max;
-  uint32_t buf_cnt;
-  char *buf;
-}
-dt_stringpool_t;
 
 typedef enum dt_db_property_t
 {
@@ -111,6 +99,11 @@ typedef struct dt_db_t
   // currently selected image (when switching to darkroom mode, e.g.)
   uint32_t current_imgid;
   uint32_t current_colid;
+
+  // exif time offsets for a couple of cameras:
+  int64_t timeoffset[10];
+  int     timeoffset_cnt;
+  dt_stringpool_t timeoffset_model;
 }
 dt_db_t;
 
@@ -149,6 +142,8 @@ dt_db_accept_filename(
          !strcasecmp(f2, ".dng") ||
          !strcasecmp(f2, ".raf") ||
          !strcasecmp(f2, ".rw2") ||
+         !strcasecmp(f2, ".lut") || // vkdt luts
+         !strcasecmp(f2, ".bc1") || // vkdt thumbnails
          !strcasecmp(f2, ".pfm") || // floating point dumps
          !strcasecmp(f2, ".jpg") || // jpg images
          !strcasecmp(f2, ".exr") || // openexr

@@ -24,7 +24,7 @@ void write_sink(
 
   int datatype = format == dt_token("f32") ? dt_lut_header_f32 : dt_lut_header_f16;
   if(chan == dt_token("ssbo")) datatype += dt_lut_header_ssbo_f16;
-  dt_lut_header_t header = (dt_lut_header_t){
+  dt_lut_header_t header = {
     .magic    = dt_lut_header_magic,
     .version  = dt_lut_header_version,
     .channels = channels,

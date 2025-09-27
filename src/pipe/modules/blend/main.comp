@@ -38,7 +38,7 @@ main()
 
   vec2 tc = (ipos+0.5)/vec2(imageSize(img_out));
   vec3 bck = texture(img_in,  tc).rgb;
-  vec3 rgb = texture(img_top, tc).rgb;
+  vec4 rgb = texture(img_top, tc);
 
   float t = params.opacity;
   if(params.mask == 1)
@@ -54,7 +54,7 @@ main()
 
   if(params.mode == 0)
   { // over
-    rgb = mix(bck, rgb, t);
+    rgb.rgb = mix(bck, rgb.rgb, rgb.a*t);
   }
   else if(params.mode == 1)
   { // use TAA style box clamping
@@ -79,7 +79,7 @@ main()
       const float thresh = params.taa_thrs;
       bck = clamp(bck, max(0.0, mom1 - thresh * sigma), mom1 + thresh * sigma);
       if(global.frame_cnt == 1 || global.frame > 0)
-        rgb = mix(bck, rgb, t);
+        rgb.rgb = mix(bck, rgb.rgb, t);
     }
     else
     { // rgb version
@@ -103,14 +103,14 @@ main()
       vec3 sigma = sqrt(s2);
       const float thresh = params.taa_thrs;// * mask;
       bck = clamp(bck, max(vec3(0), mom1 - thresh * sigma), mom1 + thresh * sigma);
-      rgb = mix(rgb, bck, t);
+      rgb.rgb = mix(rgb.rgb, bck, t);
     }
   }
   else if(params.mode == 3)
   { // multiply
-    rgb = mix(bck, bck*rgb, t);
+    rgb.rgb = mix(bck, bck*rgb.rgb, t);
   }
 
-  imageStore(img_out, ipos, vec4(rgb, 1));
+  imageStore(img_out, ipos, vec4(rgb.rgb, 1));
 }
 

@@ -97,7 +97,7 @@ static inline void render_perf_overlay()
   nk_stroke_line(buf, px, py, px+sx, py, 4.0, bgcol);
   nk_stroke_line(buf, px, py+sy, px+sx, py+sy, 4.0, bgcol);
   nk_stroke_line(buf, px, py+(1-16.0/100.0)*sy, px+sx, py+(1-16.0/100.0)*sy, 4.0, bgcol);
-  nk_draw_text(buf, (struct nk_rect){px, py, sx,sy}, overlay, strlen(overlay), &dt_gui_get_font(2)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, col);
+  nk_draw_text(buf, (struct nk_rect){px, py, sx,sy}, overlay, strlen(overlay), nk_glfw3_font(2), (struct nk_color){0x77,0x77,0x77,0xff}, col);
   values_offset = (values_offset + 1) & nvmask;
 }
 
@@ -174,7 +174,9 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     count = param->cnt; // if we know nothing else, we use all elements
   else
     count = CLAMP(dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.cntid)[0], 0, param->cnt);
+  const float pwd = vkdt.state.panel_wd - ctx->style.window.scrollbar_size.x - 2*ctx->style.window.padding.x;
   const float ratio[] = {0.7f, 0.3f};
+  const float wds[] = { ratio[0]*pwd - ctx->style.window.spacing.x, ratio[1]*pwd};
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   if(param->widget.sep)
   { // draw separator before widget
@@ -191,7 +193,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   // distinguish by type:
   if(param->widget.type == dt_token("slider"))
   {
-    nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+    nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
     if(param->type == dt_token("float"))
     {
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
@@ -258,14 +260,14 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     KEYFRAME
     nk_label(ctx, str, NK_TEXT_LEFT);
   }
-  else if(param->widget.type == dt_token("hsvknobs") ||
-          param->widget.type == dt_token("rgbknobs"))
-  { // only works for param->type == float and count == 3
-    if((num % 3) == 0 && num+3 <= count)
+  else if(param->widget.type == dt_token("rgbknobs"))
+  { // only works for param->type == float and count == 4
+    if((num % 4) == 0 && num+4 <= count)
     {
-      float r7[] = {0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], 0.1666*ratio[0], ratio[1] };
-      nk_layout_row(ctx, NK_DYNAMIC, row_height, 7, r7);
-      float *val = (float *)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;
+      const float wd = ratio[0]*pwd/5.0f - ctx->style.window.spacing.x;
+      const float w5[] = { wd, wd, wd, 2*wd, ratio[1]*pwd};
+      nk_layout_row(ctx, NK_STATIC, row_height, 5, w5);
+      float *val = (float *)(vkdt.graph_dev.module[modid].param + param->offset) + 4*num;
       struct nk_colorf oldval = {val[0], val[1], val[2], 1.0};
       struct nk_command_buffer *cmd = &vkdt.global_cmd;
       // cache previous hsv so we can reconstruct hue and col for rgb=0
@@ -278,7 +280,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         cc_hsv[hash] = (struct nk_colorf){0};
       }
       const float dead_angle = 60.0f;
-      struct nk_colorf hsv = param->widget.type == dt_token("rgbknobs") ? rgb2hsv_prior(val[0], val[1], val[2], cc_hsv[hash]) : oldval;
+      struct nk_colorf hsv = rgb2hsv_prior(val[0], val[1], val[2], cc_hsv[hash]);
+      const int mode = (int)CLAMP(val[3], 0, 1); // 0 rgb, 1 lshsv
 
 #ifdef ROTARY_ENCODER
 #define ROTARY_KNOB(VAL, M) do {\
@@ -298,8 +301,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         const float c[] = { bounds.x + bounds.w/2.0, bounds.y + bounds.h/2.0 };\
         int N = 40;\
         float phi = (3.0f/2.0f*M_PI-dead_angle/2.0f*M_PI/180.0f), delta_phi = (2.0f*M_PI - dead_angle*M_PI/180.0f)/N,\
-              r0 = 0.3*vkdt.state.panel_wd, r1 = 0.4*vkdt.state.panel_wd;\
-        struct nk_rect valrect = {c[0]-bounds.w, c[1]+0.3*vkdt.state.panel_wd,\
+              r0 = 0.3*pwd, r1 = 0.4*pwd;\
+        struct nk_rect valrect = {c[0]-bounds.w, c[1]+0.3*pwd,\
             2*bounds.w, bounds.h};\
         nk_fill_rect(cmd, valrect, bounds.h*0.4, (struct nk_color){0,0,0,0xff});\
         valrect.x += 0.1*bounds.h; valrect.y += 0.1*bounds.h;\
@@ -307,7 +310,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         snprintf(valstr, sizeof(valstr), "%4.4f", VAL);\
         nk_draw_text(cmd, valrect,\
             valstr, strlen(valstr),\
-            &dt_gui_get_font(0)->handle,\
+            nk_glfw3_font(0),\
             (struct nk_color){0,0,0,0xff},\
             (struct nk_color){0xff,0xff,0xff,0xff});\
         for(int k=0;k<=N;k++)\
@@ -316,7 +319,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
             float wd = 5.0f;\
             phi = (3.0f/2.0f*M_PI-(dead_angle/2.0f-wd/2.0f+VAL*(360.0f-dead_angle))*M_PI/180.0f);\
             delta_phi = wd*M_PI/180.0f;\
-            r0 = 0.28*vkdt.state.panel_wd; r1 = 0.41*vkdt.state.panel_wd;\
+            r0 = 0.28*pwd; r1 = 0.41*pwd;\
           }\
           float x[] = {\
             c[0] + cosf(phi+0.013) * r1,           c[1] - sinf(phi+0.013) * r1,\
@@ -329,48 +332,79 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         }\
       }} while(0)
 
-      dt_tooltip("oklab hue angle");
-      nk_label(ctx, "hue", NK_TEXT_RIGHT);
-      nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
-      struct nk_rect bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // H
-      nk_style_pop_color(ctx);
-      DECORATE(hsv.r, hsv2rgb((k+0.5)/N, .6, 1.0), 0.18f);
-      ROTARY_KNOB(hsv.r, 1.0);
+      if(mode == 0)
+      { // rgb
+        nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_f(0.5, 0.1, 0.1, 1.0));
+        struct nk_rect bounds = nk_widget_bounds(ctx);
+        nk_knob_float(ctx, 0.0, val+0, 1.0, 1.0/100.0, NK_DOWN, dead_angle);
+        nk_style_pop_color(ctx);
+        DECORATE(val[0], nk_rgba_f((k+0.5)/N, val[1], val[2], 1.0f), 1.0f/256.0f);
+        ROTARY_KNOB(val[0], 1.0);
 
-      dt_tooltip("oklab colourfulness");
-      nk_label(ctx, "col", NK_TEXT_RIGHT);
-      nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 1.0)));
-      bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &hsv.g, 1.0, 1.0/100.0, NK_DOWN, 60.0f); // S
-      nk_style_pop_color(ctx);
-      DECORATE(hsv.g, hsv2rgb(hsv.r, (k+0.5)/N, 1.0), 1.0f);
-      ROTARY_KNOB(hsv.g, 1.0);
+        nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_f(0.1, 0.5, 0.1, 1.0));
+        bounds = nk_widget_bounds(ctx);
+        nk_knob_float(ctx, 0.0, val+1, 1.0, 1.0/100.0, NK_DOWN, dead_angle);
+        nk_style_pop_color(ctx);
+        DECORATE(val[1], nk_rgba_f(val[0], (k+0.5)/N, val[2], 1.0f), 1.0f/256.0f);
+        ROTARY_KNOB(val[1], 1.0);
 
-      dt_tooltip("oklab lightness");
-      nk_label(ctx, "lit", NK_TEXT_RIGHT);
-      // nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, hsv.b)));
-      bounds = nk_widget_bounds(ctx);
-      nk_knob_float(ctx, 0.0, &hsv.b, 2.0, 1.0/100.0, NK_DOWN, 60.0f); // V
-      // nk_style_pop_color(ctx);
-      DECORATE(hsv.b/2.0, hsv2rgb(hsv.r, hsv.g, 2.0*(k+0.5)/N), 1.0f);
-      ROTARY_KNOB(hsv.b, 2.0);
+        nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_f(0.1, 0.1, 0.5, 1.0));
+        bounds = nk_widget_bounds(ctx);
+        nk_knob_float(ctx, 0.0, val+2, 1.0, 1.0/100.0, NK_DOWN, dead_angle);
+        nk_style_pop_color(ctx);
+        DECORATE(val[2], nk_rgba_f(val[0], val[1], (k+0.5)/N, 1.0f), 1.0f/256.0f);
+        ROTARY_KNOB(val[2], 1.0);
 
+        if(memcmp(&oldval, val, sizeof(float)*3)) change = 1;
+      }
+      else if(mode == 1)
+      { // hsluv
+        nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, 1.0, 1.0)));
+        struct nk_rect bounds = nk_widget_bounds(ctx);
+        nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // H
+        nk_style_pop_color(ctx);
+        DECORATE(hsv.r, hsv2rgb((k+0.5)/N, .4, 0.6), 1.0f);
+        ROTARY_KNOB(hsv.r, 1.0);
+
+        nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 1.0)));
+        bounds = nk_widget_bounds(ctx);
+        nk_knob_float(ctx, 0.0, &hsv.g, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // S
+        nk_style_pop_color(ctx);
+        DECORATE(hsv.g, hsv2rgb(hsv.r, (k+0.5)/N, 0.5), 1.0f);
+        ROTARY_KNOB(hsv.g, 1.0);
+
+        // nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, hsv.b)));
+        bounds = nk_widget_bounds(ctx);
+        nk_knob_float(ctx, 0.0, &hsv.b, 2.0, 1.0/100.0, NK_DOWN, dead_angle); // V
+        // nk_style_pop_color(ctx);
+        DECORATE(hsv.b/2.0, hsv2rgb(hsv.r, hsv.g, 2.0*(k+0.5)/N), 1.0f);
+        ROTARY_KNOB(hsv.b, 2.0);
+
+        struct nk_colorf hsv_old = rgb2hsv_prior(oldval.r, oldval.g, oldval.b, cc_hsv[hash]);
+        if(memcmp(&hsv_old, &hsv, sizeof(float)*3)) change = 1;
+      }
 #undef DECORATE
 #undef ROTARY_KNOB
-      struct nk_colorf hsv_old = param->widget.type == dt_token("rgbknobs") ? rgb2hsv_prior(oldval.r, oldval.g, oldval.b, cc_hsv[hash]) : oldval;
 
-      if(memcmp(&hsv_old, &hsv, sizeof(float)*3)) change = 1;
+      struct nk_vec2 size = { ratio[1]*pwd, ratio[0]*pwd };
+      const char *mode_str = "rgb\0hsluv\0\0";
+      int newmode = mode;
+      nk_combobox_string(ctx, mode_str, &newmode, 0x7fff, row_height, size);
+      if(newmode != mode) change = 1;
       if(change) // don't do this if resetblock triggers change
       {
-        if(param->widget.type == dt_token("rgbknobs"))
-        {
+        if(mode == 1)
+        { // don't convert rgb
           struct nk_colorf rgb = hsv2rgb(hsv.r, hsv.g, hsv.b);
           val[0] = rgb.r; val[1] = rgb.g; val[2] = rgb.b;
         }
-        else memcpy(val, &hsv, sizeof(float)*3);
+        val[3] = newmode;
       }
-      dt_tooltip(param->tooltip);
+      dt_tooltip("%s\n"
+                 "select the colour picker mode of operation:\n"
+                 "rgb: pick rgb channels\n"
+                 "hsluv: pick human friendly hsl",
+                 param->tooltip);
       KEYFRAME
       RESETBLOCK
       nk_label(ctx, str, NK_TEXT_LEFT);
@@ -391,12 +425,12 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   { // only works for param->type == float and count == 3
     if((num % 3) == 0)
     {
-      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+      nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
       struct nk_colorf *val = (struct nk_colorf *)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       struct nk_colorf oldval = *val;
       float size = nk_widget_width(ctx);
       RESETBLOCK
-      if(nk_combo_begin_color(ctx, nk_rgb_cf(*val), nk_vec2(vkdt.state.panel_wd, size+4.0*row_height)))
+      if(nk_combo_begin_color(ctx, nk_rgb_cf(*val), nk_vec2(pwd, size+4.0*row_height)))
       {
         nk_layout_row_dynamic(ctx, size, 1);
         *val = nk_color_picker(ctx, *val, NK_RGB);
@@ -448,7 +482,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       dt_tooltip(param->tooltip);
       nk_labelf(ctx, NK_TEXT_LEFT, "%s = 0x%x", str, val[0]);
       const char *c = (const char *)param->widget.data;
-      nk_layout_row_static(ctx, row_height, vkdt.state.panel_wd/9, 8);
+      nk_layout_row_static(ctx, row_height, pwd/9, 8);
       for(int k=0;k<32;k++)
       {
         const int sel = val[0] & (1<<k);
@@ -480,7 +514,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   { // special callback button
     if(num == 0)
     {
-      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+      nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
       if(nk_button_label(ctx, str))
       {
         dt_module_t *m = vkdt.graph_dev.module+modid;
@@ -504,11 +538,11 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   { // combo box
     if(param->type == dt_token("int"))
     {
-      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+      nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
       int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       int32_t oldval = *val;
       RESETBLOCK
-      struct nk_vec2 size = { ratio[0]*vkdt.state.panel_wd, ratio[0]*vkdt.state.panel_wd };
+      struct nk_vec2 size = { ratio[0]*pwd, ratio[0]*pwd };
       nk_combobox_string(&vkdt.ctx, (const char *)param->widget.data, val, 0x7fff, row_height, size);
       if(oldval != *val) change = 1;
       if(change)
@@ -537,7 +571,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   }
   else if(param->widget.type == dt_token("pers"))
   {
-    nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+    nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
     float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
     const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
     const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
@@ -633,8 +667,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   { // horizon line straighten tool for rotation
     float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
     float oldval = *val;
-    const float rat3[] = {0.3f, 0.4f, 0.3f};
-    nk_layout_row(ctx, NK_DYNAMIC, row_height, 3, rat3);
+    const float w3[] = {0.3f*pwd-ctx->style.window.spacing.x, 0.4f*pwd-ctx->style.window.spacing.x, wds[1]};
+    nk_layout_row(ctx, NK_STATIC, row_height, 3, w3);
 
     if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
@@ -682,8 +716,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   }
   else if(param->widget.type == dt_token("crop"))
   {
-    const float rat3[] = {0.3f, 0.4f, 0.3f};
-    nk_layout_row(ctx, NK_DYNAMIC, row_height, 3, rat3);
+    const float w3[] = {0.3f*pwd-ctx->style.window.spacing.x, 0.4f*pwd-ctx->style.window.spacing.x, wds[1]};
+    nk_layout_row(ctx, NK_STATIC, row_height, 3, w3);
     float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
     const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
     const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
@@ -852,7 +886,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
     nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color((struct nk_color){255*v[0], 255*v[1], 255*v[2], 0xff}));
     nk_style_push_color(ctx, &ctx->style.button.border_color, (struct nk_color){255*v[3], 255*v[4], 255*v[5], 0xff});
-    nk_style_push_float(ctx, &ctx->style.button.border, 0.015*vkdt.state.panel_wd);
+    nk_style_push_float(ctx, &ctx->style.button.border, 0.015*pwd);
     if(vkdt.wstate.active_widget_modid == modid &&
        vkdt.wstate.active_widget_parid == parid &&
        vkdt.wstate.active_widget_parnm == num)
@@ -890,7 +924,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
          vkdt.wstate.active_widget_parid == parid)
       { // now add ability to change target colour coordinate
         int active_num = vkdt.wstate.active_widget_parnm;
-        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+        nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
         for(int j=0;j<2;j++)
         {
           nk_label(ctx, j ? "destination" : "source", NK_TEXT_LEFT);
@@ -927,7 +961,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   {  // grab all input
     if(num == 0)
     {
-      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+      nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
       if(vkdt.wstate.active_widget_modid == modid &&
          vkdt.wstate.active_widget_parid == parid)
       {
@@ -937,6 +971,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           dt_module_input_event_t p = { .type = -1 };
           if(modid >= 0 && mod->so->input) mod->so->input(mod, &p);
           widget_end();
+          dt_gui_dr_anim_stop();
         }
       }
       else
@@ -951,9 +986,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           dt_module_input_event_t p = { 0 };
           dt_module_t *mod = vkdt.graph_dev.module + modid;
           dt_gui_grab_mouse();
-          dt_gui_dr_set_fullscreen_view();
+          dt_gui_set_fullscreen_view();
           if(modid >= 0)
             if(mod->so->input) mod->so->input(mod, &p);
+          dt_gui_dr_anim_start();
         }
         if(nk_button_label(ctx, "grab input"))
         {
@@ -966,13 +1002,14 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           dt_gui_grab_mouse();
           if(modid >= 0)
             if(mod->so->input) mod->so->input(mod, &p);
+          dt_gui_dr_anim_start();
         }
       }
     }
   }
   else if(param->widget.type == dt_token("draw"))
   {
-    nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+    nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
     float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
     KEYFRAME
     if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
@@ -1027,7 +1064,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   {
     if(num == 0)
     { // only show first, cnt refers to allocation length of string param
-      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+      nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
       char *v = (char *)(vkdt.graph_dev.module[modid].param + param->offset);
       nk_flags ret = nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, v, count, nk_filter_default);
       if(ret & NK_EDIT_COMMITED)
@@ -1059,7 +1096,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     nk_style_push_style_item(ctx, &ctx->style.property.normal, nk_style_item_color(normal));
     nk_style_push_style_item(ctx, &ctx->style.property.hover,  nk_style_item_color(hover));
     nk_style_push_style_item(ctx, &ctx->style.property.active, nk_style_item_color(active));
-    nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+    nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
     for(int comp=0;comp<3;comp++)
     {
       float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num + comp;
@@ -1111,30 +1148,36 @@ static inline void render_darkroom_widgets(
   if(graph->active_module >= 0 && !active) return;
 
   struct nk_context *ctx = &vkdt.ctx;
-  const float ratio[] = {0.06f, 0.06f, 0.88f};
+  const float pwd = vkdt.state.panel_wd - ctx->style.window.scrollbar_size.x - 2*ctx->style.window.padding.x;
+  const float w3[] = {
+    0.06f*pwd,
+    0.88f*pwd-2*ctx->style.window.spacing.x,
+    0.06f*pwd};
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
       dt_token_str(arr[curr].name), dt_token_str(arr[curr].inst));
   dt_module_t *module = graph->module+curr;
-  nk_layout_row(ctx, NK_DYNAMIC, row_height, 3, ratio);
+  nk_layout_row(ctx, NK_STATIC, row_height, 3, w3);
 
   nk_uint offx, offy;
   nk_window_get_scroll(ctx, &offx, &offy);
   struct nk_rect bound = nk_layout_widget_bounds(ctx);
   bound.y -= offy; // account for scrolling: both drawing and mouse events are not relative to scroll window, widget bounds are
-  bound.h -= 2; // leave 2px padding
+  nk_fill_rect(nk_window_get_canvas(ctx), bound, 0.0, vkdt.style.colour[NK_COLOR_DT_BACKGROUND]);
+  bound.h -= ctx->style.tab.padding.y;
   nk_fill_rect(nk_window_get_canvas(ctx), bound, 0.0, ctx->style.tab.background.data.color);
-  bound.x += ratio[0] * vkdt.state.panel_wd; // mouse click: not the disable button
+  bound.x += w3[0]; // mouse click: not the disable button
 
   if(module->so->has_inout_chain)
   {
     dt_tooltip(module->disabled ? "re-enable this module" :
-        "temporarily disable this module without disconnecting it from the graph.\n"
-        "this is just a convenience A/B switch in the ui and will not affect your\n"
+        "temporarily disable this module without disconnecting it from the graph. "
+        "this is just a convenience A/B switch in the ui and will not affect your "
         "processing history, lighttable thumbnail, or export.");
-    nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
     struct nk_rect box = nk_widget_bounds(ctx);
+    ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize * 0.9;
     nk_label(ctx, module->disabled ? "\ue612" : "\ue836", NK_TEXT_CENTERED);
+    ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize;
     // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
     const struct nk_input *in = (ctx->current->layout->flags & NK_WINDOW_ROM) ? 0 : &ctx->input;
     if(in && nk_input_is_mouse_hovering_rect(in, box) && 
@@ -1166,12 +1209,17 @@ static inline void render_darkroom_widgets(
   {
     dt_tooltip("this module cannot be disabled automatically because\n"
                "it does not implement a simple input -> output chain");
-    nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
+    ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize * 0.9;
     nk_label(ctx, "\ue15b", NK_TEXT_CENTERED);
+    ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize;
   }
-  nk_label(ctx, active ? "\ue5cf" : "\ue5cc", NK_TEXT_CENTERED);
-  nk_style_pop_font(ctx);
+  // nk_label(ctx, active ? "\ue5cf" : "\ue5cc", NK_TEXT_CENTERED);
+  // nk_label(ctx, active ? "\ue5e0" : "\ue5e1", NK_TEXT_CENTERED);
+  // nk_label(ctx, active ? "\ue5c5" : "\ue5df", NK_TEXT_CENTERED);
   nk_label(ctx, name, NK_TEXT_LEFT);
+  ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize * 0.9;
+  nk_label(ctx, active ? "\ue5e0" : "\ue5e1", NK_TEXT_CENTERED);
+  ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize;
   // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
   const struct nk_input *in = (vkdt.ctx.current->layout->flags & NK_WINDOW_ROM) ? 0 : &ctx->input;
   if(in && nk_input_is_mouse_hovering_rect(in, bound) && 
@@ -1210,13 +1258,13 @@ static inline void render_darkroom_widgets(
   }
   if(active)
   {
+    const int display_frame = vkdt.graph_dev.double_buffer % 2;
     if(graph->active_module == curr &&
         dt_module_get_connector(arr+curr, dt_token("dspy")) >= 0)
     {
       dt_node_t *out_dspy = dt_graph_get_display(graph, dt_token("dspy"));
-      if(out_dspy && vkdt.graph_res == VK_SUCCESS)
+      if(out_dspy && vkdt.graph_res[display_frame] == VK_SUCCESS)
       {
-        const int display_frame = vkdt.graph_dev.double_buffer % 2;
         struct nk_rect row = nk_layout_widget_bounds(ctx);
         float iwd = out_dspy->connector[0].roi.wd;
         float iht = out_dspy->connector[0].roi.ht;
@@ -1225,9 +1273,12 @@ static inline void render_darkroom_widgets(
             MIN(out_dspy->connector[0].roi.ht, 2.0f/3.0f*row.w) / iht);
         int ht = scale * iht, wd = scale * iwd;
         float r = wd / (float)row.w;
-        float ratio[] = {0.5*(1-r) , r, 0.5*(1-r)};
         nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));
-        nk_layout_row(ctx, NK_DYNAMIC, ht, 3, ratio);
+        float w3[] = {
+          0.5*(1-r)*pwd-ctx->style.window.spacing.x,
+          r*pwd-ctx->style.window.spacing.x,
+          0.5*(1-r)*pwd};
+        nk_layout_row(ctx, NK_STATIC, ht, 3, w3);
         nk_label(ctx, "", 0);
         vkdt.wstate.active_dspy_bound = nk_widget_bounds(ctx);
         struct nk_image img = nk_image_ptr(out_dspy->dset[display_frame]);
@@ -1238,6 +1289,11 @@ static inline void render_darkroom_widgets(
     }
     for(int i=0;i<arr[curr].so->num_params;i++)
       render_darkroom_widget(curr, i, 0);
+    if(vkdt.view_mode == s_view_darkroom)
+    { // add a bit of extra panel space to be able to scroll down:
+      nk_layout_row_dynamic(ctx, 10*row_height, 1);
+      nk_label(ctx, "", 0);
+    }
   }
 }
 

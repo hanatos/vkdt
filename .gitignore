@@ -16,6 +16,7 @@ bin/vkdt-eval-profile
 bin/vkdt-lutinfo
 bin/vkdt-mkclut
 bin/vkdt-mkssf
+bin/vkdt-read-icc
 bin/data/cameras.xml
 bin/modules
 bin/imgui.ini

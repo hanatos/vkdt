@@ -14,3 +14,4 @@ based on luminance and colour ranges
 
 * `input` the input colour image
 * `output` the mask created for the image. plug this into a blend module for instance.
+* `dspy` the visualisation of input histogram and envelope curve

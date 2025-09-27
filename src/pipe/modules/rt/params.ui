@@ -12,4 +12,4 @@ group:cam mode:1
 cam_mod:filename
 cam_inst:filename
 group:-1:-1
-sampler:combo:path tracing:guiding
+sampler:combo:path tracing:mcpg

@@ -5,8 +5,8 @@ directly, i.e. before the denoise and hilite modules.
 
 ## connectors
 
-* `input`
-* `output`
+* `input` the raw input (bayer pattern only!) directly after i-raw
+* `output` a bayer pattern raw buffer with hot pixels filtered out
 
 ## parameters
 

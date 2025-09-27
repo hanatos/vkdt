@@ -132,16 +132,18 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       .scancode = scancode,
       .action   = action,
       .mods     = mods,
+      .grabbed  = vkdt.wstate.grabbed,
     };
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK))
     {
       dt_gui_ungrab_mouse();
       p.type = -1; // disconnect event
-      dt_gui_dr_unset_fullscreen_view();
+      dt_gui_unset_fullscreen_view();
       // if this came from a camera button, we want to record the new camera in history:
       if(vkdt.wstate.active_widget_modid >= 0)
         dt_graph_history_append(&vkdt.graph_dev, vkdt.wstate.active_widget_modid, vkdt.wstate.active_widget_parid, 2.0);
+      dt_gui_dr_anim_stop();
     }
     if(vkdt.wstate.active_widget_modid >= 0)
     {
@@ -204,7 +206,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
       dt_view_switch(s_view_nodes);
       break;
     case s_hotkey_fullscreen:
-      dt_gui_dr_toggle_fullscreen_view();
+      dt_gui_toggle_fullscreen_view();
       break;
     case s_hotkey_dopesheet:
       dt_gui_dr_toggle_dopesheet();
@@ -251,6 +253,13 @@ void render_darkroom_favourite()
   assert(cnt < (int32_t)(sizeof(modid)/sizeof(modid[0])));\
   modid[cnt++] = curr;
 #include "pipe/graph-traverse.inc"
+  int is_pst = 0;
+  const float pwd = vkdt.state.panel_wd - vkdt.ctx.style.window.scrollbar_size.x - 2*vkdt.ctx.style.window.padding.x;
+  const float w4[] = {
+    0.7f/3.0f*pwd-vkdt.ctx.style.window.spacing.x,
+    0.7f/3.0f*pwd-vkdt.ctx.style.window.spacing.x,
+    0.7f/3.0f*pwd-vkdt.ctx.style.window.spacing.x,
+    0.3f*pwd};
   for(int i=0;i<vkdt.fav_cnt;i++)
   {
     if(vkdt.fav_modid[i] == -1)
@@ -259,9 +268,9 @@ void render_darkroom_favourite()
       int pst = vkdt.fav_parid[i];
       if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
       char *preset = vkdt.fav_preset_name[pst];
-      nk_layout_row_dynamic(&vkdt.ctx, row_height, 4);
-      dt_tooltip("apply preset");
-      if(nk_button_label(&vkdt.ctx, preset))
+      if(!is_pst++) nk_layout_row(&vkdt.ctx, NK_STATIC, row_height, 4, w4);
+      dt_tooltip("apply preset %s", vkdt.fav_preset_name[pst]);
+      if(nk_button_label(&vkdt.ctx, vkdt.fav_preset_desc[pst]))
       {
         char filename[512];
         snprintf(filename, sizeof(filename), "%s/presets/%s.pst", dt_pipe.homedir, preset);
@@ -277,6 +286,7 @@ void render_darkroom_favourite()
     }
     else for(int32_t m=0;m<cnt;m++)
     { // arg. can we please do that without n^2 every redraw?
+      is_pst = 0;
       if(modid[m] == vkdt.fav_modid[i])
       {
         render_darkroom_widget(vkdt.fav_modid[i], vkdt.fav_parid[i], 1);
@@ -325,11 +335,10 @@ void render_darkroom_full(char *filter_name, char *filter_inst)
 
 void render_darkroom()
 {
-  // int axes_cnt = 0;
-  // const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt)    : 0;
   int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
   int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
   struct nk_rect bounds = {win_x, win_y, win_w, win_h};
+  const int display_frame = vkdt.graph_dev.double_buffer % 2;
   if(!dt_gui_input_blocked() && nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
   {
     dt_view_switch(s_view_lighttable);
@@ -344,27 +353,7 @@ void render_darkroom()
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
-#if 0 // TODO: port gamepad stuff
-      if(ImGui::IsKeyPressed(ImGuiKey_GamepadL3)) // left stick pressed
-        dt_image_reset_zoom(&vkdt.wstate.img_widget);
-      if(axes)
-      {
-#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
-        float wd  = (float)out_main->connector[0].roi.wd;
-        float ht  = (float)out_main->connector[0].roi.ht;
-        float imwd = win_w, imht = win_h;
-        float scale = MIN(imwd/wd, imht/ht);
-        if(vkdt.wstate.img_widget.scale > 0.0f) scale = vkdt.wstate.img_widget.scale;
-        if(axes[2] > -1.0f) scale *= powf(2.0, -0.04*SMOOTH(axes[2]+1.0f)); 
-        if(axes[5] > -1.0f) scale *= powf(2.0,  0.04*SMOOTH(axes[5]+1.0f)); 
-        // scale *= powf(2.0, -0.1*SMOOTH(axes[4])); 
-        vkdt.wstate.img_widget.look_at_x += SMOOTH(axes[0]) * wd * 0.01 / scale;
-        vkdt.wstate.img_widget.look_at_y += SMOOTH(axes[1]) * ht * 0.01 / scale;
-        vkdt.wstate.img_widget.scale = scale;
-#undef SMOOTH
-      }
-#endif
-      if(vkdt.graph_res == VK_SUCCESS)
+      if(vkdt.graph_res[display_frame] == VK_SUCCESS)
       {
         int events = !vkdt.wstate.grabbed && !disabled;
         // center view has on-canvas widgets (but only if there *is* an image):
@@ -505,9 +494,8 @@ void render_darkroom()
   if(!vkdt.wstate.fullscreen_view && nk_begin(ctx, "darkroom panel right", bounds, (disabled ? NK_WINDOW_NO_INPUT : 0)))
   { // right panel
     // draw histogram image:
-    const int display_frame = vkdt.graph_dev.double_buffer % 2;
     dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
-    if(out_hist && vkdt.graph_res == VK_SUCCESS && out_hist->dset[display_frame])
+    if(out_hist && vkdt.graph_res[display_frame] == VK_SUCCESS && out_hist->dset[display_frame])
     {
       int wd = vkdt.state.panel_wd;
       int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
@@ -517,7 +505,7 @@ void render_darkroom()
     }
 
     dt_node_t *out_view0 = dt_graph_get_display(&vkdt.graph_dev, dt_token("view0"));
-    if(out_view0 && vkdt.graph_res == VK_SUCCESS && out_view0->dset[display_frame])
+    if(out_view0 && vkdt.graph_res[display_frame] == VK_SUCCESS && out_view0->dset[display_frame])
     {
       float iwd = out_view0->connector[0].roi.wd;
       float iht = out_view0->connector[0].roi.ht;
@@ -563,7 +551,6 @@ void render_darkroom()
       const float ratio[] = {0.1f, 0.9f};
       nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
       dt_tooltip("play/pause the animation");
-      nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
       if(vkdt.state.anim_playing)
       {
         if(nk_button_label(ctx, "\ue047"))
@@ -571,7 +558,6 @@ void render_darkroom()
       }
       else if(nk_button_label(ctx, "\ue037"))
         dt_gui_dr_anim_start();
-      nk_style_pop_font(ctx);
       if(nk_widget_is_hovered(ctx))
       {
         char hk[64];
@@ -593,8 +579,10 @@ void render_darkroom()
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
       }
       char text[50];
+      bb.x += ctx->style.progress.padding.x;
+      bb.y += ctx->style.progress.padding.y;
       snprintf(text, sizeof(text), "frame %d/%d", vkdt.state.anim_frame, vkdt.state.anim_max_frame);
-      nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
+      nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
     }
 
     // tabs for module/params controls:
@@ -684,6 +672,7 @@ void render_darkroom()
         dt_tooltip("level of detail while dragging a slider, for instance. you can set this to higher/coarser than the lod above.");
         nk_tab_property(int, ctx, "#", 1, &vkdt.wstate.lod_interact, 16, 1, 1);
         nk_label(ctx, "dynamic LOD", NK_TEXT_LEFT);
+        vkdt.wstate.lod_interact = MAX(vkdt.wstate.lod_fine, vkdt.wstate.lod_interact); // enfore dynamic is coarser/equal
         nk_tree_pop(ctx);
       }
 
@@ -801,7 +790,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
   double x, y;
   dt_view_get_cursor_pos(vkdt.win.window, &x, &y);
-  if(vkdt.graph_dev.active_module >= 0)
+  if(!vkdt.wstate.grabbed && (vkdt.graph_dev.active_module >= 0))
   { // pass on mouse events on dspy window
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.graph_dev.active_module;
     struct nk_rect b = vkdt.wstate.active_dspy_bound;
@@ -814,6 +803,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
         .mbutton = button,
         .action  = action,
         .mods    = mods,
+        .grabbed = vkdt.wstate.grabbed,
       };
       if(mod->so->input)
         vkdt.graph_dev.runflags |= mod->so->input(mod, &p);
@@ -829,6 +819,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
       .mbutton = button,
       .action  = action,
       .mods    = mods,
+      .grabbed = vkdt.wstate.grabbed,
     };
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
@@ -849,6 +840,7 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
       .type = 3,
       .dx = xoff,
       .dy = yoff,
+      .grabbed = vkdt.wstate.grabbed,
     };
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
@@ -860,7 +852,7 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
 void
 darkroom_mouse_position(GLFWwindow* window, double x, double y)
 {
-  if(vkdt.graph_dev.active_module >= 0)
+  if(!vkdt.wstate.grabbed && (vkdt.graph_dev.active_module >= 0))
   { // pass on mouse events on dspy window
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.graph_dev.active_module;
     struct nk_rect b = vkdt.wstate.active_dspy_bound;
@@ -868,6 +860,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
       .type = 2,
       .x = CLAMP((x-b.x)/b.w, 0, 1),
       .y = CLAMP(1.0-(y-b.y)/b.h, 0, 1),
+      .grabbed = vkdt.wstate.grabbed,
     };
     if(mod->so->input) // always send to active module, just clamp coordinates
       vkdt.graph_dev.runflags |= mod->so->input(mod, &p);
@@ -878,6 +871,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
       .type = 2,
       .x = x,
       .y = y,
+      .grabbed = vkdt.wstate.grabbed,
     };
     dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
     if(vkdt.wstate.active_widget_modid >= 0)
@@ -951,18 +945,18 @@ darkroom_process()
   { // async graph compute vs. sync cpu + gui rendering
     // graph->double_buffer points to the buffer currently locked for render/display
     // set graph_res = -1 initially (when entering dr mode) so we won't draw before it finished processing
-    static int running = 0;
-    if(vkdt.graph_res == -1) running = 1; // when entering dr mode graph_res is -1 and it will kick off 0 as running
+    static int running = 0; // 1-double buffer is still running on gpu, has not been swapped in yet
+    if(vkdt.graph_res[vkdt.graph_dev.double_buffer^1] == -1)
+      running = 1; // when entering dr mode graph_res is -1 and it will kick off 0 as running
 
     if((!running && vkdt.graph_dev.runflags) || // stills and stopped animations
        (!running && vkdt.graph_dev.runflags && vkdt.state.anim_playing && advance)) // running animations only if frame advances
     { // double buffered async compute
       vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
-      int full_rebuild = vkdt.graph_dev.runflags == s_graph_run_all; // XXX need to be more accurate!
-      vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
+      vkdt.graph_res[vkdt.graph_dev.double_buffer] =
+        dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
       vkdt.graph_dev.runflags = 0; // clear this here, running graph has a copy.
       vkdt.graph_dev.double_buffer ^= 1; // reset to the locked/already finished one
-      if(full_rebuild) vkdt.graph_res = -1; // restart waiting for first good image
       running = 1;
     }
     if(running)
@@ -971,7 +965,8 @@ darkroom_process()
       VkResult res = vkGetSemaphoreCounterValue(qvk.device, vkdt.graph_dev.semaphore_process, &value);
       if(res == VK_SUCCESS && value >= vkdt.graph_dev.process_dbuffer[vkdt.graph_dev.double_buffer^1])
       {
-        if(vkdt.graph_res == -1) vkdt.graph_res = VK_SUCCESS; // let display now it's now good to show
+        if(vkdt.graph_res[vkdt.graph_dev.double_buffer^1] == -1)
+          vkdt.graph_res[vkdt.graph_dev.double_buffer^1] = VK_SUCCESS; // let display now it's now good to show
         running = 0;
         vkdt.graph_dev.double_buffer ^= 1; // flip double buffer frame
       }
@@ -983,7 +978,8 @@ darkroom_process()
     { // double buffered compute
       // this will wait for other run
       // process double_buffer, wait for double_buffer^1
-      vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
+      vkdt.graph_res[vkdt.graph_dev.double_buffer] =
+        dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
       vkdt.graph_dev.runflags = 0; // we started this
       VkSemaphoreWaitInfo wait_info = {
         .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
@@ -1105,8 +1101,15 @@ darkroom_enter()
   vkdt.graph_dev.active_module = dt_module_get(&vkdt.graph_dev, gui.active_module, gui.active_instance);
   if(vkdt.graph_dev.active_module >= 0)
   { // if we don't find it, this will be -1
-    int iid = dt_module_get_connector(vkdt.graph_dev.module+vkdt.graph_dev.active_module, dt_token("input"));
-    if(iid >= 0 && dt_connected(vkdt.graph_dev.module[vkdt.graph_dev.active_module].connector+iid))
+    // make sure this thing is on the current graph
+    int active_on_graph = 0;
+    dt_graph_t *graph = &vkdt.graph_dev;
+    dt_module_t *const arr = graph->module;
+    const int arr_cnt = graph->num_modules;
+#define TRAVERSE_POST if(curr == vkdt.graph_dev.active_module) active_on_graph=1;
+#include "pipe/graph-traverse.inc"
+#undef TRAVERSE_POST
+    if(active_on_graph)
     { // only automatically connect dspy if we think the module is on the graph
       int cid = dt_module_get_connector(vkdt.graph_dev.module+vkdt.graph_dev.active_module, dt_token("dspy"));
       if(cid >= 0)
@@ -1123,12 +1126,16 @@ darkroom_enter()
         }
       }
     }
+    else vkdt.graph_dev.active_module = -1;
   }
 
-  if((vkdt.graph_res = dt_graph_run(&vkdt.graph_dev, s_graph_run_all & ~s_graph_run_wait_done)) != VK_SUCCESS)
+  vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
+  if((vkdt.graph_res[vkdt.graph_dev.double_buffer] =
+        dt_graph_run(&vkdt.graph_dev, s_graph_run_all & ~s_graph_run_wait_done)) != VK_SUCCESS)
     dt_gui_notification("running the graph failed (%s)!",
-        qvk_result_to_string(vkdt.graph_res));
-  if(vkdt.graph_res == VK_SUCCESS) vkdt.graph_res = -1;
+        qvk_result_to_string(vkdt.graph_res[vkdt.graph_dev.double_buffer]));
+  if(vkdt.graph_res[vkdt.graph_dev.double_buffer] == VK_SUCCESS)
+    vkdt.graph_res[vkdt.graph_dev.double_buffer] = -1;
   vkdt.graph_dev.double_buffer = 1; // we are rendering to 0, make sure the display code uses this dset after swapping
 
   // nodes are only constructed after running once
@@ -1150,16 +1157,17 @@ darkroom_enter()
 
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "back to lighttable");
   dt_gamepadhelp_set(dt_gamepadhelp_ps, "toggle this help");
-  // dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L, "pan around");
+  dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L, "pan around");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_up, "anim: play");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_down, "anim: rewind");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_right, "next image");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_left, "prev image");
   dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "upvote and next");
   dt_gamepadhelp_set(dt_gamepadhelp_button_square, "downvote and next");
-  // dt_gamepadhelp_set(dt_gamepadhelp_L2, "zoom out");
-  // dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in. while holding L2: toggle fullscreen");
-  // dt_gamepadhelp_set(dt_gamepadhelp_L3, "reset zoom");
+  dt_gamepadhelp_set(dt_gamepadhelp_L2, "zoom out");
+  dt_gamepadhelp_set(dt_gamepadhelp_R1, "show/hide right panel");
+  dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in");
+  dt_gamepadhelp_set(dt_gamepadhelp_L3, "reset zoom");
   // dt_gamepadhelp_set(dt_gamepadhelp_R3, "reset focussed control");
   return 0;
 }
@@ -1195,7 +1203,7 @@ darkroom_leave()
   // TODO: repurpose instead of cleanup!
   dt_graph_cleanup(&vkdt.graph_dev);
   dt_graph_history_cleanup(&vkdt.graph_dev);
-  vkdt.graph_res = VK_INCOMPLETE; // invalidate
+  vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
   dt_gamepadhelp_clear();
   dt_gui_write_favs("darkroom.ui");
   return 0;
@@ -1258,8 +1266,36 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
   {
     dt_gui_dr_advance_upvote();
   }
-  // TODO: right shoulder fullscreen?
-  // TODO: right stick pan image?
-  // TODO: left stick zoom image?
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_LEFT_THUMB)) // left stick pressed
+  {
+    dt_image_reset_zoom(&vkdt.wstate.img_widget);
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER))
+  {
+    dt_gui_toggle_fullscreen_view();
+  }
+
+  dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
+  if(out_main)
+  {
+#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
+    float wd  = (float)out_main->connector[0].roi.wd;
+    float ht  = (float)out_main->connector[0].roi.ht;
+    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
+    float imwd = win_w, imht = win_h;
+    float scale = MIN(imwd/wd, imht/ht);
+    if(vkdt.wstate.img_widget.scale > 0.0f) scale = vkdt.wstate.img_widget.scale;
+    float ax = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_X];
+    float ay = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+    float zo = curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER];
+    float zi = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER];
+    if(zi > -1.0f) scale *= powf(2.0, -0.04*SMOOTH(zi+1.0f)); 
+    if(zo > -1.0f) scale *= powf(2.0,  0.04*SMOOTH(zo+1.0f)); 
+    // scale *= powf(2.0, -0.1*SMOOTH(axes[4])); 
+    vkdt.wstate.img_widget.look_at_x += SMOOTH(ax) * wd * 0.01 / scale;
+    vkdt.wstate.img_widget.look_at_y += SMOOTH(ay) * ht * 0.01 / scale;
+    vkdt.wstate.img_widget.scale = scale;
+#undef SMOOTH
+  }
 #undef PRESSED
 }

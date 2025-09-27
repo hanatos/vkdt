@@ -1,0 +1,10 @@
+frames:1
+fps:0
+module:i-bc1:main
+module:resize:01
+module:colour:01
+module:display:main
+connect:i-bc1:main:output:resize:01:input
+connect:resize:01:output:colour:01:input
+connect:colour:01:output:display:main:input
+param:colour:01:matrix:1

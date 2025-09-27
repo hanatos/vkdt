@@ -15,6 +15,9 @@ film_stocks = [
     'kodak_gold_200_auc',
     'kodak_ultramax_400_auc',
     'kodak_vision3_50d_uc',
+    'kodak_vision3_250d_uc',
+    'kodak_vision3_200t_uc',
+    'kodak_vision3_500t_uc',
     'fujifilm_pro_400h_auc',
     'fujifilm_xtra_400_auc',
     'fujifilm_c200_auc',
@@ -94,4 +97,4 @@ for f in film_stocks:
           dens[i][2],
           1)
       f_lut.write(px)
-f_lut.close();
+f_lut.close()

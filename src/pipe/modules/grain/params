@@ -1,2 +1,4 @@
 size:float:1:1.4
 strength:float:1:0.2
+decay:float:1:0.5
+octaves:int:1:1

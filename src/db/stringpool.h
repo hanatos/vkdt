@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hash.h"
+#include "stringpool-fwd.h"
 
 #include <stdlib.h>
 #include <stdint.h>

@@ -26,6 +26,10 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float filter_y;
   float tune_m;
   float tune_y;
+  int   halation;
+  float halation_radius;
+  float pad;
+  vec4  halation_strength;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
@@ -33,7 +37,7 @@ layout(set = 1, binding = 2) uniform sampler2D img_filmsim;
 layout(set = 1, binding = 3) uniform sampler2D img_coeff;   // spectral upsampling for emission
 #include "shared/upsample.glsl"
 
-const int s_paper_offset = 12; // first paper in data list/lut
+const int s_paper_offset = 15; // first paper in data list/lut
 const float dye_density_min_factor_film  = 1.0;
 const float dye_density_min_factor_paper = 0.4;
 #include "filmsim.glsl"

@@ -1,14 +1,14 @@
 #pragma once
+#include "core/fs.h"
 #include "pipe/anim.h"
 #include "pipe/graph-history.h"
+#include "pipe/graph-defaults.h"
 #include "gui/gui.h"
 #include "gui/darkroom.h"
 #include "pipe/draw.h"
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-// api functions for gui interactions, c portion.
-// the c++ header api.hh includes this one too, but this here
-// can be called from the non-imgui parts of the code.
+// api functions for gui interactions.
 
 static inline void
 dt_gui_dr_reload_shaders()
@@ -319,7 +319,7 @@ dt_gui_dr_pers_adjust(
 }
 
 static inline void
-dt_gui_dr_toggle_fullscreen_view()
+dt_gui_toggle_fullscreen_view()
 {
   vkdt.wstate.fullscreen_view ^= 1;
   if(vkdt.wstate.fullscreen_view)
@@ -339,15 +339,15 @@ dt_gui_dr_toggle_fullscreen_view()
 }
 
 static inline void
-dt_gui_dr_set_fullscreen_view()
+dt_gui_set_fullscreen_view()
 {
-  if(!vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
+  if(!vkdt.wstate.fullscreen_view) dt_gui_toggle_fullscreen_view();
 }
 
 static inline void
-dt_gui_dr_unset_fullscreen_view()
+dt_gui_unset_fullscreen_view()
 {
-  if(vkdt.wstate.fullscreen_view) dt_gui_dr_toggle_fullscreen_view();
+  if(vkdt.wstate.fullscreen_view) dt_gui_toggle_fullscreen_view();
 }
 
 static inline void
@@ -395,14 +395,14 @@ static inline void
 dt_gui_dr_enter_fullscreen_view()
 {
   if(!vkdt.wstate.fullscreen_view)
-    dt_gui_dr_toggle_fullscreen_view();
+    dt_gui_toggle_fullscreen_view();
 }
 
 static inline void
 dt_gui_dr_leave_fullscreen_view()
 {
   if(vkdt.wstate.fullscreen_view)
-    dt_gui_dr_toggle_fullscreen_view();
+    dt_gui_toggle_fullscreen_view();
 }
 
 static inline void
@@ -432,6 +432,79 @@ dt_gui_lt_duplicate()
   char dir[PATH_MAX]; // reload directory:
   snprintf(dir, sizeof(dir), "%s", vkdt.db.dirname);
   dt_gui_switch_collection(dir);
+}
+
+// applies the preset refered to by `filename' to all
+// currently selected images. will append instead of overwriting history.
+static inline int // returns 0 on success
+dt_gui_lt_append_preset(const char *preset)
+{
+  if(!vkdt.db.selection_cnt) return 1; // no images selected
+  FILE *fin = fopen(preset, "rb");
+  if(!fin)
+  {
+    dt_gui_notification("could not open preset %s!", preset);
+    return 2;
+  }
+  fseek(fin, 0, SEEK_END);
+  size_t fsize = ftell(fin);
+  fseek(fin, 0, SEEK_SET);
+  uint8_t *buf = (uint8_t*)malloc(fsize);
+  fread(buf, fsize, 1, fin);
+  fclose(fin);
+  const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+  char filename[PATH_MAX];
+  for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
+  {
+    dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
+    char dst[PATH_MAX];
+    fs_realpath(filename, dst);
+    FILE *fout = fopen(dst, "ab");
+    if(fout)
+    {
+      size_t pos = ftell(fout);
+      if(pos == 0)
+      { // no pre-existing cfg, copy defaults
+        dt_token_t input_module = dt_graph_default_input_module(filename);
+        char graph_cfg[PATH_MAX+100];
+        snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.homedir, dt_token_str(input_module));
+        FILE *f = fopen(graph_cfg, "rb");
+        if(!f)
+        {
+          snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
+          f = fopen(graph_cfg, "rb");
+        }
+        if(!f)
+        {
+          dt_gui_notification("could not open default graph %s!", graph_cfg);
+        }
+        else
+        {
+          fseek(f, 0, SEEK_END);
+          size_t fsize2 = ftell(f);
+          fseek(f, 0, SEEK_SET);
+          uint8_t *buf2 = (uint8_t*)malloc(fsize2);
+          fread(buf2, fsize2, 1, f);
+          fclose(f);
+          fwrite(buf2, fsize2, 1, fout);
+          free(buf2);
+          filename[strlen(filename)-4] = 0; // cut off .cfg
+          fprintf(fout, "param:%"PRItkn":main:filename:%s\n", dt_token_str(input_module),
+              fs_basename(filename));
+        }
+      }
+      // now append preset
+      fwrite(buf, fsize, 1, fout);
+      fclose(fout);
+    }
+  }
+  dt_thumbnails_cache_list(
+      &vkdt.thumbnail_gen,
+      &vkdt.db,
+      sel, vkdt.db.selection_cnt,
+      &glfwPostEmptyEvent);
+  free(buf);
+  return 0;
 }
 
 static inline void
@@ -603,5 +676,96 @@ dt_gui_dr_draw_position(
     if(dat[0] && dt_draw_vert_is_endmarker(vx[dat[0]-1])) return; // already have an endmarker
     if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
       vx[dat[0]++] = dt_draw_endmarker();
+  }
+}
+
+// sets the hdr metadata for the given window.
+// parameters are a straight copy of the vulkan spec,
+// nobody knows what they mean or how they impact the look.
+static inline void
+dt_gui_set_hdr_metadata(
+    dt_gui_win_t *win,
+    float maxLuminance,
+    float minLuminance,
+    float maxContentLightLevel,
+    float maxFrameAverageLightLevel)
+{
+  VkHdrMetadataEXT meta = { // rec2020
+    .sType = VK_STRUCTURE_TYPE_HDR_METADATA_EXT,
+    .displayPrimaryRed   = { .x=0.708, .y=0.292 },
+    .displayPrimaryGreen = { .x=0.170, .y=0.797 },
+    .displayPrimaryBlue  = { .x=0.131, .y=0.046 },
+    .whitePoint          = { .x=0.3127, .y=0.3290 },
+    // maxLuminance is the maximum luminance of the display used to optimize the content in nits
+    // minLuminance is the minimum luminance of the display used to optimize the content in nits
+    // maxContentLightLevel is the value in nits of the desired luminance for the brightest pixels in the displayed image.
+    // maxFrameAverageLightLevel is the value in nits of the average luminance of the frame which has the brightest average luminance anywhere in the content.
+    .maxLuminance              = maxLuminance,
+    .minLuminance              = minLuminance,
+    .maxContentLightLevel      = maxContentLightLevel,
+    .maxFrameAverageLightLevel = maxFrameAverageLightLevel,
+  };
+  PFN_vkSetHdrMetadataEXT func = (PFN_vkSetHdrMetadataEXT)vkGetInstanceProcAddr(qvk.instance, "vkSetHdrMetadataEXT");
+  if(0) // XXX probably requires the hdr metadata extension to work
+  if(func) func(
+      qvk.device,
+      1,
+      &win->swap_chain,
+      &meta);
+}
+
+// from a stackoverflow answer. get the monitor that currently covers most of
+// the window area.
+static inline GLFWmonitor*
+dt_gui_get_current_monitor(GLFWwindow *window)
+{
+  int bestoverlap = 0;
+  GLFWmonitor *bestmonitor = NULL;
+
+  int wx, wy, ww, wh;
+  glfwGetWindowPos(window, &wx, &wy);
+  glfwGetFramebufferSize(window, &ww, &wh);
+
+  int nmonitors;
+  GLFWmonitor **monitors = glfwGetMonitors(&nmonitors);
+
+  for (int i = 0; i < nmonitors; i++)
+  {
+    const GLFWvidmode *mode = glfwGetVideoMode(monitors[i]);
+    int mx, my;
+    glfwGetMonitorPos(monitors[i], &mx, &my);
+    int mw = mode->width;
+    int mh = mode->height;
+
+    int overlap =
+      MAX(0, MIN(wx + ww, mx + mw) - MAX(wx, mx)) *
+      MAX(0, MIN(wy + wh, my + mh) - MAX(wy, my));
+
+    if (bestoverlap < overlap)
+    {
+      bestoverlap = overlap;
+      bestmonitor = monitors[i];
+    }
+  }
+  return bestmonitor;
+}
+
+static inline void
+dt_gui_toggle_fullscreen()
+{
+  GLFWmonitor* monitor = dt_gui_get_current_monitor(vkdt.win.window);
+  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+  if(vkdt.win.fullscreen)
+  {
+    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+    int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
+    int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
+    glfwSetWindowMonitor(vkdt.win.window, 0, 0, 0, wd, ht, mode->refreshRate);
+    vkdt.win.fullscreen = 0;
+  }
+  else
+  {
+    glfwSetWindowMonitor(vkdt.win.window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+    vkdt.win.fullscreen = 1;
   }
 }

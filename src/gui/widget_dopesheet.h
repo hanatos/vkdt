@@ -171,17 +171,10 @@ dt_dopesheet(
   dt_graph_t *graph = &vkdt.graph_dev;
   struct nk_context *ctx = &vkdt.ctx;
 
-  nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);
-#define TOOLTIP(STR) do {\
-  nk_style_pop_font(ctx);\
-  dt_tooltip(STR);\
-  nk_style_push_font(ctx, &dt_gui_get_font(3)->handle);\
-} while(0)
-
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   nk_layout_row_dynamic(ctx, row_height, 7);
 
-  TOOLTIP("play/pause the animation");
+  dt_tooltip("play/pause the animation");
   if(vkdt.state.anim_playing)
   {
     if(nk_button_label(ctx, "\ue047")) // or \ue034 for pause icon
@@ -189,20 +182,18 @@ dt_dopesheet(
   }
   else if(nk_button_label(ctx, "\ue037"))
     dt_gui_dr_anim_start();
-  TOOLTIP("seek to previous keyframe");
+  dt_tooltip("seek to previous keyframe");
   if(nk_button_label(ctx, "\ue020")) dt_gui_dr_anim_seek_keyframe_bck();
-  TOOLTIP("seek to next keyframe");
+  dt_tooltip("seek to next keyframe");
   if(nk_button_label(ctx, "\ue01f")) dt_gui_dr_anim_seek_keyframe_fwd();
-  TOOLTIP("back to previous frame");
+  dt_tooltip("back to previous frame");
   if(nk_button_label(ctx, "\ue045")) dt_gui_dr_anim_step_bck();
-  TOOLTIP("advance to next frame");
+  dt_tooltip("advance to next frame");
   if(nk_button_label(ctx, "\ue044")) dt_gui_dr_anim_step_fwd();
-  TOOLTIP("rewind to start");
+  dt_tooltip("rewind to start");
   if(nk_button_label(ctx, "\ue042")) dt_gui_dr_anim_seek(0);
-  nk_style_pop_font(ctx);\
 
   nk_labelf(ctx, NK_TEXT_LEFT, "frame %d/%d", vkdt.graph_dev.frame, vkdt.graph_dev.frame_cnt);
-#undef TOOLTIP
 
   dt_module_t *const arr = graph->module;
   const int arr_cnt = graph->num_modules;

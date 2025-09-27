@@ -227,9 +227,9 @@ dt_thumbnails_cache_one(
   char deffilename[PATH_MAX+100];
   char bc1filename[PATH_MAX+100];
   uint64_t hash = hash64(filename);
-  snprintf(bc1filename, sizeof(bc1filename), "%s/%"PRIx64".bc1", tn->cachedir, hash);
-  snprintf(cfgfilename, sizeof(cfgfilename), "%s", filename);
-  snprintf(deffilename, sizeof(deffilename), "default.%"PRItkn, dt_token_str(input_module));
+  if(snprintf(bc1filename, sizeof(bc1filename), "%s/%"PRIx64".bc1", tn->cachedir, hash) >= sizeof(bc1filename)) return VK_INCOMPLETE;
+  if(snprintf(cfgfilename, sizeof(cfgfilename), "%s", filename) >= sizeof(cfgfilename)) return VK_INCOMPLETE;
+  if(snprintf(deffilename, sizeof(deffilename), "default.%"PRItkn, dt_token_str(input_module)) >= sizeof(deffilename)) return VK_INCOMPLETE;
   struct stat statbuf = {0};
   time_t tcfg = 0, tbc1 = 0;
 
@@ -487,7 +487,7 @@ dt_thumbnails_load_one(
   { // only hash images that aren't straight from our resource directory:
     // XXX run through realpath once for windows and / vs \\ confusion?
     uint64_t hash = hash64(filename);
-    snprintf(imgfilename, sizeof(imgfilename), "%s/%"PRIx64".bc1", tn->cachedir, hash);
+    if(snprintf(imgfilename, sizeof(imgfilename), "%s/%"PRIx64".bc1", tn->cachedir, hash) >= sizeof(imgfilename)) return VK_INCOMPLETE;
   }
   else if(snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dt_pipe.basedir, filename) >= sizeof(imgfilename)) return VK_INCOMPLETE;
   struct stat statbuf = {0};

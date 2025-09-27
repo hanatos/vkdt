@@ -1,7 +1,8 @@
 // rendering for the files view
+#include "core/fs.h"
 #include "gui/gui.h"
 #include "gui/view.h"
-#include "core/fs.h"
+#include "gui/job_copy.h"
 #include "gui/render_view.h"
 #include "gui/hotkey.h"
 #include "gui/widget_filebrowser.h"
@@ -47,65 +48,6 @@ void set_cwd(const char *dir, int up)
   size_t len = strlen(filebrowser.cwd);
   if(filebrowser.cwd[len-1] != '/') strcpy(filebrowser.cwd + len, "/");
   dt_filebrowser_cleanup(&filebrowser); // make it re-read cwd
-}
-
-typedef struct copy_job_t
-{ // copy contents of a folder
-  char src[1000], dst[1000];
-  struct dirent *ent;
-  uint32_t cnt;
-  uint32_t move;  // set to non-zero to remove src after copy
-  _Atomic uint32_t abort;
-  _Atomic uint32_t state;
-  int taskid;
-} copy_job_t;
-void copy_job_cleanup(void *arg)
-{ // task is done, every thread will call this (but we put only one)
-  copy_job_t *j = (copy_job_t *)arg;
-  if(j->ent) free(j->ent);
-  j->state = 2;
-}
-void copy_job_work(uint32_t item, void *arg)
-{
-  copy_job_t *j = (copy_job_t *)arg;
-  if(j->abort) return;
-  char src[1300], dst[1300];
-  snprintf(src, sizeof(src), "%s/%s", j->src, j->ent[item].d_name);
-  snprintf(dst, sizeof(dst), "%s/%s", j->dst, j->ent[item].d_name);
-  if(fs_copy(dst, src)) j->abort = 2;
-  else if(j->move) fs_delete(src);
-  glfwPostEmptyEvent(); // redraw status bar
-}
-int copy_job(
-    copy_job_t *j,
-    const char *dst, // destination directory
-    const char *src) // source directory
-{
-  j->abort = 0;
-  j->state = 1;
-  snprintf(j->src, sizeof(j->src), "%.*s", (int)sizeof(j->src)-1, src);
-  snprintf(j->dst, sizeof(j->dst), "%.*s", (int)sizeof(j->dst)-1, dst);
-  fs_mkdir_p(j->dst, 0777); // try and potentially fail to create destination directory
-
-  DIR* dirp = opendir(j->src);
-  j->cnt = 0;
-  struct dirent *ent = 0;
-  if(!dirp) return 2;
-  // first count valid entries
-  while((ent = readdir(dirp)))
-    if(!fs_isdir(j->src, ent))
-      j->cnt++;
-  if(!j->cnt) return 2;
-  rewinddir(dirp); // second pass actually record stuff
-  j->ent = (struct dirent *)malloc(sizeof(j->ent[0])*j->cnt);
-  j->cnt = 0;
-  while((ent = readdir(dirp)))
-    if(!fs_isdir(j->src, ent))
-      j->ent[j->cnt++] = *ent;
-  closedir(dirp);
-
-  j->taskid = threads_task("copy", j->cnt, -1, j, copy_job_work, copy_job_cleanup);
-  return j->taskid;
 }
 
 void render_files()
@@ -191,7 +133,7 @@ void render_files()
       nk_tree_pop(ctx);
     } // end collapsing header "recent collections"
 
-    static copy_job_t job[4] = {{{0}}};
+    static dt_job_copy_t job[4] = {{{0}}};
     int active = job[0].state | job[1].state | job[2].state | job[3].state;
     if(nk_tree_push(ctx, NK_TREE_TAB, "import", active ? NK_MAXIMIZED : NK_MINIMIZED))
     {
@@ -219,6 +161,8 @@ void render_files()
       const char *copy_mode_str = "keep original\0delete original\0\0";
       nk_combobox_string(ctx, copy_mode_str, &copy_mode, 0x7fff, row_height, size);
       nk_label(ctx, "overwrite", NK_TEXT_LEFT);
+      const float r2[] = {ratio[1], ratio[0]};
+      nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, r2);
       for(int k=0;k<4;k++)
       { // list of four jobs to copy stuff simultaneously
         if(job[k].state == 0)
@@ -227,7 +171,7 @@ void render_files()
             break;
           dt_tooltip("copy contents of %s\nto %s,\n%s",
               filebrowser.cwd, pattern, copy_mode ? "delete original files after copying" : "keep original files");
-          if(nk_button_label(ctx, "copy"))
+          if(nk_button_label(ctx, copy_mode ? "move" : "copy"))
           { // make sure we don't start a job that is already running in another job[.]
             int duplicate = 0;
             for(int k2=0;k2<4;k2++)
@@ -248,7 +192,7 @@ void render_files()
               job[k].move = copy_mode;
               char dst[1000];
               fs_expand_import_filename(pattern, strlen(pattern), dst, sizeof(dst), dest);
-              copy_job(job+k, dst, filebrowser.cwd);
+              dt_job_copy(job+k, dst, filebrowser.cwd);
               nk_label(ctx, "", 0);
             }
           }
@@ -261,8 +205,10 @@ void render_files()
           struct nk_rect bb = nk_widget_bounds(ctx);
           nk_prog(ctx, 1024*progress, 1024, nk_false);
           char text[50];
+          bb.x += ctx->style.progress.padding.x;
+          bb.y += ctx->style.progress.padding.y;
           snprintf(text, sizeof(text), "%.0f%%", 100.0*progress);
-          nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), &dt_gui_get_font(0)->handle, nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
+          nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
           if(nk_button_label(ctx, "abort")) job[k].abort = 1;
         }
         else
@@ -505,14 +451,44 @@ files_enter()
 {
   filebrowser.scroll_to_selected = 1;
   dt_gamepadhelp_set(dt_gamepadhelp_ps,              "toggle this help");
-  // dt_gamepadhelp_set(dt_gamepadhelp_button_square,   "plus L1/R1: switch panel");
-  // dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "back to lighttable without changing folders");
-  // dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "enter lighttable for highlighted folder");
-  // dt_gamepadhelp_set(dt_gamepadhelp_button_cross,    "navigate to highlighted folder");
-  // dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L,  "scroll view");
-  // dt_gamepadhelp_set(dt_gamepadhelp_arrow_up,        "select entry one up");
-  // dt_gamepadhelp_set(dt_gamepadhelp_arrow_down,      "select entry one down");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "escape to lighttable");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "open folder in lighttable");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_cross,    "descend into folder");
+  dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L,  "scroll view");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_up,        "move up");
+  dt_gamepadhelp_set(dt_gamepadhelp_arrow_down,      "move down");
   return 0;
+}
+
+void
+files_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr)
+{
+  if(vkdt.wstate.popup == s_popup_edit_hotkeys) return;
+  if(dt_gui_input_blocked()) return;
+  dt_filebrowser_widget_t *w = &filebrowser;
+  const float ay = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+#define PRESSED(A) (curr->buttons[A] && !last->buttons[A])
+  if     (PRESSED(GLFW_GAMEPAD_BUTTON_A))
+      folder_down();
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_B))
+    dt_view_switch(s_view_lighttable);
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_Y))
+    folder_activate();
+  else if(ay < -0.5 || PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_UP))
+  { // up arrow: select entry above
+    w->selected_idx = CLAMP(w->selected_idx - 1, 0, w->ent_cnt-1);
+    w->selected = w->ent[w->selected_idx].d_name;
+    w->selected_isdir = fs_isdir(w->cwd, w->ent+w->selected_idx);
+    w->scroll_to_selected = 1;
+  }
+  else if(ay > 0.5 || PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_DOWN))
+  { // down arrow: select entry below
+    w->selected_idx = CLAMP(w->selected_idx + 1, 0, w->ent_cnt-1);
+    w->selected = w->ent[w->selected_idx].d_name;
+    w->selected_isdir = fs_isdir(w->cwd, w->ent+w->selected_idx);
+    w->scroll_to_selected = 1;
+  }
+#undef PRESSED
 }
 
 int
@@ -521,4 +497,3 @@ files_leave()
   dt_gamepadhelp_clear();
   return 0;
 }
-

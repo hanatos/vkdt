@@ -1,6 +1,6 @@
 .PHONY:tools
 
-tools:../bin/data/spectra-em.lut ../bin/data/spectra.lut ../bin/data/abney.lut ../bin/vkdt-mkssf ../bin/vkdt-mkclut ../bin/vkdt-lutinfo ../bin/vkdt-eval-profile
+tools:../bin/data/spectra-em.lut ../bin/data/spectra.lut ../bin/data/abney.lut ../bin/vkdt-mkssf ../bin/vkdt-mkclut ../bin/vkdt-lutinfo ../bin/vkdt-eval-profile ../bin/vkdt-read-icc
 
 ADD_CFLAGS=-Itools -Itools/shared
 ADD_LDFLAGS=-lm -ldl
@@ -30,6 +30,9 @@ MKCLUT_DEPS=core/inpaint.h \
 
 ../bin/vkdt-eval-profile: tools/clut/src/eval.c ${MKSSF_DEPS} Makefile
 	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(ADD_CFLAGS) $< -o $@ $(LDFLAGS) $(ADD_LDFLAGS)
+
+../bin/vkdt-read-icc: tools/read-icc/main.c Makefile
+	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(ADD_CFLAGS) $< -o $@ $(LDFLAGS)
 
 ../bin/data/spectra.lut: ../bin/data/abney.lut tools/flat.mk
 ../bin/data/abney.lut: mkabney macadam.lut Makefile tools/flat.mk

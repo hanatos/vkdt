@@ -59,6 +59,7 @@ void write_sink(
   free(out);
   // atomically create filename only when we're quite done writing:
   unlink(filename); // just to be sure the link will work
-  fs_link(tmpfile, filename);
+  int ret = fs_link(tmpfile, filename);
+  if(ret) fs_copy(filename, tmpfile);
   unlink(tmpfile);
 }

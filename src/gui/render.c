@@ -53,11 +53,12 @@ style_name_to_colour(const char *name)
   if(!strcmp(name, "DT_ACCENT"))                   return  NK_COLOR_DT_ACCENT;
   if(!strcmp(name, "DT_ACCENT_HOVER"))             return  NK_COLOR_DT_ACCENT_HOVER;
   if(!strcmp(name, "DT_ACCENT_ACTIVE"))            return  NK_COLOR_DT_ACCENT_ACTIVE;
+  if(!strcmp(name, "DT_BACKGROUND"))               return  NK_COLOR_DT_BACKGROUND;
   return -1;
 }
 
 static inline void
-read_style_colours(struct nk_context *ctx)
+read_style_colours(struct nk_context *ctx, int hdr)
 {
   // set default colours
   nk_style_default(ctx);
@@ -81,104 +82,92 @@ read_style_colours(struct nk_context *ctx)
     if(!name[0]) break;
     fgetc(f);
     int idx = style_name_to_colour(name);
+    if(hdr) for(int i=0;i<3;i++)
+    {
+      float v = powf(rgba[i] / 256.0f, 1.0/2.2);
+      // HLG
+      // const float a = 0.17883277, b = /*1.0 - 4.0*a =*/ 0.28466892, c = /*0.5 - a*log(4.0*a) =*/ 0.55991073;
+      // zscale says:
+      // v = v <= 0.5f ? v*v/3.0 : (expf((v-c)/a) + b)/12.0f;
+      // PQ eotf
+      const float avg_nits = 70.0;
+      const float m1 = 1305.0/8192.0;
+      const float m2 = 2523.0/32.0;
+      const float c1 = 107.0/128.0;
+      const float c2 = 2413.0/128.0;
+      const float c3 = 2392.0/128.0;
+      const float xpow = powf(fmaxf(0.0f, v), 1.0f/m2);
+      const float num = fmaxf(xpow - c1, 0.0f);
+      const float den = fmaxf(c2 - c3 * xpow, 1e-10f);
+      // need to stop this down (*0.5) because our 8bit colours don't do hdr. it would all be saturated
+      // and disappear in the brightest 255 we can still see.
+      v = 0.5f * avg_nits * powf(num/den, 1.0f/m1);
+      rgba[i] = (int)(256.0f*v);
+    }
     if(idx >= 0) vkdt.style.colour[idx] = nk_rgba(rgba[0], rgba[1], rgba[2], rgba[3]);
   }
   // init from this table
   nk_style_from_table(ctx, vkdt.style.colour);
 }
 
-static struct nk_font *g_font[4] = {0}; // remember to add an image sampler in gui.c if adding more fonts!
-struct nk_font *dt_gui_get_font(int which)
-{
-  return g_font[which];
-}
-
 void dt_gui_init_fonts()
 {
+  dt_gui_style_to_state(); // compute vkdt.style.fontsize based on scale factors/dpi settings
   static float curr_fontsize = 0.0f;
-  char tmp[PATH_MAX+100] = {0};
-  float scalex, scaley;
-  dt_gui_content_scale(vkdt.win.window, &scalex, &scaley); // win1 has to go along
-  const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
-  float fontsize = MAX(5, floorf(19 * dpi_scale * scaley));
+  // fontsize represents font height, internally it scales the EM square (font will convert these measures)
+  float fontsize = vkdt.style.fontsize;
   if(fontsize == curr_fontsize) return;
+
+  if(curr_fontsize == 0.0f)
+  {
+    const char *fontfile = dt_rc_get(&vkdt.rc, "gui/msdffont", "font");
+    threads_mutex_lock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
+    int ret = nk_glfw3_font_load(fontfile, fontsize,
+        vkdt.win.command_buffer[vkdt.win.frame_index%DT_GUI_MAX_IMAGES],
+        qvk.queue[qvk.qid[s_queue_graphics]].queue);
+    threads_mutex_unlock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
+    nk_style_set_font(&vkdt.ctx, nk_glfw3_font(0));
+    if(ret)
+      dt_log(s_log_err|s_log_gui, "will not be able to display text! please find the missing font file!");
+  }
+  // maybe already loaded, anyways set font sizes
+  nk_glfw3_font(0)->height = fontsize;
+  nk_glfw3_font(1)->height = floorf(1.5*fontsize);
+  nk_glfw3_font(2)->height = 2*fontsize;
   curr_fontsize = fontsize;
-  const char *fontfile = dt_rc_get(&vkdt.rc, "gui/font", "Roboto-Regular.ttf");
-  if(fontfile[0] != '/')
-    snprintf(tmp, sizeof(tmp), "%s/data/%s", dt_pipe.basedir, fontfile);
-  else
-    snprintf(tmp, sizeof(tmp), "%s", fontfile);
-
-  struct nk_font_atlas *atlas;
-  if(g_font[0]) nk_glfw3_font_cleanup();
-  nk_glfw3_font_stash_begin(&atlas);
-  struct nk_font_config cfg = nk_font_config(fontsize);
-  cfg.oversample_h = 3;
-  cfg.oversample_v = 1;
-  g_font[0] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, &cfg);
-  g_font[1] = nk_font_atlas_add_from_file(atlas, tmp, floorf(1.5*fontsize), 0);
-  g_font[2] = nk_font_atlas_add_from_file(atlas, tmp, 2*fontsize, 0);
-  snprintf(tmp, sizeof(tmp), "%s/data/MaterialIcons-Regular.ttf", dt_pipe.basedir);
-  cfg.oversample_h = 3;
-  cfg.oversample_v = 1;
-  static nk_rune ranges_icons[] = {
-    0xe01f, 0xe048, // play pause
-    0xe15b, 0xe15c, // stuff for disabled button
-    0xe5cc, 0xe5d0, // expander e5cc e5cf
-    0xe612, 0xe613,
-    0xe836, 0xe839, // star in material icons
-    0,
-  };
-  cfg.range = ranges_icons;
-  cfg.size = fontsize;
-  cfg.fallback_glyph = 0xe15b;
-  g_font[3] = nk_font_atlas_add_from_file(atlas, tmp, fontsize, &cfg);
-
-  threads_mutex_lock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
-  nk_glfw3_font_stash_end(&vkdt.ctx, vkdt.win.command_buffer[vkdt.win.frame_index%DT_GUI_MAX_IMAGES], qvk.queue[qvk.qid[s_queue_graphics]].queue);
-  threads_mutex_unlock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
-  /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
-  /*nk_style_set_font(ctx, &droid->handle);*/
-  nk_style_set_font(&vkdt.ctx, &g_font[0]->handle);
+  // update padding to match fontsize
+  nk_style_from_table(&vkdt.ctx, vkdt.style.colour);
 }
 
-int dt_gui_init_nk()
+// TODO pull out into function to be called after swapchain *re-*creation: (not the first time)
+// TODO depends on window/ctx
+void dt_gui_update_cm()
 {
-  nk_init_default(&vkdt.ctx, 0);
-  nk_glfw3_init(
-      &vkdt.ctx,
-      vkdt.win.render_pass,
-      vkdt.win.window,
-      qvk.device, qvk.physical_device,
-      vkdt.win.num_swap_chain_images * 2560*1024,
-      vkdt.win.num_swap_chain_images * 640*1024);
+  int hdr = (vkdt.win.surf_format.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT);
+  read_style_colours(&vkdt.ctx, hdr);
 
-  read_style_colours(&vkdt.ctx);
-
-  nk_buffer_init_default(&vkdt.global_buf);
-  nk_command_buffer_init(&vkdt.global_cmd, &vkdt.global_buf, NK_CLIPPING_OFF);
-
-  char tmp[PATH_MAX+100] = {0};
-  {
-    int monitors_cnt;
-    GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
+  int monitors_cnt;
+  GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
+  const char *name0 = glfwGetMonitorName(monitors[0]);
+  const char *name1 = glfwGetMonitorName(monitors[MIN(monitors_cnt-1, 1)]);
+  int xpos0, xpos1, ypos;
+  glfwGetMonitorPos(monitors[0], &xpos0, &ypos);
+  glfwGetMonitorPos(monitors[MIN(monitors_cnt-1, 1)], &xpos1, &ypos);
+  float gamma0[] = {0, 0, 0}; // 0 means use sRGB TRC
+  float rec2020_to_dspy0[] = { // to linear sRGB D65
+     1.66022709, -0.58754775, -0.07283832,
+    -0.12455356,  1.13292608, -0.0083496,
+    -0.01815511, -0.100603  ,  1.11899813 };
+  float gamma1[] = {0, 0, 0};
+  float rec2020_to_dspy1[] = { // to linear sRGB D65
+     1.66022709, -0.58754775, -0.07283832,
+    -0.12455356,  1.13292608, -0.0083496,
+    -0.01815511, -0.100603  ,  1.11899813 };
+  if(vkdt.win.surf_format.colorSpace != VK_COLOR_SPACE_HDR10_ST2084_EXT)
+  { // fake cm for sdr monitors:
     if(monitors_cnt > 2)
       dt_log(s_log_gui, "you have more than 2 monitors attached! only the first two will be colour managed!");
-    const char *name0 = glfwGetMonitorName(monitors[0]);
-    const char *name1 = glfwGetMonitorName(monitors[MIN(monitors_cnt-1, 1)]);
-    int xpos0, xpos1, ypos;
-    glfwGetMonitorPos(monitors[0], &xpos0, &ypos);
-    glfwGetMonitorPos(monitors[MIN(monitors_cnt-1, 1)], &xpos1, &ypos);
-    float gamma0[] = {1.0f/2.2f, 1.0f/2.2f, 1.0f/2.2f};
-    float rec2020_to_dspy0[] = { // to linear sRGB D65
-       1.66022709, -0.58754775, -0.07283832,
-      -0.12455356,  1.13292608, -0.0083496,
-      -0.01815511, -0.100603  ,  1.11899813 };
-    float gamma1[] = {1.0f/2.2f, 1.0f/2.2f, 1.0f/2.2f};
-    float rec2020_to_dspy1[] = { // to linear sRGB D65
-       1.66022709, -0.58754775, -0.07283832,
-      -0.12455356,  1.13292608, -0.0083496,
-      -0.01815511, -0.100603  ,  1.11899813 };
+    char tmp[PATH_MAX+100] = {0};
     snprintf(tmp, sizeof(tmp), "%s/display.%s", dt_pipe.homedir, name0);
     FILE *f = fopen(tmp, "r");
     if(!f)
@@ -216,17 +205,43 @@ int dt_gui_init_nk()
       }
       else dt_log(s_log_gui, "no display profile file display.%s, using sRGB!", name1);
     }
-    int bitdepth = 8; // the display output will be dithered according to this
-    if(vkdt.win.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
-       vkdt.win.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
-      bitdepth = 10;
-    if(monitors_cnt < 2 || xpos1 == 0)
-    {
-      memcpy(rec2020_to_dspy1, rec2020_to_dspy0, sizeof(rec2020_to_dspy0));
-      memcpy(gamma1, gamma0, sizeof(gamma0));
-    }
-    nk_glfw3_setup_display_colour_management(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
   }
+  int bitdepth = 8; // the display output will be dithered according to this
+  if(vkdt.win.surf_format.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32 ||
+     vkdt.win.surf_format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
+    bitdepth = 10;
+  if(monitors_cnt < 2 || xpos1 == 0)
+  {
+    memcpy(rec2020_to_dspy1, rec2020_to_dspy0, sizeof(rec2020_to_dspy0));
+    memcpy(gamma1, gamma0, sizeof(gamma0));
+  }
+  if(vkdt.win.surf_format.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT)
+  { // running on hdr monitor
+    gamma0[0] = gamma0[1] = gamma0[2] = -1.0; // PQ
+    gamma1[0] = gamma1[1] = gamma1[2] = -1.0;
+    memset(rec2020_to_dspy0, 0, sizeof(rec2020_to_dspy0));
+    memset(rec2020_to_dspy1, 0, sizeof(rec2020_to_dspy1));
+    rec2020_to_dspy0[0] = rec2020_to_dspy0[4] = rec2020_to_dspy0[8] = 
+    rec2020_to_dspy1[0] = rec2020_to_dspy1[4] = rec2020_to_dspy1[8] = 1.0f;
+  }
+  nk_glfw3_setup_display_colour_management(gamma0, rec2020_to_dspy0, gamma1, rec2020_to_dspy1, xpos1, bitdepth);
+}
+
+int dt_gui_init_nk()
+{
+  nk_init_default(&vkdt.ctx, 0);
+  nk_glfw3_init(
+      &vkdt.ctx,
+      vkdt.win.render_pass,
+      vkdt.win.window,
+      qvk.device, qvk.physical_device,
+      vkdt.win.num_swap_chain_images * 2560*1024,
+      vkdt.win.num_swap_chain_images * 640*1024);
+
+  dt_gui_update_cm();
+
+  nk_buffer_init_default(&vkdt.global_buf);
+  nk_command_buffer_init(&vkdt.global_cmd, &vkdt.global_buf, NK_CLIPPING_OFF);
 
   // prepare list of potential modules for ui selection:
   vkdt.wstate.module_names_buf = (char *)calloc(9, dt_pipe.num_modules+1);
@@ -322,7 +337,7 @@ void dt_gui_ungrab_mouse()
 {
   glfwSetInputMode(vkdt.win.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   vkdt.wstate.grabbed = 0;
-  dt_gui_dr_unset_fullscreen_view();
+  dt_gui_unset_fullscreen_view();
 }
 
 typedef struct dt_gamepadhelp_t
@@ -383,9 +398,7 @@ void dt_gamepadhelp()
       rect.w = rect.x + 300;
       rect.h = rect.y + 300;
       rect.y -= 0.03*vkdt.state.center_ht;
-      nk_draw_text(buf, rect, g_gamepadhelp.help[g_gamepadhelp.sp][k], strlen(g_gamepadhelp.help[g_gamepadhelp.sp][k]), &dt_gui_get_font(1)->handle, nk_rgb(0,0,0), nk_rgb(255,255,255));
-      // rect.y -= 0.03*vkdt.state.center_ht;
-      // nk_draw_text(buf, rect, dt_gamepadhelp_input_str[k], strlen(dt_gamepadhelp_input_str[k]), &dt_gui_get_font(1)->handle, nk_rgb(0,0,0), nk_rgb(255,255,255));
+      nk_draw_text(buf, rect, g_gamepadhelp.help[g_gamepadhelp.sp][k], strlen(g_gamepadhelp.help[g_gamepadhelp.sp][k]), nk_glfw3_font(1), nk_rgb(0,0,0), nk_rgb(255,255,255));
     }
   }
 }

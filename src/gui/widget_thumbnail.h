@@ -7,7 +7,7 @@ static inline void dt_draw_star(float u, float v, float size, struct nk_color co
   struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
   const char* stars = "\ue838\ue838\ue838\ue838\ue838";
   const struct nk_rect bounds = {u-0.5*size, v-0.5*size, u+0.5*size, v+0.5*size};
-  nk_draw_text(buf, bounds, stars, 2, &dt_gui_get_font(3)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, col);
+  nk_draw_text(buf, bounds, stars, 2, nk_glfw3_font(0), (struct nk_color){0x77,0x77,0x77,0xff}, col);
 }
 
 static inline void dt_draw_rating(float x, float y, float wd, uint16_t rating)
@@ -18,7 +18,7 @@ static inline void dt_draw_rating(float x, float y, float wd, uint16_t rating)
   const struct nk_rect bounds = {x-0.5*wd, y-0.5*wd, rating*wd, wd};
   struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
   static struct nk_user_font font;
-  font = dt_gui_get_font(3)->handle;
+  font = *nk_glfw3_font(0);
   font.height = wd;
   nk_draw_text(buf, bounds, stars, 3*rating, &font, (struct nk_color){0x77,0x77,0x77,0xff}, col);
 }
@@ -88,7 +88,7 @@ dt_thumbnail_image(
   dt_draw_labels(full.x+0.1*wd, full.y+0.95*wd, 0.1*wd, labels);
 
   if(text) // optionally render text
-    nk_draw_text(canvas, full, text, strlen(text), &dt_gui_get_font(0)->handle, (struct nk_color){0x77,0x77,0x77,0xff}, (struct nk_color){0x11,0x11,0x11,0xff});
+    nk_draw_text(canvas, full, text, strlen(text), nk_glfw3_font(0), (struct nk_color){0x77,0x77,0x77,0xff}, (struct nk_color){0x11,0x11,0x11,0xff});
 
   return ret;
 }

@@ -1,2 +1,3 @@
 filename:string:256:test.obj
 startid:int:1:0
+texids:string:256:texids.txt

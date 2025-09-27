@@ -3,7 +3,7 @@
 # dispatches external builds and calls our main makefile in src.
 # also handles some global settings for compilers and debug flags.
 
-.PHONY:all src clean distclean bin install release cli lut
+.PHONY:all src clean distclean bin install release cli lut info
 ifeq ($(OS),Windows_NT)
 include bin/config.mk.defaults.w64
 else
@@ -16,34 +16,34 @@ endif
 sinclude bin/config.mk
 
 # dr dobb's idea about makefile debugging:
-OLD_SHELL := $(SHELL)
+# OLD_SHELL := $(SHELL)
 # SHELL = $(warning [$@ ($^) ($?)])$(OLD_SHELL)
-SHELL = $(warning [$@ ($?)])$(OLD_SHELL)
-export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR OLD_SHELL SHELL
+# SHELL = $(warning [$@ ($?)])$(OLD_SHELL)
+# we need this for some of the more wacky library detection in config.mk:
+SHELL=bash
+export OPT_CFLAGS OPT_LDFLAGS CC CXX GLSLC AR SHELL # OLD_SHELL
 
 all: src bin lut
 
 prefix?=/usr
 DESTDIR?=
-ifeq ($(OS),Windows_NT)
-VKDTDIR?=$(shell cygpath -u $(DESTDIR)$(prefix)/lib/vkdt)
-else
+
 VKDTDIR?=$(DESTDIR)$(prefix)/lib/vkdt
-endif
+VKDTBIN?=$(DESTDIR)$(prefix)/bin
 VKDTLIBDIR?=$(DESTDIR)$(prefix)/lib
 VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
 install-bin: all Makefile
 	mkdir -p $(VKDTDIR)/lib
-	mkdir -p $(DESTDIR)$(prefix)/bin
-	ln -rsf ${VKDTDIR}/vkdt $(DESTDIR)$(prefix)/bin/vkdt || true
-	ln -rsf ${VKDTDIR}/vkdt-cli $(DESTDIR)$(prefix)/bin/vkdt-cli || true
-	cp -rfL bin/vkdt ${VKDTDIR}
-	cp -rfL bin/vkdt-cli ${VKDTDIR}
-	cp -rfL bin/exiftool ${VKDTDIR}
-	cp -rfL bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-fit ${VKDTDIR}
-	cp -rfL bin/vkdt-eval-profile bin/vkdt-lutinfo ${VKDTDIR}
-	cp -rfL bin/vkdt-noise-profile bin/vkdt-gallery bin/vkdt-read-icc ${VKDTDIR}
-	cp -rfL bin/darkroom.ui bin/style.txt ${VKDTDIR}
+	mkdir -p $(VKDTBIN)
+	ln -rsf $(VKDTDIR)/vkdt $(VKDTBIN)/vkdt || true
+	ln -rsf $(VKDTDIR)/vkdt-cli $(VKDTBIN)/vkdt-cli || true
+	cp -rfL bin/vkdt $(VKDTDIR)
+	cp -rfL bin/vkdt-cli $(VKDTDIR)
+	cp -rfL bin/exiftool $(VKDTDIR)
+	cp -rfL bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-fit $(VKDTDIR)
+	cp -rfL bin/vkdt-eval-profile bin/vkdt-lutinfo $(VKDTDIR)
+	cp -rfL bin/vkdt-noise-profile bin/vkdt-gallery bin/vkdt-read-icc $(VKDTDIR)
+	cp -rfL bin/darkroom.ui bin/style.txt $(VKDTDIR)
 ifneq ($(OS), Windows_NT)
 ifeq ($(shell uname),Linux)
 	mkdir -p $(DESTDIR)$(prefix)/share/icons/
@@ -53,17 +53,21 @@ ifeq ($(shell uname),Linux)
 endif
 endif
 
-lut: bin/data/filmsim.lut
-bin/data/filmsim.lut: src/filmsim.lut.xz
-	tar xvJf src/filmsim.lut.xz  
-	mv filmsim.lut bin/data
-	touch bin/data/filmsim.lut
+lut: bin/data/filmsim.lut bin/data/font_metrics.lut bin/data/font_msdf.lut
+bin/data/%.lut: src/%.lut.xz
+	tar xvJf $<
+	mv $(@:bin/data/%=%) bin/data
+	touch $@
 
+INST_MODULES:=$(notdir $(patsubst %/,%,$(dir $(wildcard src/pipe/modules/*/))))
 install-mod: bin Makefile lut
 	mkdir -p $(VKDTDIR)/modules
-	rsync -avP --include='**/params' --include='**/connectors' --include='**/*.ui' --include='**/ptooltips' --include='**/ctooltips' --include='**/readme.md' --include='**.spv' --include='**.so' --include '*/' --exclude='**' bin/modules/ ${VKDTDIR}/modules/
-	cp -rfL bin/data ${VKDTDIR}
-	cp -rfL bin/default* ${VKDTDIR}
+	@mkdir -p $(foreach mod,$(INST_MODULES),$(VKDTDIR)/modules/$(mod))
+	@$(foreach mod,$(INST_MODULES),cp bin/modules/$(mod)/{params,params.ui,connectors,*tooltips,readme.md,*.spv,*.so} $(VKDTDIR)/modules/$(mod)/ >&/dev/null || true;)
+	rm -rf $(VKDTDIR)/modules/i-raw/rawloader-c
+	rm -rf $(VKDTDIR)/modules/i-mcraw/mcraw-*
+	cp -rfL bin/data $(VKDTDIR)
+	cp -rfL bin/default* $(VKDTDIR)
 
 install: install-bin install-mod Makefile
 
@@ -77,7 +81,7 @@ install-lib: install-mod Makefile src/core/version.h
 	mkdir -p $(VKDTINCDIR)/pipe/modules
 	mkdir -p $(VKDTINCDIR)/core
 	mkdir -p $(VKDTINCDIR)/gui
-	cp -rfL bin/libvkdt.so ${VKDTLIBDIR} 
+	cp -rfL bin/libvkdt.so $(VKDTLIBDIR) 
 	cp -rfL src/lib/vkdt.h $(VKDTINCDIR)
 	cp -rfL src/qvk/*.h $(VKDTINCDIR)/qvk
 	cp -rfL src/pipe/*.h $(VKDTINCDIR)/pipe
@@ -88,14 +92,14 @@ install-lib: install-mod Makefile src/core/version.h
 RELEASE_FILES=$(shell echo src/core/version.h; git ls-files --recurse-submodules)
 ifeq ($(VKDT_USE_RAWINPUT), 1)
   RAWSPEED_DIR=$(shell ls -d src/pipe/modules/i-raw/rawspeed-*)
-  RELEASE_FILES+=$(shell cd $(RAWSPEED_DIR) && git ls-files | sed -e 's#^#$(RAWSPEED_DIR)/#')
+  RELEASE_FILES+=$(shell cd $(RAWSPEED_DIR) && git ls-files | sed -e 's\#^\#$(RAWSPEED_DIR)/\#')
 endif
 ifeq ($(VKDT_USE_MCRAW), 1)
   MCRAW_DIR=$(shell ls -d src/pipe/modules/i-mcraw/mcraw-*)
-  RELEASE_FILES+=$(shell cd $(MCRAW_DIR) && git ls-files | sed -e 's#^#$(MCRAW_DIR)/#')
+  RELEASE_FILES+=$(shell cd $(MCRAW_DIR) && git ls-files | sed -e 's\#^\#$(MCRAW_DIR)/\#')
 endif
 ifeq ($(VKDT_USE_QUAKE), 1)
-  RELEASE_FILES+=$(shell cd src/pipe/modules/quake/quakespasm; git ls-files | sed -e 's#^#src/pipe/modules/quake/quakespasm/#')
+  RELEASE_FILES+=$(shell cd src/pipe/modules/quake/quakespasm; git ls-files | sed -e 's\#^\#src/pipe/modules/quake/quakespasm/\#')
 endif
 RELEASE_FILES:=$(filter-out .%,$(RELEASE_FILES))
 
@@ -158,4 +162,57 @@ ifeq ($(OS),Windows_NT)
 	cp -rf src/pipe/modules bin/
 else
 	ln -sf ../src/pipe/modules bin/
+endif
+
+info: Makefile bin/config.mk
+ifeq ($(VKDT_USE_RAWINPUT), 0)
+	@echo "raw input              : no"
+endif
+ifeq ($(VKDT_USE_RAWINPUT), 1)
+	@echo "raw input              : rawspeed/c++"
+endif
+ifeq ($(VKDT_USE_RAWINPUT), 2)
+	@echo "raw input              : rawler/rust"
+endif
+ifeq ($(VKDT_USE_QUAKE), 0)
+	@echo "quake                  : no"
+endif
+ifeq ($(VKDT_USE_QUAKE), 1)
+	@echo "quake                  : quakespasm"
+endif
+ifeq ($(VKDT_USE_V4L2), 0)
+	@echo "webcam                 : no"
+endif
+ifeq ($(VKDT_USE_V4L2), 1)
+	@echo "webcam                 : v4l2"
+endif
+ifeq ($(VKDT_USE_MLV), 0)
+	@echo "magic lantern raw video: no"
+endif
+ifeq ($(VKDT_USE_MLV), 1)
+	@echo "magic lantern raw video: mlv"
+endif
+ifeq ($(VKDT_USE_ALSA), 0)
+	@echo "sound                  : no"
+endif
+ifeq ($(VKDT_USE_ALSA), 1)
+	@echo "sound                  : alsa"
+endif
+ifeq ($(VKDT_USE_MCRAW), 0)
+	@echo "motioncam raw video    : no"
+endif
+ifeq ($(VKDT_USE_MCRAW), 1)
+	@echo "motioncam raw video    : mcraw"
+endif
+ifeq ($(VKDT_USE_FFMPEG), 0)
+	@echo "ffmpeg                 : no"
+endif
+ifeq ($(VKDT_USE_FFMPEG), 1)
+	@echo "ffmpeg                 : yes"
+endif
+ifeq ($(VKDT_USE_PENTABLET), 0)
+	@echo "pentablet support      : no"
+endif
+ifeq ($(VKDT_USE_PENTABLET), 1)
+	@echo "pentablet support      : no"
 endif

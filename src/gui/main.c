@@ -11,6 +11,7 @@
 #include "gui/gui.h"
 #include "gui/render.h"
 #include "gui/view.h"
+#include "gui/api.h"
 #include "db/db.h"
 #include "nk.h"
 
@@ -26,44 +27,6 @@
 
 dt_gui_t vkdt = {0};
 
-int g_fullscreen = 0;
-
-// from a stackoverflow answer. get the monitor that currently covers most of
-// the window area.
-static GLFWmonitor*
-get_current_monitor(GLFWwindow *window)
-{
-  int bestoverlap = 0;
-  GLFWmonitor *bestmonitor = NULL;
-
-  int wx, wy, ww, wh;
-  glfwGetWindowPos(window, &wx, &wy);
-  glfwGetFramebufferSize(window, &ww, &wh);
-
-  int nmonitors;
-  GLFWmonitor **monitors = glfwGetMonitors(&nmonitors);
-
-  for (int i = 0; i < nmonitors; i++)
-  {
-    const GLFWvidmode *mode = glfwGetVideoMode(monitors[i]);
-    int mx, my;
-    glfwGetMonitorPos(monitors[i], &mx, &my);
-    int mw = mode->width;
-    int mh = mode->height;
-
-    int overlap =
-      MAX(0, MIN(wx + ww, mx + mw) - MAX(wx, mx)) *
-      MAX(0, MIN(wy + wh, my + mh) - MAX(wy, my));
-
-    if (bestoverlap < overlap)
-    {
-      bestoverlap = overlap;
-      bestmonitor = monitors[i];
-    }
-  }
-  return bestmonitor;
-}
-
 static inline int
 gamepad_changed(
     GLFWgamepadstate *last,
@@ -72,9 +35,14 @@ gamepad_changed(
   for(int i=0;i<sizeof(curr->buttons)/sizeof(curr->buttons[0]);i++)
     if(curr->buttons[i] != last->buttons[i])
       return 1;
-  for(int i=0;i<sizeof(curr->axes)/sizeof(curr->axes[0]);i++)
-    if(fabsf(curr->axes[i] - last->axes[i]) > 0.1)
-      return 1;
+  // if curr axes are not in neutral state, give or take dead zone
+  float deadzone = 0.05;
+  if(fabsf(curr->axes[GLFW_GAMEPAD_AXIS_LEFT_X])  > deadzone) return 1;
+  if(fabsf(curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y])  > deadzone) return 1;
+  if(fabsf(curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_X]) > deadzone) return 1;
+  if(fabsf(curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]) > deadzone) return 1;
+  if(curr->axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER]   > deadzone) return 1;
+  if(curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER]  > deadzone) return 1;
   return 0;
 }
 
@@ -92,7 +60,7 @@ joystick_active(void *unused)
   GLFWgamepadstate curr;
   while(!glfwWindowShouldClose(vkdt.win.window))
   {
-    if(!glfwGetGamepadState(GLFW_JOYSTICK_1, &curr)) break; // no more joystick?
+    if(!glfwGetGamepadState(vkdt.wstate.joystick_id, &curr)) break; // no more joystick?
     if(gamepad_changed(&last, &curr))
     {
       last = curr;
@@ -103,26 +71,6 @@ joystick_active(void *unused)
     nanosleep(&req, &rem);
   }
   return 0;
-}
-
-static void
-toggle_fullscreen()
-{
-  GLFWmonitor* monitor = get_current_monitor(vkdt.win.window);
-  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-  if(g_fullscreen)
-  {
-    glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
-    int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
-    int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
-    glfwSetWindowMonitor(vkdt.win.window, 0, 0, 0, wd, ht, mode->refreshRate);
-    g_fullscreen = 0;
-  }
-  else
-  {
-    glfwSetWindowMonitor(vkdt.win.window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
-    g_fullscreen = 1;
-  }
 }
 
 static void
@@ -142,7 +90,7 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
   }
   else if(key == GLFW_KEY_F11 && action == GLFW_PRESS)
   {
-    toggle_fullscreen();
+    dt_gui_toggle_fullscreen();
   }
 }
 
@@ -255,7 +203,7 @@ int main(int argc, char *argv[])
 
   // start un-fullscreen on current monitor, we only know which one is that after
   // we created the window in dt_gui_init(). maybe should be a config option:
-  g_fullscreen = 1;
+  vkdt.win.fullscreen = 1;
   dt_gui_recreate_swapchain(&vkdt.win);
   nk_glfw3_resize(vkdt.win.window, vkdt.win.width, vkdt.win.height);
   dt_gui_init_fonts();
@@ -375,7 +323,7 @@ int main(int argc, char *argv[])
     if(vkdt.wstate.have_joystick)
     {
       GLFWgamepadstate gamepad_curr;
-      if (!glfwGetGamepadState(GLFW_JOYSTICK_1, &gamepad_curr)) vkdt.wstate.have_joystick = 0;
+      if (!glfwGetGamepadState(vkdt.wstate.joystick_id, &gamepad_curr)) vkdt.wstate.have_joystick = 0;
       else if(gamepad_changed(&gamepad_last, &gamepad_curr))
       {
         dt_view_gamepad(vkdt.win.window, &gamepad_last, &gamepad_curr);
@@ -390,7 +338,7 @@ int main(int argc, char *argv[])
       dt_gui_present();
 
     static int bs = 1;
-    if(bs) { toggle_fullscreen(); bs = 0; }
+    if(bs) { dt_gui_toggle_fullscreen(); bs = 0; }
   }
   if(joystick_present) pthread_join(joystick_thread, 0);
 

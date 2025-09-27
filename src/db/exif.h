@@ -12,6 +12,8 @@ dt_db_exif_mini(
     char       *model,
     size_t      model_size)
 {
+  if(model_size) model[0] = 0;
+  createdate[0] = 0;
   FILE *f = fopen(filename, "rb");
   if(!f) return 1;
 
@@ -26,7 +28,10 @@ dt_db_exif_mini(
   // Canon.Canon MODEL (search for "Canon ")
   // NIKON CORPORATION...NIKON MODEL (discard the one with corporation)
 
-  for(int i=4;i<sizeof(buf)-20;i++)
+  int i = 4;
+  if(!strncmp(buf, "MOTION ", 7)) // catch mcraw
+    i = snprintf(model, MIN(7,model_size), "%s", buf);
+  for(;i<sizeof(buf)-20;i++)
   { // check maker/model
     if(!strncmp(buf+i, "SONY", 4))
       i += 1 + snprintf(model, model_size, "Sony %s", buf+i+6);
@@ -37,6 +42,8 @@ dt_db_exif_mini(
     else if(!strncmp(buf+i, "NIKON CORP", 10))
       i += 18;
     else if(!strncmp(buf+i, "NIKON ", 6))
+      i += snprintf(model, model_size, "%s", buf+i);
+    else if(!strncmp(buf+i, "Xiaomi", 6))
       i += snprintf(model, model_size, "%s", buf+i);
     else
     { // check for date string:

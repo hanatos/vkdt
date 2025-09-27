@@ -69,6 +69,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [crop: crop/rotate/perspective correction](./crop/readme.md)
 * [curves: rgb curve widgets](./curves/readme.md)
 * [deconv: deconvolution sharpening](./deconv/readme.md)
+* [dehaze: compute depth map from hazy landscape image and remove haze](./dehaze/readme.md)
 * [denoise: noise reduction based on edge-aware wavelets and noise profiles](./denoise/readme.md)
 * [hotpx: remove impulse noise/stuck pixels](./hotpx/readme.md)
 * [kpn: kernel prediction neural network for denoising](./kpn/readme.md)
@@ -111,11 +112,12 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [resize: add ability to resize buffers](./resize/readme.md)
 * [resnet: gmic convolutional neural network](./resnet/readme.md)
 
-**3d rendering**
+**3d/rendering**
 
 * [accum: accumulate frames in a frame buffer](./accum/readme.md)
 * [bvh: append triangle mesh to ray tracing acceleration structure](./bvh/readme.md)
 * [logo: render the animated vkdt icon](./logo/readme.md)
+* [physarum: mesmerizing interactive particle simulation](./physarum/readme.md)
 * [quake: the 1996 game ray traced based on QSS](./quake/readme.md)
 * [rt: real-time ray tracing](./rt/readme.md)
 * [spheres: shadertoy demo ported for testing](./spheres/readme.md)

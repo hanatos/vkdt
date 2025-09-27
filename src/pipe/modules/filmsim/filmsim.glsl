@@ -151,7 +151,6 @@ expose_film(vec3 rgb, int film)
     sensitivity = mix(sensitivity, vec3(0.0), isnan(sensitivity));
     raw += sensitivity * val * env / pdf;
   }
-  // TODO apply halation // requires to split the kernel and blur
   const float one_log10 = 0.43429448190325176, log2_log10 = 0.30102999566398114;
   return params.ev_film * log2_log10 + log(raw+1e-10) * one_log10;
 }

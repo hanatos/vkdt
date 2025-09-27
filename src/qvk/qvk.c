@@ -42,13 +42,7 @@ qvk_t qvk =
 _VK_EXTENSION_LIST
 #undef _VK_EXTENSION_DO
 
-const char *vk_requested_layers[] = {
-  "VK_LAYER_KHRONOS_validation",
-};
-
 const char *vk_requested_instance_extensions[] = {
-  // colour management:
-  // VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
   // debugging:
   VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
   VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
@@ -102,7 +96,7 @@ vk_debug_callback(
   {
     // void *const buf[100];
     // backtrace_symbols_fd(buf, 100, 2);
-    assert(0);
+    // assert(0);
   }
 #endif
 #endif
@@ -140,26 +134,43 @@ qvkDestroyDebugUtilsMessengerEXT(
 
 // this function works without gui and consequently does not init glfw
 VkResult
-qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
+qvk_init(const char *preferred_device_name, int preferred_device_id, int window, int enable_hdr_wsi, int allow_hdr)
 {
   get_vk_layer_list(&qvk.num_layers, &qvk.layers);
 
+  const char *vk_hdr_instance_extensions[] = {
+    // colour management:
+    VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME, // some nvidia/debian vk 1.3 doesn't have it, so we make it optional/depend on the hdr kill switch
+    // VK_EXT_HDR_METADATA_EXTENSION_NAME, // not present on hyprland
+  };
+
   /* instance extensions */
-  int num_inst_ext_combined = qvk.num_glfw_extensions + LENGTH(vk_requested_instance_extensions);
+  int num_inst_ext_combined = qvk.num_glfw_extensions +
+    LENGTH(vk_requested_instance_extensions) +
+    (allow_hdr ?
+    LENGTH(vk_hdr_instance_extensions) : 0);
   char **ext = alloca(sizeof(char *) * num_inst_ext_combined);
   memcpy(ext, qvk.glfw_extensions, qvk.num_glfw_extensions * sizeof(*qvk.glfw_extensions));
   memcpy(ext + qvk.num_glfw_extensions, vk_requested_instance_extensions, sizeof(vk_requested_instance_extensions));
+  if(allow_hdr)
+    memcpy(ext + qvk.num_glfw_extensions + LENGTH(vk_requested_instance_extensions), vk_hdr_instance_extensions, sizeof(vk_hdr_instance_extensions));
 
   get_vk_extension_list(NULL, &qvk.num_extensions, &qvk.extensions);
+
+  const char *vk_requested_layers[] = {
+#ifdef QVK_ENABLE_VALIDATION
+    "VK_LAYER_KHRONOS_validation",
+#endif
+    "VK_LAYER_hdr_wsi",
+  };
+  int num_layers = LENGTH(vk_requested_layers) + (enable_hdr_wsi ? 0 : -1);
 
   /* create instance */
   VkInstanceCreateInfo inst_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
     .pApplicationInfo        = &vk_app_info,
-#ifdef QVK_ENABLE_VALIDATION
-    .enabledLayerCount       = LENGTH(vk_requested_layers),
-    .ppEnabledLayerNames     = vk_requested_layers,
-#endif
+    .enabledLayerCount       = num_layers,
+    .ppEnabledLayerNames     = num_layers ? vk_requested_layers : 0,
     .enabledExtensionCount   = num_inst_ext_combined,
     .ppEnabledExtensionNames = (const char * const*)ext,
 #ifdef __APPLE__
@@ -173,7 +184,11 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window)
     {
       dt_log(s_log_qvk|s_log_err, "error %s executing vkCreateInstance!", qvk_result_to_string(res));
       if(res == VK_ERROR_LAYER_NOT_PRESENT)
+#ifdef QVK_ENABLE_VALIDATION
         dt_log(s_log_qvk|s_log_err, "did you install the vulkan validation layer package?");
+#else
+        dt_log(s_log_qvk|s_log_err, "are you trying to run in HDR mode and the compositor lacks support?");
+#endif
       return res;
     }
   }

@@ -6,7 +6,7 @@
 #include <string.h>
 
 void modify_roi_in(
-    dt_graph_t *graph,
+    dt_graph_t  *graph,
     dt_module_t *module)
 {
   dt_roi_t *ri = &module->connector[0].roi;
@@ -16,13 +16,14 @@ void modify_roi_in(
 }
 
 void modify_roi_out(
-    dt_graph_t *graph,
+    dt_graph_t  *graph,
     dt_module_t *module)
 { // always give full size and negotiate half or not in modify_roi_in
   dt_roi_t *ri = &module->connector[0].roi;
   dt_roi_t *ro = &module->connector[1].roi;
   ro->full_wd = ri->full_wd;
   ro->full_ht = ri->full_ht;
+  module->img_param.filters = 0u; // after we're done there won't be any more mosaic
 }
 
 dt_graph_run_t

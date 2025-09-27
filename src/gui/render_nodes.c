@@ -49,7 +49,7 @@ void render_nodes_right_panel()
   }
   const int display_frame = vkdt.graph_dev.double_buffer % 2;
   dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
-  if(out_hist && vkdt.graph_res == VK_SUCCESS && out_hist->dset[display_frame])
+  if(out_hist && vkdt.graph_res[display_frame] == VK_SUCCESS && out_hist->dset[display_frame])
   {
     int wd = vkdt.state.panel_wd;
     int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
@@ -65,7 +65,7 @@ void render_nodes_right_panel()
   for(uint32_t d = 0; d < sizeof(dsp)/sizeof(dsp[0]); d++)
   {
     dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dsp[d]);
-    if(out && vkdt.graph_res == VK_SUCCESS)
+    if(out && vkdt.graph_res[display_frame] == VK_SUCCESS)
     {
       const int popout = (dsp[d] == dt_token("main")) && vkdt.win1.window;
       char title[20] = {0};
@@ -176,7 +176,8 @@ void render_nodes()
 
     float scalex, scaley;
     dt_gui_content_scale(vkdt.win.window, &scalex, &scaley);
-    const float nodew = 10*dt_gui_get_font(0)->handle.height;
+    const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
+    const float nodew = 10*nk_glfw3_font(0)->height/(scaley*dpi_scale);
     const float nodey = vkdt.state.center_ht * 0.3;
 
     int vpos = nodey;

@@ -27,7 +27,7 @@ mat3inv(float *const dst, const float *const src)
                   + A(3, 1) * (A(2, 3) * A(1, 2) - A(2, 2) * A(1, 3));
 
   const float epsilon = 1e-7f;
-  if(fabsf(det) < epsilon) return 1;
+  if(det > -epsilon && det < epsilon) return 1;
 
   const float invDet = 1.f / det;
 

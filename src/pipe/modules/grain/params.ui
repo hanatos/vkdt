@@ -1,2 +1,4 @@
 size:slider:0.6:2
-strength:slider:0:1
+strength:slider:0:2
+decay:slider:0:1
+octaves:slider:1:20

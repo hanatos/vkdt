@@ -74,6 +74,7 @@ uint32_t qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags m
 
 const char *qvk_result_to_string(VkResult result);
 const char *qvk_format_to_string(VkFormat format);
+const char *qvk_colourspace_to_string(VkColorSpaceKHR format);
 
 #ifdef QVK_ENABLE_VALIDATION
 #define ATTACH_LABEL_VARIABLE(a, type) \

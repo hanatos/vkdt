@@ -1,10 +1,15 @@
 # how to use your gamepad
 
-currently, best tested is a sony dualshock controller.
+vkdt supports some basic interaction via gamepad, such as navigating
+around lighttable and darkroom modes as well as applying star ratings.
 
-to avoid side effects especially with certain mouse pads being detected as joysticks,
-the use of joysticks is switched off by default. to enable it, make sure your
-`~/.config/vkdt/config.rc` contains a line:
+currently, best tested is a sony dualshock controller. to map buttons and axes
+to ui interactions, the sdl gamecontrollerdb is used. vkdt will attempt to load
+updated descriptions upon startup, from `/usr/share/sdl/gamecontrollerdb.txt`.
+vkdt will skip joystick devices that do not have a gamepad mapping. this rules
+out most unsuitable devices such as special keyboards or certain mouse pads.
+still, the use of joysticks is switched off by default. to enable it, make sure
+your `~/.config/vkdt/config.rc` contains a line:
 
 ```
 intgui/disable_joystick:0

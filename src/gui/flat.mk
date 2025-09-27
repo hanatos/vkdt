@@ -12,13 +12,17 @@ GUI_H=gui/gui.h\
       gui/render_darkroom.h\
       gui/api.h\
       gui/api_gui.h\
+      gui/hsluv.h\
+      gui/font_metrics.h\
       gui/hotkey.h\
+      gui/job_copy.h\
       gui/keyaccel.h\
       gui/widget_dopesheet.h\
       gui/widget_draw.h\
       gui/widget_export.h\
       gui/widget_filebrowser.h\
       gui/widget_filteredlist.h\
+      gui/widget_tooltip.h\
       gui/widget_image.h\
       gui/widget_nodes.h\
       gui/widget_recentcollect.h\
@@ -50,4 +54,4 @@ gui/shd.h: gui/shd/gui.vert.spv gui/shd/gui.frag.spv
 	xxd -i gui/shd/gui.frag.spv >> gui/shd.h
 
 %.spv: %
-	$(GLSLC) -I$(dir $$<) $(GLSLC_FLAGS) $$< -o $$@
+	$(GLSLC) -I$(dir $<).. $(GLSLC_FLAGS) $< -o $@

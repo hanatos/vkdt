@@ -106,8 +106,11 @@ void modify_roi_out(
   assert(img_param);
   const uint32_t *b = img_param->crop_aabb;
   module->connector[1].roi = module->connector[0].roi;
-  module->connector[1].roi.full_wd = b[2] - b[0];
-  module->connector[1].roi.full_ht = b[3] - b[1];
+  if(img_param->filters)
+  {
+    module->connector[1].roi.full_wd = b[2] - b[0];
+    module->connector[1].roi.full_ht = b[3] - b[1];
+  }
 }
 
 dt_graph_run_t
@@ -201,6 +204,8 @@ create_nodes(
   const float strength = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("strength")))[0];
   if(strength <= 0.0f)
   {
+    if(img_param->filters == 0)
+      return dt_connector_bypass(graph, module, 0, 1);
     const int32_t pc[] = {
       crop_aabb[0], crop_aabb[1], crop_aabb[2], crop_aabb[3],
       blacki[0], blacki[1], blacki[2], blacki[3],

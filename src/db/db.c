@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include <regex.h>
 
 void
 dt_db_init(dt_db_t *db)
@@ -29,6 +30,7 @@ dt_db_init(dt_db_t *db)
   // probably read preferences here from config file instead:
   db->collection_sort = s_prop_filename;
   threads_mutex_init(&db->image_mutex, 0);
+  dt_stringpool_init(&db->timeoffset_model, 10, 30);
 }
 
 void
@@ -43,6 +45,7 @@ dt_db_cleanup(dt_db_t *db)
   free(db->selection);
   free(db->image);
   threads_mutex_destroy(&db->image_mutex);
+  dt_stringpool_cleanup(&db->timeoffset_model);
   memset(db, 0, sizeof(*db));
 }
 
@@ -81,15 +84,34 @@ compare_labels(const void *a, const void *b, void *arg)
 void
 dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20])
 {
-  char fn[1024], f[1024];
+  char fn[PATH_MAX], f[PATH_MAX];
   dt_db_image_path(db, imgid, fn, sizeof(fn));
   fs_realpath(fn, f);
   size_t off = strnlen(f, sizeof(f));
   if(off > 4) f[off - 4] = 0;
   else f[off] = 0;
+  if(off > 7 && f[off-7] == '_' && f[off-6] >= '0' && f[off-6] <= '9' && f[off-5] >= '0' && f[off-5] <= '9') 
+    f[off-7] = 0; // for duplicates, for instance IMG_9999.CR2_01.cfg
 
   char model[32];
+  model[0] = 0;
   dt_db_exif_mini(f, createdate, model, sizeof(model));
+
+#ifndef _WIN64 // oh whatever. is this dead os really worth all the trouble?
+  // now consider the model/time offset table stored in the vkdt.db folder structure
+  uint32_t i = dt_stringpool_get((dt_stringpool_t*)&db->timeoffset_model, model, strlen(model), -1u, 0);
+  i = CLAMP(i, 0, sizeof(db->timeoffset)/sizeof(db->timeoffset[0])-1);
+  if(i == -1u) return;
+  // fprintf(stderr, "time `%s` model `%s` \n", createdate, model);
+  int64_t to = db->timeoffset[i];
+  struct tm tm;
+  strptime(createdate, "%Y:%m:%d %T", &tm);
+  time_t t = timegm(&tm);
+  t += to;
+  gmtime_r(&t, &tm);
+  strftime(createdate, 20, "%Y:%m:%d %T", &tm);
+  // fprintf(stderr, "backconv - off %ld %s\n", to, createdate);
+#endif
 }
 
 static int
@@ -130,6 +152,9 @@ void
 dt_db_update_collection(dt_db_t *db)
 {
   // filter
+  regex_t regex;
+  if(db->collection_filter.active & (1<<s_prop_filename))
+    regcomp(&regex, db->collection_filter.filename, 0);
   char createdate[20];
   db->collection_cnt = 0;
   for(int k=0;k<db->image_cnt;k++)
@@ -143,7 +168,7 @@ dt_db_update_collection(dt_db_t *db)
         case s_prop_none:
           break;
         case s_prop_filename:
-          if(!strstr(db->image[k].filename, db->collection_filter.filename)) goto discard;
+          if(regexec(&regex, db->image[k].filename, 0, 0, 0)) goto discard;
           break;
         case s_prop_rating:
           if(db->collection_filter.rating_cmp == 0 && !(db->image[k].rating >= db->collection_filter.rating)) goto discard;
@@ -166,6 +191,8 @@ dt_db_update_collection(dt_db_t *db)
     db->collection[db->collection_cnt++] = k;
 discard:;
   }
+  if(db->collection_filter.active & (1<<s_prop_filename))
+    regfree(&regex);
   // TODO: use db/tests/parallel radix sort
   switch(db->collection_sort)
   {
@@ -447,8 +474,18 @@ const uint32_t *dt_db_selection_get(dt_db_t *db)
   return db->selection;
 }
 
+static inline int64_t
+dt_db_parse_timeoffset(const char *str)
+{
+  int64_t Y, M, D, h, m, s;
+  sscanf(str, "%"PRId64":%"PRId64":%"PRId64":%"PRId64":%"PRId64":%"PRId64, &Y, &M, &D, &h, &m, &s);
+  // i hate calendars, and none of this makes any sense:
+  return s + 60*(m + 60*(h + 24*(D + 30*M + 365*Y)));
+}
+
 int dt_db_read(dt_db_t *db, const char *filename)
 {
+  dt_stringpool_reset(&db->timeoffset_model);
   FILE *f = fopen(filename, "rb");
   if(!f) return 1;
   char line[256];
@@ -485,6 +522,14 @@ int dt_db_read(dt_db_t *db, const char *filename)
       if(!strcmp(what, "file type"))   { ft->active |= 1<<s_prop_filetype;   strncpy(dt_token_str(ft->filetype), val, 8); }
       continue;
     }
+    if(!strcmp(imgn, "time offset"))
+    {
+      int64_t to = dt_db_parse_timeoffset(val);
+      uint32_t i = dt_stringpool_get(&db->timeoffset_model, what, strlen(what), db->timeoffset_cnt++, 0);
+      i = CLAMP(i, 0, sizeof(db->timeoffset)/sizeof(db->timeoffset[0])-1);
+      db->timeoffset[i] = to;
+      continue;
+    }
 
     // get image id or -1u, never insert, not interested in the string pointer:
     uint32_t imgid = dt_stringpool_get(&db->sp_filename, imgn, strlen(imgn), -1u, 0);
@@ -519,6 +564,19 @@ int dt_db_write(const dt_db_t *db, const char *filename, int append)
   if(ft->active & (1<<s_prop_labels))     fprintf(f, "filter:label:%u\n",       ft->labels);
   if(ft->active & (1<<s_prop_createdate)) fprintf(f, "filter:create date:%s\n", ft->createdate);
   if(ft->active & (1<<s_prop_filetype))   fprintf(f, "filter:file type:%s\n",   dt_token_str(ft->filetype));
+
+  for(int i=0;i<db->timeoffset_model.buf_max;)
+  {
+    int len = strlen(db->timeoffset_model.buf+i);
+    if(len)
+    { // query value of this string and write time offset in seconds
+      uint32_t pos = dt_stringpool_get((dt_stringpool_t*)&db->timeoffset_model, db->timeoffset_model.buf+i, len, -1u, 0);
+      if(pos != -1u && pos < sizeof(db->timeoffset)/sizeof(db->timeoffset[0]))
+        fprintf(f, "time offset:%s:0:0:0:0:0:%"PRId64"\n", db->timeoffset_model.buf+i, db->timeoffset[pos]);
+    }
+    i += len+1; // eat terminating 0, too
+  }
+
 
   for(int i=0;i<db->image_cnt;i++)
   {
