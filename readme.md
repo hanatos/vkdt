@@ -5,17 +5,13 @@
 `vkdt` is designed with high performance in mind. it features a flexible
 processing node graph at its core, enabling real-time support for animations,
 timelapses, raw video, and heavy lifting algorithms like image alignment and
-better highlight inpainting. this is made possible by faster processing,
-allowing more complex operations.
+better highlight inpainting. faster processing
+allows us to use more complex operations.
 
-the processing pipeline is a generic node graph (DAG) which
-supports multiple inputs and multiple outputs. all processing is done in glsl
-shaders/vulkan. this facilitates potentially heavy duty computational
-photography tasks, for instance aligning multiple raw files and merging them
-before further processing, as well as outputting intermediate results for
-debugging. the gui profits from this scheme as well and can display
-textures while they are still on GPU and output the data to multiple
-targets, such as the main view and histograms.
+the processing pipeline is a generic node graph (DAG) which supports multiple
+inputs and multiple outputs. all processing is done in glsl shaders/vulkan. the
+gui profits from this scheme as well and can display textures while they are
+still on GPU.
 
 ## features
 
