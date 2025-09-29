@@ -174,6 +174,9 @@ void modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   module->img_param.cam_to_rec2020[6] = 0.0;
   module->img_param.cam_to_rec2020[7] = 0.0;
   module->img_param.cam_to_rec2020[8] = 1.0;
+  module->img_param.whitebalance[0] = 
+  module->img_param.whitebalance[1] = 
+  module->img_param.whitebalance[2] = 1.0f;
   module->img_param.colour_primaries = s_colour_primaries_2020;
   module->img_param.colour_trc       = s_colour_trc_linear;
 }
