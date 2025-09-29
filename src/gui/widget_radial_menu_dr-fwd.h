@@ -1,4 +1,5 @@
 #pragma once
+#include "render.h"
 
 typedef enum dt_radial_menu_dr_state_t
 {
@@ -35,6 +36,8 @@ dt_radial_menu_dr_active(dt_radial_menu_dr_t *m)
 static inline void // also use this to init
 dt_radial_menu_dr_close(dt_radial_menu_dr_t *m)
 {
+  if(m->state == s_radial_menu_dr_widget)
+    dt_gamepadhelp_pop();
   m->state = s_radial_menu_dr_closed;
   m->mcnt  =  0;
   m->modid = -1;

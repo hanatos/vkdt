@@ -93,6 +93,13 @@ dt_radial_menu_dr(
           m->state = s_radial_menu_dr_widget;
           m->modid = m->mmodid[sel];
           m->parid = m->mparid[sel];
+          dt_gamepadhelp_push();
+          dt_gamepadhelp_clear();
+          dt_gamepadhelp_set(dt_gamepadhelp_ps, "toggle this help");
+          dt_gamepadhelp_set(dt_gamepadhelp_L1, "hold to activate right stick");
+          dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "x: modify value, y: fast");
+          dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "reset value");
+          dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept value");
         }
       }
       else dt_radial_menu_dr_close(m);
