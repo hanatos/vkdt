@@ -155,8 +155,18 @@ dt_radial_widget(
     float y = vkdt.state.center_y + 0.6*vkdt.state.center_ht, h = 0.05*vkdt.state.center_ht;
     struct nk_rect box = { x + (val[0]-min)/(max-min)*w, y, w*0.02f, h };
     nk_fill_rect(cmd, box, MIN(box.h,box.w)/2.0f, vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
-    // TODO write module/instance/param name to screen
     // TODO two triangles at min and max
+    static struct nk_user_font font;
+    font = *nk_glfw3_font(0);
+    font.height *= 2.0;
+    char text[256];
+    snprintf(text, sizeof(text), "%"PRItkn" %"PRItkn" %f",
+        dt_token_str(vkdt.graph_dev.module[modid].name),
+        dt_token_str(param->name),
+        val[0]);
+    nk_draw_text(cmd, (struct nk_rect){x+0.1*w, y, w, h}, text, strlen(text), &font,
+        (struct nk_color){0,0,0,0xff},
+        (struct nk_color){0xff,0xff,0xff,0xff});
     if(ax && ay)
     {
       if(fabsf(ax[0]) > fabsf(ay[0]))
