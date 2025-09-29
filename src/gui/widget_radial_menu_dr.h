@@ -28,7 +28,7 @@ dt_radial_menu_dr(
       {
         int pst = parid;
         if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
-        snprintf(m->mtxt[m->mcnt], 50, "apply preset %s", vkdt.fav_preset_name[pst]);
+        snprintf(m->mtxt[m->mcnt], 50, "preset %s", vkdt.fav_preset_name[pst]);
         m->mmodid [m->mcnt] = -1;
         m->mparid [m->mcnt] = pst;
         m->mtxtptr[m->mcnt] = m->mtxt[m->mcnt];

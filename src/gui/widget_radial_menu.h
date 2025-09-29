@@ -1,5 +1,53 @@
 #pragma once
 
+static inline void
+dt_radial_menu_text(
+    struct nk_command_buffer *cmd,
+    const char *text,
+    struct nk_rect box,
+    int selected,
+    int left)
+{
+  static struct nk_user_font font;
+  if(selected)
+  {
+    font = *nk_glfw3_font(0);
+    font.height *= 1.5;
+    box.h *= 1.5;
+    if(left) box.x -= 3*box.w;
+    box.w *= 4;
+    nk_fill_rect(cmd, (struct nk_rect){box.x,box.y-box.h/2,box.w,box.h}, box.h/2,
+        vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
+  }
+  const char *t = text;
+  while(1)
+  { // split at every white space
+    int len = 0;
+    for(;t[len]!=0&&t[len]!=' ';len++) {}
+    if(len)
+    {
+      if(selected)
+      {
+        nk_fill_rect(cmd, box, 0.0f, vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
+        nk_fill_rect(cmd, (struct nk_rect){box.x,box.y+box.h/2,box.w,box.h}, box.h/2,
+            vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
+        nk_draw_text(cmd, box, t, len, &font,
+            (struct nk_color){0,0,0,0xff},
+            (struct nk_color){0,0,0,0xff});
+      }
+      else
+      {
+        nk_draw_text(cmd, box, t, len, nk_glfw3_font(0),
+            (struct nk_color){0,0,0,0xff},
+            (struct nk_color){0xff,0xff,0xff,0xff});
+      }
+      box.y += box.h-1;
+    }
+    if(*t==0) break;
+    t += len+1;
+  }
+}
+
 static inline int // return selected entry, or -1
 dt_radial_menu(
     struct nk_context *ctx,
@@ -16,7 +64,8 @@ dt_radial_menu(
         r0 = 0.3*radius, r1 = radius;
   float dx = mx-cx, dy = my-cy;
   const float mphi = (dx*dx+dy*dy>r0*r0) ? atan2f(my-cy, mx-cx) : -666;
-  int ret = -1;
+  int ret = -1, left = 1;
+  struct nk_rect selbox;
   for(int k=0;k<N;k++)
   {
 #define NSEG 10 // number of vertices on linearly segmented arc
@@ -36,6 +85,7 @@ dt_radial_menu(
     struct nk_color c = vkdt.style.colour[NK_COLOR_BUTTON];
     if(mphi > phi && mphi < phi+delta_phi)
     {
+      if(dx > 0) left = 0;
       ret = k;
       c = vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER];
     }
@@ -52,18 +102,19 @@ dt_radial_menu(
     //   cx+(dx>0?1:-1)*radius/2 - (dx>0?0:radius/2),
     //   x[2*(NSEG/2)+1], radius/2, 30};
     // center of mass of wedge
+    const float row_height = nk_glfw3_font(0)->height * 1.1f;
+    float w = radius/4.0f;
     struct nk_rect bb = {
-      (2*x[0] + x[2*NSEG+0] + 2*x[2*NSEG-2] + x[4*NSEG-2])/6.0f - radius/4,
-      (2*x[1] + x[2*NSEG+1] + 2*x[2*NSEG-1] + x[4*NSEG-1])/6.0f - 15,
-      radius/2, 30};
-    // visualise the box:
-    // nk_stroke_rect(cmd, bb, 0.0f, 2.0f, vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
-    nk_draw_text(cmd, bb, text[k], strlen(text[k]), nk_glfw3_font(0),
-            (struct nk_color){0,0,0,0xff},
-            (struct nk_color){0xff,0xff,0xff,0xff});
+      (2*x[0] + x[2*NSEG+0] + 2*x[2*NSEG-2] + x[4*NSEG-2])/6.0f - w/2,
+      (2*x[1] + x[2*NSEG+1] + 2*x[2*NSEG-1] + x[4*NSEG-1])/6.0f - row_height,
+      w, row_height};
+    if(ret == k) selbox = bb;
+    else dt_radial_menu_text(cmd, text[k], bb, 0, 0);
     phi += delta_phi;
 #undef NSEG
   }
+  if(ret >= 0)
+    dt_radial_menu_text(cmd, text[ret], selbox, 1, left);
   return ret;
 }
 
@@ -103,7 +154,7 @@ dt_radial_widget(
     float x = vkdt.state.center_x, w = vkdt.state.center_wd;
     float y = vkdt.state.center_y + 0.6*vkdt.state.center_ht, h = 0.05*vkdt.state.center_ht;
     struct nk_rect box = { x + (val[0]-min)/(max-min)*w, y, w*0.02f, h };
-    nk_fill_rect(cmd, box, 0, vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
+    nk_fill_rect(cmd, box, MIN(box.h,box.w)/2.0f, vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
     // TODO write module/instance/param name to screen
     // TODO two triangles at min and max
     if(ax && ay)
