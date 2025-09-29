@@ -373,24 +373,44 @@ void dt_gamepadhelp_pop()
 
 void dt_gamepadhelp()
 {
+  GLFWgamepadstate gamepad = {0};
+  if(vkdt.wstate.have_joystick) glfwGetGamepadState(vkdt.wstate.joystick_id, &gamepad);
   // static const char *dt_gamepadhelp_input_str[] = {
   //   "analog L", "analog R", "trigger L2", "trigger R2",
   //   "triangle", "circle", "cross", "square", "L1", "R1", // "∆", "o", "x", "□"
   //   "up", "left", "down", "right", // "↑", "←", "↓", "→",
   //   "start", "select", "ps", "L3", "R3",
   // };
+  // const int map_axes[] = {GLFW_GAMEPAD_AXIS_LEFT_X, GLFW_GAMEPAD_
+  const int map_button[] = { -1, -1, -1, -1,
+    GLFW_GAMEPAD_BUTTON_Y, GLFW_GAMEPAD_BUTTON_B, GLFW_GAMEPAD_BUTTON_A, GLFW_GAMEPAD_BUTTON_X,
+    GLFW_GAMEPAD_BUTTON_LEFT_BUMPER, GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER,
+    GLFW_GAMEPAD_BUTTON_DPAD_UP, GLFW_GAMEPAD_BUTTON_DPAD_LEFT, GLFW_GAMEPAD_BUTTON_DPAD_DOWN, GLFW_GAMEPAD_BUTTON_DPAD_RIGHT,
+    -1, -1, -1, -1, -1};
 
   const float m[] = {
     vkdt.state.center_wd / 1200.0f, 0.0f, vkdt.state.center_wd * 0.30f,
     0.0f, vkdt.state.center_wd / 1200.0f, vkdt.state.center_ht * 0.50f,
   };
   struct nk_command_buffer *buf = nk_window_get_canvas(&vkdt.ctx);
-  dt_draw(&vkdt.ctx, dt_draw_list_gamepad, NK_LEN(dt_draw_list_gamepad), m);
+  struct nk_color col = {0xff,0xff,0xff,0xff};
+  dt_draw(&vkdt.ctx, dt_draw_list_gamepad, NK_LEN(dt_draw_list_gamepad), col, m);
   for(int k=0;k<dt_gamepadhelp_cnt;k++)
   {
     if(g_gamepadhelp.help[g_gamepadhelp.sp][k])
     {
-      dt_draw(&vkdt.ctx, dt_draw_list_gamepad_arrow[k], NK_LEN(dt_draw_list_gamepad_arrow[k]), m);
+      struct nk_color c = col;
+      if(k > 4 && map_button[k] >= 0 &&
+         gamepad.buttons[map_button[k]])
+        c = vkdt.style.colour[NK_COLOR_DT_ACCENT];
+      if((k == 0 && fabsf(gamepad.axes[GLFW_GAMEPAD_AXIS_LEFT_X]) > 0.02) ||
+         (k == 0 && fabsf(gamepad.axes[GLFW_GAMEPAD_AXIS_LEFT_Y]) > 0.02) ||
+         (k == 1 && fabsf(gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_X]) > 0.02) ||
+         (k == 1 && fabsf(gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]) > 0.02) ||
+         (k == 2 && gamepad.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER]  > -0.98) ||
+         (k == 3 && gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > -0.98))
+        c = vkdt.style.colour[NK_COLOR_DT_ACCENT];
+      dt_draw(&vkdt.ctx, dt_draw_list_gamepad_arrow[k], NK_LEN(dt_draw_list_gamepad_arrow[k]), c, m);
       struct nk_vec2 v = {dt_draw_list_gamepad_arrow[k][8], dt_draw_list_gamepad_arrow[k][9]};
       struct nk_rect rect = {
         .x = v.x * m[3*0 + 0] + v.y * m[3*0 + 1] + m[3*0 + 2],
@@ -399,7 +419,7 @@ void dt_gamepadhelp()
       rect.w = rect.x + 300;
       rect.h = rect.y + 300;
       rect.y -= 0.03*vkdt.state.center_ht;
-      nk_draw_text(buf, rect, g_gamepadhelp.help[g_gamepadhelp.sp][k], strlen(g_gamepadhelp.help[g_gamepadhelp.sp][k]), nk_glfw3_font(1), nk_rgb(0,0,0), nk_rgb(255,255,255));
+      nk_draw_text(buf, rect, g_gamepadhelp.help[g_gamepadhelp.sp][k], strlen(g_gamepadhelp.help[g_gamepadhelp.sp][k]), nk_glfw3_font(1), nk_rgb(0,0,0), c);
     }
   }
 }

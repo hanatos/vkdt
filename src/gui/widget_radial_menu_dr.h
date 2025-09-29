@@ -7,7 +7,7 @@ dt_radial_menu_dr(
     struct nk_rect bounds) // bounds inside which to click/where to display if opened with gamepad
 {
   GLFWgamepadstate gamepad = {0};
-  glfwGetGamepadState(vkdt.wstate.joystick_id, &gamepad);
+  if(vkdt.wstate.have_joystick) glfwGetGamepadState(vkdt.wstate.joystick_id, &gamepad);
   int mouse_activated = !dt_gui_input_blocked() &&
     nk_input_is_mouse_hovering_rect(&vkdt.ctx.input, bounds) &&
     vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].down;
