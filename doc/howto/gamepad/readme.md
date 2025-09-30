@@ -19,4 +19,9 @@ in general, `x` selects (enters lighttable/darkroom) and `o` aborts (goes back
 to lighttable/files view).
 
 to bring up context sensitive help overlaid on your screen, press the
-playstation button in the center.
+playstation button in the center:
+
+<video width="100%" controls>
+<source src="gamepad.webm" type="video/webm">
+no video
+</video>
