@@ -29,11 +29,10 @@ dt_snd_alsa_init(
   snd_pcm_hw_params_t *hwparams = 0;
   snd_pcm_sw_params_t *swparams = 0;
 
-  snd_pcm_t *pcm;
-
-  if(format == -1) goto error;
+  snd_pcm_t *pcm = 0;
 
   const char *pcm_device = dt_rc_get(&vkdt.rc, "snd/alsa/pcm", "default");
+  if(format == -1) goto error;
   if(0 > (err = snd_pcm_open(&pcm, pcm_device, SND_PCM_STREAM_PLAYBACK, 0)))
     goto error;
 
@@ -62,6 +61,11 @@ dt_snd_alsa_init(
   return 0;
 
 error:
+  if(!err)
+  {
+    dt_log(s_log_err|s_log_snd, "alsa device had no format given! %d", format);
+    return 1;
+  }
   dt_log(s_log_err|s_log_snd, "failed to open alsa device %s: %d %s", pcm_device, err, snd_strerror(err));
   if(hwparams) snd_pcm_hw_params_free(hwparams);
   if(swparams) snd_pcm_sw_params_free(swparams);
