@@ -1,0 +1,86 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  vec4 abcdr[8]; // spline stuff for the diagonals y,c,h
+  vec4 abcdg[8];
+  vec4 abcdb[8];
+  vec4 xr0, xr1;
+  vec4 xg0, xg1;
+  vec4 xb0, xb1;
+  vec4 yr0, yr1;
+  vec4 yg0, yg1;
+  vec4 yb0, yb1;
+  vec4 vtx[18]; // vertex locations for interpolated relative curves, max 6 per curve, 6 curves, 2 coords
+  int  cntr, cntg, cntb;
+  int  sel;
+  int  mode;
+  int  chan;
+  float ddr0, ddrn;
+  float ddg0, ddgn;
+  float ddb0, ddbn;
+  int  edit;
+} params;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+#include "../curves/spline.glsl"
+
+float eq_unpack(int v)
+{
+  int l = v & 3;
+  int h = v / 4;
+  if(l == 0)     return params.vtx[h].x;
+  if(l == 1)     return params.vtx[h].y;
+  if(l == 2)     return params.vtx[h].z;
+  /*if(l == 3)*/ return params.vtx[h].w;
+}
+
+float eq_eval(int i, float x, out float ddx)
+{
+  int j = 0; // smallest index with x[j] <= x
+  float x0 = eq_unpack(6*i+0);
+  float x1 = eq_unpack(6*i+1);
+  if(x >= x1) { x0 = x1; x1 = eq_unpack(6*i+2); j = 1;}
+  if(x >= x1) { x0 = x1; x1 = eq_unpack(6*i+3); j = 2;}
+  if(x >= x1) { x0 = x1; x1 = eq_unpack(6*i+4); j = 3;}
+  if(x >= x1) { x0 = x1; x1 = eq_unpack(6*i+5); j = 4;}
+  if(x >= x1) { x0 = x1; x1 = eq_unpack(6*i+0); j = 5;}
+  float y0 = eq_unpack(36+6*i+j);
+  float y1 = eq_unpack(36+6*i+((j+1)%6)); // modulo, useful for hue (luminance and chroma not so much)
+  ddx = 1; // XXX TODO
+  return mix(y0, y1, smoothstep(x0, x1, x));
+}
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+
+  // convert rec2020 rgb to yuv and lch from there
+  vec3 ychi = rgb2ych(rgb);
+
+  // now we move ych through the 3x3 curve system (ych x ych):
+  // step 1: apply curves to the diagonal (y/y, c/c, h/h, these are diagonal lines or splines):
+  float ddx;
+  vec3 ycho = vec3(
+      curve_eval(0, ychi.r, ddx),
+      curve_eval(1, ychi.g, ddx),
+      curve_eval(2, ychi.b, ddx));
+
+  // step 2: the off-diagonals: apply the remaining two dependencies. these are relative,
+  // i.e. start from flat lines in the graphs. also these aren't splines but cosine interpolation (less ringing)
+  ycho.r += eq_eval(0, ychi.g, ddx); // y/c
+  ycho.r += eq_eval(1, ychi.b, ddx); // y/h
+  ycho.g += eq_eval(2, ychi.r, ddx); // c/y
+  ycho.g += eq_eval(3, ychi.b, ddx); // c/h
+  ycho.b += eq_eval(4, ychi.r, ddx); // h/y
+  ycho.b += eq_eval(5, ychi.g, ddx); // h/c
+
+  // convert back: ych -> YCbCr -> rgb (rec2020)
+  rgb = ych2rgb(ycho);
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}

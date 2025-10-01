@@ -460,6 +460,39 @@ vec3 hsv2rgb(vec3 hCL)
   return oklab_to_rec2020(oklab);
 }
 
+// converts rec2020 to YCbCr via
+// M3 in ITU-R BT.2087-0 goes from rec2020 to YCbCr (both normalised)
+vec3 rec2020_to_YCbCr(vec3 c)
+{
+  mat3 M3 = mat3(
+      0.2627, -0.2627/1.8814,  0.5,
+      0.6780, -0.6780/1.8814, -0.6780/1.4746,
+      0.0593,  0.5,           -0.0593/1.4746);
+  return M3 * c;
+}
+
+vec3 YCbCr_to_rec2020(vec3 c)
+{
+  mat3 M3I = mat3(
+      1, 1, 1,
+      0.0, -0.164553127, 1.8814,
+      1.4746, -0.571353127, 0.0);
+  return M3I *  c;
+}
+
+vec3 rgb2ych(vec3 c)
+{
+  vec3 yuv = rec2020_to_YCbCr(c);
+  return vec3(yuv.x, length(yuv.yz), fract(1.0 + atan(yuv.z, yuv.y)/(2.0*M_PI)));
+}
+
+vec3 ych2rgb(vec3 c)
+{
+  vec3 YCbCr = vec3(c.x, c.y * cos(2.0*M_PI*c.z), c.y * sin(2.0*M_PI*c.z));
+  if(YCbCr.x <= 0.0) return vec3(0);
+  return YCbCr_to_rec2020(YCbCr);
+}
+
 vec2 warp_gaussian(vec2 xi)
 { // warp two uniform [0,1) random variables to two standard normal distributed ones (box muller transform)
   // use 1-x instead of x to avoid log(0)
