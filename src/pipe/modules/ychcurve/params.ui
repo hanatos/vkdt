@@ -12,7 +12,7 @@ sel:hidden
 abcdr:hidden
 abcdg:hidden
 abcdb:hidden
-mode:combo:rgb:luminance
+mode:hidden
 group:mode:0
 channel:combo:luma/luma:chroma/chroma:hue/hue:luma/chroma:chroma/luma:hue/luma:luma/hue:chroma/hue:hue/chroma
 group:channel:0
