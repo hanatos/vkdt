@@ -14,7 +14,7 @@ abcdg:hidden
 abcdb:hidden
 mode:combo:rgb:luminance
 group:mode:0
-channel:combo:YY:YC:Yh:CC:CY:Ch:hh:hY:hC
+channel:combo:luma/luma:chroma/chroma:hue/hue:luma/chroma:chroma/luma:hue/luma:luma/hue:chroma/hue:hue/chroma
 group:channel:0
 ddr0:slider:-1:1
 ddrn:slider:-1:1

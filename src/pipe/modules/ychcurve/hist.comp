@@ -24,6 +24,7 @@ layout(std140, set = 0, binding = 1) uniform params_t {
   float ddr0, ddrn;
   float ddg0, ddgn;
   float ddb0, ddbn;
+  vec4 vtx[18];
   int  edit;
 } params;
 #include "../curves/spline.glsl"

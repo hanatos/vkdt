@@ -14,7 +14,6 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4 yr0, yr1;
   vec4 yg0, yg1;
   vec4 yb0, yb1;
-  vec4 vtx[18]; // vertex locations for interpolated relative curves, max 6 per curve, 6 curves, 2 coords
   int  cntr, cntg, cntb;
   int  sel;
   int  mode;
@@ -22,6 +21,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float ddr0, ddrn;
   float ddg0, ddgn;
   float ddb0, ddbn;
+  vec4 vtx[18]; // vertex locations for interpolated relative curves, max 6 per curve, 6 curves, 2 coords
   int  edit;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
