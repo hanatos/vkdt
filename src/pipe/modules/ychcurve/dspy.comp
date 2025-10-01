@@ -25,7 +25,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 } params;
 layout(set = 1, binding = 0, std430) buffer buf_hist { uint  histogram[]; };
 layout(set = 1, binding = 1) uniform writeonly image2D img_dspy;
-#include "spline.glsl"
+#include "../curves/spline.glsl"
 
 void main()
 {

@@ -14,7 +14,7 @@ abcdg:hidden
 abcdb:hidden
 mode:combo:rgb:luminance
 group:mode:0
-channel:combo:red:green:blue
+channel:combo:YY:YC:Yh:CC:CY:Ch:hh:hY:hC
 group:channel:0
 ddr0:slider:-1:1
 ddrn:slider:-1:1
