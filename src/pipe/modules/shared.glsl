@@ -483,12 +483,12 @@ vec3 YCbCr_to_rec2020(vec3 c)
 vec3 rgb2ych(vec3 c)
 {
   vec3 yuv = rec2020_to_YCbCr(c);
-  return vec3(yuv.x, length(yuv.yz), fract(1.0 + atan(yuv.z, yuv.y)/(2.0*M_PI)));
+  return vec3(yuv.x, 8.0*length(yuv.yz), fract(1.0 + atan(yuv.z, yuv.y)/(2.0*M_PI)));
 }
 
 vec3 ych2rgb(vec3 c)
 {
-  vec3 YCbCr = vec3(c.x, c.y * cos(2.0*M_PI*c.z), c.y * sin(2.0*M_PI*c.z));
+  vec3 YCbCr = vec3(c.x, c.y/8.0 * cos(2.0*M_PI*c.z), c.y/8.0 * sin(2.0*M_PI*c.z));
   if(YCbCr.x <= 0.0) return vec3(0);
   return YCbCr_to_rec2020(YCbCr);
 }
