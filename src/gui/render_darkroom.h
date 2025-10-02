@@ -1242,10 +1242,9 @@ static inline void render_darkroom_widgets(
         }
         if(mid >= 0)
         { // scale output to match panel
-          const float pwf = 0.2; // probably make a config param so we have access too (not only the gui)
-          const float pwd = pwf * (16.0/9.0) * vkdt.win.height;
+          const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
           graph->module[mid].connector[0].max_wd = pwd;
-          graph->module[mid].connector[0].max_ht = (2.0/3.2) * pwd;
+          graph->module[mid].connector[0].max_ht = pwd;
           vkdt.graph_dev.runflags = s_graph_run_all;
         }
       }
@@ -1271,7 +1270,7 @@ static inline void render_darkroom_widgets(
         float iht = out_dspy->connector[0].roi.ht;
         float scale = MIN(
             MIN(out_dspy->connector[0].roi.wd, row.w) / iwd,
-            MIN(out_dspy->connector[0].roi.ht, 2.0f/3.0f*row.w) / iht);
+            MIN(out_dspy->connector[0].roi.ht, row.w) / iht);
         int ht = scale * iht, wd = scale * iwd;
         float r = wd / (float)row.w;
         nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));

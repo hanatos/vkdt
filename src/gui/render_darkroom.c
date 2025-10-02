@@ -1133,10 +1133,9 @@ darkroom_enter()
         if(mid >= 0)
         {
           dt_module_connect(&vkdt.graph_dev, vkdt.graph_dev.active_module, cid, mid, 0); // reconnect
-          const float pwf = 0.2; // probably make a config param
-          const float pwd = pwf * (16.0/9.0) * vkdt.win.height;
+          const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
           vkdt.graph_dev.module[mid].connector[0].max_wd = pwd;
-          vkdt.graph_dev.module[mid].connector[0].max_ht = (2.0/3.2) * pwd;
+          vkdt.graph_dev.module[mid].connector[0].max_ht = pwd;
           vkdt.graph_dev.runflags = s_graph_run_all;
         }
       }
