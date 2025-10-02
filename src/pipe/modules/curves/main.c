@@ -33,11 +33,19 @@ check_params(
 {
   const int pid_channel = dt_module_get_param(mod->so, dt_token("channel"));
   const int pid_ychchan = dt_module_get_param(mod->so, dt_token("ych 3x3"));
+  const int pid_mode    = dt_module_get_param(mod->so, dt_token("mode"));
   if(parid == pid_ychchan)
   { // need to keep rgb channel in sync for gui stuff (hide deriv combo)
     int newv = dt_module_param_int(mod, pid_ychchan)[0];
     int *p = (int *)dt_module_param_int(mod, pid_channel);
     *p = newv;
+  }
+  if(parid == pid_mode)
+  { // make sure we don't go out of range when switching back to rgb mode
+    int newv = dt_module_param_int(mod, pid_mode)[0];
+    int *p = (int *)dt_module_param_int(mod, pid_channel);
+    int oldv = *(int*)oldval;
+    if(newv != 2 && oldv == 2) *p = 0;
   }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
@@ -135,6 +143,8 @@ input(
   
   if(mode == 2) // prepare just the same, but for ych
     channel = ychchan;
+  else
+    channel = CLAMP(channel, 0, 2); // make sure we don't go out of bounds
 
   if(mode == 2 && channel > 2)
   { // flat/relative curves

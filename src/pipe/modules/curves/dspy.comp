@@ -120,7 +120,7 @@ void main()
             d = dot(dist,dist);
             float rad = params.sel == i ? 0.03 : 0.02;
             if(d < rad*rad)
-              rgba = max(rgba, 0.5 * vec4(vec3(smoothstep(rad, 0.0, d)), 1));
+              rgba = mix(rgba, vec4(0,1,1,1), smoothstep(rad, 0.0, d));
           }
         }
       }
@@ -141,7 +141,7 @@ void main()
             d = dot(dist,dist);
             float rad = params.sel == i ? 0.03 : 0.02;
             if(d < rad*rad)
-              rgba = max(rgba, 0.5 * vec4(vec3(smoothstep(rad, 0.0, d)), 1));
+              rgba = mix(rgba, vec4(0,1,1,1), smoothstep(rad, 0.0, d));
           }
         }
       }
@@ -163,7 +163,7 @@ void main()
       const float w = c == params.chan ? 5.0 : 2.0; // stroke width
       float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
       float d = abs((1.0+of0-y) * (1.0-of0) * imageSize(img_dspy).y - ipos.y);
-      rgba = max(rgba , vec4(col, 0.2) * vec4(vec3(smoothstep(t, 0.0, d)), 1));
+      rgba = max(rgba, vec4(col, 0.2) * vec4(vec3(smoothstep(t, 0.0, d)), 1));
       if(c == params.chan)
       { // draw (selected) points
         off = of0 * imageSize(img_dspy).y;
@@ -174,7 +174,7 @@ void main()
           d = dot(dist,dist);
           float rad = params.sel == i ? 0.03 : 0.02;
           if(d < rad*rad)
-            rgba = max(rgba, 0.5 * vec4(vec3(smoothstep(rad, 0.0, d)), 1));
+            rgba = mix(rgba, vec4(0,1,1,1), smoothstep(rad, 0.0, d));
         }
       }
       if(params.mode == 1) // luminance
