@@ -13,7 +13,7 @@ float ddx_smoothstep(float e0, float e1, float x)
 {
   float d0 = 1.0/(e1-e0);
   float t = clamp((x-e0)/(e1-e0), 0.0, 1.0);
-  float d1 = 6.0*t - 6.0*t*t;
+  float d1 = 6.0*t*(1.0 - t);
   return d0*d1;
 }
 
@@ -29,8 +29,7 @@ float eq_eval(int i, float x, out float ddx)
   if(x >= x1) { x0 = x1; x1 = eq_unpack(6*i+0); j = 5;}
   float y0 = eq_unpack(36+6*i+j);
   float y1 = eq_unpack(36+6*i+((j+1)%6)); // modulo, useful for hue (luminance and chroma not so much)
-  ddx = min(abs(ddx_smoothstep(x0, x1, x) * (y1-y0)), abs(y1-y0)*min(abs(x-x0),abs(x-x1)));
-  ddx = max(0.5, ddx);
+  ddx = min(abs(ddx_smoothstep(x0, x1, x) * (y1-y0)), 3.0);
   return mix(y0, y1, smoothstep(x0, x1, x));
 }
 
