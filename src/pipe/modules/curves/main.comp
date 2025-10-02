@@ -21,11 +21,14 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float ddr0, ddrn;
   float ddg0, ddgn;
   float ddb0, ddbn;
+  vec4 vtx[18]; // vertex locations for interpolated relative curves, max 6 per curve, 6 curves, 2 coords
+  int  ychchan;
   int  edit;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 #include "spline.glsl"
+#include "eq.glsl"
 
 void main()
 {
@@ -33,8 +36,36 @@ void main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
   float ddx;
-  rgb.r = curve_eval(params.mode == 1 ? params.chan : 0, rgb.r, ddx);
-  rgb.g = curve_eval(params.mode == 1 ? params.chan : 1, rgb.g, ddx);
-  rgb.b = curve_eval(params.mode == 1 ? params.chan : 2, rgb.b, ddx);
+
+  if(params.mode < 2)
+  { // rgb or luminance
+    rgb.r = curve_eval(params.mode == 1 ? params.chan : 0, rgb.r, ddx);
+    rgb.g = curve_eval(params.mode == 1 ? params.chan : 1, rgb.g, ddx);
+    rgb.b = curve_eval(params.mode == 1 ? params.chan : 2, rgb.b, ddx);
+  }
+  else
+  { // ych
+    // convert rec2020 rgb to yuv and lch from there
+    vec3 ychi = rgb2ych(rgb);
+
+    // now we move ych through the 3x3 curve system (ych x ych):
+    // step 1: apply curves to the diagonal (y/y, c/c, h/h, these are diagonal lines or splines):
+    vec3 ycho = vec3(
+        curve_eval(0, ychi.r, ddx),
+        curve_eval(1, ychi.g, ddx),
+        curve_eval(2, ychi.b, ddx));
+
+    // step 2: the off-diagonals: apply the remaining two dependencies. these are relative,
+    // i.e. start from flat lines in the graphs. also these aren't splines but cosine interpolation (less ringing)
+    ycho.r += eq_eval(0, ychi.g, ddx); // y/c
+    ycho.g += eq_eval(1, ychi.r, ddx); // c/y
+    ycho.b += eq_eval(2, ychi.r, ddx); // h/y
+    ycho.r += eq_eval(3, ychi.b, ddx); // y/h
+    ycho.g += eq_eval(4, ychi.b, ddx); // c/h
+    ycho.b += eq_eval(5, ychi.g, ddx); // h/c
+
+    // convert back: ych -> YCbCr -> rgb (rec2020)
+    rgb = ych2rgb(ycho);
+  }
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

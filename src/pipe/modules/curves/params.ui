@@ -7,11 +7,12 @@ yb:hidden
 cntr:hidden
 cntg:hidden
 cntb:hidden
+vtx:hidden
 sel:hidden
 abcdr:hidden
 abcdg:hidden
 abcdb:hidden
-mode:combo:rgb:luminance
+mode:combo:rgb:luminance:ych
 group:mode:0
 channel:combo:red:green:blue
 group:channel:0
@@ -23,5 +24,7 @@ ddgn:slider:-1:1
 group:channel:2
 ddb0:slider:-1:1
 ddbn:slider:-1:1
+group:mode:2
+ych 3x3:combo:luma/luma:chroma/chroma:hue/hue:luma/chroma:chroma/luma:hue/luma:luma/hue:chroma/hue:hue/chroma
 group:-1:-1
 edit:combo:linear:gamma space
