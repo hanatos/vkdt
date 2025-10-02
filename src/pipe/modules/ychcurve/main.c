@@ -100,6 +100,7 @@ input(
   const int pid_cnt     = dt_module_get_param(mod->so, par[3*channel+0]);
   const int pid_x       = dt_module_get_param(mod->so, par[3*channel+1]);
   const int pid_y       = dt_module_get_param(mod->so, par[3*channel+2]);
+  const int pid_v       = dt_module_get_param(mod->so, dt_token("vtx"));
   const int pid_edit    = dt_module_get_param(mod->so, dt_token("edit"));
   int *p_sel = (int   *)dt_module_param_int  (mod, pid_sel);
   int *p_cnt = (int   *)dt_module_param_int  (mod, pid_cnt);
@@ -107,12 +108,48 @@ input(
   float *p_y = (float *)dt_module_param_float(mod, pid_y);
   const int edit = dt_module_param_int(mod, pid_edit)[0];
 
-  if(channel > 2) return 0; // TODO interact with the flat curves!
+  float *p_v = (float *)dt_module_param_float(mod, pid_v);
+
+  static int active = -1;
+
+  if(channel > 2)
+  { // flat/relative curves
+    int c = channel-3; // 6-based index
+    if(p->type == 1)
+    { // mouse button
+      if(p->action == 1)
+      { // if button pressed and point selected, mark it as active
+        if(p->mbutton == 0 && p_sel[0] >= 0) active = p_sel[0];
+      }
+      else active = -1; // no mouse down no active vertex
+    }
+    else if(p->type == 2)
+    { // mouse position
+      if(active >= 0 && active < 6)
+      { // move active point around
+        float mx = active > 0   ? p_v[6*c+active-1]+1e-3f : 0.0f;
+        float Mx = active < 6-1 ? p_v[6*c+active+1]-1e-3f : 1.0f;
+        p_v[   6*c+active] = CLAMP(p->x, mx, Mx);
+        p_v[36+6*c+active] = p->y;
+        dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_v, throttle);
+        return s_graph_run_record_cmd_buf;
+      }
+      else
+      {
+        int old = p_sel[0];
+        p_sel[0] = -1;
+        for(int i=0;i<6;i++)
+          if(fabs(p->x - p_v[6*c+i]) < 0.05 && fabs(p->y - p_v[36+6*c+i]) < 0.05)
+            p_sel[0] = i;
+        if(old != p_sel[0]) return s_graph_run_record_cmd_buf;
+      }
+    }
+    return 0;
+  }
 
   // these are the diagonal cases Y/Y, C/C and h/h:
 #define E2L(V) (edit ? edit_to_linear(V) : (V))
 #define L2E(V) (edit ? linear_to_edit(V) : (V))
-  static int active = -1;
   if(p->type == 1)
   { // mouse button
     if(p->action == 1)
