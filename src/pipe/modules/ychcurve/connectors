@@ -1,3 +1,0 @@
-input:read:*:*
-output:write:rgba:*
-dspy:write:rgba:*

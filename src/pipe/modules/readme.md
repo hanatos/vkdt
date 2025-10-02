@@ -60,6 +60,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 
 * [colenc: encode colour for colour managed output like adobeRGB, P3, etc](./colenc/readme.md)
 * [colour: generic colour manipulation/input transform](./colour/readme.md)
+* [curves: rgb and 3x3 ych curve widgets](./curves/readme.md)
 * [grade: simple ACES CDL grading tool](./grade/readme.md)
 * [filmsim: spectral analog film simulation](./filmsim/readme.md)
 
@@ -67,7 +68,6 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 
 * [autoexp: smooth auto exposure of video sequences](./autoexp/readme.md)
 * [crop: crop/rotate/perspective correction](./crop/readme.md)
-* [curves: rgb curve widgets](./curves/readme.md)
 * [deconv: deconvolution sharpening](./deconv/readme.md)
 * [dehaze: compute depth map from hazy landscape image and remove haze](./dehaze/readme.md)
 * [denoise: noise reduction based on edge-aware wavelets and noise profiles](./denoise/readme.md)
