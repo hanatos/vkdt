@@ -130,7 +130,7 @@ input(
         float mx = active > 0   ? p_v[6*c+active-1]+1e-3f : 0.0f;
         float Mx = active < 6-1 ? p_v[6*c+active+1]-1e-3f : 1.0f;
         p_v[   6*c+active] = CLAMP(p->x, mx, Mx);
-        p_v[36+6*c+active] = p->y;
+        p_v[36+6*c+active] = p->y-0.5f;
         dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_v, throttle);
         return s_graph_run_record_cmd_buf;
       }
@@ -139,7 +139,7 @@ input(
         int old = p_sel[0];
         p_sel[0] = -1;
         for(int i=0;i<6;i++)
-          if(fabs(p->x - p_v[6*c+i]) < 0.05 && fabs(p->y - p_v[36+6*c+i]) < 0.05)
+          if(fabs(p->x - p_v[6*c+i]) < 0.05 && fabs(p->y-0.5f-p_v[36+6*c+i]) < 0.05)
             p_sel[0] = i;
         if(old != p_sel[0]) return s_graph_run_record_cmd_buf;
       }

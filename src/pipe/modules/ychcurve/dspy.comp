@@ -50,9 +50,11 @@ void main()
   if(1.0-tc.y < h)
   {
     vec3 col = vec3(0.3);
-    if(dep == 0) col = ych2rgb(vec3(x,0.0,0.0));
-    if(dep == 1) col = ych2rgb(vec3(0.5,x,0.5));
-    if(dep == 2) col = ych2rgb(vec3(0.5,0.5,x));
+    float xx = x;
+    if(params.chan < 3) xx = e2l(x);
+    if(dep == 0) col = ych2rgb(vec3(xx,0.0,0.0));
+    if(dep == 1) col = ych2rgb(vec3(0.5,xx,0.5));
+    if(dep == 2) col = ych2rgb(vec3(0.5,0.5,xx));
     rgba = vec4(col, 1.0);
   }
 
@@ -81,8 +83,7 @@ void main()
       else if(cc == 1) c = 6;
       else             c = 7;
     }
-    vec3 col = vec3(0.9); // TODO: probably some neutral colour?
-    // XXX vec3 col = params.mode == 1 ? vec3(0.9) : vec3(c==0?0.9:0.1,c==1?0.9:0.1,c==2?0.9:0.1);
+    vec3 col = vec3(0.9);
     float ddx;
     if(c < 3)
     { // splines on the diagonal
