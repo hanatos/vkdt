@@ -25,3 +25,13 @@ float eq_eval(int i, float x, out float ddx)
   return mix(y0, y1, smoothstep(x0, x1, x));
 }
 
+float eq_x(int c, int i)
+{
+  return eq_unpack(6*c+i);
+}
+
+float eq_y(int c, int i)
+{
+  return eq_unpack(36+6*c+i);
+}
+
