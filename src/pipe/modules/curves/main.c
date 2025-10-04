@@ -154,6 +154,14 @@ input(
       if(p->action == 1)
       { // if button pressed and point selected, mark it as active
         if(p->mbutton == 0 && p_sel[0] >= 0) active = p_sel[0];
+        else if(p->mbutton == 3)
+        { // double click to reset x and y values of current curve
+          const dt_ui_param_t *param = mod->so->param[pid_v];
+          memcpy(p_v + 6*c,      param->val + 6*c,      sizeof(float)*6);
+          memcpy(p_v + 6*c + 36, param->val + 6*c + 36, sizeof(float)*6);
+          dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_v, throttle);
+          return s_graph_run_record_cmd_buf;
+        }
       }
       else active = -1; // no mouse down no active vertex
     }
@@ -218,6 +226,20 @@ input(
         dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_x, throttle);
         dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_y, throttle);
         dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_cnt, throttle);
+      }
+      else if(p->mbutton == 3)
+      { // double click to reset x and y values of current curve
+        const dt_ui_param_t *param;
+        param = mod->so->param[pid_x];
+        memcpy(p_x, param->val, sizeof(float)*2);
+        param = mod->so->param[pid_y];
+        memcpy(p_y, param->val, sizeof(float)*2);
+        param = mod->so->param[pid_cnt];
+        memcpy(p_cnt, param->val, sizeof(int));
+        dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_x, throttle);
+        dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_y, throttle);
+        dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_cnt, throttle);
+        return s_graph_run_record_cmd_buf;
       }
     }
     else active = -1; // no mouse down no active vertex

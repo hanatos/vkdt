@@ -810,6 +810,13 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
     struct nk_rect b = vkdt.wstate.active_dspy_bound;
     if(action == 0 || NK_INBOX(x,y,b.x,b.y,b.w,b.h))
     {
+      static double last_button_click = 0.0;
+      double dt = glfwGetTime() - last_button_click;
+      if(action)
+      { // double click?
+        last_button_click = glfwGetTime();
+        if(dt > 0.02 && dt < 0.25) button = 3;
+      }
       dt_module_input_event_t p = {
         .type = 1,
         .x = (x-b.x)/b.w,
