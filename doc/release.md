@@ -116,7 +116,7 @@ packages from github nightly ci.
 
 #### new modules
 * [dehaze](../src/pipe/modules/dehaze/readme.md) haze removal and depth estimator
-* [rgb curves](../src/pipe/modules/curves/readme.md) simple per-channel/luminance curve widget
+* [rgb/ych curves](../src/pipe/modules/curves/readme.md) per-channel rgb/luminance or 3x3 combinations of ych curves
 * [o-copy](../src/pipe/modules/o-copy/readme.md) to copy raw images on export
 * [jddcnn](../src/pipe/modules/jddcnn/readme.md) experimental joint demosaicing and denoising based on a CNN
 * [g-csolid](../src/pipe/modules/g-csolid/readme.md) convert drawn brush strokes to 3d geometry
