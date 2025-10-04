@@ -208,7 +208,7 @@ dt_module_so_load(
         min = dt_read_float(b, &b);
         max = dt_read_float(b, &b);
       }
-      else if(type == dt_token("combo") || type == dt_token("bitmask"))
+      else if(type == dt_token("combo") || type == dt_token("bitmask") || type == dt_token("btngrid"))
       { // read list of names of all entries
         size_t len = 0;
         for(len=0;len<sizeof(line) - (b-line);len++)

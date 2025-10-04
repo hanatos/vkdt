@@ -561,6 +561,65 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_label(ctx, str, NK_TEXT_LEFT);
     }
   }
+  else if(param->widget.type == dt_token("btngrid"))
+  { // grid of buttons
+    if(param->type == dt_token("int"))
+    {
+      int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+      int32_t oldval = *val;
+      RESETBLOCK
+
+      float bw = 0.333f*wds[0]-2.0f/3.0f*ctx->style.window.spacing.x;
+      float r4[] = {bw, bw, bw, wds[1]};
+      nk_layout_row(ctx, NK_STATIC, row_height, 4, r4);
+      const char *c = (const char *)param->widget.data;
+      int rowidx = 0;
+      int firstrow = 1;
+      while(1)
+      {
+        if(c[0])
+        {
+          int idx = CLAMP(c[0]-'0',0,9)*10+CLAMP(c[1]-'0',0,9);
+          const int sel = *val == idx;
+          if(sel) nk_style_push_style_item(ctx, &ctx->style.button.normal,
+              nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+          if(nk_button_label(ctx, c+2))
+          {
+            *val = idx;
+            change = 1;
+          }
+          if(sel) nk_style_pop_style_item(ctx);
+          rowidx++;
+        }
+        if(!c[0] || (rowidx % 3) == 0)
+        { // second null byte found or row complete
+          if(firstrow)
+          {
+            firstrow = 0;
+            dt_tooltip(param->tooltip);
+            KEYFRAME
+            nk_label(ctx, str, NK_TEXT_LEFT);
+          }
+          else if(c[0]) nk_label(ctx, "", 0);
+          rowidx = 0;
+          if(!c[0]) break;
+        }
+        while(*c) c++;
+        c++; // skip null byte
+      }
+
+      if(change)
+      {
+        dt_graph_run_t flags = s_graph_run_none;
+        if(vkdt.graph_dev.module[modid].so->check_params)
+          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.active_module = modid;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        vkdt.wstate.busy += 2;
+      }
+    }
+  }
   else if(param->widget.type == dt_token("colour"))
   {
     float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + 3*num;

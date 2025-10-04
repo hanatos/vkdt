@@ -21,12 +21,13 @@ layout(std140, set = 0, binding = 1) uniform params_t {
   int  sel;
   int  mode;
   int  chan;
+  int  ychchan;
+  int  edit;
+  int  pad0, pad1;
   float ddr0, ddrn;
   float ddg0, ddgn;
   float ddb0, ddbn;
   vec4 vtx[18];
-  int  ychchan;
-  int  edit;
 } params;
 #include "spline.glsl"
 const uint hist_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;

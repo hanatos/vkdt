@@ -18,12 +18,13 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int  sel;
   int  mode;
   int  chan;
+  int  ychchan;
+  int  edit;
+  int  pad0, pad1;
   float ddr0, ddrn;
   float ddg0, ddgn;
   float ddb0, ddbn;
   vec4 vtx[18]; // vertex locations for interpolated relative curves, max 6 per curve, 6 curves, 2 coords
-  int  ychchan;
-  int  edit;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
@@ -63,6 +64,8 @@ void main()
     ycho.r += eq_eval(3, ychi.b, ddx); // y/h
     ycho.g += eq_eval(4, ychi.b, ddx); // c/h
     ycho.b += eq_eval(5, ychi.g, ddx); // h/c
+
+    ycho.g = max(ycho.g, 0.0); // no negative chroma, does weird shit
 
     // convert back: ych -> YCbCr -> rgb (rec2020)
     rgb = ych2rgb(ycho);
