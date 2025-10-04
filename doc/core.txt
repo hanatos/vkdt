@@ -10,3 +10,6 @@ hilite:1.0
 crop:1.0
 llap:1.0
 zones:1.0
+curves:1.0
+exposure:1.0
+grade:1.0

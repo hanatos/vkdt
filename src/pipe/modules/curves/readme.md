@@ -13,6 +13,24 @@ start as a straight horizontal line and have a fixed number of six vertices.
 
 unlike the `filmcurv` module, this module attempts no colour correction of
 any kind on top of the changes directly reflected by the curves.
+it also contains a simple Y/Y luminance curve:
+
+![YY curve](curve-luma.jpg)
+
+the diagonal entries of the YCh curves are by default an identity transform,
+i.e. a diagonal line. the off-diagonals are applied on top of these diagonal
+curves, and are by default a horizontal line that can be adjusted up or down:
+
+![C/h curve](curve_ch.jpg)
+
+the background shows a coloured histogram of the values in the input image
+corresponding to the x-axis (luminance Y, chroma C or hue h). the plot
+always shows all three curves of the same row, i.e. depending on the
+same variable.
+
+this tool is similar in spirit to [rawtherapee's lab adjustments](https://rawpedia.rawtherapee.com/Lab_Adjustments)
+but works in a linear opponent space (YCbCr, the radial version of it).
+
 
 ## parameters
 
@@ -25,7 +43,7 @@ any kind on top of the changes directly reflected by the curves.
 * `ddrn` the slope of the curve after the rightmost control vertex
 * `ddgn` the slope of the curve after the rightmost control vertex
 * `ddbn` the slope of the curve after the rightmost control vertex
-* `edit` edit linear values or in some gamma corrected space that gives more control over blacks. this only affects the ui.
+* `edit` edit linear values or in some gamma corrected space that gives more control over blacks. this only affects the ui and only rgb curves and the diagonals of YCh.
 
 ## connectors
 
