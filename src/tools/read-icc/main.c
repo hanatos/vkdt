@@ -101,6 +101,7 @@ int main(int argc, char* argv[])
   }
   free(buf);
 
+#if 0 // debug output
   for(int t=0;t<num_tags;t++)
   {
     if(!memcmp(xyz[t].name, "XYZ ", 4))
@@ -111,6 +112,7 @@ int main(int argc, char* argv[])
     else
       fprintf(stdout, "tag %.4s %g\n", tag[t].name, curv[t].val[0]/0x1.0p8);
   }
+#endif
   float gamma[] = { 
           curv[3].val[0]/0x1.0p8,
           curv[4].val[0]/0x1.0p8,
@@ -146,6 +148,7 @@ int main(int argc, char* argv[])
   fprintf(f, "%f %f %f\n", rec2020_to_display[3], rec2020_to_display[4], rec2020_to_display[5]);
   fprintf(f, "%f %f %f\n", rec2020_to_display[6], rec2020_to_display[7], rec2020_to_display[8]);
   fclose(f);
+  fprintf(stdout, "wrote display.profile. now copy it to ~/.config/vkdt/display.DP-1\nto apply it to your DP-1 monitor (replace DP-1 with your monitor name)\n");
 
   exit(0);
 }
