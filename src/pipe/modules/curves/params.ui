@@ -12,6 +12,12 @@ sel:hidden
 abcdr:hidden
 abcdg:hidden
 abcdb:hidden
+abcd0:hidden
+abcd1:hidden
+abcd2:hidden
+abcd3:hidden
+abcd4:hidden
+abcd5:hidden
 pad:hidden
 mode:combo:rgb:luminance:ych
 group:mode:0

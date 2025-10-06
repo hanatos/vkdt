@@ -109,6 +109,65 @@ void commit_params(dt_graph_t *graph, dt_module_t *mod)
       p_abcd[4*i+3] = d[i];
     }
   }
+
+  dt_token_t tkn_abcd[] = {
+    dt_token("abcd0"), dt_token("abcd1"), dt_token("abcd2"),
+    dt_token("abcd3"), dt_token("abcd4"), dt_token("abcd5")};
+  const int pid_v  = dt_module_get_param(mod->so, dt_token("vtx"));
+  const float *p_v = dt_module_param_float(mod, pid_v);
+  for(int channel=0;channel<6;channel++)
+  { // now the six horizontal curves.
+    int pid_abcd  = dt_module_get_param(mod->so, tkn_abcd[channel]);
+    float *p_abcd = (float *)dt_module_param_float(mod, pid_abcd);
+    int cnt = 0;
+    for(;cnt<6;cnt++)
+      if(p_v[6*channel+cnt] == -666.0f)
+        break;
+    for(int v=0;v<cnt;v++)
+    { // init one segment per vertex pair (periodic for hues)
+      const int periodic = 1;//channel == 3 || channel == 4;
+      const int vp = periodic ? (v+cnt-1)%cnt : CLAMP(v-1, 0, cnt-1);
+      const int vn = periodic ? (v    +1)%cnt : CLAMP(v+1, 0, cnt-1);
+      const int vf = periodic ? (v    +2)%cnt : CLAMP(v+2, 0, cnt-1);
+      float vp_x = p_v[6*channel+vp], vp_y = p_v[6*channel+vp+36];
+      float vc_x = p_v[6*channel+v ], vc_y = p_v[6*channel+v +36];
+      float vn_x = p_v[6*channel+vn], vn_y = p_v[6*channel+vn+36];
+      float vf_x = p_v[6*channel+vf], vf_y = p_v[6*channel+vf+36];
+      if(vp_x > vc_x) vp_x -= 1.0f; // modulo to ensure sort order of x pos
+      if(vn_x < vc_x) vn_x += 1.0f;
+      if(vf_x < vc_x) vf_x += 1.0f;
+      // for these we forget about continuous curvature and the second derivative
+      // altogether. instead, we fix the first derivatives to something a bit
+      // smooth in the usual case (finite difference between adjacent vertices v_{i+1}-v_{i-1})
+      // and flat for extreme values (f'=0 for peaks and dips).
+      if(vn_x - vc_x < 0.001f)
+      { // fallback for close vertices to avoid numerical issues
+        p_abcd[4*v+0] = 0.0f;
+        p_abcd[4*v+1] = 0.0f;
+        p_abcd[4*v+2] = 0.0f;
+        p_abcd[4*v+3] = (vn_y+vc_y)*0.5f;
+      }
+      else
+      {
+        float x = vc_x, y = vn_x;
+        float A = vc_y, B = vn_y; // f(0), f(1)
+        float d0 = (vc_y-vp_y)/(vc_x-vp_x), d1 = (vn_y-vc_y)/(vn_x-vc_x), d2 = (vf_y-vn_y)/(vf_x-vn_x);
+        float C = 0.0f, D = 0.0f; // f'(0), f'(1)
+        if(d0 > 0.0f && d1 > 0.0f) C = MIN(d0,d1);
+        if(d0 < 0.0f && d1 < 0.0f) C = MAX(d0,d1);
+        if(d1 > 0.0f && d2 > 0.0f) D = MIN(d1,d2);
+        if(d1 < 0.0f && d2 < 0.0f) D = MAX(d1,d2);
+        float x2 = x*x, x3 = x*x2, y2 = y*y, y3 = y*y2;
+        // maxima says:
+        // eqns :[a*x*x*x + b*x*x + c*x + d = A, a*y*y*y+b*y*y+c*y+d=B, 3*a*x*x+2*b*x+c=C, 3*a*y*y+2*b*y+c=D];
+        // linsolve(eqns,[a,b,c,d]); fortran(%);
+        p_abcd[4*v+0] = ((D+C)*y+(-D-C)*x-2*B+2*A)/(y3-3*x*y2+3*x2*y-x3);
+        p_abcd[4*v+1] = -(((D+2*C)*y2+((D-C)*x-3*B+3*A)*y+(-(2*D)-C)*x2+(3*A-3*B)*x)/(y3-3*x*y2+3*x2*y-x3));
+        p_abcd[4*v+2] = (C*y3+(2*D+C)*x*y2+((-D-2*C)*x2+(6*A-6*B)*x)*y-D*x3)/(y3-3*x*y2+3*x2*y-x3);
+        p_abcd[4*v+3] = -(((C*x-A)*y3+((D-C)*x2+3*A*x)*y2+(-(D*x3)-3*B*x2)*y+B*x3)/(y3-3*x*y2+3*x2*y-x3));
+      }
+    }
+  }
 }
 
 dt_graph_run_t

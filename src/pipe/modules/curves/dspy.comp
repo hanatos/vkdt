@@ -25,11 +25,12 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float ddg0, ddgn;
   float ddb0, ddbn;
   vec4 vtx[18];
+  vec4 abcd0[6], abcd1[6], abcd2[6], abcd3[6], abcd4[6], abcd5[6];
 } params;
 layout(set = 1, binding = 0, std430) buffer buf_hist { uint  histogram[]; };
 layout(set = 1, binding = 1) uniform writeonly image2D img_dspy;
-#include "spline.glsl"
 #include "eq.glsl"
+#include "spline.glsl"
 
 void main()
 {
@@ -66,7 +67,7 @@ void main()
       if(params.ychchan < 3) xx = e2l(x);
       if(dep == 0) col = ych2rgb(vec3(xx,0.0,0.0));
       if(dep == 1) col = ych2rgb(vec3(0.5,xx,0.5));
-      if(dep == 2) col = ych2rgb(vec3(0.5,0.5,xx));
+      if(dep == 2) col = ych2rgb(vec3(0.5,1.0,xx));
     }
     rgba = vec4(col, 1.0);
   }
@@ -127,7 +128,7 @@ void main()
       }
       else
       {
-        float y = eq_eval(c-3, x, ddx); // convert channel to index of 6 flat curves
+        float y = curve_horiz(c-3, x, ddx); // convert channel to index of 6 flat curves
         const float w = c == params.ychchan ? 5.0 : 2.0; // stroke width
         float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
         float d = abs((0.5+of0-y) * (1.0-of0) * imageSize(img_dspy).y - ipos.y);

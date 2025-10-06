@@ -28,7 +28,9 @@ layout(std140, set = 0, binding = 1) uniform params_t {
   float ddg0, ddgn;
   float ddb0, ddbn;
   vec4 vtx[18];
+  vec4 abcd0[6], abcd1[6], abcd2[6], abcd3[6], abcd4[6], abcd5[6];
 } params;
+#include "eq.glsl"
 #include "spline.glsl"
 const uint hist_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
 shared uint[hist_size] local_hist;

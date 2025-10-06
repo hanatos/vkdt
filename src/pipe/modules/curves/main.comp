@@ -25,11 +25,12 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float ddg0, ddgn;
   float ddb0, ddbn;
   vec4 vtx[18]; // vertex locations for interpolated relative curves, max 6 per curve, 6 curves, 2 coords
+  vec4 abcd0[6], abcd1[6], abcd2[6], abcd3[6], abcd4[6], abcd5[6];
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
-#include "spline.glsl"
 #include "eq.glsl"
+#include "spline.glsl"
 
 void main()
 {
@@ -58,12 +59,12 @@ void main()
 
     // step 2: the off-diagonals: apply the remaining two dependencies. these are relative,
     // i.e. start from flat lines in the graphs. also these aren't splines but cosine interpolation (less ringing)
-    ycho.r += eq_eval(0, ychi.g, ddx); // y/c
-    ycho.g += eq_eval(1, ychi.r, ddx); // c/y
-    ycho.b += eq_eval(2, ychi.r, ddx); // h/y
-    ycho.r += eq_eval(3, ychi.b, ddx); // y/h
-    ycho.g += eq_eval(4, ychi.b, ddx); // c/h
-    ycho.b += eq_eval(5, ychi.g, ddx); // h/c
+    ycho.r += curve_horiz(0, ychi.g, ddx); // y/c
+    ycho.g += curve_horiz(1, ychi.r, ddx); // c/y
+    ycho.b += curve_horiz(2, ychi.r, ddx); // h/y
+    ycho.r += curve_horiz(3, ychi.b, ddx); // y/h
+    ycho.g += curve_horiz(4, ychi.b, ddx); // c/h
+    ycho.b += curve_horiz(5, ychi.g, ddx); // h/c
 
     ycho.g = max(ycho.g, 0.0); // no negative chroma, does weird shit
 
