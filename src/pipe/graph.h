@@ -127,6 +127,7 @@ typedef struct dt_graph_t
   int                   gui_attached;  // can't free the output images while still used etc.
   const char           *gui_msg;       // will result in a dt_gui_notification call if not zero
   char                  gui_msg_buf[100];
+  float                 gui_colour[8]; // rgba of accent and accent hover colours, for some dspy modules
   char                  searchpath[PATH_MAX];
   char                  basedir[PATH_MAX];// copy of the global search directory such that modules can access it
 

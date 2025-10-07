@@ -15,6 +15,8 @@ dt_graph_run_modules_upload_uniforms(
   ((uint32_t *)uniform_mem)[0] = graph->frame;
   ((uint32_t *)uniform_mem)[1] = graph->frame_cnt;
   ((uint32_t *)uniform_mem)[2] = graph->main_img_hash;
+  ((uint32_t *)uniform_mem)[3] = 0; // pad
+  memcpy(((uint32_t*)uniform_mem)+4, graph->gui_colour, sizeof(float)*8);
 #define TRAVERSE_POST \
   dt_module_t *mod = arr+curr;\
   if(mod->so->commit_params)\
@@ -576,9 +578,9 @@ dt_graph_run_modules(
     }
     dt_raytrace_graph_cleanup(graph);
     graph->num_nodes = 0;
-    // we need three uint32, alignment is 64 bytes
-    // frame, frame_cnt, hash
-    graph->uniform_global_size = 2*qvk.uniform_alignment; // global data, aligned
+    // we need three uint32 + 8 floats, alignment is 64 bytes
+    // frame, frame_cnt, hash, pad, vec4 col vec4 col
+    graph->uniform_global_size = (sizeof(float)*12 + qvk.uniform_alignment) & -qvk.uniform_alignment; // global data, aligned
     uint64_t uniform_offset = graph->uniform_global_size;
     // skip modules with uninited roi! (these are disconnected/dead code elimination cases)
     for(int i=cnt-1;i>=0;i--)

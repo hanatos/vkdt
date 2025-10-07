@@ -3,6 +3,12 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 #include "shared.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  int frame, frame_cnt, hash, pad;
+  vec4 col;
+  vec4 hov;
+} global;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   vec4 abcdr[8];
@@ -122,7 +128,7 @@ void main()
             d = dot(dist,dist);
             float rad = params.sel == i ? 0.03 : 0.02;
             if(d < rad*rad)
-              rgba = mix(rgba, vec4(0,1,1,1), smoothstep(rad, 0.0, d));
+              rgba = mix(rgba, params.sel == i ? global.hov : global.col, smoothstep(rad, 0.0, d));
           }
         }
       }
@@ -143,7 +149,7 @@ void main()
             d = dot(dist,dist);
             float rad = params.sel == i ? 0.03 : 0.02;
             if(d < rad*rad)
-              rgba = mix(rgba, vec4(0,1,1,1), smoothstep(rad, 0.0, d));
+              rgba = mix(rgba, params.sel == i ? global.hov : global.col, smoothstep(rad, 0.0, d));
           }
         }
       }
@@ -176,7 +182,7 @@ void main()
           d = dot(dist,dist);
           float rad = params.sel == i ? 0.03 : 0.02;
           if(d < rad*rad)
-            rgba = mix(rgba, vec4(0,1,1,1), smoothstep(rad, 0.0, d));
+            rgba = mix(rgba, params.sel == i ? global.hov : global.col, smoothstep(rad, 0.0, d));
         }
       }
       if(params.mode == 1) // luminance

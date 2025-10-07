@@ -1095,6 +1095,14 @@ darkroom_enter()
 
   dt_graph_init(&vkdt.graph_dev, s_queue_compute);
   vkdt.graph_dev.gui_attached = 1;
+  vkdt.graph_dev.gui_colour[0] = vkdt.style.colour[NK_COLOR_DT_ACCENT].r/255.0f;
+  vkdt.graph_dev.gui_colour[1] = vkdt.style.colour[NK_COLOR_DT_ACCENT].g/255.0f;
+  vkdt.graph_dev.gui_colour[2] = vkdt.style.colour[NK_COLOR_DT_ACCENT].b/255.0f;
+  vkdt.graph_dev.gui_colour[3] = vkdt.style.colour[NK_COLOR_DT_ACCENT].a/255.0f;
+  vkdt.graph_dev.gui_colour[4] = vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER].r/255.0f;
+  vkdt.graph_dev.gui_colour[5] = vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER].g/255.0f;
+  vkdt.graph_dev.gui_colour[6] = vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER].b/255.0f;
+  vkdt.graph_dev.gui_colour[7] = vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER].a/255.0f;
   dt_graph_history_init(&vkdt.graph_dev);
 
   if(dt_graph_read_config_ascii(&vkdt.graph_dev, graph_cfg))
