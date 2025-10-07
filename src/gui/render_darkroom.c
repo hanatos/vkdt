@@ -601,6 +601,8 @@ void render_darkroom()
 
     // tabs for module/params controls:
     nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0, 0));
+    const float pad = row_height * 0.2;
+    nk_style_push_vec2(ctx, &ctx->style.button.padding, nk_vec2(pad, pad));
     nk_style_push_float(ctx, &ctx->style.button.rounding, 0);
     nk_layout_row_begin(ctx, NK_STATIC, row_height, 3);
     const char *names[] = {"favourites", "tweak all", "esoteric"};
@@ -620,6 +622,7 @@ void render_darkroom()
       } else current_tab = nk_button_label(ctx, names[i]) ? i: current_tab;
     }
     nk_style_pop_float(ctx);
+    nk_style_pop_vec2(ctx);
     nk_style_pop_vec2(ctx);
     nk_layout_row_dynamic(ctx, 2, 1);
     nk_rule_horizontal(ctx, vkdt.style.colour[NK_COLOR_BUTTON_ACTIVE], nk_true);
