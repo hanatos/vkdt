@@ -18,6 +18,7 @@ void main()
   hal /= 4.0;
   hal *= hal;
   hal *= hal;
+  hal = 30.0*hal / (30.0 + hal);
   vec3 hs = params.halation_strength.rgb;
   vec3 raw = pow(vec3(10.0), log_raw);
   const float one_log10 = 0.43429448190325176;
