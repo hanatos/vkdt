@@ -69,6 +69,11 @@ float noise(in vec2 p)
   return va + u.x*(vb-va) + u.y*(vc-va) + u.x*u.y*(va-vb-vc+vd);   // value
 }
 
+float noisef(in vec2 p)
+{
+  return noise(p) + .77*noise(0.61*p);
+}
+
 // separate density into three layers of grains (coarse, mid, fine) that sum up
 // to the max density. lower density values are taken mostly by coarse grains.
 // use perlin gradient noise / correlated to simulate the three layers (represents non-uniformity of grain counts/pixel)
@@ -99,7 +104,7 @@ vec3 add_grain(ivec2 ipos, vec3 density, float scale)
       int n = int(n_grains_per_pixel*c*scale*scale);
       // float sat = clamp(npl / doff[layer], 0, 1);
       // int r = int(grain_non_uniformity*c*noise(tc)*1*sat);
-      int r = int(grain_non_uniformity*c*noise(tc)*4*max(0,sat-0.0)*max(0,1.0-sat));
+      int r = int(grain_non_uniformity*c*noisef(tc)*4*max(0,sat-0.0)*max(0,1.0-sat));
       // int nr = binom(seed, int(n/sat), sat);
       int nr = max(0, n+r);
       float p = npl;

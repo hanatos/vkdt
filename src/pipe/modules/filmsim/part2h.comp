@@ -15,10 +15,18 @@ void main()
   // load halation + raw exposed film
   vec3 log_raw = texture(img_in,  (ipos+0.5)/vec2(imageSize(img_out))).rgb;
   vec3 hal = texture(img_hal, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
+  hal = max(vec3(0), hal-vec3(4.0));
   vec3 hs = params.halation_strength.rgb;
   vec3 raw = pow(vec3(10.0), log_raw);
   const float one_log10 = 0.43429448190325176;
-  log_raw = log((raw+hs*hal)/(1.0+hs))*one_log10;
+  // the original python code normalised the raw exposure
+  // like this:
+  //  log_raw = log((raw+hs*hal)/(1.0+hs))*one_log10;
+  // but this pulls down the average and thus changes wb settings
+  // because it meets the film/paper curves in different regions.
+  // we sum it, maybe violating energy conservation but making the
+  // result more predictable:
+  log_raw = log((raw+hs*hal))*one_log10;
   vec3 density_cmy = develop_film(log_raw, params.film, ipos, push.scale);
   if(params.process == 0)
   {
