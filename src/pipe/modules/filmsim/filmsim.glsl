@@ -71,7 +71,7 @@ float noise(in vec2 p)
 
 float noisef(in vec2 p)
 {
-  return noise(p) + .77*noise(0.61*p);
+  return noise(p) + .57*noise(0.61*p);
 }
 
 // separate density into three layers of grains (coarse, mid, fine) that sum up

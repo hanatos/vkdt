@@ -14,6 +14,11 @@ Sebastian Lague](https://www.youtube.com/watch?v=X-iSQQgOd1A)
 
 ![physarum](./physarum.jpg)
 
+it is also possible to connect a `mask` channel for
+interesting effects:
+
+![eye](./eye.jpg)
+
 ## parameters
 
 * `back` the parameter space point index for the background
