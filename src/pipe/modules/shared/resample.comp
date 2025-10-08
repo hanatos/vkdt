@@ -30,6 +30,12 @@ main()
   uint idx = gl_GlobalInvocationID.z;
   if(any(greaterThanEqual(opos, imageSize(img_out[idx])))) return;
 
+  // use straight filter kernel, no reconstruction:
+  // vec4 res = sample_soft(img_in[idx], (opos+0.5)/vec2(imageSize(img_out[idx])));
+  vec4 res = sample_catmull_rom(img_in[idx], (opos+0.5)/vec2(imageSize(img_out[idx])));
+  imageStore(img_out[idx], opos, res);
+  return;
+
   // the scale factor from input to output image, if it's not 2:
   vec2 scale = vec2(imageSize(img_out[idx])) / vec2(textureSize(img_in[idx], 0));
 // #define align
@@ -43,7 +49,6 @@ main()
   const vec2 ff = vec2(0.0);
 #endif
 
-  // TODO: factor out in shared.glsl and use from align too?
   // fit and evaluate a quadric to the 3x3 environment:
   // we have a surrounding set of points
   // find sub-pixel minimum by fitting a presumably positive semi definite

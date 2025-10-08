@@ -163,7 +163,7 @@ create_nodes(
     float blur = par*MAX(owd, oht);
     const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_part1, 1, 0, 0, blur) : id_part1;
     CONN(dt_node_connect_named(graph, id_blur,  "output", id_part2, "hal"));
-    CONN(dt_node_connect_named(graph, id_part0, "exp",    id_part2, "exp"));
+    CONN(dt_node_connect_named(graph, id_part1, "output", id_part2, "exp"));
     dt_connector_copy(graph, module, 2, id_part2, 2);
     dt_connector_copy(graph, module, 3, id_part2, 3);
   }
