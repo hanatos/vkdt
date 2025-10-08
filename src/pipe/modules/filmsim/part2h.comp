@@ -15,7 +15,9 @@ void main()
   // load halation + raw exposed film
   vec3 log_raw = texture(img_in,  (ipos+0.5)/vec2(imageSize(img_out))).rgb;
   vec3 hal = texture(img_hal, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
-  hal = max(vec3(0), hal-vec3(4.0));
+  hal /= 4.0;
+  hal *= hal;
+  hal *= hal;
   vec3 hs = params.halation_strength.rgb;
   vec3 raw = pow(vec3(10.0), log_raw);
   const float one_log10 = 0.43429448190325176;
