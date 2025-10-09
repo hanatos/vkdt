@@ -1,0 +1,16 @@
+set(NAME i-raw)
+set(MOD i-raw)
+set(SRC_DIR ../../../../src)
+set(MOD_DIR ${SRC_DIR}/pipe/modules/${MOD})
+set(ASS_DIR ../../assets)
+include_directories(${SRC_DIR})
+include_directories(${MOD_DIR})
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVKDT_DSO_BUILD -D__USE_BSD=1")
+add_library(i-raw SHARED ${MOD_DIR}/main.c)
+target_link_libraries(i-raw android)
+add_library(rawloader STATIC IMPORTED)
+# for whatever reason the cwd is fucked up later so we expand it during parse time:
+file(REAL_PATH ${MOD_DIR} MOD_ABS BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+set_target_properties(rawloader PROPERTIES IMPORTED_LOCATION ${MOD_ABS}/rawloader-c/target/aarch64-linux-android/release/librawloader.a)
+target_link_libraries(i-raw rawloader)
