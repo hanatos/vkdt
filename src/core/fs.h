@@ -25,6 +25,23 @@
 #endif
 #include <errno.h>
 
+static inline int
+fs_copy_file(
+    const char *dst,
+    FILE *fsrc)  // copy from file descriptor, enables zlib/apk stuff
+{
+  FILE *fdst = fopen(dst, "wb");
+  if(!fdst) return 1;
+  if(!fsrc) return 2;
+  char buf[BUFSIZ];
+  size_t n;
+  while((n = fread(buf, sizeof(char), sizeof(buf), fsrc)) > 0)
+    if(fwrite(buf, sizeof(char), n, fdst) != n)
+    { fclose(fdst); fclose(fsrc); return 3; }
+  fclose(fdst);
+  return 0;
+}
+
 static inline int // returns zero on success
 fs_copy(
     const char *dst,
@@ -120,9 +137,10 @@ fs_dirname(char *str)
 static inline char* // returns pointer to empty string (end of str) if str ends in '/'
 fs_basename(char *str)
 { // don't use basename(3) because there are at least two versions of it which sometimes modify str
+  if(!str) return 0;
   char *c = str; // return str if it contains no '/'
   for(int i=0;str[i]!=0;i++) if(str[i] == '/' || str[i] == '\\') c = str+i;
-  return c+1;
+  return c == str ? str : c+1;
 }
 
 static inline void // ${HOME}/Pictures
@@ -144,14 +162,16 @@ fs_cachedir(
   char  *cachedir,
   size_t maxlen)
 {
-#ifndef _WIN64
-  // TODO: getenv(XDG_CACHE_HOME)
-  const char *home = getenv("HOME");
-  snprintf(cachedir, maxlen, "%s/.cache/vkdt", home);
-#else
+#if defined(__ANDROID__)
+  cachedir[0] = 0; // can't access dt_pipe.app->activity-> here
+#elif defined(_WIN64)
   char home[MAX_PATH];
   SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
   snprintf(cachedir, maxlen, "%s/vkdt/cache", home);
+#else
+  // TODO: getenv(XDG_CACHE_HOME)
+  const char *home = getenv("HOME");
+  snprintf(cachedir, maxlen, "%s/.cache/vkdt", home);
 #endif
 }
 
@@ -160,12 +180,14 @@ fs_homedir(
     char  *homedir, // output will be copied here
     size_t maxlen)  // allocation size
 {
-#ifndef _WIN64
-  snprintf(homedir, maxlen, "%s/.config/vkdt", getenv("HOME"));
-#else
+#if defined(__ANDROID__)
+  homedir[0] = 0;
+#elif defined(_WIN64)
   char home[MAX_PATH];
   SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
   snprintf(homedir, maxlen, "%s/vkdt/config", home);
+#else
+  snprintf(homedir, maxlen, "%s/.config/vkdt", getenv("HOME"));
 #endif
 }
 
@@ -175,7 +197,10 @@ fs_basedir(
     size_t maxlen)  // allocation size
 {
   basedir[0] = 0;
-#ifdef __linux__
+#if defined(__ANDROID__)
+  // have to use android_fopen etc instead, i.e. go through the asset manager thing.
+  snprintf(basedir, maxlen, "%s", "nosuch");
+#elif defined(__linux__)
   // stupid allocation dance because passing basedir directly
   // may or may not require PATH_MAX bytes instead of maxlen
   char *bd = realpath("/proc/self/exe", 0);
