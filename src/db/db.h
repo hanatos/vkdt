@@ -69,7 +69,6 @@ dt_db_filter_t;
 typedef struct dt_db_t
 {
   char dirname[1018];           // full path of currently opened directory
-  char basedir[1024];           // db base dir, where are tags etc
 
   // list of images in database
   dt_image_t *image;

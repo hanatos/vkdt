@@ -4,6 +4,7 @@
 #include "core/fs.h"
 #include "core/sort.h"
 #include "pipe/graph-defaults.h"
+#include "pipe/res.h"
 #include "stringpool.h"
 #include "exif.h"
 
@@ -25,8 +26,7 @@ dt_db_init(dt_db_t *db)
   memset(db, 0, sizeof(*db));
   db->current_imgid = -1u;
   db->current_colid = -1u;
-  fs_homedir(db->basedir, sizeof(db->basedir));
-  fs_mkdir_p(db->basedir, 0755);
+  fs_mkdir_p(dt_pipe.homedir, 0755);
   // probably read preferences here from config file instead:
   db->collection_sort = s_prop_filename;
   threads_mutex_init(&db->image_mutex, 0);
@@ -606,10 +606,10 @@ int dt_db_add_to_collection(const dt_db_t *db, const uint32_t imgid, const char 
 
   uint64_t hash = hash64(filename);
   char dirname[1040];
-  snprintf(dirname, sizeof(dirname), "%s/tags/%s", db->basedir, cname);
+  snprintf(dirname, sizeof(dirname), "%s/tags/%s", dt_pipe.homedir, cname);
   fs_mkdir_p(dirname, 0755); // ignore error, might exist already (which is fine)
   char linkname[1040];
-  snprintf(linkname, sizeof(linkname), "%s/tags/%s/%"PRIx64".cfg", db->basedir, cname, hash);
+  snprintf(linkname, sizeof(linkname), "%s/tags/%s/%"PRIx64".cfg", dt_pipe.homedir, cname, hash);
   int err = fs_symlink(filename, linkname);
   if(err) return 1;
   return 0;
@@ -670,8 +670,16 @@ void dt_db_reset_to_defaults(
     fullfn[len-7] = 0;
   dt_token_t input_module = dt_graph_default_input_module(fullfn);
   char defcfg[PATH_MAX+30];
-  snprintf(defcfg, sizeof(defcfg), "%s/default-darkroom.%" PRItkn, dt_pipe.basedir, dt_token_str(input_module));
-  fs_copy(fn, defcfg);
+  snprintf(defcfg, sizeof(defcfg), "default-darkroom.%" PRItkn, dt_token_str(input_module));
+
+  FILE *defcfgf = dt_graph_open_resource(0, 0, defcfg, "rb");
+  if(!defcfgf)
+  {
+    dt_log(s_log_db|s_log_err, "could not copy default cfg for %"PRItkn, dt_token_str(input_module));
+    return;
+  }
+  fs_copy_file(fn, defcfgf);
+  fclose(defcfgf);
   FILE *f = fopen(fn, "ab");
   if(f)
   {
