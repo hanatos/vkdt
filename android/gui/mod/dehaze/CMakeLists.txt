@@ -1,0 +1,11 @@
+set(NAME dehaze)
+set(MOD dehaze)
+set(SRC_DIR ../../../../src)
+set(MOD_DIR ${SRC_DIR}/pipe/modules/${MOD})
+set(ASS_DIR ../../assets)
+include_directories(${SRC_DIR})
+include_directories(${MOD_DIR})
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVKDT_DSO_BUILD -D__USE_BSD=1")
+add_library(dehaze SHARED ${MOD_DIR}/main.c)
+target_link_libraries(dehaze android)

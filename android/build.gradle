@@ -1,0 +1,48 @@
+/**
+ * Copyright (C) 2016-2023 by Sascha Willems - www.saschawillems.de
+ *
+ * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+ */
+
+/** Top-level build file where you can add configuration options common to all sub-projects/modules */
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.7.0'
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    // This code is where all the magic happens and fixes the error.
+    subprojects {
+        afterEvaluate { project ->
+            if (project.hasProperty('android')) {
+                project.android {
+                    if (namespace == null) {
+                        namespace "org.dreggn.vkdt"
+                    }
+                }
+            }
+        }
+    }
+}
+
+ext {
+    abiFilters = "arm64-v8a"
+    minSdkVersion = 31
+    targetSdkVersion = 35
+    compileSdkVersion = 31
+    ndkVersion = "28.2.13676358"
+    modulePath = '../src/pipe/modules'
+    assetPath = '../bin/data'
+}
