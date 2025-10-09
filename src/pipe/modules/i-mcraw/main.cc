@@ -2,7 +2,7 @@ extern "C" {
 #include "modules/api.h"
 #include "connector.h"
 #include "core/core.h"
-#include "core/log.h"
+// #include "core/log.h"
 #include "../i-raw/mat3.h"
 #include "pipe/dng_opcode.h"
 }
@@ -438,7 +438,8 @@ int read_source(
     dat->dec->getEncoded(frame_list[frame], 0, 0, 0, 0, (uint8_t*)mapped, out_data_max_len);
   }
   end = dt_time();
-  dt_log(s_log_perf, "[i-mcraw] load %s %" PRItkn " in %3.2fms", dat->filename, dt_token_str(p->node->kernel), 1000.0*(end-beg));
+  // dt_log(s_log_perf, "[i-mcraw] load %s %" PRItkn " in %3.2fms", dat->filename, dt_token_str(p->node->kernel), 1000.0*(end-beg));
+  fprintf(stderr, "[i-mcraw] load %s %" PRItkn " in %3.2fms", dat->filename, dt_token_str(p->node->kernel), 1000.0*(end-beg));
   return 0;
 }
 

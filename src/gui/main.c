@@ -5,7 +5,9 @@
 #include "pipe/modules/api.h"
 #include "db/thumbnails.h"
 #include "core/log.h"
-#include "core/signal.h"
+#ifndef __ANDROID__
+#include "core/sig.h"
+#endif
 #include "core/version.h"
 #include "core/tools.h"
 #include "gui/gui.h"

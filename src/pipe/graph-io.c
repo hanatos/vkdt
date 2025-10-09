@@ -257,7 +257,6 @@ int dt_graph_set_searchpath(
     dt_graph_t *graph,
     const char *filename)
 {
-  snprintf(graph->basedir, sizeof(graph->basedir), "%s", dt_pipe.basedir); // take copy for modules without global access
   char target[PATH_MAX] = {0};
   const char *f = target;
   if(!fs_realpath(filename, target)) f = filename;
@@ -284,18 +283,7 @@ int dt_graph_read_config_ascii(
     dt_graph_t *graph,
     const char *filename)
 {
-  FILE *f = fopen(filename, "rb");
-  if(!f && filename[0] != '/')
-  {
-    char graph_cfg[PATH_MAX+100];
-    snprintf(graph_cfg, sizeof(graph_cfg), "%s/%s", dt_pipe.homedir, filename);
-    f = fopen(graph_cfg, "rb");
-    if(!f)
-    {
-      snprintf(graph_cfg, sizeof(graph_cfg), "%s/%s", dt_pipe.basedir, filename);
-      f = fopen(graph_cfg, "rb");
-    }
-  }
+  FILE *f = dt_graph_open_resource(0, 0, filename, "rb");
   if(!f) return 1;
   dt_graph_set_searchpath(graph, filename);
   // needs to be large enough to hold 10000 vertices of drawn masks:

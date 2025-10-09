@@ -848,7 +848,7 @@ void render_lighttable_right_panel()
     {
       if(nk_button_label(ctx, vkdt.tag[i]))
       { // load tag collection:
-        snprintf(filename, sizeof(filename), "%s/tags/%s", vkdt.db.basedir, vkdt.tag[i]);
+        snprintf(filename, sizeof(filename), "%s/tags/%s", dt_pipe.homedir, vkdt.tag[i]);
         dt_gui_switch_collection(filename);
       }
     }
@@ -950,12 +950,10 @@ void render_lighttable_right_panel()
         if(!f)
         {
           char defcfg[PATH_MAX+30];
-          snprintf(defcfg, sizeof(defcfg), "%s/default-darkroom.%" PRItkn, dt_pipe.homedir, dt_token_str(input_module));
-          if(fs_copy(filename, defcfg))
-          { // no homedir defaults, go global:
-            snprintf(defcfg, sizeof(defcfg), "%s/default-darkroom.%" PRItkn, dt_pipe.basedir, dt_token_str(input_module));
-            fs_copy(filename, defcfg);
-          }
+          snprintf(defcfg, sizeof(defcfg), "default-darkroom.%" PRItkn, dt_token_str(input_module));
+          f = dt_graph_open_resource(0, 0, defcfg, "rb");
+          if(f) fs_copy_file(filename, f);
+          if(f) fclose(f);
           f = fopen(filename, "ab");
         }
         else
@@ -1152,7 +1150,7 @@ void render_lighttable_right_panel()
         if(f)
         {
           len = fread(text, 1, sizeof(text), f);
-          while(!feof(f) && !ferror(f)) fgetc(f); // drain empty
+          while(!feof(f) && !ferror(f) && (fgetc(f) != EOF)); // drain empty
           text_end = text + len;
           text[len] = 0;
           imgid = vkdt.db.current_imgid;
@@ -1208,13 +1206,9 @@ void render_lighttable_right_panel()
     {
       char filename[PATH_MAX];
       snprintf(filename, sizeof(filename), "%s/%s.cfg", vkdt.db.dirname, fname);
-      char newcfg[PATH_MAX];
-      snprintf(newcfg, sizeof(newcfg), "%s/new.cfg", dt_pipe.homedir);
-      if(fs_copy(filename, newcfg))
-      { // no homedir new.cfg, go global:
-        snprintf(newcfg, sizeof(newcfg), "%s/new.cfg", dt_pipe.basedir);
-        fs_copy(filename, newcfg);
-      }
+      FILE *f = dt_graph_open_resource(0, 0, "new.cfg", "rb");
+      fs_copy_file(filename, f);
+      if(f) fclose(f);
       snprintf(filename, sizeof(filename), "%s", vkdt.db.dirname);
       dt_gui_switch_collection(filename); // reload directory
     }
@@ -1416,7 +1410,7 @@ void render_lighttable()
     {
       static char filter[256] = "all time best";
       static char name[PATH_MAX];
-      int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name), s_filteredlist_allow_new | s_filteredlist_return_short);
+      int ok = filteredlist(0, "tags", filter, name, sizeof(name), s_filteredlist_allow_new | s_filteredlist_return_short);
       if(ok) vkdt.wstate.popup = 0; // got some answer
       nk_popup_end(&vkdt.ctx);
       if(ok == 1)
@@ -1446,7 +1440,7 @@ void render_lighttable()
     {
       char filename[1024] = {0};
       static char filter[256];
-      int ok = filteredlist("%s/data/presets", "%s/presets", filter, filename, sizeof(filename), s_filteredlist_default);
+      int ok = filteredlist("presets", "presets", filter, filename, sizeof(filename), s_filteredlist_default);
       if(ok) vkdt.wstate.popup = 0;
       if(ok == 1) dt_gui_lt_append_preset(filename);
     }

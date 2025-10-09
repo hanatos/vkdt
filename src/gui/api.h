@@ -468,12 +468,7 @@ dt_gui_lt_append_preset(const char *preset)
         dt_token_t input_module = dt_graph_default_input_module(filename);
         char graph_cfg[PATH_MAX+100];
         snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.homedir, dt_token_str(input_module));
-        FILE *f = fopen(graph_cfg, "rb");
-        if(!f)
-        {
-          snprintf(graph_cfg, sizeof(graph_cfg), "%s/default-darkroom.%"PRItkn, dt_pipe.basedir, dt_token_str(input_module));
-          f = fopen(graph_cfg, "rb");
-        }
+        FILE *f = dt_graph_open_resource(0, 0, graph_cfg, "rb");
         if(!f)
         {
           dt_gui_notification("could not open default graph %s!", graph_cfg);

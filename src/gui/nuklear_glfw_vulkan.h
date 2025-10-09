@@ -19,6 +19,7 @@
 #include "gui/gui.h"
 #include "core/lut.h"
 #include "gui/font_metrics.h"
+#include "pipe/res.h"
 #endif
 
 #include <assert.h>
@@ -971,13 +972,8 @@ NK_API int nk_glfw3_font_load(
   uint64_t texid = 0;
   dt_lut_header_t header;
   char tmp[PATH_MAX] = {0};
-  snprintf(tmp, sizeof(tmp), "%s/data/%s_msdf.lut", dt_pipe.homedir, fontfile);
-  FILE *f = fopen(tmp, "rb");
-  if(!f)
-  {
-    snprintf(tmp, sizeof(tmp), "%s/data/%s_msdf.lut", dt_pipe.basedir, fontfile);
-    f = fopen(tmp, "rb");
-  }
+  snprintf(tmp, sizeof(tmp), "data/%s_msdf.lut", fontfile);
+  FILE *f = dt_graph_open_resource(0, 0, tmp, "rb");
   if(!f)
   {
     fprintf(stderr, "[nk] could not find msdf font lut `%s'!\n", fontfile);
@@ -1017,13 +1013,8 @@ NK_API int nk_glfw3_font_load(
   glfw.font[1].height = floorf(1.5*fontsize);
   glfw.font[2].height = 2*fontsize;
 
-  snprintf(tmp, sizeof(tmp), "%s/data/%s_metrics.lut", dt_pipe.homedir, fontfile);
-  f = fopen(tmp, "rb");
-  if(!f)
-  {
-    snprintf(tmp, sizeof(tmp), "%s/data/%s_metrics.lut", dt_pipe.basedir, fontfile);
-    f = fopen(tmp, "rb");
-  }
+  snprintf(tmp, sizeof(tmp), "data/%s_metrics.lut", fontfile);
+  f = dt_graph_open_resource(0, 0, tmp, "rb");
   if(!f)
   {
     fprintf(stderr, "[nk] could not find font metrics lut `%s'!\n", tmp);

@@ -245,7 +245,7 @@ dt_graph_cleanup(dt_graph_t *g)
 static inline void *
 read_file(const char *filename, size_t *len)
 {
-  FILE *f = fopen(filename, "rb");
+  FILE *f = dt_graph_open_resource(0, 0, filename, "rb");
   if(!f)
   {
     dt_log(s_log_qvk|s_log_err, "failed to read shader '%s': %s!",
@@ -281,8 +281,8 @@ dt_graph_create_shader_module(
 {
   // create the compute shader stage
   char filename[PATH_MAX+100] = {0};
-  snprintf(filename, sizeof(filename), "%s/modules/%"PRItkn"/%"PRItkn".%s.spv",
-      dt_pipe.basedir, dt_token_str(node), dt_token_str(kernel), type);
+  snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".%s.spv",
+      dt_token_str(node), dt_token_str(kernel), type);
 
   size_t len;
   void *data = read_file(filename, &len);

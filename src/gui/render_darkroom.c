@@ -284,16 +284,9 @@ void render_darkroom_favourite()
       dt_tooltip("apply preset %s", vkdt.fav_preset_name[pst]);
       if(nk_button_label(&vkdt.ctx, vkdt.fav_preset_desc[pst]))
       {
-        char filename[512];
-        snprintf(filename, sizeof(filename), "%s/presets/%s.pst", dt_pipe.homedir, preset);
-        uint32_t err_lno = render_darkroom_apply_preset(filename);
-        if(err_lno == -1u)
-        {
-          snprintf(filename, sizeof(filename), "%s/data/presets/%s.pst", dt_pipe.basedir, preset);
-          err_lno = render_darkroom_apply_preset(filename);
-        }
+        uint32_t err_lno = render_darkroom_apply_preset(preset);
         if(err_lno)
-          dt_gui_notification("failed to read preset %s line %u", filename, err_lno);
+          dt_gui_notification("failed to read preset %s line %u", preset, err_lno);
       }
     }
     else for(int32_t m=0;m<cnt;m++)

@@ -4,6 +4,7 @@
 #include "pipe/graph.h"
 #include "pipe/module.h"
 #include "pipe/modules/localsize.h"
+#include "pipe/res.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -967,82 +968,6 @@ dt_module_get_input_img_param(
       if(mid < 0) return 0;
       return &graph->module[mid].img_param;
     }
-  }
-  return 0;
-}
-
-// open a file pointer, consider search paths specific to this graph
-static inline FILE*
-dt_graph_open_resource(
-    const dt_graph_t *graph,   // graph associated with the module
-    uint32_t          frame,   // optional frame for timelapses, if fname contains "%04d"
-    const char       *fname,   // file name template (basename contains exactly "%04d")
-    const char       *mode)    // open mode "r" or "w" etc will be passed to fopen
-{
-  char fstr[5] = {0}, *c = 0;
-  snprintf(fstr, sizeof(fstr), "%04d", frame); // for security reasons don't use user-supplied fname as format string
-  char filename[2*PATH_MAX+10];
-#ifdef _WIN64
-  if(fname[0] == '/' || fname[1] == ':')
-#else
-  if(fname[0] == '/')
-#endif
-  {
-    strncpy(filename, fname, sizeof(filename)-1);
-    if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
-    return fopen(filename, mode);  // absolute path
-  }
-  if(graph)
-  { // for relative paths, add search path
-    snprintf(filename, sizeof(filename), "%s/%s", graph->searchpath, fname);
-    if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
-    FILE *f = fopen(filename, mode);
-    if(f) return f;
-    // if we can't open it in the graph specific search path, try the home directory:
-    snprintf(filename, sizeof(filename), "%s/%s", dt_pipe.homedir, fname);
-    if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
-    f = fopen(filename, mode);
-    if(f) return f;
-    // global basedir
-    snprintf(filename, sizeof(filename), "%s/%s", dt_pipe.basedir, fname);
-    if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
-    return fopen(filename, mode);
-  }
-  return 0;
-}
-
-// take file name param and start frame param and return located raw file name.
-// returns non-zero on failure.
-static inline int
-dt_graph_get_resource_filename(
-    const dt_module_t *mod,
-    const char        *fname,
-    int                frame,
-    char              *ret,
-    size_t             ret_size)
-{
-  char tmp[2*PATH_MAX+10];
-  
-  if(fname[0] != '/' && fname[1] != ':') // relative paths
-  {
-    snprintf(tmp, sizeof(tmp), "%s/%s", mod->graph->searchpath, fname);
-    snprintf(ret, ret_size, tmp, frame);
-    FILE *f = fopen(ret, "rb");
-    if(!f)
-    {
-      snprintf(tmp, sizeof(tmp), "%s/%s", mod->graph->basedir, fname);
-      snprintf(ret, ret_size, tmp, frame);
-      f = fopen(tmp, "rb");
-      if(!f) return 1; // damn that.
-    }
-    fclose(f);
-  }
-  else
-  { // absolute path:
-    snprintf(ret, ret_size, fname, frame);
-    FILE *f = fopen(ret, "rb");
-    if(!f) return 1;
-    fclose(f);
   }
   return 0;
 }

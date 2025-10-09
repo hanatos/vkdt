@@ -839,20 +839,7 @@ dt_gui_read_favs(
     const char *filename)
 {
   vkdt.fav_file_cnt = 0;
-  FILE *f = 0;
-  char tmp[PATH_MAX+100] = {0};
-  if(filename[0] == '/')
-    f = fopen(filename, "rb");
-  else
-  {
-    snprintf(tmp, sizeof(tmp), "%s/%s", vkdt.db.basedir, filename); // try ~/.config/vkdt/ first
-    f = fopen(tmp, "rb");
-    if(!f)
-    {
-      snprintf(tmp, sizeof(tmp), "%s/%s", dt_pipe.basedir, filename);
-      f = fopen(tmp, "rb");
-    }
-  }
+  FILE *f = dt_graph_open_resource(0, 0, filename, "rb");
   if(!f) return 1;
   char buf[2048];
   int pst = 0;
@@ -898,7 +885,7 @@ dt_gui_write_favs(
 {
   FILE *f = 0;
   char tmp[PATH_MAX+100] = {0};
-  snprintf(tmp, sizeof(tmp), "%s/%s", vkdt.db.basedir, filename); // always write to home dir
+  snprintf(tmp, sizeof(tmp), "%s/%s", dt_pipe.homedir, filename); // always write to home dir
   f = fopen(tmp, "wb");
   if(!f) return 1;
   for(int k=0;k<vkdt.fav_file_cnt;k++)
@@ -920,7 +907,7 @@ dt_gui_read_tags()
   vkdt.tag_cnt = 0;
   uint64_t time[sizeof(vkdt.tag)/sizeof(vkdt.tag[0])];
   char filename[PATH_MAX+10];
-  snprintf(filename, sizeof(filename), "%s/tags", vkdt.db.basedir);
+  snprintf(filename, sizeof(filename), "%s/tags", dt_pipe.homedir);
   DIR *dir = opendir(filename);
   if(!dir) return; // could not open tags directory, possibly we have none.
   struct dirent *ep;
@@ -930,7 +917,7 @@ dt_gui_read_tags()
     {
       if(!strcmp(ep->d_name, "." )) continue;
       if(!strcmp(ep->d_name, "..")) continue;
-      snprintf(filename, sizeof(filename), "%s/tags/%s", vkdt.db.basedir, ep->d_name);
+      snprintf(filename, sizeof(filename), "%s/tags/%s", dt_pipe.homedir, ep->d_name);
       uint64_t t = fs_createtime(filename);
       if(vkdt.tag_cnt < sizeof(vkdt.tag)/sizeof(vkdt.tag[0]))
       { // add

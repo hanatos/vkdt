@@ -1,7 +1,7 @@
 #include "modules/api.h"
 #include "mat3.h"
 #include "rawloader-c/rawloader.h"
-#include "core/log.h"
+// #include "core/log.h"
 #include "dng_opcode.h"
 
 #include <stdio.h>
@@ -42,7 +42,7 @@ load_raw(
     int         frame,
     const char *filename)
 {
-  clock_t end, beg = clock();
+  // clock_t end, beg = clock();
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   assert(mod_data);
   if(!strcmp(mod_data->filename, filename) && mod_data->frame == frame)
@@ -52,8 +52,9 @@ load_raw(
   if(dt_graph_get_resource_filename(mod, filename, frame, fname, sizeof(fname)))
     goto error;
   mod_data->len = rl_decode_file(fname, &mod_data->img);
-  end = clock();
-  dt_log(s_log_perf, "[rawloader] load %s in %3.0fms", filename, 1000.0*(end-beg)/CLOCKS_PER_SEC);
+  // end = clock();
+  // dt_log(s_log_perf, "[rawloader] load %s in %3.0fms", filename, 1000.0*(end-beg)/CLOCKS_PER_SEC);
+  // fprintf(stderr, "[rawloader] load %s in %3.0fms", filename, 1000.0*(end-beg)/CLOCKS_PER_SEC);
   snprintf(mod_data->filename, sizeof(mod_data->filename), "%s", filename);
   mod_data->frame = frame;
 
@@ -89,7 +90,8 @@ load_raw(
   else mod->img_param.meta = 0;
   return 0;
 error:
-  dt_log(s_log_err, "[i-raw] failed to load raw file %s!\n", fname);
+  // dt_log(s_log_err, "[i-raw] failed to load raw file %s!\n", fname);
+  // fprintf(stderr, "[i-raw] failed to load raw file %s!\n", fname);
   mod_data->filename[0] = 0;
   mod_data->frame = -1;
   return 1;

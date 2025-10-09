@@ -84,10 +84,12 @@ create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
 
     // compute shader or graphics pipeline?
     char filename[PATH_MAX+100] = {0};
-    snprintf(filename, sizeof(filename), "%s/modules/%"PRItkn"/main.vert.spv",
-        dt_pipe.basedir, dt_token_str(module->name));
-    if(!fs_isreg_file(filename)) node->type = s_node_compute;
+    snprintf(filename, sizeof(filename), "modules/%"PRItkn"/main.vert.spv",
+        dt_token_str(module->name));
+    FILE *test = dt_graph_open_resource(0, 0, filename, "rb");
+    if(!test) node->type = s_node_compute;
     else node->type = s_node_graphics;
+    if(test) fclose(test);
 
     // determine kernel dimensions:
     int output = dt_module_get_connector(module, dt_token("output"));
@@ -478,7 +480,6 @@ dt_graph_run_modules(
       if(graph->module[modid[i]].connector[0].roi.full_wd == 0)
         modify_roi_out(graph, graph->module + modid[i]);
   }
-
 
   // we want to make sure the last output/display is initialised.
   // if the roi out is 0, probably reading some sources went wrong and we need

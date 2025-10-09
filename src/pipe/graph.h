@@ -129,7 +129,6 @@ typedef struct dt_graph_t
   char                  gui_msg_buf[100];
   float                 gui_colour[8]; // rgba of accent and accent hover colours, for some dspy modules
   char                  searchpath[PATH_MAX];
-  char                  basedir[PATH_MAX];// copy of the global search directory such that modules can access it
 
   uint32_t              main_img_hash;
   dt_image_params_t     main_img_param;// will be copied over from the i-*:main module after modify_roi_out

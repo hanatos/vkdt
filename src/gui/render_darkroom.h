@@ -1358,9 +1358,11 @@ static inline void render_darkroom_widgets(
 
 static inline uint32_t
 render_darkroom_apply_preset(
-    const char *filename) // full path to .pst file
+    const char *presetname) // name of the preset, filename to be reconstructed
 {
-  FILE *f = fopen(filename, "rb");
+  char filename[PATH_MAX];
+  snprintf(filename, sizeof(filename), "presets/%s.pst", presetname);
+  FILE *f = dt_graph_open_resource(0, 0, filename, "rb");
   uint32_t lno = -1u;
   if(f)
   {
@@ -1399,7 +1401,7 @@ render_darkroom_modals()
     {
       static char filter[256] = "all time best";
       static char name[PATH_MAX];
-      int ok = filteredlist(0, "%s/tags", filter, name, sizeof(name), s_filteredlist_allow_new | s_filteredlist_return_short);
+      int ok = filteredlist(0, "tags", filter, name, sizeof(name), s_filteredlist_allow_new | s_filteredlist_return_short);
       if(ok) vkdt.wstate.popup = 0;
       if(ok == 1)
       {
@@ -1422,7 +1424,7 @@ render_darkroom_modals()
       char filename[1024] = {0};
       static char filter[256];
       if(ret & NK_EDIT_COMMITED) vkdt.wstate.popup_appearing = 1; // re-focus, will trigger enter => accept
-      int ok = filteredlist("%s/modules", 0, filter, filename, sizeof(filename), s_filteredlist_descr_req | s_filteredlist_return_short);
+      int ok = filteredlist("modules", 0, filter, filename, sizeof(filename), s_filteredlist_descr_req | s_filteredlist_return_short);
       if(ok) vkdt.wstate.popup = 0;
       if(ok == 1)
       {
@@ -1547,9 +1549,9 @@ render_darkroom_modals()
       if(ok == 2)
       {
         char filename[PATH_MAX+100];
-        snprintf(filename, sizeof(filename), "%s/presets", vkdt.db.basedir);
+        snprintf(filename, sizeof(filename), "%s/presets", dt_pipe.homedir);
         fs_mkdir_p(filename, 0755);
-        snprintf(filename, sizeof(filename), "%s/presets/%s.pst", vkdt.db.basedir, preset);
+        snprintf(filename, sizeof(filename), "%s/presets/%s.pst", dt_pipe.homedir, preset);
         FILE *f = fopen(filename, "wb");
         if(f)
         {
@@ -1582,7 +1584,7 @@ render_darkroom_modals()
       if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
         dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
       static char filter[256];
-      int ok = filteredlist("%s/data/presets", "%s/presets", filter, filename, sizeof(filename), s_filteredlist_default);
+      int ok = filteredlist("presets", "presets", filter, filename, sizeof(filename), s_filteredlist_default);
       if(ok) vkdt.wstate.popup = 0;
       if(ok == 1)
       {

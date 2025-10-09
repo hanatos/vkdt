@@ -69,7 +69,7 @@ read_obj(
             int tid = atoi(colon+1);
             dt_stringpool_get(&sp, line, strlen(line), tid, 0);
           }
-          fgetc(tf); // eat newline
+          if(fgetc(tf) == EOF) break; // eat newline
         }
         fclose(tf);
       }

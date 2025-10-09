@@ -72,7 +72,8 @@ rawspeed_load_meta(const dt_module_t *mod)
     {
       omp_set_max_active_levels(5);
       char camfile[PATH_MAX+100];
-      snprintf(camfile, sizeof(camfile), "%s/data/cameras.xml", mod->graph->basedir);
+      // FIXME: does not work on android
+      snprintf(camfile, sizeof(camfile), "%s/data/cameras.xml", dt_pipe.basedir);
       try
       { // never cleaned up (only when dt closes)
         meta = new rawspeed::CameraMetaData(camfile);

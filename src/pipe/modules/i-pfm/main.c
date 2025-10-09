@@ -60,7 +60,7 @@ read_header(
     }
     pfm->channels = 1;
   }
-  fgetc(pfm->f);
+  if(fgetc(pfm->f) == EOF) { fclose(pfm->f); goto error; }
 
   pfm->width  = wd;
   pfm->height = ht;

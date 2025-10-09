@@ -2,6 +2,7 @@
 #include "asciiio.h"
 #include "module.h"
 #include "graph.h"
+#include "res.h"
 #include "core/log.h"
 #include "core/fs.h"
 #include "modules/api.h"
@@ -124,8 +125,9 @@ dt_module_so_load(
   // read default params:
   // read param name, type, cnt, default value + bounds
   // allocate dynamically, this step here is not immediately perf critical
-  snprintf(filename, sizeof(filename), "%s/modules/%s/params", dt_pipe.basedir, dirname);
-  FILE *f = fopen(filename, "rb");
+
+  snprintf(filename, sizeof(filename), "modules/%s/params", dirname);
+  FILE *f = dt_graph_open_resource(0, 0, filename, "rb");
   int i = 0;
   if(!f)
   {
@@ -149,8 +151,8 @@ dt_module_so_load(
   }
 
   // read ui widget connection:
-  snprintf(filename, sizeof(filename), "%s/modules/%s/params.ui", dt_pipe.basedir, dirname);
-  f = fopen(filename, "rb");
+  snprintf(filename, sizeof(filename), "modules/%s/params.ui", dirname);
+  f = dt_graph_open_resource(0, 0, filename, "rb");
   // init as [0,1] sliders as fallback
   for(int i=0;i<mod->num_params;i++)
     mod->param[i]->widget = (dt_widget_descriptor_t) {
@@ -268,8 +270,8 @@ dt_module_so_load(
   }
 
   // read extracted parameter tooltips
-  snprintf(filename, sizeof(filename), "%s/modules/%s/ptooltips", dt_pipe.basedir, dirname);
-  f = fopen(filename, "rb");
+  snprintf(filename, sizeof(filename), "modules/%s/ptooltips", dirname);
+  f = dt_graph_open_resource(0, 0, filename, "rb");
   for(int i=0;i<mod->num_params;i++) mod->param[i]->tooltip = 0; // de-init
   if(f)
   {
@@ -294,10 +296,9 @@ dt_module_so_load(
     }
     fclose(f);
   }
-
   // read connector info
-  snprintf(filename, sizeof(filename), "%s/modules/%s/connectors", dt_pipe.basedir, dirname);
-  f = fopen(filename, "rb");
+  snprintf(filename, sizeof(filename), "modules/%s/connectors", dirname);
+  f = dt_graph_open_resource(0, 0, filename, "rb");
   if(!f)
   {
     dt_log(s_log_pipe, "module %s has no connectors!", dirname);
@@ -323,8 +324,8 @@ dt_module_so_load(
   }
 
   // read extracted connector tooltips
-  snprintf(filename, sizeof(filename), "%s/modules/%s/ctooltips", dt_pipe.basedir, dirname);
-  f = fopen(filename, "rb");
+  snprintf(filename, sizeof(filename), "modules/%s/ctooltips", dirname);
+  f = dt_graph_open_resource(0, 0, filename, "rb");
   for(int i=0;i<mod->num_connectors;i++) mod->connector[i].tooltip = 0; // de-init
   if(f)
   {
@@ -406,42 +407,43 @@ compare_module_name(const void *a, const void *b)
   return strncmp(dt_token_str(ma->name), dt_token_str(mb->name), 8);
 }
 
-int dt_pipe_global_init()
+int dt_pipe_global_init(void *appv)
 {
   memset(&dt_pipe, 0, sizeof(dt_pipe));
+#ifdef __ANDROID__
+  dt_pipe.app = appv;
+#endif
   (void)setlocale(LC_ALL, "C"); // make sure we write and parse floats correctly
   // setup search directory
   fs_basedir(dt_pipe.basedir, sizeof(dt_pipe.basedir));
+#ifndef __ANDROID__
   fs_homedir(dt_pipe.homedir, sizeof(dt_pipe.homedir));
+#else
+  snprintf(dt_pipe.homedir, sizeof(dt_pipe.homedir), "%s", dt_pipe.app->activity->internalDataPath);
+#endif
   dt_log(s_log_pipe, "base directory %s", dt_pipe.basedir);
   dt_log(s_log_pipe, "home directory %s", dt_pipe.homedir);
-  char mod[PATH_MAX+20];
-  snprintf(mod, sizeof(mod), "%s/modules", dt_pipe.basedir);
-  struct dirent *dp;
-  DIR *fd = opendir(mod);
+  void *fd = dt_res_opendir("modules", 1);
   if (!fd)
   {
     dt_log(s_log_pipe, "[global init] cannot open modules directory!");
     return 1;
   }
   int i = 0;
-  while((dp = readdir(fd)))
-    if(fs_isdir(mod, dp)) i++;
+  const char *basename = 0;
+  while((basename = dt_res_next_basename(fd, 1))) i++;
   dt_pipe.num_modules = i;
   dt_pipe.module = malloc(sizeof(dt_module_so_t)*dt_pipe.num_modules);
   i = 0;
-  rewinddir(fd);
-  while((dp = readdir(fd)))
+  dt_res_rewinddir(fd, 1);
+  while((basename = dt_res_next_basename(fd, 1)))
   {
-    if(fs_isdir(mod, dp))
-    {
-      int err = dt_module_so_load(dt_pipe.module + i, dp->d_name);
-      if(!err) i++;
-    }
+    int err = dt_module_so_load(dt_pipe.module + i, basename);
+    if(!err) i++;
   }
   dt_pipe.num_modules = i;
   dt_log(s_log_pipe, "loaded %d modules", dt_pipe.num_modules);
-  closedir(fd);
+  dt_res_closedir(fd, 1);
   // now sort modules alphabetically for convenience in gui later:
   qsort(dt_pipe.module, dt_pipe.num_modules, sizeof(dt_pipe.module[0]), &compare_module_name);
   return 0;

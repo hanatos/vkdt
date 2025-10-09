@@ -1,6 +1,7 @@
 #pragma once
 #include "core/sort.h"
 #include "gui/widget_tooltip.h"
+#include "pipe/res.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -17,7 +18,7 @@ filteredlist_get_heading(
   char fn[256], *res = 0;
   size_t r = snprintf(fn, sizeof(fn), "%s/%s/readme.md", basedir, dirname);
   if(r >= sizeof(fn)) return 0; // truncated
-  FILE *f = fopen(fn, "rb");
+  FILE *f = dt_graph_open_resource(0, 0, fn, "rb");
   if(f)
   {
     res = (char*)calloc(256, 1);
@@ -41,9 +42,9 @@ typedef enum dt_filteredlist_flags_t
 
 static inline int dt_filteredlist_compare(const void *aa, const void *bb, void *buf)
 {
-  const struct dirent *a = (const struct dirent *)aa;
-  const struct dirent *b = (const struct dirent *)bb;
-  return strcmp(a->d_name, b->d_name);
+  const char *a = (const char *)aa;
+  const char *b = (const char *)bb;
+  return strcmp(a, b);
 }
 
 // displays a filtered list of directory entries.
@@ -52,8 +53,8 @@ static inline int dt_filteredlist_compare(const void *aa, const void *bb, void *
 // return values != 0 mean there was an answer and the popup should close
 static inline int            // return 0 - nothing, 1 - ok, 2 - cancel
 filteredlist(
-    const char *dir,         // optional. %s will be replaced as global basedir
-    const char *dir_local,   // optional. if exists will be shown first. %s will be replaced by local basedir
+    const char *dir,         // optional. relative to global basedir/apk
+    const char *dir_local,   // optional. if given will be shown first. relative to home dir.
     char        filter[256], // initial filter string (will be updated)
     char       *retstr,      // selection will be written here
     int         retstr_len,  // buffer size
@@ -70,7 +71,8 @@ filteredlist(
   desc = desc_local = 0; \
   free(ent_local); ent_local = 0; ent_local_cnt = 0;\
   free(ent); ent = 0; ent_cnt = 0; } while(0)
-  static struct dirent *ent = 0, *ent_local = 0;
+  static char fnbuf[100*PATH_MAX];
+  static char **ent = 0, **ent_local = 0;
   static int ent_cnt = 0, ent_local_cnt = 0;
   static char dirname[PATH_MAX];
   static char dirname_local[PATH_MAX];
@@ -102,60 +104,72 @@ filteredlist(
 
   if(!ent_cnt)
   { // open directory
+    ent[0] = fnbuf;
     if(dir)
     {
-      snprintf(dirname, sizeof(dirname), dir, dt_pipe.basedir);
-      DIR* dirp = opendir(dirname);
+      void *dirp = dt_res_opendir(dir, 1);
       ent_cnt = 0;
-      struct dirent *it = 0;
+      const char *basename = 0;
       if(dirp)
       { // first count valid entries
-        while((it = readdir(dirp)))
+        while((basename = dt_res_next_basename(dirp, 1)))
           ent_cnt++;
         if(ent_cnt)
         {
-          rewinddir(dirp); // second pass actually record stuff
-          ent = (struct dirent *)malloc(sizeof(ent[0])*ent_cnt);
+          dt_res_rewinddir(dirp, 1); // second pass actually record stuff
+          ent = malloc(sizeof(ent[0])*(1+ent_cnt));
           ent_cnt = 0;
-          while((it = readdir(dirp)))
-            ent[ent_cnt++] = *it;
+          while((basename = dt_res_next_basename(dirp, 1)))
+          { // need to take a copy because on android basename is volatile
+            int len = strlen(basename);
+            if(ent[ent_cnt]+len > fnbuf + sizeof(fnbuf)) break;
+            strcpy(ent[ent_cnt], basename);
+            ent[ent_cnt+1] = ent[ent_cnt] + len;
+            ent_cnt++;
+          }
         }
         sort(ent, ent_cnt, sizeof(ent[0]), dt_filteredlist_compare, 0);
-        closedir(dirp);
+        dt_res_closedir(dirp, 1);
       }
       if(ent_cnt && (flags & s_filteredlist_descr_any))
       {
         desc = (char**)malloc(sizeof(char*)*ent_cnt);
         for(int i=0;i<ent_cnt;i++)
-          desc[i] = filteredlist_get_heading(dirname, ent[i].d_name);
+          desc[i] = filteredlist_get_heading(dirname, ent[i]);
       }
     }
     if(dir_local)
     {
-      snprintf(dirname_local, sizeof(dirname_local), dir_local, vkdt.db.basedir);
-      DIR* dirp = opendir(dirname_local);
+      void *dirp = dt_res_opendir(dir_local, 0);
       ent_local_cnt = 0;
-      struct dirent *it = 0;
+      const char *basename = 0;
       if(dirp)
       { // first count valid entries
-        while((it = readdir(dirp)))
+        while((basename = dt_res_next_basename(dirp, 0)))
           ent_local_cnt++;
         if(ent_local_cnt)
         {
-          rewinddir(dirp); // second pass actually record stuff
-          ent_local = (struct dirent *)malloc(sizeof(ent_local[0])*ent_local_cnt);
+          dt_res_rewinddir(dirp, 0); // second pass actually record stuff
+          ent_local = malloc(sizeof(ent_local[0])*(ent_local_cnt+1));
           ent_local_cnt = 0;
-          while((it = readdir(dirp)))
-            ent_local[ent_local_cnt++] = *it;
+          ent_local[0] = ent[ent_cnt];
+          while((basename = dt_res_next_basename(dirp, 0)))
+          {
+            int len = strlen(basename);
+            if(ent_local[ent_local_cnt]+len > fnbuf + sizeof(fnbuf)) break;
+            strcpy(ent_local[ent_local_cnt], basename);
+            ent_local[ent_local_cnt+1] = ent_local[ent_local_cnt] + len;
+            ent_local_cnt++;
+          }
         }
-        sort(ent, ent_cnt, sizeof(ent[0]), dt_filteredlist_compare, 0);
-        closedir(dirp);
+        sort(ent_local, ent_local_cnt, sizeof(ent_local[0]), dt_filteredlist_compare, 0);
+        dt_res_closedir(dirp, 0);
       }
       if(ent_local_cnt && (flags & s_filteredlist_descr_any))
       {
         desc_local = (char**)malloc(sizeof(char*)*ent_local_cnt);
         for(int i=0;i<ent_local_cnt;i++)
-          desc_local[i] = filteredlist_get_heading(dirname_local, ent_local[i].d_name);
+          desc_local[i] = filteredlist_get_heading(dirname_local, ent_local[i]);
       }
     }
     else ent_local_cnt = 0;
@@ -168,10 +182,10 @@ filteredlist(
     nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
 #define XLIST(E, D, L) do { \
     for(int i=0;i<E##_cnt;i++)\
-    if((strstr(E[i].d_name, filter) || (D && D[i] && strstr(D[i], filter)))\
-        && E[i].d_name[0] != '.' && (!(flags & s_filteredlist_descr_req) || (D && D[i]))) {\
+    if((strstr(E[i], filter) || (D && D[i] && strstr(D[i], filter)))\
+        && E[i][0] != '.' && (!(flags & s_filteredlist_descr_req) || (D && D[i]))) {\
       if(pick < 0) { local = L; pick = i; } \
-      if(nk_button_label(&vkdt.ctx, (D && D[i]) ? D[i] : E[i].d_name)) {\
+      if(nk_button_label(&vkdt.ctx, (D && D[i]) ? D[i] : E[i])) {\
         ok = 1; pick = i; local = L;\
       } } } while(0)
     XLIST(ent_local, desc_local, 1);
@@ -194,14 +208,14 @@ filteredlist(
     if(flags & s_filteredlist_return_short)
     {
       if(pick < 0)   snprintf(retstr, retstr_len, "%.*s", retstr_len-1, filter);
-      else if(local) snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent_local[pick].d_name);
-      else           snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent[pick].d_name);
+      else if(local) snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent_local[pick]);
+      else           snprintf(retstr, retstr_len, "%.*s", retstr_len-1, ent[pick]);
     }
     else
     {
       if(pick < 0)   snprintf(retstr, retstr_len, "%.*s", retstr_len-1, filter);
-      else if(local) snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname_local, ent_local[pick].d_name);
-      else           snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname, ent[pick].d_name);
+      else if(local) snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname_local, ent_local[pick]);
+      else           snprintf(retstr, retstr_len, "%.*s/%s", retstr_len-257, dirname, ent[pick]);
     }
     FREE_ENT;
   }

@@ -6,7 +6,8 @@ pipe/graph.o\
 pipe/graph-io.o\
 pipe/graph-export.o\
 pipe/module.o\
-pipe/raytrace.o
+pipe/raytrace.o\
+pipe/res.o
 PIPE_H=\
 core/fs.h\
 pipe/alloc.h\
@@ -32,6 +33,7 @@ pipe/module.h\
 pipe/node.h\
 pipe/params.h\
 pipe/pipe.h\
+pipe/res.h\
 pipe/raytrace.h\
 pipe/token.h
 PIPE_CFLAGS=

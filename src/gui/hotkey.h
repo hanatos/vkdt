@@ -289,7 +289,7 @@ hk_deserialise(const char *fn, hk_t *hk, int cnt)
     char name[100] = {0};
     int key[4] = {0};
     fscanf(f, "%99[^\n]", name);
-    fgetc(f);
+    (void)fgetc(f);
     if(strcmp(name, "v2"))
     {
       dt_log(s_log_err, "ignoring old hotkeys for %s, sorry for the inconvenience", fn);
@@ -298,7 +298,7 @@ hk_deserialise(const char *fn, hk_t *hk, int cnt)
     {
       fscanf(f, "%99[^:]:%d %d %d %d%*[^\n]", name, key, key+1, key+2, key+3);
       if(!name[0]) break;
-      fgetc(f);
+      if(fgetc(f) == EOF) break;
       for(int i=0;i<cnt;i++)
         if(!strcmp(hk[i].name, name))
           for(int k=0;k<4;k++) hk[i].key[k] = key[k];
