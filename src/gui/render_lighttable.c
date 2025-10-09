@@ -17,8 +17,7 @@
 #include "gui/widget_resize_panel.h"
 #include "gui/api_gui.h"
 #include "gui/render.h"
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include "gui/win.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -1,6 +1,6 @@
 #pragma once
 #define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include "gui/win.h"
 
 void darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods);
 void darkroom_mouse_position(GLFWwindow* window, double x, double y);

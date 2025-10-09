@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
   // init global things, log and pipeline:
   dt_log_init(s_log_cli);
   dt_log_init_arg(argc, argv);
-  dt_pipe_global_init();
+  dt_pipe_global_init(0);
   threads_global_init();
 
   int dump_nodes = 0;

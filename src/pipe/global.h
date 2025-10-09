@@ -120,6 +120,9 @@ typedef struct dt_module_so_t
 }
 dt_module_so_t;
 
+#ifdef __ANDROID__
+struct android_app;
+#endif
 typedef struct dt_pipe_global_t
 {
   // this is the directory where the vkdt binary resides,
@@ -130,6 +133,9 @@ typedef struct dt_pipe_global_t
   char homedir[PATH_MAX]; // this is normally ${HOME}/.config/vkdt
   dt_module_so_t *module;
   uint32_t num_modules;
+#ifdef __ANDROID__
+  struct android_app *app; // access to gui stuff (android always has this)
+#endif
 }
 dt_pipe_global_t;
 
@@ -137,8 +143,9 @@ dt_pipe_global_t;
 VKDT_API extern dt_pipe_global_t dt_pipe;
 #endif
 
-// returns non-zero on failure:
-int dt_pipe_global_init();
+// ctx is an application context, the struct android_app* on android, 0 otherwise.
+// returns non-zero on failure.
+int dt_pipe_global_init(void *ctx);
 
 // global cleanup:
 void dt_pipe_global_cleanup();
