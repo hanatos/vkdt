@@ -15,8 +15,7 @@
 #include "db/db.h"
 #include "nk.h"
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include <gui/win.h>
 #include <stdio.h>
 #include <time.h>
 #include <sys/types.h>
@@ -46,6 +45,7 @@ gamepad_changed(
   return 0;
 }
 
+#ifndef __ANDROID__
 // since in glfw, joysticks can only be polled and have no event interface
 // (see this pull request: https://github.com/glfw/glfw/pull/1590)
 // we need to look for changes in a busy loop in this dedicated thread.
@@ -72,6 +72,7 @@ joystick_active(void *unused)
   }
   return 0;
 }
+#endif
 
 static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -169,6 +170,89 @@ dt_gui_print_usage()
          "  none qvk pipe gui db cli snd perf mem err all\n");
 }
 
+#ifdef __ANDROID__
+struct android_app *g_app = 0;
+uint8_t g_keystate[GLFW_KEY_LAST+1] = {0};
+void handle_cmd(struct android_app* app, int32_t cmd)
+{
+  switch (cmd)
+  {
+    case APP_CMD_INIT_WINDOW:
+      g_app = app;
+      break;
+    case APP_CMD_WINDOW_RESIZED:
+      // TODO grab new size and issue resize callbacks
+      break;
+    case APP_CMD_TERM_WINDOW:
+      if(app) ANativeActivity_finish(app->activity);
+      break;
+    default:;
+  }
+}
+
+int32_t handle_event(struct android_app *app, AInputEvent *event)
+{
+  // TODO call our callbacks, set keystates, set mouse buttons
+  if(AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION)
+  {
+    int32_t evsrc = AInputEvent_getSource(event);
+    switch (evsrc) {
+      case AINPUT_SOURCE_JOYSTICK:
+      {
+        // TODO fill gamepad struct
+        AMotionEvent_getAxisValue(event, AMOTION_EVENT_AXIS_X, 0);
+        break;
+      }
+      case AINPUT_SOURCE_TOUCHSCREEN:
+      {
+        // TODO grab pointer location / infer tap, double tap, scroll, swipe
+        // TODO and call the appropriate callbacks
+        // int32_t action = AMotionEvent_getAction(event);
+        //         for (size_t i = 0; i < AMotionEvent_getPointerCount(event); ++i) {
+        //     x = AMotionEvent_getX(event, i);
+        //     y = AMotionEvent_getY(event, i);
+        break;
+      }
+    }
+  }
+  else if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_KEY)
+  {
+    // TODO translate into something that can be queried like glfwGetKey
+    int32_t keycode = AKeyEvent_getKeyCode((const AInputEvent*)event);
+    int32_t action  = AKeyEvent_getAction((const AInputEvent*)event);
+
+    // ?? 
+    // _glfwInputKey(_glfw.windowListHead, 0 , AKeyEvent_getKeyCode(event), GLFW_PRESS,0);
+    // XXX certainly not
+    if (action == AKEY_EVENT_ACTION_UP)
+      return 0;
+
+    switch (keycode)
+    {
+    case AKEYCODE_BUTTON_A:
+      break;
+    }
+  }
+  return 0; // did not handle the event
+}
+
+void glfwPostEmptyEvent()
+{
+  ALooper_wake(g_app->looper);
+}
+
+void android_main(struct android_app* app)
+{
+  int argc = 1;
+  char *argv[] = { "android", 0 };
+  app->onAppCmd = handle_cmd;
+  app->onInputEvent = handle_event;
+  int events;
+  struct android_poll_source* source;
+  while(!g_app)
+    if(ALooper_pollOnce(-1, 0, &events, (void**)&source) >= 0)
+      if(source) source->process(app, source);
+#else
 int main(int argc, char *argv[])
 {
   if(argc > 1)
@@ -187,13 +271,17 @@ int main(int argc, char *argv[])
     }
     dt_tool_dispatch(argc, argv);
   }
+  void *app = 0;
+#endif
   // init global things, log and pipeline:
   dt_log_init(s_log_err|s_log_gui);
   int lastarg = dt_log_init_arg(argc, argv);
   dt_log(s_log_gui, "vkdt "VKDT_VERSION" (c) 2020--2025 johannes hanika");
-  dt_pipe_global_init();
+  dt_pipe_global_init(app);
   threads_global_init();
+#ifndef __ANDROID__
   dt_set_signal_handlers();
+#endif
 
   if(dt_gui_init())
   {
@@ -208,6 +296,7 @@ int main(int argc, char *argv[])
   nk_glfw3_resize(vkdt.win.window, vkdt.win.width, vkdt.win.height);
   dt_gui_init_fonts();
 
+#ifndef __ANDROID__
   glfwSetKeyCallback(vkdt.win.window, key_callback);
   glfwSetMouseButtonCallback(vkdt.win.window, mouse_button_callback);
   glfwSetCursorPosCallback(vkdt.win.window, mouse_position_callback);
@@ -218,6 +307,7 @@ int main(int argc, char *argv[])
   glfwSetPenTabletDataCallback(pentablet_data_callback);
   glfwSetPenTabletCursorCallback(pentablet_cursor_callback);
   glfwSetPenTabletProximityCallback(pentablet_proximity_callback);
+#endif
 #endif
 
   vkdt.view_mode = s_view_cnt;
@@ -230,6 +320,7 @@ int main(int argc, char *argv[])
   dt_thumbnails_init(&vkdt.thumbnail_gen, 400, 400, 0, 0);
   dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3000, 1ul<<30);
   dt_db_init(&vkdt.db);
+
   char *filename = 0;
   {
     char defpath[1024];
@@ -266,10 +357,11 @@ int main(int argc, char *argv[])
   }
   dt_gui_read_tags();
 
-  // joystick
+#ifndef __ANDROID__
   pthread_t joystick_thread;
   const int joystick_present = vkdt.wstate.have_joystick;
   if(joystick_present) pthread_create(&joystick_thread, 0, joystick_active, 0);
+#endif
 
   // main loop
   double beg_rf = dt_time();
@@ -308,7 +400,12 @@ int main(int argc, char *argv[])
     if(vkdt.win1.window)
       nk_glfw3_input_begin(&vkdt.ctx1, vkdt.win1.window, vkdt.session_type == 1);
 
+#ifdef __ANDROID__
+    if(ALooper_pollOnce(-1, 0, &events, (void**)&source) >= 0)
+      if(source) source->process(app, source);
+#else
     glfwWaitEvents();
+#endif
 
     // preserve these after nk_input_end:
     vkdt.wstate.interact_begin = 0;
@@ -340,7 +437,9 @@ int main(int argc, char *argv[])
     static int bs = 1;
     if(bs) { dt_gui_toggle_fullscreen(); bs = 0; }
   }
+#ifndef __ANDROID__
   if(joystick_present) pthread_join(joystick_thread, 0);
+#endif
 
   for(int q=0;q<s_queue_cnt;q++)
     if(qvk.qid[q] == q)

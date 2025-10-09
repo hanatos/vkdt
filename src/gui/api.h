@@ -6,8 +6,7 @@
 #include "gui/gui.h"
 #include "gui/darkroom.h"
 #include "pipe/draw.h"
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include "gui/win.h"
 // api functions for gui interactions.
 
 static inline void
@@ -709,6 +708,7 @@ dt_gui_set_hdr_metadata(
       &meta);
 }
 
+#ifndef __ANDROID__
 // from a stackoverflow answer. get the monitor that currently covers most of
 // the window area.
 static inline GLFWmonitor*
@@ -744,10 +744,12 @@ dt_gui_get_current_monitor(GLFWwindow *window)
   }
   return bestmonitor;
 }
+#endif
 
 static inline void
 dt_gui_toggle_fullscreen()
 {
+#ifndef __ANDROID__
   GLFWmonitor* monitor = dt_gui_get_current_monitor(vkdt.win.window);
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
   if(vkdt.win.fullscreen)
@@ -763,4 +765,5 @@ dt_gui_toggle_fullscreen()
     glfwSetWindowMonitor(vkdt.win.window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
     vkdt.win.fullscreen = 1;
   }
+#endif
 }

@@ -71,7 +71,7 @@ void *threads_work(void *arg)
   // global init: set tls storage thread id
   const uint64_t tid = (uint64_t)arg;
   thr_tls.tid = tid;
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
   // pin ourselves to a cpu:
   cpu_set_t set;
   CPU_ZERO(&set);
@@ -264,6 +264,7 @@ void threads_global_init()
   // or numactl --hardware
   // and then edit it to your needs (this list will start with one thread per core, no hyperthreading used)
   // TODO: add search path relative to binary?
+#ifndef __ANDROID__
   FILE *f = fopen(filename, "rb");
   if(f)
   {
@@ -286,6 +287,7 @@ void threads_global_init()
       fprintf(stderr, "[threads] not enough entries in your affinity file `%s'! (%d/%d threads)\n", filename, k, thr.num_threads);
     fclose(f);
   }
+#endif
 
   pthread_cond_init(&thr.cond_task_done, 0);
   pthread_cond_init(&thr.cond_task_push, 0);
