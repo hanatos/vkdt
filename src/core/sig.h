@@ -16,14 +16,14 @@
     along with darktable.  If not, see <http://www.gnu.org/licenses/>.
 */
 #pragma once
+
+#if defined(_WIN64) || defined(__APPLE__) || defined(__ANDROID__)
+static inline void dt_set_signal_handlers() {}
+#else
 #include "pipe/global.h"
 #include "core/version.h"
 #include "db/db.h"
 #include "gui/gui.h"
-
-#if defined(_WIN64) || defined(__APPLE__)
-static inline void dt_set_signal_handlers() {}
-#else
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
