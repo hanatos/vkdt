@@ -77,13 +77,8 @@ dt_radial_menu_dr(
           int pst = m->mparid[sel];
           char filename[512];
           const char *preset = vkdt.fav_preset_name[pst];
-          snprintf(filename, sizeof(filename), "%s/presets/%s.pst", dt_pipe.homedir, preset);
+          snprintf(filename, sizeof(filename), "%s.pst", preset);
           uint32_t err_lno = render_darkroom_apply_preset(filename);
-          if(err_lno == -1u)
-          {
-            snprintf(filename, sizeof(filename), "%s/data/presets/%s.pst", dt_pipe.basedir, preset);
-            err_lno = render_darkroom_apply_preset(filename);
-          }
           if(err_lno)
             dt_gui_notification("failed to read preset %s line %u", filename, err_lno);
           dt_radial_menu_dr_close(m);

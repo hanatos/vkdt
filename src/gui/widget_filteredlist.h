@@ -104,7 +104,6 @@ filteredlist(
 
   if(!ent_cnt)
   { // open directory
-    ent[0] = fnbuf;
     if(dir)
     {
       void *dirp = dt_res_opendir(dir, 1);
@@ -118,13 +117,14 @@ filteredlist(
         {
           dt_res_rewinddir(dirp, 1); // second pass actually record stuff
           ent = malloc(sizeof(ent[0])*(1+ent_cnt));
+          ent[0] = fnbuf;
           ent_cnt = 0;
           while((basename = dt_res_next_basename(dirp, 1)))
           { // need to take a copy because on android basename is volatile
             int len = strlen(basename);
-            if(ent[ent_cnt]+len > fnbuf + sizeof(fnbuf)) break;
+            if(ent[ent_cnt]+len >= fnbuf + sizeof(fnbuf)) break;
             strcpy(ent[ent_cnt], basename);
-            ent[ent_cnt+1] = ent[ent_cnt] + len;
+            ent[ent_cnt+1] = ent[ent_cnt] + len + 1;
             ent_cnt++;
           }
         }
@@ -156,9 +156,9 @@ filteredlist(
           while((basename = dt_res_next_basename(dirp, 0)))
           {
             int len = strlen(basename);
-            if(ent_local[ent_local_cnt]+len > fnbuf + sizeof(fnbuf)) break;
+            if(ent_local[ent_local_cnt]+len >= fnbuf + sizeof(fnbuf)) break;
             strcpy(ent_local[ent_local_cnt], basename);
-            ent_local[ent_local_cnt+1] = ent_local[ent_local_cnt] + len;
+            ent_local[ent_local_cnt+1] = ent_local[ent_local_cnt] + len + 1;
             ent_local_cnt++;
           }
         }

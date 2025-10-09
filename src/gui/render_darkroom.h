@@ -1358,10 +1358,10 @@ static inline void render_darkroom_widgets(
 
 static inline uint32_t
 render_darkroom_apply_preset(
-    const char *presetname) // name of the preset, filename to be reconstructed
+    const char *presetname) // name of the preset.pst, directory to be reconstructed
 {
   char filename[PATH_MAX];
-  snprintf(filename, sizeof(filename), "presets/%s.pst", presetname);
+  snprintf(filename, sizeof(filename), "presets/%s", presetname);
   FILE *f = dt_graph_open_resource(0, 0, filename, "rb");
   uint32_t lno = -1u;
   if(f)
@@ -1584,7 +1584,7 @@ render_darkroom_modals()
       if(!strstr(vkdt.db.dirname, "examples") && !strstr(filename, "examples"))
         dt_graph_write_config_ascii(&vkdt.graph_dev, filename);
       static char filter[256];
-      int ok = filteredlist("presets", "presets", filter, filename, sizeof(filename), s_filteredlist_default);
+      int ok = filteredlist("presets", "presets", filter, filename, sizeof(filename), s_filteredlist_return_short);
       if(ok) vkdt.wstate.popup = 0;
       if(ok == 1)
       {
