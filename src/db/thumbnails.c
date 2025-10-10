@@ -49,7 +49,11 @@ dt_thumbnails_init(
 {
   memset(tn, 0, sizeof(*tn));
 
+#ifdef __ANDROID__
+  snprintf(tn->cachedir, sizeof(tn->cachedir), "%s/cache", dt_pipe.app->activity->internalDataPath);
+#else
   fs_cachedir(tn->cachedir, sizeof(tn->cachedir));
+#endif
   int err = fs_mkdir_p(tn->cachedir, 0755);
   if(err && errno != EEXIST)
   {
