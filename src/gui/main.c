@@ -181,7 +181,8 @@ void handle_cmd(struct android_app* app, int32_t cmd)
       g_app = app;
       break;
     case APP_CMD_WINDOW_RESIZED:
-      // TODO grab new size and issue resize callbacks
+      dt_gui_recreate_swapchain(&vkdt.win);
+      nk_glfw3_resize(0, vkdt.win.width, vkdt.win.height);
       break;
     case APP_CMD_TERM_WINDOW:
       if(app) ANativeActivity_finish(app->activity);

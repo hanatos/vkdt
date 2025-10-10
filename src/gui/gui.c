@@ -418,7 +418,7 @@ out:;
   VkExtent2D extent;
 #ifdef __ANDROID__
   extent = surf_capabilities.currentExtent;
-  dt_log(s_log_qvk, "window size %d x %d", extent.width, extent.height);
+  dt_log(s_log_qvk, "[swapchain] window size %d x %d", extent.width, extent.height);
 #else
   extent.width  = MIN(surf_capabilities.maxImageExtent.width,  win->width);
   extent.height = MIN(surf_capabilities.maxImageExtent.height, win->height);
