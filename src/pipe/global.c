@@ -412,7 +412,7 @@ compare_module_name(const void *a, const void *b)
   return strncmp(dt_token_str(ma->name), dt_token_str(mb->name), 8);
 }
 
-int dt_pipe_global_init()
+int dt_pipe_global_init(void *appv)
 {
   memset(&dt_pipe, 0, sizeof(dt_pipe));
 #ifdef __ANDROID__
