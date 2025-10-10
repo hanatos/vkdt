@@ -149,6 +149,8 @@ recently_used_collections()
         dt_gui_switch_collection(dir);
         return 1; // return immediately since switching collections invalidates dir (by sorting/compacting the gui/ruc_num entries)
       }
+      bounds.x += vkdt.ctx.style.combo.content_padding.x;
+      bounds.w -= 2*vkdt.ctx.style.combo.content_padding.x;
       recently_used_collections_draw(bounds, dir, &f);
     }
   }
