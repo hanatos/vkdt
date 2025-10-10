@@ -255,7 +255,7 @@ void render_lighttable_center()
     struct nk_rect box = {vkdt.win.width/2-100, vkdt.win.height/2-100, 200, 200};
     // DEBUG: this one draws an ellipse stretched out to the screen aspect ratio
     nk_fill_circle(cmd, box, nk_rgb(255,0,255));
-    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "collection count zero, drawing some text\n");
+    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "collection count zero, dir `%s'\n", vkdt.db.dirname);
     nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_ht/5, 1);
     nk_label(&vkdt.ctx, "", 0);
     nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_ht/3, 3);
