@@ -221,12 +221,14 @@ void dt_db_load_directory(
     dt_thumbnails_t *thumbnails,
     const char      *dirname)
 {
+  dt_log(s_log_err, "db loading directory %s", dirname);
   uint32_t id = 0;
   if(dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id) != VK_SUCCESS)
   {
     dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
     return;
   }
+  dt_log(s_log_err|s_log_db, "loaded required thumbnail symbols!");
 
   DIR *dp = dirname ? opendir(dirname) : 0;
   if(!dp)
@@ -234,14 +236,18 @@ void dt_db_load_directory(
     dt_log(s_log_err|s_log_db, "could not open directory '%s'!", dirname);
     return;
   }
+  dt_log(s_log_err|s_log_db, "opened directory %s!", dirname);
   struct dirent *ep;
   db->image_max = 0;
   while((ep = readdir(dp)))
   {
+    __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "testing file %s %s\n", dirname, ep->d_name);
     if(!fs_isreg(dirname, ep) && !fs_islnk(dirname, ep)) continue;
     if(!dt_db_accept_filename(ep->d_name)) continue;
     db->image_max++;
+    __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "got %d images\n", db->image_max);
   }
+  dt_log(s_log_err|s_log_db, "in the end, got %d images\n", db->image_max);
 
   db->image = malloc(sizeof(dt_image_t)*db->image_max);
   memset(db->image, 0, sizeof(dt_image_t)*db->image_max);

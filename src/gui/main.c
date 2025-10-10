@@ -325,7 +325,7 @@ int main(int argc, char *argv[])
   char *filename = 0;
   {
     char defpath[1024];
-    const char *mru = dt_rc_get(&vkdt.rc, "gui/ruc_entry00", "null");
+    const char *mru = dt_rc_get(&vkdt.rc, "gui/ruc_entry00", "/storage/emulated/0/DCIM/MotionCam");
     if(strcmp(mru, "null"))
     {
       snprintf(defpath, sizeof(defpath), "%s", mru);
