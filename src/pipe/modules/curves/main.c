@@ -341,9 +341,24 @@ create_nodes(
       "input",  "read",  "*",    "*",   dt_no_roi,
       "hist",   "write", "ssbo", "u32", &hroi);
 
-  const int id_curv = dt_node_add(graph, module, "curves", "main", wd, ht, 1, 0, 0, 2,
+  const int id_prep = dt_node_add(graph, module, "curves", "prep", wd, ht, 1, 0, 0, 3,
+      "input",  "read",  "*",  "*",   dt_no_roi,
+      "ab",     "write", "rg", "f16", &module->connector[1].roi,
+      "L",      "write", "r",  "f16", &module->connector[1].roi);
+
+  const int id_curv = dt_node_add(graph, module, "curves", "main", wd, ht, 1, 0, 0, 3,
       "input",  "read",  "*",    "*",   dt_no_roi,
+      "ab",     "read",  "*",    "*",   dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[1].roi);
+
+  // int id_blur = dt_api_blur_5x5(graph, module, id_prep, 1, 0, 0);
+  // int id_blur = dt_api_blur(graph, module, id_prep, 1, 0, 0, 14);
+  // connector 2 will be the output here:
+  int id_guid = dt_api_guided_filter_full(graph, module,
+      id_prep, 2, // input, determines buffer sizes
+      id_prep, 1, // guide
+      0, 0,       // not interested in internal node ids
+      15.0f/module->connector[1].roi.wd, 0.01);
 
   const int id_dspy = dt_node_add(graph, module, "curves", "dspy",
       module->connector[2].roi.wd, module->connector[2].roi.ht, 1, 0, 0, 2,
@@ -352,8 +367,11 @@ create_nodes(
 
   dt_connector_copy(graph, module, 0, id_hist, 0);
   dt_connector_copy(graph, module, 0, id_curv, 0);
-  dt_connector_copy(graph, module, 1, id_curv, 1);
+  dt_connector_copy(graph, module, 0, id_prep, 0);
+  dt_connector_copy(graph, module, 1, id_curv, 2);
   dt_connector_copy(graph, module, 2, id_dspy, 1);
   dt_node_connect(graph, id_hist, 1, id_dspy, 0);
+  // dt_node_connect(graph, id_blur, 1, id_curv, 1);
+  dt_node_connect(graph, id_guid, 2, id_curv, 1);
   graph->node[id_hist].connector[1].flags |= s_conn_clear; // clear histogram buffer
 }

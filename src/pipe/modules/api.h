@@ -672,8 +672,8 @@ dt_api_guided_filter_full(
 
   // compute (I,p,I*I,I*p)
   const int id_guided1 = dt_node_add(graph, module, "shared", "guided1f", wd, ht, dp, 0, 0, 3,
-      "input",  "read",  "rgba", "f16", dt_no_roi,
-      "guide",  "read",  "rgba", "f16", dt_no_roi,
+      "input",  "read",  "*",    "*",   dt_no_roi,
+      "guide",  "read",  "*",    "*",   dt_no_roi,
       "output", "write", "rgba", "f16", roi);
 
   // mean_I  = blur(I)
@@ -687,8 +687,8 @@ dt_api_guided_filter_full(
   // a = cov_Ip / (var_I + epsilon)
   // b = mean_p - a * mean_I
   const int id_guided2 = dt_node_add(graph, module, "shared", "guided2f", wd, ht, dp, 0, 0, 2,
-      "input", "read",  "rgba", "f16", dt_no_roi,
-      "ab",    "write", "rg",   "f16", roi);
+      "input", "read",  "*",  "*",   dt_no_roi,
+      "ab",    "write", "rg", "f16", roi);
   CONN(dt_node_connect_named(graph, id_blur1, "output", id_guided2, "input"));
 
   // this is the same as in the p=I case below:
@@ -698,7 +698,7 @@ dt_api_guided_filter_full(
   // final kernel:
   // output = mean_a * I + mean_b
   const int id_guided3 = dt_node_add(graph, module, "shared", "guided3", wd, ht, dp, 0, 0, 3,
-      "input",  "read",  "rgba", "f16", dt_no_roi,
+      "input",  "read",  "*",    "*",   dt_no_roi,
       "ab",     "read",  "*",    "*",   dt_no_roi,
       "output", "write", "rgba", "f16", roi);
   // CONN(dt_node_connect(graph, id_blur, 1, id_guided3, 1)); // XXX FIXME this doesn't work
