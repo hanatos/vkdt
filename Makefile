@@ -67,6 +67,8 @@ install-mod: bin Makefile lut
 	rm -rf $(VKDTDIR)/modules/i-raw/rawloader-c
 	rm -rf $(VKDTDIR)/modules/i-mcraw/mcraw-*
 	cp -rfL bin/data $(VKDTDIR)
+	cp -rfL bin/keyaccel $(VKDTDIR)
+	cp -rfL bin/presets $(VKDTDIR)
 	cp -rfL bin/default* $(VKDTDIR)
 
 install: install-bin install-mod Makefile
