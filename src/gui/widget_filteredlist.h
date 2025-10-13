@@ -111,6 +111,7 @@ filteredlist(
       const char *basename = 0;
       if(dirp)
       { // first count valid entries
+        snprintf(dirname, sizeof(dirname), "%s", dir);
         while((basename = dt_res_next_basename(dirp, 1)))
           ent_cnt++;
         if(ent_cnt)
@@ -145,6 +146,7 @@ filteredlist(
       const char *basename = 0;
       if(dirp)
       { // first count valid entries
+        snprintf(dirname_local, sizeof(dirname_local), "%s", dir_local);
         while((basename = dt_res_next_basename(dirp, 0)))
           ent_local_cnt++;
         if(ent_local_cnt)
