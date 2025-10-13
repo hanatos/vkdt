@@ -35,5 +35,3 @@ group:mode:2
 ych 3x3:btngrid:00Y/Y:04C/Y:05h/Y:03Y/C:01C/C:08h/C:06Y/h:07C/h:02h/h
 group:-1:-1
 edit:combo:linear:gamma space
-radius:hidden
-edges:hidden

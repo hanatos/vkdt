@@ -657,6 +657,7 @@ dt_api_guided_filter_full(
     int          connid_guide,
     int         *id_in,        // can be 0, or will be set to the input node
     int         *id_out,       // can be 0, or well be set to the output node
+    int         *id_pc,        // can be 0, or well be set to the node that has push constants
     const float *params)       // {radius (fraction of input wd), epsilon}, persist with cmd, will be pc
 {
   // detect pixel format on input
@@ -674,6 +675,7 @@ dt_api_guided_filter_full(
       "input",  "read",  "*",    "*",   dt_no_roi,
       "guide",  "read",  "*",    "*",   dt_no_roi,
       "output", "write", "rgba", "f16", roi);
+  if(id_in) *id_in = id_guided1;
 
   // mean_I  = blur(I)
   // mean_p  = blur(p)
@@ -690,6 +692,7 @@ dt_api_guided_filter_full(
       "input", "read",  "*",  "*",   dt_no_roi,
       "ab",    "write", "rg", "f16", roi);
   CONN(dt_node_connect_named(graph, id_blur1, "output", id_guided2, "input"));
+  if(id_pc) *id_pc = id_guided2;
 
   // this is the same as in the p=I case below:
   // mean_a = blur(a)

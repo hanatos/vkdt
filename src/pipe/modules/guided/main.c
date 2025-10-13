@@ -28,6 +28,6 @@ create_nodes(
   // guided blur with I : zones, p : input image
   const int id_guided = dt_api_guided_filter_full(
       graph, module, -1, 0, -1, 1,
-      0, 0, radius);
+      0, 0, 0, radius);
   dt_connector_copy(graph, module, 2, id_guided, 2);  // output
 }

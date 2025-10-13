@@ -63,7 +63,7 @@ create_nodes(
   // guided blur with I : zones, p : input image
   const int id_guided = dt_api_guided_filter_full(
       graph, module, -1, 0, id_quant, 1,
-      0, 0, radius);
+      0, 0, 0, radius);
 
   // process zone exposure correction:
   const int id_apply = dt_node_add(graph, module, "zones", "apply", wd, ht, dp, 0, 0, 3,

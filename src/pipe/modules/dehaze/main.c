@@ -18,7 +18,7 @@ create_nodes(
   const int id_guided = dt_api_guided_filter_full(graph, module,
       -1, 0,       // input, determines buffer sizes
       id_depth, 1, // guide
-      0, 0,        // not interested in internal node ids
+      0, 0, 0,     // not interested in internal node ids
       radius);
   const int id_dehaze = dt_node_add(graph, module, "dehaze", "dehaze", wd, ht, 1, 0, 0, 3,
       "input",  "read",  "rgba", "*",    dt_no_roi,
