@@ -31,7 +31,8 @@ dt_radial_menu_text(
         nk_fill_rect(cmd, box, 0.0f, vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
         nk_fill_rect(cmd, (struct nk_rect){box.x,box.y+box.h/2,box.w,box.h}, box.h/2,
             vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
-        nk_draw_text(cmd, box, t, len, &font,
+        struct nk_rect bx = {box.x+font.height, box.y, box.w-2*font.height, box.h};
+        nk_draw_text(cmd, bx, t, len, &font,
             (struct nk_color){0,0,0,0xff},
             (struct nk_color){0,0,0,0xff});
       }
