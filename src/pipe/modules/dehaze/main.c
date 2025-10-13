@@ -12,13 +12,14 @@ create_nodes(
       "input", "read",  "rgba", "*",    dt_no_roi,
       "depth", "write", "rgba", "f16", &module->connector[1].roi);
   dt_connector_copy(graph, module, 0, id_depth, 0);
-  const float radius = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("radius")))[0];
-  const float edges  = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("epsilon")))[0];
+  const float *radius = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("radius")));
+  // comes right after:
+  // const float edges  = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("epsilon")))[0];
   const int id_guided = dt_api_guided_filter_full(graph, module,
       -1, 0,       // input, determines buffer sizes
       id_depth, 1, // guide
       0, 0,        // not interested in internal node ids
-      radius, edges);
+      radius);
   const int id_dehaze = dt_node_add(graph, module, "dehaze", "dehaze", wd, ht, 1, 0, 0, 3,
       "input",  "read",  "rgba", "*",    dt_no_roi,
       "depth",  "read",  "rgba", "*",    dt_no_roi,

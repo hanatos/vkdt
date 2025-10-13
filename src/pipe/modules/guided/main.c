@@ -23,12 +23,11 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  const float radius  = ((float*)module->param)[0];
-  const float epsilon = ((float*)module->param)[1];
+  const float *radius  = (float*)module->param; // points to {radius, epsilon}
 
   // guided blur with I : zones, p : input image
   const int id_guided = dt_api_guided_filter_full(
       graph, module, -1, 0, -1, 1,
-      0, 0, radius, epsilon);
+      0, 0, radius);
   dt_connector_copy(graph, module, 2, id_guided, 2);  // output
 }

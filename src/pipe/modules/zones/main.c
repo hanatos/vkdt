@@ -53,8 +53,7 @@ create_nodes(
   const int wd = module->connector[0].roi.wd;
   const int ht = module->connector[0].roi.ht;
   const int dp = 1;
-  const float radius  = ((float*)module->param)[0];
-  const float epsilon = ((float*)module->param)[1];
+  const float *radius  = ((float*)module->param); // points to { radius, epsilon }
 
   // input image -> seven quantised zones of exposure in [0,1] (output int 0..6)
   const int id_quant = dt_node_add(graph, module, "zones", "quant", wd, ht, dp, 0, 0, 2,
@@ -64,7 +63,7 @@ create_nodes(
   // guided blur with I : zones, p : input image
   const int id_guided = dt_api_guided_filter_full(
       graph, module, -1, 0, id_quant, 1,
-      0, 0, radius, epsilon);
+      0, 0, radius);
 
   // process zone exposure correction:
   const int id_apply = dt_node_add(graph, module, "zones", "apply", wd, ht, dp, 0, 0, 3,

@@ -351,6 +351,8 @@ create_nodes(
       "ab",     "read",  "*",    "*",   dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[1].roi);
 
+  // this points to our params {radius, edges} and will also update during param update :)
+  const float *radius = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("radius")));
   // int id_blur = dt_api_blur_5x5(graph, module, id_prep, 1, 0, 0);
   // int id_blur = dt_api_blur(graph, module, id_prep, 1, 0, 0, 14);
   // connector 2 will be the output here:
@@ -358,7 +360,7 @@ create_nodes(
       id_prep, 2, // input, determines buffer sizes
       id_prep, 1, // guide
       0, 0,       // not interested in internal node ids
-      15.0f/module->connector[1].roi.wd, 0.01);
+      radius);
 
   const int id_dspy = dt_node_add(graph, module, "curves", "dspy",
       module->connector[2].roi.wd, module->connector[2].roi.ht, 1, 0, 0, 2,

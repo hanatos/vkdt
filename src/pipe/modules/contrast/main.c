@@ -23,8 +23,9 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  const float radius = dt_module_param_float(module, 0)[0]; // radius is the first parameter in our params file
-  const float edges  = dt_module_param_float(module, 1)[0];
+  const float *radius = dt_module_param_float(module, 0); // radius is the first parameter in our params file
+  // as it so happens, this is in memory directly after the radius:
+  // const float edges  = dt_module_param_float(module, 1)[0];
 
   int guided_entry = -1, guided_exit = -1;
   dt_api_guided_filter(
@@ -32,8 +33,7 @@ create_nodes(
       &module->connector[0].roi,
       &guided_entry,
       &guided_exit,
-      radius,
-      edges);
+      radius); // this points to our params block of memory where there happens to be { radius, edges }
 
   assert(graph->num_nodes < graph->max_nodes);
   const int id_comb = dt_node_add(graph, module, "contrast", "combine",

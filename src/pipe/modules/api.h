@@ -657,7 +657,7 @@ dt_api_guided_filter_full(
     int          connid_guide,
     int         *id_in,        // can be 0, or will be set to the input node
     int         *id_out,       // can be 0, or well be set to the output node
-    float       *params)       // {radius (fraction of input wd), epsilon}, persist with cmd, will be pc
+    const float *params)       // {radius (fraction of input wd), epsilon}, persist with cmd, will be pc
 {
   // detect pixel format on input
   const dt_connector_t *conn_input = nodeid_input >= 0 ?
@@ -685,7 +685,8 @@ dt_api_guided_filter_full(
   // cov_Ip  = corr_Ip - mean_I*mean_p
   // a = cov_Ip / (var_I + epsilon)
   // b = mean_p - a * mean_I
-  const int id_guided2 = dt_node_add(graph, module, "shared", "guided2f", wd, ht, dp, sizeof(float)*2, params, 2,
+  const int id_guided2 = dt_node_add(graph, module, "shared", "guided2f", wd, ht, dp,
+      sizeof(float)*2, (const int*)params, 2,
       "input", "read",  "*",  "*",   dt_no_roi,
       "ab",    "write", "rg", "f16", roi);
   CONN(dt_node_connect_named(graph, id_blur1, "output", id_guided2, "input"));
@@ -729,7 +730,7 @@ dt_api_guided_filter(
     dt_roi_t    *roi,
     int         *entry_nodeid,
     int         *exit_nodeid,
-    float       *params)       // {radius (fraction of input wd), epsilon}, persist with cmd, will be pc
+    const float *params)       // {radius (fraction of input wd), epsilon}, persist with cmd, will be pc
 {
   // const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
   const uint32_t wd = roi->wd;
@@ -751,7 +752,8 @@ dt_api_guided_filter(
   // a = var_I / (var_I + eps)
   // with var_I = corr_I - mean_I * mean_I
   // b = mean_I - a * mean_I
-  const int id_guided2 = dt_node_add(graph, module, "shared", "guided2", wd, ht, 1, sizeof(float)*2, params, 2,
+  const int id_guided2 = dt_node_add(graph, module, "shared", "guided2", wd, ht, 1,
+      sizeof(float)*2, (const int*)params, 2,
       "input",  "read",  "*",  "*",   dt_no_roi,
       "output", "write", "rg", "f16", roi);
 
