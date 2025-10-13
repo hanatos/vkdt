@@ -31,6 +31,7 @@ demosaic             | `demosaic`              | different tech, works transpare
 highlight reconstruction| `hilite`             | uses inpainting by default
 color lookup table   | `colour`                | uses same rbf code 
 color calibration    | `colour`                | use cc24 presets+colour pickers
+color equalizer      | `curves`                | uses oklab instead of dt UCS
 input color profile  | `colour`                | can ingest DCP profiles or spectral response curves (not icc)
 white balance        | `colour`                | DCP dual wb, finetune via rgb sliders
 exposure             | `colour`, `exposure`    |
