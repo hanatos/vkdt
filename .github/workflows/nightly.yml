@@ -300,6 +300,7 @@ jobs:
           # and then install etc and test-run as: MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=1 ./vkdt
 
   upload_to_release:
+    if: ${{ github.event_name != 'pull_request' }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
