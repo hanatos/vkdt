@@ -10,6 +10,7 @@ dt_radial_menu_dr(
   if(vkdt.wstate.have_joystick) glfwGetGamepadState(vkdt.wstate.joystick_id, &gamepad);
   int mouse_activated = !dt_gui_input_blocked() &&
     nk_input_is_mouse_hovering_rect(&vkdt.ctx.input, bounds) &&
+    vkdt.wstate.active_widget_modid < 0 &&
     vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].down;
   int gamepad_activated = gamepad.buttons[GLFW_GAMEPAD_BUTTON_LEFT_BUMPER];
 
