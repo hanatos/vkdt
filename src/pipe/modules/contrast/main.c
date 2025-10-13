@@ -36,38 +36,11 @@ create_nodes(
       edges);
 
   assert(graph->num_nodes < graph->max_nodes);
-  const int id_comb = graph->num_nodes++;
-  dt_node_t *node_comb = graph->node + id_comb;
-  *node_comb = (dt_node_t) {
-    .name   = dt_token("contrast"),
-    .kernel = dt_token("combine"),
-    .module = module,
-    .wd     = module->connector[0].roi.wd,
-    .ht     = module->connector[0].roi.ht,
-    .dp     = 1,
-    .num_connectors = 3,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("coarse"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("y"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[1].roi,
-    }},
-  };
+  const int id_comb = dt_node_add(graph, module, "contrast", "combine",
+      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 3, 
+      "input",  "read", "*", "*", dt_no_roi,
+      "coarse", "read", "*", "*", dt_no_roi,
+      "output", "write", "rgba", "f16", &module->connector[1].roi);
 
   dt_connector_copy(graph, module, 0, id_comb, 0); // rgb input
   CONN(dt_node_connect(graph, guided_exit, 2, id_comb, 1)); // luminance input
@@ -79,4 +52,3 @@ create_nodes(
   // connect combined rgb to exit point of module
   dt_connector_copy(graph, module, 1, id_comb, 2);
 }
-

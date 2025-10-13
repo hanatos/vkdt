@@ -6,20 +6,14 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-layout(std140, set = 0, binding = 1) uniform params_t
+layout(push_constant, std140) uniform push_t
 {
   float radius;
   float epsilon;
-} params;
+} pc;
 
-
-layout( // input mean_I mean_p corr_I corr_Ip
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output f16 buffer ab
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 void
 main()
@@ -34,9 +28,9 @@ main()
   const float var = mean_corr.z - mean_corr.x * mean_corr.x;
   const float cov = mean_corr.w - mean_corr.x * mean_corr.y;
   // XXX what's the valid range here?
-  const float a = clamp(cov / (var + 1e-8 + params.epsilon*params.epsilon), -5.0f, 5.0f);
-  // const float a = clamp(cov / (var + 1e-8 + params.epsilon*params.epsilon), -1e5, 1e5); // some safety margin to avoid infty etc
-  // const float a = cov / (var + params.epsilon*params.epsilon);
+  const float a = clamp(cov / (var + 1e-8 + pc.epsilon*pc.epsilon), -5.0f, 5.0f);
+  // const float a = clamp(cov / (var + 1e-8 + pc.epsilon*pc.epsilon), -1e5, 1e5); // some safety margin to avoid infty etc
+  // const float a = cov / (var + pc.epsilon*pc.epsilon);
   const float b = mean_corr.y - a * mean_corr.x;
   imageStore(img_out, ipos, vec4(a, b, 0.0, 0.0));
 }

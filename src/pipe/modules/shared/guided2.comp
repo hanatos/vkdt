@@ -6,20 +6,14 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-layout(std140, set = 0, binding = 1) uniform params_t
+layout(push_constant, std140) uniform push_t
 {
   float radius;
   float epsilon;
-} params;
+} pc;
 
-
-layout( // input f16 buffer rg
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output f16 buffer rg
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 void
 main()
@@ -29,8 +23,7 @@ main()
 
   const vec2 mean_corr = texture(img_in, (ipos+0.5)/vec2(imageSize(img_out))).rg;
   const float var = mean_corr.y - mean_corr.x * mean_corr.x;
-  const float a = var / (var + params.epsilon*1e-3);
+  const float a = var / (var + pc.epsilon*1e-3);
   const float b = mean_corr.x - a * mean_corr.x;
   imageStore(img_out, ipos, vec4(a, b, 0.0, 0.0));
 }
-
