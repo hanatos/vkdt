@@ -733,6 +733,7 @@ dt_api_guided_filter(
     dt_roi_t    *roi,
     int         *entry_nodeid,
     int         *exit_nodeid,
+    int         *id_pc,        // which needs updated push constants
     const float *params)       // {radius (fraction of input wd), epsilon}, persist with cmd, will be pc
 {
   // const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
@@ -759,6 +760,7 @@ dt_api_guided_filter(
       sizeof(float)*2, (const int*)params, 2,
       "input",  "read",  "*",  "*",   dt_no_roi,
       "output", "write", "rg", "f16", roi);
+  if(id_pc) *id_pc = id_guided2;
 
   CONN(dt_node_connect(graph, id_blur1, 1, id_guided2, 0));
 

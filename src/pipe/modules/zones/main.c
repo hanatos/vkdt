@@ -2,6 +2,36 @@
 #include <math.h>
 #include <stdlib.h>
 
+typedef struct moddata_t
+{
+  int id_guided;
+}
+moddata_t;
+
+int init(dt_module_t *mod)
+{
+  moddata_t *dat = malloc(sizeof(*dat));
+  mod->data = dat;
+  memset(dat, 0, sizeof(*dat));
+  return 0;
+}
+
+void cleanup(dt_module_t *mod)
+{
+  if(!mod->data) return;
+  free(mod->data);
+  mod->data = 0;
+}
+
+void commit_params(dt_graph_t *graph, dt_module_t *mod)
+{ // let guided filter know we updated the push constants:
+  moddata_t *dat = mod->data;
+  const float *radius = dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("radius")));
+  if(dat->id_guided >= 0 && dat->id_guided < graph->num_nodes &&
+      graph->node[dat->id_guided].kernel == dt_token("guided2f"))
+    memcpy(graph->node[dat->id_guided].push_constant, radius, sizeof(float)*2);
+}
+
 dt_graph_run_t
 check_params(
     dt_module_t *module,
@@ -61,9 +91,10 @@ create_nodes(
       "output", "write", "rgba", "f16", &module->connector[0].roi);
   // output: float image [0.0,6.0]
   // guided blur with I : zones, p : input image
+  moddata_t *dat = module->data;
   const int id_guided = dt_api_guided_filter_full(
       graph, module, -1, 0, id_quant, 1,
-      0, 0, 0, radius);
+      0, 0, &dat->id_guided, radius);
 
   // process zone exposure correction:
   const int id_apply = dt_node_add(graph, module, "zones", "apply", wd, ht, dp, 0, 0, 3,
