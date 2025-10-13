@@ -20,7 +20,6 @@ extern "C" {
 
 extern "C" {
 #include "modules/api.h"
-#include "core/log.h"
 
 static rawspeed::CameraMetaData *meta = 0;
 
@@ -80,7 +79,8 @@ rawspeed_load_meta(const dt_module_t *mod)
       }
       catch(...)
       {
-        dt_log(s_log_err, "[rawspeed] could not open cameras.xml!");
+        fprintf(stderr, "[rawspeed] could not open cameras.xml!\n");
+        // dt_log(s_log_err, "[rawspeed] could not open cameras.xml!");
       }
     }
     lock.unlock();
@@ -137,30 +137,35 @@ load_raw(
     rawspeed::RawImage r = mod_data->d->mRaw;
 
     const auto errors = r->getErrors();
-    for(const auto &error : errors) dt_log(s_log_err, "[i-raw] (%s) %s\n", filename, error.c_str());
+    // for(const auto &error : errors) dt_log(s_log_err, "[i-raw] (%s) %s", filename, error.c_str());
+    for(const auto &error : errors) fprintf(stderr, "[i-raw] (%s) %s\n", filename, error.c_str());
 
     // TODO: do some corruption detection and support for esoteric formats/fails here
     // the data type doesn't seem to be inited on hdrmerge raws:
     // if(mod_data->d->mRaw->getDataType() == rawspeed::TYPE_FLOAT32)
     if(sizeof(uint16_t) != r->getBpp()/r->getCpp())
     {
-      dt_log(s_log_err, "[i-raw] unhandled pixel format %d bpp : %s\n", r->getBpp(), filename);
+      // dt_log(s_log_err, "[i-raw] unhandled pixel format %d bpp : %s\n", r->getBpp(), filename);
+      fprintf(stderr, "[i-raw] unhandled pixel format %d bpp : %s\n", r->getBpp(), filename);
       return 1;
     }
   }
   catch(const std::exception &exc)
   {
-    dt_log(s_log_err, "[i-raw] (%s) %s\n", filename, exc.what());
+    // dt_log(s_log_err, "[i-raw] (%s) %s\n", filename, exc.what());
+    fprintf(stderr, "[i-raw] (%s) %s\n", filename, exc.what());
     return 1;
   }
   catch(...)
   {
-    dt_log(s_log_err, "[i-raw] unhandled exception");
+    // dt_log(s_log_err, "[i-raw] unhandled exception");
+    fprintf(stderr, "[i-raw] unhandled exception\n");
     return 1;
   }
   clock_t end = clock();
   snprintf(mod_data->filename, sizeof(mod_data->filename), "%s", filename);
-  dt_log(s_log_perf, "[rawspeed] load %s in %3.0fms", filename, 1000.0*(end-beg)/CLOCKS_PER_SEC);
+  // dt_log(s_log_perf, "[rawspeed] load %s in %3.0fms", filename, 1000.0*(end-beg)/CLOCKS_PER_SEC);
+  fprintf(stderr, "[rawspeed] load %s in %3.0fms\n", filename, 1000.0*(end-beg)/CLOCKS_PER_SEC);
   return 0;
 }
 
