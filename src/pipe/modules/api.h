@@ -657,8 +657,8 @@ dt_api_guided_filter_full(
     int          connid_guide,
     int         *id_in,        // can be 0, or will be set to the input node
     int         *id_out,       // can be 0, or well be set to the output node
-    float        radius,       // radius as fraction of input buffer width
-    float        epsilon)
+    int         *id_pc,        // can be 0, or well be set to the node that has push constants
+    const float *params)       // {radius (fraction of input wd), epsilon}, persist with cmd, will be pc
 {
   // detect pixel format on input
   const dt_connector_t *conn_input = nodeid_input >= 0 ?
@@ -668,13 +668,14 @@ dt_api_guided_filter_full(
   const uint32_t wd = roi->wd;
   const uint32_t ht = roi->ht;
   const uint32_t dp = 1;
-  const float radius_px = radius * wd;
+  const float radius_px = params[0] * wd;
 
   // compute (I,p,I*I,I*p)
   const int id_guided1 = dt_node_add(graph, module, "shared", "guided1f", wd, ht, dp, 0, 0, 3,
-      "input",  "read",  "rgba", "f16", dt_no_roi,
-      "guide",  "read",  "rgba", "f16", dt_no_roi,
+      "input",  "read",  "*",    "*",   dt_no_roi,
+      "guide",  "read",  "*",    "*",   dt_no_roi,
       "output", "write", "rgba", "f16", roi);
+  if(id_in) *id_in = id_guided1;
 
   // mean_I  = blur(I)
   // mean_p  = blur(p)
@@ -686,10 +687,12 @@ dt_api_guided_filter_full(
   // cov_Ip  = corr_Ip - mean_I*mean_p
   // a = cov_Ip / (var_I + epsilon)
   // b = mean_p - a * mean_I
-  const int id_guided2 = dt_node_add(graph, module, "shared", "guided2f", wd, ht, dp, 0, 0, 2,
-      "input", "read",  "rgba", "f16", dt_no_roi,
-      "ab",    "write", "rg",   "f16", roi);
+  const int id_guided2 = dt_node_add(graph, module, "shared", "guided2f", wd, ht, dp,
+      sizeof(float)*2, (const int*)params, 2,
+      "input", "read",  "*",  "*",   dt_no_roi,
+      "ab",    "write", "rg", "f16", roi);
   CONN(dt_node_connect_named(graph, id_blur1, "output", id_guided2, "input"));
+  if(id_pc) *id_pc = id_guided2;
 
   // this is the same as in the p=I case below:
   // mean_a = blur(a)
@@ -698,7 +701,7 @@ dt_api_guided_filter_full(
   // final kernel:
   // output = mean_a * I + mean_b
   const int id_guided3 = dt_node_add(graph, module, "shared", "guided3", wd, ht, dp, 0, 0, 3,
-      "input",  "read",  "rgba", "f16", dt_no_roi,
+      "input",  "read",  "*",    "*",   dt_no_roi,
       "ab",     "read",  "*",    "*",   dt_no_roi,
       "output", "write", "rgba", "f16", roi);
   // CONN(dt_node_connect(graph, id_blur, 1, id_guided3, 1)); // XXX FIXME this doesn't work
@@ -730,45 +733,19 @@ dt_api_guided_filter(
     dt_roi_t    *roi,
     int         *entry_nodeid,
     int         *exit_nodeid,
-    float        radius,       // size of blur as fraction of input width
-    float        epsilon)      // tell edges from noise
+    int         *id_pc,        // which needs updated push constants
+    const float *params)       // {radius (fraction of input wd), epsilon}, persist with cmd, will be pc
 {
   // const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
   const uint32_t wd = roi->wd;
   const uint32_t ht = roi->ht;
-  const uint32_t dp = 1;
-  const float radius_px = radius * wd;
-  dt_connector_t ci = {
-    .name   = dt_token("input"),
-    .type   = dt_token("read"),
-    .chan   = dt_token("rgba"),
-    .format = dt_token("f16"),
-    .connected_mi = -1,
-    .roi    = *roi,
-  };
-  dt_connector_t co = {
-    .name   = dt_token("output"),
-    .type   = dt_token("write"),
-    .chan   = dt_token("rg"),
-    .format = dt_token("f16"),
-    .roi    = *roi,
-  };
+  const float radius_px = params[0] * wd;
 
   // compute grey scale image rg32 with (I, I*I)
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_guided1 = graph->num_nodes++;
-  *entry_nodeid = id_guided1;
-  dt_node_t *node_guided1 = graph->node + id_guided1;
-  *node_guided1 = (dt_node_t) {
-    .name   = dt_token("shared"),
-    .kernel = dt_token("guided1"),
-    .module = module,
-    .connector = { ci, co, },
-    .num_connectors = 2,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-  };
+  const int id_guided1 = dt_node_add(graph, module, "shared", "guided1", wd, ht, 1, 0, 0, 2,
+      "input",  "read",  "*",  "*",   dt_no_roi,
+      "output", "write", "rg", "f16", roi);
+  if(entry_nodeid) *entry_nodeid = id_guided1;
 
   // then connect 1x blur:
   // mean_I = blur(I)
@@ -779,20 +756,11 @@ dt_api_guided_filter(
   // a = var_I / (var_I + eps)
   // with var_I = corr_I - mean_I * mean_I
   // b = mean_I - a * mean_I
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_guided2 = graph->num_nodes++;
-  dt_node_t *node_guided2 = graph->node + id_guided2;
-  ci.chan = dt_token("rg");
-  *node_guided2 = (dt_node_t) {
-    .name   = dt_token("shared"),
-    .kernel = dt_token("guided2"),
-    .module = module,
-    .connector = { ci, co, },
-    .num_connectors = 2,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-  };
+  const int id_guided2 = dt_node_add(graph, module, "shared", "guided2", wd, ht, 1,
+      sizeof(float)*2, (const int*)params, 2,
+      "input",  "read",  "*",  "*",   dt_no_roi,
+      "output", "write", "rg", "f16", roi);
+  if(id_pc) *id_pc = id_guided2;
 
   CONN(dt_node_connect(graph, id_blur1, 1, id_guided2, 0));
 
@@ -803,35 +771,12 @@ dt_api_guided_filter(
 
   // final kernel:
   // output = mean_a * I + mean_b
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_guided3 = graph->num_nodes++;
-  dt_node_t *node_guided3 = graph->node + id_guided3;
-  ci.chan = dt_token("rgba");
-  co.chan = dt_token("y");
-  dt_connector_t cm = {
-    .name   = dt_token("ab"),
-    .type   = dt_token("read"),
-    .chan   = dt_token("rg"),
-    .format = dt_token("f16"),
-    .connected_mi = -1,
-    .roi    = *roi,
-  };
-  *node_guided3 = (dt_node_t) {
-    .name   = dt_token("shared"),
-    .kernel = dt_token("guided3"),
-    .module = module,
-    .connector = {
-      ci, // - original image as input rgba f16
-      cm, // - mean a mean b as rg f16
-      co, // - output rgba f16
-    },
-    .num_connectors = 3,
-    .wd     = wd,
-    .ht     = ht,
-    .dp     = dp,
-  };
+  const int id_guided3 = dt_node_add(graph, module, "shared", "guided3", wd, ht, 1, 0, 0, 3,
+      "input",  "read",  "*",     "*",  dt_no_roi,
+      "ab",     "read",  "*",     "*",  dt_no_roi,
+      "output", "write", "rgba", "f16", roi);
   CONN(dt_node_connect(graph, id_blur, 1, id_guided3, 1));
-  *exit_nodeid = id_guided3;
+  if(exit_nodeid) *exit_nodeid = id_guided3;
 }
 
 // return modid or -1

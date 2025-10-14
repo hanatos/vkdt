@@ -41,7 +41,8 @@ uint get_bin(vec3 rgb)
   float l = 0.0;
   if(params.mode == 2)
   { // ych
-    vec3 ych = rgb2ych(rgb);
+    // vec3 ych = rgb2ych(rgb);
+    vec3 ych = rec2020_to_oklsh(rgb);
     l = ych.x; // luma
     if(params.ychchan == 1 || params.ychchan == 3 || params.ychchan == 8)
       l = ych.y; // depend on chroma

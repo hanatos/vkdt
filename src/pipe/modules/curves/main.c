@@ -15,6 +15,29 @@ linear_to_edit(float v)
 
 static const double throttle = 0.5; // throttling history in seconds
 
+typedef struct moddata_t
+{
+  int id_guided_a;
+  int id_guided_b;
+}
+moddata_t;
+
+int init(dt_module_t *mod)
+{
+  moddata_t *dat = malloc(sizeof(*dat));
+  mod->data = dat;
+  memset(dat, 0, sizeof(*dat));
+  return 0;
+}
+
+void cleanup(dt_module_t *mod)
+{
+  if(!mod->data) return;
+  free(mod->data);
+  mod->data = 0;
+}
+
+
 void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *module)
@@ -34,6 +57,13 @@ check_params(
   const int pid_channel = dt_module_get_param(mod->so, dt_token("channel"));
   const int pid_ychchan = dt_module_get_param(mod->so, dt_token("ych 3x3"));
   const int pid_mode    = dt_module_get_param(mod->so, dt_token("mode"));
+  const int pid_radius  = dt_module_get_param(mod->so, dt_token("radius"));
+  if(parid == pid_radius)
+  { // radius
+    float oldrad = *(float*)oldval;
+    float newrad = dt_module_param_float(mod, pid_radius)[0];
+    return dt_api_blur_check_params(oldrad, newrad);
+  }
   if(parid == pid_ychchan)
   { // need to keep rgb channel in sync for gui stuff (hide deriv combo)
     int newv = dt_module_param_int(mod, pid_ychchan)[0];
@@ -52,6 +82,15 @@ check_params(
 
 void commit_params(dt_graph_t *graph, dt_module_t *mod)
 {
+  // let guided filter know we updated the push constants:
+  moddata_t *dat = mod->data;
+  const float *radius = dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("radius")));
+  if(dat->id_guided_a >= 0 && dat->id_guided_a < graph->num_nodes &&
+      graph->node[dat->id_guided_a].kernel == dt_token("guided2f"))
+    memcpy(graph->node[dat->id_guided_a].push_constant, radius, sizeof(float)*2);
+  if(dat->id_guided_b >= 0 && dat->id_guided_b < graph->num_nodes &&
+      graph->node[dat->id_guided_b].kernel == dt_token("guided2f"))
+    memcpy(graph->node[dat->id_guided_b].push_constant, radius, sizeof(float)*2);
   dt_token_t par[] = {
     dt_token("cntr"), dt_token("xr"), dt_token("yr"), dt_token("abcdr"), dt_token("ddr0"), dt_token("ddrn"),
     dt_token("cntg"), dt_token("xg"), dt_token("yg"), dt_token("abcdg"), dt_token("ddg0"), dt_token("ddgn"),
@@ -334,6 +373,7 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  moddata_t *dat = module->data;
   const int wd = module->connector[0].roi.wd;
   const int ht = module->connector[0].roi.ht;
   dt_roi_t hroi = (dt_roi_t){.wd = 16+1, .ht = 16 };
@@ -341,9 +381,34 @@ create_nodes(
       "input",  "read",  "*",    "*",   dt_no_roi,
       "hist",   "write", "ssbo", "u32", &hroi);
 
-  const int id_curv = dt_node_add(graph, module, "curves", "main", wd, ht, 1, 0, 0, 2,
+  const int id_prep = dt_node_add(graph, module, "curves", "prep", wd, ht, 1, 0, 0, 4,
+      "input",  "read",  "*", "*",   dt_no_roi,
+      // XXX add single-channel option to guided filter to save a lot of memory!
+      "a",      "write", "rgba", "f16", &module->connector[1].roi,
+      "b",      "write", "rgba", "f16", &module->connector[1].roi,
+      "L",      "write", "r", "f16", &module->connector[1].roi);
+
+  const int id_curv = dt_node_add(graph, module, "curves", "main", wd, ht, 1, 0, 0, 4,
       "input",  "read",  "*",    "*",   dt_no_roi,
+      "a",      "read",  "*",    "*",   dt_no_roi,
+      "b",      "read",  "*",    "*",   dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[1].roi);
+
+  // this points to our params {radius, edges} and will also update during param update :)
+  const float *radius = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("radius")));
+  // int id_blur = dt_api_blur_5x5(graph, module, id_prep, 1, 0, 0);
+  // int id_blur = dt_api_blur(graph, module, id_prep, 1, 0, 0, 14);
+  // connector 2 will be the output here:
+  int id_blra = dt_api_guided_filter_full(graph, module,
+      id_prep, 3, // input, determines buffer sizes
+      id_prep, 1, // guide
+      0, 0, &dat->id_guided_a,
+      radius);
+  int id_blrb = dt_api_guided_filter_full(graph, module,
+      id_prep, 3, // input, determines buffer sizes
+      id_prep, 2, // guide
+      0, 0, &dat->id_guided_b,
+      radius);
 
   const int id_dspy = dt_node_add(graph, module, "curves", "dspy",
       module->connector[2].roi.wd, module->connector[2].roi.ht, 1, 0, 0, 2,
@@ -352,8 +417,14 @@ create_nodes(
 
   dt_connector_copy(graph, module, 0, id_hist, 0);
   dt_connector_copy(graph, module, 0, id_curv, 0);
-  dt_connector_copy(graph, module, 1, id_curv, 1);
+  dt_connector_copy(graph, module, 0, id_prep, 0);
+  dt_connector_copy(graph, module, 1, id_curv, 3);
   dt_connector_copy(graph, module, 2, id_dspy, 1);
   dt_node_connect(graph, id_hist, 1, id_dspy, 0);
+  // dt_node_connect(graph, id_blur, 1, id_curv, 1);
+  dt_node_connect_named(graph, id_blra, "output", id_curv, "a");
+  dt_node_connect_named(graph, id_blrb, "output", id_curv, "b");
+  // dt_node_connect(graph, id_prep, 1, id_curv, 1);
+  // dt_node_connect(graph, id_prep, 2, id_curv, 2);
   graph->node[id_hist].connector[1].flags |= s_conn_clear; // clear histogram buffer
 }

@@ -71,9 +71,12 @@ void main()
     { // ych
       float xx = x;
       if(params.ychchan < 3) xx = e2l(x);
-      if(dep == 0) col = ych2rgb(vec3(xx,0.0,0.0));
-      if(dep == 1) col = ych2rgb(vec3(0.5,xx,0.5));
-      if(dep == 2) col = ych2rgb(vec3(0.5,1.0,xx));
+      // if(dep == 0) col = ych2rgb(vec3(xx,0.0,0.0));
+      // if(dep == 1) col = ych2rgb(vec3(0.5,xx,0.5));
+      // if(dep == 2) col = ych2rgb(vec3(0.5,1.0,xx));
+      if(dep == 0) col = oklsh_to_rec2020(vec3(xx,0.0,0.0));
+      if(dep == 1) col = oklsh_to_rec2020(vec3(0.5,xx,0.5));
+      if(dep == 2) col = oklsh_to_rec2020(vec3(0.5,1.0,xx));
     }
     rgba = vec4(col, 1.0);
   }

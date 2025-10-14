@@ -291,6 +291,22 @@ vec3 oklab_to_rec2020(vec3 oklab)
   return M * lms;
 }
 
+vec3 rec2020_to_oklsh(vec3 rgb)
+{
+  vec3 oklab = rec2020_to_oklab(rgb);
+  if(oklab.x <= 0.0) return vec3(0);
+  oklab.yz /= 0.4*max(0.01, oklab.x); // divide L for "hunt effect" (saturation, not chroma)
+  return vec3(oklab.x, length(oklab.yz), fract(1.0 + atan(oklab.z, oklab.y)/(2.0*M_PI)));
+}
+
+vec3 oklsh_to_rec2020(vec3 lsh)
+{
+  vec3 lab = vec3(lsh.x, lsh.y * cos(2.0*M_PI*lsh.z), lsh.y * sin(2.0*M_PI*lsh.z));
+  if(lab.x <= 0.0) return vec3(0);
+  lab.yz *= 0.4*max(0.01, lab.x);
+  return oklab_to_rec2020(lab);
+}
+
 // (c) christoph peters:
 void evd2x2(
     out vec2 eval,
