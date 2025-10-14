@@ -1,0 +1,44 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  vec4 abcdr[8];
+  vec4 abcdg[8];
+  vec4 abcdb[8];
+  vec4 xr0, xr1;
+  vec4 xg0, xg1;
+  vec4 xb0, xb1;
+  vec4 yr0, yr1;
+  vec4 yg0, yg1;
+  vec4 yb0, yb1;
+  int  cntr, cntg, cntb;
+  int  sel;
+  int  mode;
+  int  chan;
+  int  ychchan;
+  int  edit;
+  int  pad0, pad1;
+  float ddr0, ddrn;
+  float ddg0, ddgn;
+  float ddb0, ddbn;
+  vec4 vtx[18]; // vertex locations for interpolated relative curves, max 6 per curve, 6 curves, 2 coords
+  vec4 abcd0[6], abcd1[6], abcd2[6], abcd3[6], abcd4[6], abcd5[6];
+} params;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_a;
+layout(set = 1, binding = 2) uniform writeonly image2D img_b;
+layout(set = 1, binding = 3) uniform writeonly image2D img_L;
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_L)))) return;
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  vec3 oklab = rec2020_to_oklab(rgb);
+  imageStore(img_L, ipos, vec4(oklab.x));
+  imageStore(img_a, ipos, vec4(oklab.y));
+  imageStore(img_b, ipos, vec4(oklab.z));
+}
