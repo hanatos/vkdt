@@ -204,6 +204,13 @@ void modify_roi_out(
     mod->img_param.whitebalance[k] = mod_data->img.wb_coeffs[k];
     mod->img_param.crop_aabb[k]    = mod_data->img.crop_aabb[k];
   }
+  if(mod->img_param.crop_aabb[2] >= INT_MAX || mod->img_param.crop_aabb[3] >= INT_MAX)
+  { // this can't be right
+    mod->img_param.crop_aabb[0] = 0;
+    mod->img_param.crop_aabb[1] = 0;
+    mod->img_param.crop_aabb[2] = mod_data->img.width;
+    mod->img_param.crop_aabb[3] = mod_data->img.height;
+  }
   // normalise wb
   mod->img_param.whitebalance[0] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[2] /= mod->img_param.whitebalance[1];
