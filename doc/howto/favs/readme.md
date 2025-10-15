@@ -1,5 +1,15 @@
 # how to customise the favourites tab in darkroom mode
 
+the darkroom view has a tab for *favourite* ui elements. these are user
+configurable, both which elements appear here and their order.
+the favourites can be configured to contain buttons for frequently
+used [presets](../presets/readme.md) too.
+
+most widgets support a right click menu that allows you to add the
+widget to the list of favourites. likewise, you can right click the
+favourite widgets to remove or reorder them.
+
+## backend/manual edit
 find `darkroom.ui` in the vkdt `data/` folder, copy it to
 `~/.config/vkdt/darkroom.ui` and edit to taste. `darkroom.ui` is read from
 vkdt's `data/` directory, and the version in your home will take precedence if

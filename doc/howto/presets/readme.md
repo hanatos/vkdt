@@ -10,9 +10,12 @@ template but a simple list of commands to be applied to the graph. this
 includes changing parameters, inserting new modules, and performing connections
 between modules.
 
-also see the [list of presets shipped with vkdt](../../../doc/howto/presets/presets.md).
+there are buttons in the ui and hotkeys to apply a preset in most views, as well
+as a button and hotkey to create a new preset from the current graph in darkroom mode.
 
-vkdt ships a few carefully orchestrated presets in the `data/presets`
+also see the [list of presets shipped with vkdt](presets.md).
+
+vkdt ships a few carefully orchestrated presets in the `presets`
 subdirectory of the installation. these have been created with [the default
 processing](../defgraph/readme.md) in mind, for instance consider
 `inpaint.pst`:
@@ -52,7 +55,7 @@ expander in darkroom mode, you'll find entries like `exposure+`:
 
 [![keyaccel](keyaccel.png)](keyaccel.png)
 
-these realised as small scripts in the `data/keyaccel/` or
+these realised as small scripts in the `keyaccel/` or
 `~/.config/vkdt/keyaccel/` directories which follow the same syntax as `.cfg`
 or `.pst` files. if the first line is a comment (starting with `#`), it will be
 displayed as additional info in the gui.

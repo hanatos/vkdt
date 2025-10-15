@@ -101,9 +101,7 @@ internally and are not usually a concern for the user.
 however, sometimes it is necessary or convenient to abstract even more and quickly
 insert a whole set of modules and set a bulk of parameters. this can be
 achieved by [presets](../presets/readme.md), which basically just append a
-fixed list of commands to the graph `.cfg`. slightly more abstract are
-[blocks](../blocks/readme.md) which insert sub-graphs between two modules
-and their connectors (which is why a block has to be *inserted before* a module,
+fixed list of commands to the graph `.cfg`.
 you can do this in the right panel if you selected a module on the graph.
 
 ### special instance names

@@ -84,7 +84,7 @@ packages from github nightly ci.
   thanks to jedypod for adding the latest film/paper stock!
 * [scalable msdf fonts](./howto/fonts/readme.md) for sharp fonts in graph editor at any zoom level
 * hdr support, if you use wayland and the compositor does it, try  
-  `ENABLE_HDR_WSI=1 vdkt`  
+  `ENABLE_HDR_WSI=1 vkdt`  
   (see [display colour docs](../doc/howto/colour-display/readme.md) for details)
 * quick access preset buttons in customisable favourites tab
 * arch aur package `vkdt-git`
