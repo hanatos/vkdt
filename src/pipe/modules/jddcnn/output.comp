@@ -14,9 +14,9 @@ void main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-#if 1 // version with one full-res convolution at the end
-  const int ht = imageSize(img_out).y;
-  const int wd = imageSize(img_out).x;
+#if 0 // version with one full-res convolution at the end
+  const int ht = (imageSize(img_out).y/2)*2;
+  const int wd = (imageSize(img_out).x/2)*2;
   const int cn = 3;
   const int idx = cn*(wd * ipos.y + ipos.x);
 #else // version where the low res layer outputs 4 rgb pixels directly:
