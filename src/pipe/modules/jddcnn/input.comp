@@ -27,7 +27,7 @@ void main()
   // write out in ssbo index format, 5 channels
   const int ht = (textureSize(img_in, 0).y+1)/2;
   const int wd = (textureSize(img_in, 0).x+1)/2;
-  const int cn = 5;
+  const int cn = 4;
   int c = 1;
   if     (((ipos.x & 1)==0) && ((ipos.y & 1)==0)) c = 0;
   else if(((ipos.x & 1)==1) && ((ipos.y & 1)==0)) c = 2; // arg sorry trained the network with swapped greens
@@ -36,6 +36,7 @@ void main()
   const int idx = cn*(wd*(ipos.y/2) + ipos.x/2) + c;
   // const int idx = wd*ht * c + wd*(ipos.y/2) + ipos.x/2;
   buf.v[idx] = float16_t(v);
+#if 0 // network did not use it as simple as that anyways:
   if(c == 1)
   { // add noise estimate. could load it from painted input too
     // XXX this is how we apply noise a and b during training, with a ~exp(100/65k) and b~exp(2/65k).
@@ -46,4 +47,5 @@ void main()
     // buf.v[wd*ht * 4 + wd*(ipos.y/2) + ipos.x/2] = float16_t(noise);
     buf.v[idx-c+4] = float16_t(noise);
   }
+#endif
 }

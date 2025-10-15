@@ -1,0 +1,17 @@
+#version 460
+#extension GL_GOOGLE_include_directive : enable
+// TODO need fake skip connection and make sure NB_INPUT_FEATURES_1 is NB_INPUT_FEATURES
+// TODO connect a dummy in the skip connection port
+#define INPUT_SKIP_CONNECTION
+
+const uint NB_INPUT_FEATURES_1 = 16;
+const uint NB_INPUT_FEATURES_2 = 0;
+const uint INPUT_1_FEATURE_STRIDE = 16;
+const uint INPUT_2_FEATURE_STRIDE = 0;
+const uint NB_INPUT_FEATURES = NB_INPUT_FEATURES_1;
+
+const uint NB_OUTPUT_FEATURES = 3;
+const uint OUTPUT_FEATURE_STRIDE = 3;
+const uint F_OUT_32 = 32;
+
+#include "conv-impl.glsl"
