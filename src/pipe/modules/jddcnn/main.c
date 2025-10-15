@@ -5,6 +5,24 @@ static inline int round16(const int x)
   return 16 * ((x+15)/16);
 }
 
+void modify_roi_out(
+    dt_graph_t *graph,
+    dt_module_t *module)
+{
+  module->connector[1].roi = module->connector[0].roi;
+}
+
+void modify_roi_in(
+    dt_graph_t *graph,
+    dt_module_t *module)
+{ // we work on full res/bayer
+  module->connector[0].roi.wd = module->connector[0].roi.full_wd;
+  module->connector[0].roi.ht = module->connector[0].roi.full_ht;
+  module->connector[1].roi.wd = module->connector[0].roi.full_wd;
+  module->connector[1].roi.ht = module->connector[0].roi.full_ht;
+  module->connector[0].roi.scale = 1.0f;
+}
+
 int read_source(
     dt_module_t             *mod,
     void                    *mapped,
@@ -47,7 +65,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   // const int featenc[] = {32, 43, 57, 76, 101, 101};
   // const int featdec[] = {101, 76, 57, 43, 16, 12};
   const int featenc[] = {32, 48, 64, 80, 112, 112};
-  const int featdec[] = {112, 80, 64, 48, 16, 16};
+  const int featdec[] = {112, 80, 64, 48, 16, 12};
   char shader[10];
 
   int id_encoder[layers_cnt];   // convolution layer nodes
@@ -129,6 +147,24 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     fprintf(stderr, "decoder conv %d [%d %d %d %d] running on %d x %d output %d x %d\n", i, o_cnt, o_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
     index_weights_buffer += 9 * o_cnt * o_cnt + o_cnt;
   }
+#if 0
+  // final convolution, upsampling to full res
+  const int o_cnt = 3;
+  dt_roi_t roi_out = { .wd = wd[0] * ht[0], .ht = round16(o_cnt) };
+  int pc[] = { index_weights_buffer, wd[0], ht[0] };
+
+  snprintf(shader, sizeof(shader), "dec%d", layers_cnt);
+  const int id_last = dt_node_add(
+        graph, module, "jddcnn", shader,
+        (ht[0]+7) / 8 * DT_LOCAL_SIZE_X, (wd[0]+7) / 8 * DT_LOCAL_SIZE_Y,
+        1, sizeof(pc), pc, 4,
+        "weights", "read",  "ssbo", "f16", dt_no_roi,
+        "output",  "write", "ssbo", "f16", &roi_out,
+        "input",   "read",  "ssbo", "f16", dt_no_roi,  // low res inputs, to be upsampled first
+        "skip",    "read",  "ssbo", "f16", dt_no_roi); // these are the skip connections on high res
+  index_weights_buffer += 9 * 16 * o_cnt + o_cnt;
+#endif
+
   fprintf(stderr, "weights %lu bytes\n", sizeof(uint16_t)*index_weights_buffer);
 
   // wire weights from file
@@ -146,37 +182,27 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     dt_node_connect_named(graph, id_convolv[i], "output", id_convola[i], "input");
   }
 
-  // final convolution, upsampling to full res
-  const int i_cnt = 16;
-  const int o_cnt = 3;
-  dt_roi_t roi_out = { .wd = wd[0] * ht[0], .ht = round16(o_cnt) };
-  int pc[] = { index_weights_buffer, wd[0], ht[0] };
+  // dt_node_connect_named(graph, id_lut, "weights", id_last, "weights");
+  // dt_node_connect_named(graph, id_convola[layers_cnt-1], "output", id_last, "input");
+  // dt_node_connect_named(graph, id_convola[layers_cnt-1], "output", id_last, "skip"); // dummy
 
-  snprintf(shader, sizeof(shader), "dec%d", layers_cnt);
-  const int id_last = dt_node_add(
-        graph, module, "jddcnn", shader,
-        (ht[0]+7) / 8 * DT_LOCAL_SIZE_X, (wd[0]+7) / 8 * DT_LOCAL_SIZE_Y,
-        1, sizeof(pc), pc, 4,
-        "weights", "read",  "ssbo", "f16", dt_no_roi,
-        "output",  "write", "ssbo", "f16", &roi_out,
-        "input",   "read",  "ssbo", "f16", dt_no_roi,  // low res inputs, to be upsampled first
-        "skip",    "read",  "ssbo", "f16", dt_no_roi); // these are the skip connections on high res
-  dt_node_connect_named(graph, id_lut, "weights", id_last, "weights");
-  dt_node_connect_named(graph, id_convola[layers_cnt-1], "output", id_last, "input");
-  dt_node_connect_named(graph, id_convola[layers_cnt-1], "output", id_last, "skip"); // dummy
-
-  dt_roi_t roi_out = { .wd = wd[1] * ht[1], .ht = 4 };
+  dt_roi_t roi_out = (dt_roi_t){ .wd = wd[1] * ht[1], .ht = 4 };
   const int id_input = dt_node_add(graph, module, "jddcnn", "input", wd[0], ht[0], 1, 0, 0, 2,
       "input",  "read",  "rggb", "*",   dt_no_roi,
       "output", "write", "ssbo", "f16", &roi_out);
   const int id_output = dt_node_add(graph, module, "jddcnn", "output", wd[0], ht[0], 1, 0, 0, 2,
       "input",  "read",  "ssbo", "f16", dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[1].roi);
+  fprintf(stderr, "output node width %d %d x %d %d, full %d x %d\n",
+      wd[0], module->connector[1].roi.wd,
+      ht[0], module->connector[1].roi.ht,
+      module->connector[1].roi.full_wd,
+      module->connector[1].roi.full_ht);
   dt_connector_copy(graph, module, 0, id_input,  0);
   dt_connector_copy(graph, module, 1, id_output, 1);
   dt_node_connect_named(graph, id_input, "output", id_encoder[0], "input");
-  dt_node_connect_named(graph, id_last,  "output", id_output,     "input");
-  // dt_node_connect_named(graph, id_convola[layers_cnt-1], "output", id_output,     "input");
+  // dt_node_connect_named(graph, id_last,  "output", id_output,     "input");
+  dt_node_connect_named(graph, id_convola[layers_cnt-1], "output", id_output,     "input");
 
   for(int i=0;i<layers_cnt-1;i++)
   {
