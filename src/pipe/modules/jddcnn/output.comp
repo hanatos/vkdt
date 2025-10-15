@@ -19,12 +19,20 @@ void main()
   const int wd = (imageSize(img_out).x/2)*2;
   const int cn = 3;
   const int idx = cn*(wd * ipos.y + ipos.x);
+  vec4 col = vec4(buf.v[idx+0], buf.v[idx+1], buf.v[idx+2], 1.0);
 #else // version where the low res layer outputs 4 rgb pixels directly:
   const int ht = (imageSize(img_out).y+1)/2;
   const int wd = (imageSize(img_out).x+1)/2;
   const int cn = 12;
   const int si = (ipos.y & 1)*2 + (ipos.x & 1);
+  // const int si = (ipos.y & 1) + 2-(ipos.x & 1)*2;
+  // const int si = 1-(ipos.y & 1) + (ipos.x & 1)*2;
+  // const int si = 0;//(ipos.y & 1)*2 + (ipos.x & 1);
   const int idx = cn*(wd * (ipos.y/2) + (ipos.x/2)) + 3*si;
+  // const int idx = cn*(wd * (ipos.y/2) + (ipos.x/2)) + 0;//2*si;
+  // vec4 col = vec4(buf.v[idx+0], buf.v[idx+4], buf.v[idx+8], 1.0);
+  // vec4 col = vec4(buf.v[idx+0], buf.v[idx+1], buf.v[idx+2], 1.0);
+  // vec4 col = vec4(buf.v[idx], buf.v[idx], buf.v[idx], 1.0);
 #endif
   vec4 col = vec4(buf.v[idx+0], buf.v[idx+1], buf.v[idx+2], 1.0);
   imageStore(img_out, ipos, col);
