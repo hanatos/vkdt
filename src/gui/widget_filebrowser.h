@@ -125,6 +125,12 @@ dt_filebrowser(
       NK_EDIT_ALWAYS_INSERT_MODE|NK_EDIT_FIELD|NK_EDIT_SIG_ENTER, w->cwd, sizeof(w->cwd), nk_filter_default);
   if(ret & NK_EDIT_COMMITED)
   {
+    int len = strlen(w->cwd);
+    if(len + 1 < sizeof(w->cwd) && len && w->cwd[len-1] != '/')
+    {
+      w->cwd[len]   = '/';
+      w->cwd[len+1] = 0;
+    }
     nk_edit_unfocus(ctx); // make keyboard nav in list below work
     dt_filebrowser_cleanup(w);
   }

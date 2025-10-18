@@ -319,7 +319,8 @@ files_mouse_button(GLFWwindow *window, int button, int action, int mods)
           }
           else
           { // append dir name
-            snprintf(c+len, sizeof(w->cwd)-len-1, "%s/", w->selected);
+            snprintf(c+len, sizeof(w->cwd)-len-1, "%s%s/",
+                c[len-1] == '/' ? "" : "/", w->selected);
           }
           // and then clean up the dirent cache
           dt_filebrowser_cleanup(w);
@@ -371,11 +372,17 @@ static void folder_activate()
     char newdir[PATH_MAX];
     if(!strcmp(filebrowser.selected, ".."))
       set_cwd(filebrowser.cwd, 1);
-    else if(filebrowser.selected_isdir &&
-        snprintf(newdir, sizeof(newdir), "%s%s", filebrowser.cwd, filebrowser.selected) < (int)sizeof(newdir)-1)
+    else if(filebrowser.selected_isdir)
     {
-      dt_gui_switch_collection(newdir);
-      dt_view_switch(s_view_lighttable);
+      int len = strlen(filebrowser.cwd);
+      if(snprintf(newdir, sizeof(newdir), "%s%s%s",
+            filebrowser.cwd,
+            (len && (filebrowser.cwd[len-1] == '/')) ? "" : "/",
+            filebrowser.selected) < (int)sizeof(newdir)-1)
+      {
+        dt_gui_switch_collection(newdir);
+        dt_view_switch(s_view_lighttable);
+      }
     }
   }
   if(!sel || !dir)
