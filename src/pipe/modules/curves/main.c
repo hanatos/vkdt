@@ -104,12 +104,45 @@ void commit_params(dt_graph_t *graph, dt_module_t *mod)
     float ddx0 = dt_module_param_float(mod, dt_module_get_param(mod->so, par[6*channel+4]))[0];
     float ddxn = dt_module_param_float(mod, dt_module_get_param(mod->so, par[6*channel+5]))[0];
 
+    int n = p_cnt[0]-1;
+    if(p_cnt[0] == 2)
+    { // automatic linear extension
+      ddx0 = ddxn = (p_y[1] - p_y[0])/(p_x[1] - p_x[0]);
+    }
+    else
+    { // guess ddx0 ddxn by quadratic equation
+      ddx0=ddxn=-1;
+      for(int k=0;k<2;k++)
+      { // for both sides, left and right
+        float x0 = k ? p_x[n-2] : p_x[0];
+        float x1 = k ? p_x[n-1] : p_x[1];
+        float x2 = k ? p_x[n-0] : p_x[2];
+        float y0 = k ? p_y[n-2] : p_y[0];
+        float y1 = k ? p_y[n-1] : p_y[1];
+        float y2 = k ? p_y[n-0] : p_y[2];
+        float x02=x0*x0, x12=x1*x1, x22 = x2*x2;
+        float a = ((x1-x0)*y2+(x0-x2)*y1+(x2-x1)*y0)
+          /((x1-x0)*x22+(x02-x12)*x2+x0*x12-x02*x1);
+        float b = -((x12-x02)*y2+(x02-x22)*y1+(x22-x12)*y0)
+          /((x1-x0)*x22+(x02-x12)*x2+x0*x12-x02*x1);
+        if(k) ddxn = 2.0f*a*x2 + b;
+        else  ddx0 = 2.0f*a*x0 + b;
+        if( k && y2 > y1) ddxn = MAX(0, ddxn);
+        if( k && y2 < y1) ddxn = MIN(0, ddxn);
+        if(!k && y1 > y0) ddx0 = MAX(0, ddx0);
+        if(!k && y1 < y0) ddx0 = MIN(0, ddx0);
+      }
+    }
+    ((float*)dt_module_param_float(mod,
+      dt_module_get_param(mod->so, par[6*channel+4])))[0] = ddx0;
+    ((float*)dt_module_param_float(mod,
+      dt_module_get_param(mod->so, par[6*channel+5])))[0] = ddxn;
+
     // cnt is 2..8
     float alpha[8], h[8], I[8], mu[8], z[8];
     float a[8], b[8], c[8], d[8];
 
     // clamped cubic spline
-    int n = p_cnt[0]-1;
     for(int i=0;i<n;i++)
     {
       a[i] = p_y[i];
