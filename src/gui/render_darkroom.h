@@ -118,12 +118,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       return;
   }
 
-#if 0 // TODO port
-  int axes_cnt = 0;
-  const float *axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
-  static int gamepad_reset = 0;
-  if(ImGui::IsKeyPressed(ImGuiKey_GamepadR3)) gamepad_reset = 1;
-#endif
 #define RESETBLOCK \
   {\
   struct nk_rect bounds = nk_widget_bounds(ctx);\
@@ -639,31 +633,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
       int accept = 0;
-#if 0 // TODO: port gamepad interaction
-      if(ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
-      {
-        vkdt.wstate.selected ++;
-        if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
-      }
-      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown))
-        accept = 1;
-      const float scale = vkdt.wstate.img_widget.scale > 0.0f ? vkdt.wstate.img_widget.scale : 1.0f;
-      if(vkdt.wstate.selected >= 0 && axes)
-      {
-#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
-        float inc[2] = {
-            0.002f/scale * SMOOTH(axes[3]),
-            0.002f/scale * SMOOTH(axes[4])};
-#undef SMOOTH
-        dt_gui_dr_pers_adjust(inc, 1);
-      }
-      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight))
-      {
-        dt_gamepadhelp_pop();
-        dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
-        widget_abort();
-      }
-#endif
       snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
       nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
       if(nk_button_label(ctx, string) || accept)
@@ -785,32 +754,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
       int accept = 0;
-#if 0 // TODO port gamepad controls
-      if(ImGui::IsKeyPressed(ImGuiKey_GamepadR1))
-      {
-        vkdt.wstate.selected ++;
-        if(vkdt.wstate.selected == 4) vkdt.wstate.selected = 0;
-      }
-      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown))
-        accept = 1;
-
-      int axes_cnt = 0;
-      const float* axes = vkdt.wstate.have_joystick ? glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_cnt) : 0;
-      const float scale = vkdt.wstate.img_widget.scale > 0.0f ? vkdt.wstate.img_widget.scale : 1.0f;
-#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
-      if(vkdt.wstate.selected >= 0 && axes)
-        dt_gui_dr_crop_adjust(0.002f/scale * SMOOTH(axes[vkdt.wstate.selected < 2 ? 3 : 4]), 1);
-#undef SMOOTH
-      // TODO: at least make keyboard interaction work
-      if(ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight)||
-         ImGui::IsKeyPressed(ImGuiKey_Escape)||
-         ImGui::IsKeyPressed(ImGuiKey_CapsLock))
-      {
-        widget_abort();
-        dt_gamepadhelp_pop();
-        dt_image_reset_zoom(&vkdt.wstate.img_widget);
-      }
-#endif
       snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
       nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
       if(nk_button_label(ctx, string) || accept)
