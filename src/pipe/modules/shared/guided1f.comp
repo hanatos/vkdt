@@ -5,6 +5,10 @@
 #include "shared.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(push_constant, std140) uniform push_t
+{
+  int grey;
+} pc;
 
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform sampler2D img_edge;
@@ -15,8 +19,17 @@ void main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  float I = luminance_rec2020(texelFetch(img_in,   ipos, 0).rgb);
-  float p = luminance_rec2020(texture(img_edge, (ipos+0.5)/vec2(imageSize(img_out))).rgb);
+  float I, p;
+  if(pc.grey == 1)
+  {
+    I = texelFetch(img_in,   ipos, 0).r;
+    p = texture(img_edge, (ipos+0.5)/vec2(imageSize(img_out))).r;
+  }
+  else
+  {
+    I = luminance_rec2020(texelFetch(img_in,   ipos, 0).rgb);
+    p = luminance_rec2020(texture(img_edge, (ipos+0.5)/vec2(imageSize(img_out))).rgb);
+  }
   imageStore(img_out, ipos, clamp(vec4(I, p, I*I, p*I), vec4(-1), vec4(1)));
 }
 

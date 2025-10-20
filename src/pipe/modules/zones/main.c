@@ -94,7 +94,7 @@ create_nodes(
   moddata_t *dat = module->data;
   const int id_guided = dt_api_guided_filter_full(
       graph, module, -1, 0, id_quant, 1,
-      0, 0, &dat->id_guided, radius);
+      0, 0, &dat->id_guided, radius, 0);
 
   // process zone exposure correction:
   const int id_apply = dt_node_add(graph, module, "zones", "apply", wd, ht, dp, 0, 0, 3,

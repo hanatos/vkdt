@@ -416,9 +416,8 @@ create_nodes(
 
   const int id_prep = dt_node_add(graph, module, "curves", "prep", wd, ht, 1, 0, 0, 4,
       "input",  "read",  "*", "*",   dt_no_roi,
-      // XXX add single-channel option to guided filter to save a lot of memory!
-      "a",      "write", "rgba", "f16", &module->connector[1].roi,
-      "b",      "write", "rgba", "f16", &module->connector[1].roi,
+      "a",      "write", "r", "f16", &module->connector[1].roi,
+      "b",      "write", "r", "f16", &module->connector[1].roi,
       "L",      "write", "r", "f16", &module->connector[1].roi);
 
   const int id_curv = dt_node_add(graph, module, "curves", "main", wd, ht, 1, 0, 0, 4,
@@ -436,12 +435,12 @@ create_nodes(
       id_prep, 3, // input, determines buffer sizes
       id_prep, 1, // guide
       0, 0, &dat->id_guided_a,
-      radius);
+      radius, 1);
   int id_blrb = dt_api_guided_filter_full(graph, module,
       id_prep, 3, // input, determines buffer sizes
       id_prep, 2, // guide
       0, 0, &dat->id_guided_b,
-      radius);
+      radius, 1);
 
   const int id_dspy = dt_node_add(graph, module, "curves", "dspy",
       module->connector[2].roi.wd, module->connector[2].roi.ht, 1, 0, 0, 2,

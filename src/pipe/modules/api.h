@@ -658,7 +658,8 @@ dt_api_guided_filter_full(
     int         *id_in,        // can be 0, or will be set to the input node
     int         *id_out,       // can be 0, or well be set to the output node
     int         *id_pc,        // can be 0, or well be set to the node that has push constants
-    const float *params)       // {radius (fraction of input wd), epsilon}, persist with cmd, will be pc
+    const float *params,       // {radius (fraction of input wd), epsilon}, persist with cmd, will be pc
+    int          grey)         // set to 1 if the input and output buffers are single-channel
 {
   // detect pixel format on input
   const dt_connector_t *conn_input = nodeid_input >= 0 ?
@@ -671,7 +672,8 @@ dt_api_guided_filter_full(
   const float radius_px = params[0] * wd;
 
   // compute (I,p,I*I,I*p)
-  const int id_guided1 = dt_node_add(graph, module, "shared", "guided1f", wd, ht, dp, 0, 0, 3,
+  const int id_guided1 = dt_node_add(graph, module, "shared", "guided1f", wd, ht, dp,
+      sizeof(int), &grey, 3,
       "input",  "read",  "*",    "*",   dt_no_roi,
       "guide",  "read",  "*",    "*",   dt_no_roi,
       "output", "write", "rgba", "f16", roi);
@@ -700,11 +702,11 @@ dt_api_guided_filter_full(
   const int id_blur = dt_api_blur(graph, module, id_guided2, 1, 0, 0, radius_px);
   // final kernel:
   // output = mean_a * I + mean_b
-  const int id_guided3 = dt_node_add(graph, module, "shared", "guided3", wd, ht, dp, 0, 0, 3,
+  const int id_guided3 = dt_node_add(graph, module, "shared", "guided3", wd, ht, dp,
+      sizeof(int), &grey, 3,
       "input",  "read",  "*",    "*",   dt_no_roi,
       "ab",     "read",  "*",    "*",   dt_no_roi,
-      "output", "write", "rgba", "f16", roi);
-  // CONN(dt_node_connect(graph, id_blur, 1, id_guided3, 1)); // XXX FIXME this doesn't work
+      "output", "write", grey ? "r" : "rgba", "f16", roi);
   CONN(dt_node_connect_named(graph, id_blur, "output", id_guided3, "ab"));
   if(id_out) *id_out = id_guided3;
   if(nodeid_guide >= 0)
@@ -771,7 +773,9 @@ dt_api_guided_filter(
 
   // final kernel:
   // output = mean_a * I + mean_b
-  const int id_guided3 = dt_node_add(graph, module, "shared", "guided3", wd, ht, 1, 0, 0, 3,
+  int pc = 0;
+  const int id_guided3 = dt_node_add(graph, module, "shared", "guided3", wd, ht, 1,
+      sizeof(int), &pc, 3,
       "input",  "read",  "*",     "*",  dt_no_roi,
       "ab",     "read",  "*",     "*",  dt_no_roi,
       "output", "write", "rgba", "f16", roi);

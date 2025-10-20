@@ -59,6 +59,6 @@ create_nodes(
   moddata_t *mod = module->data;
   const int id_guided = dt_api_guided_filter_full(
       graph, module, -1, 0, -1, 1,
-      0, 0, &mod->id_guided, radius);
+      0, 0, &mod->id_guided, radius, 0);
   dt_connector_copy(graph, module, 2, id_guided, 2);  // output
 }

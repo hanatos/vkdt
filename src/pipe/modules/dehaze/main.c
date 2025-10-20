@@ -51,7 +51,7 @@ create_nodes(
       -1, 0,       // input, determines buffer sizes
       id_depth, 1, // guide
       0, 0, &dat->id_guided,
-      radius);
+      radius, 0);
   const int id_dehaze = dt_node_add(graph, module, "dehaze", "dehaze", wd, ht, 1, 0, 0, 3,
       "input",  "read",  "rgba", "*",    dt_no_roi,
       "depth",  "read",  "rgba", "*",    dt_no_roi,
