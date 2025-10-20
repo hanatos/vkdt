@@ -10,6 +10,7 @@
 #include "render_view.h"
 #include "render.h"
 #include "widget_nodes.h"
+#include "widget_resize_panel.h"
 #include "hotkey.h"
 #include "api_gui.h"
 #include "widget_image.h"
@@ -138,6 +139,9 @@ void render_nodes_right_panel()
 
 void render_nodes()
 {
+  static int resize_panel = 0;
+  resize_panel = dt_resize_panel(resize_panel);
+
   const int disabled = vkdt.wstate.popup;
   struct nk_context *ctx = &vkdt.ctx;
   int num_modules = vkdt.graph_dev.num_modules;

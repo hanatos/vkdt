@@ -14,6 +14,7 @@
 #include "gui/widget_thumbnail.h"
 #include "gui/widget_recentcollect.h"
 #include "gui/widget_export.h"
+#include "gui/widget_resize_panel.h"
 #include "gui/api_gui.h"
 #include "gui/render.h"
 #define GLFW_INCLUDE_VULKAN
@@ -1397,6 +1398,9 @@ void render_lighttable_right_panel()
 
 void render_lighttable()
 {
+  static int resize_panel = 0;
+  resize_panel = dt_resize_panel(resize_panel);
+
   render_lighttable_right_panel();
   render_lighttable_center();
   render_lighttable_header();

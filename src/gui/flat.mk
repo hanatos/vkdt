@@ -29,6 +29,7 @@ GUI_H=gui/gui.h\
       gui/widget_radial_menu_dr.h\
       gui/widget_radial_menu_dr-fwd.h\
       gui/widget_recentcollect.h\
+      gui/widget_resize_panel.h\
       gui/widget_thumbnail.h\
       gui/view.h\
       gui/darkroom.h\

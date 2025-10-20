@@ -7,6 +7,7 @@
 #include "gui/hotkey.h"
 #include "gui/widget_filebrowser.h"
 #include "gui/widget_recentcollect.h"
+#include "gui/widget_resize_panel.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -59,6 +60,9 @@ void render_files()
     if(strcmp(mru, "null")) set_cwd(mru, 1);
     just_entered = 0;
   }
+
+  static int resize_panel = 0;
+  resize_panel = dt_resize_panel(resize_panel);
 
   struct nk_context *ctx = &vkdt.ctx;
   struct nk_rect bounds = {vkdt.win.width - vkdt.state.panel_wd, 0, vkdt.state.panel_wd, vkdt.win.height};

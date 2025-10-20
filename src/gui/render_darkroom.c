@@ -25,6 +25,7 @@
 #include "gui/widget_draw.h"
 #include "gui/widget_thumbnail.h"
 #include "gui/widget_image.h"
+#include "gui/widget_resize_panel.h"
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -354,6 +355,9 @@ void render_darkroom()
   }
 
   dt_radial_menu_dr(&vkdt.wstate.radial_menu_dr, bounds);
+
+  static int resize_panel = 0;
+  resize_panel = dt_resize_panel(resize_panel);
 
   const int disabled = vkdt.wstate.popup;
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
