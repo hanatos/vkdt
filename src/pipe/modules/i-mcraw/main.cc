@@ -408,7 +408,7 @@ int read_source(
     void                    *mapped,
     dt_read_source_params_t *p)
 {
-  double end, beg = dt_time();
+  // double end, beg = dt_time();
   const char *filename = dt_module_param_string(mod, 0);
   if(open_file(mod, filename)) return 1;
 
@@ -437,9 +437,9 @@ int read_source(
   {
     dat->dec->getEncoded(frame_list[frame], 0, 0, 0, 0, (uint8_t*)mapped, out_data_max_len);
   }
-  end = dt_time();
+  // end = dt_time();
   // dt_log(s_log_perf, "[i-mcraw] load %s %" PRItkn " in %3.2fms", dat->filename, dt_token_str(p->node->kernel), 1000.0*(end-beg));
-  fprintf(stderr, "[i-mcraw] load %s %" PRItkn " in %3.2fms", dat->filename, dt_token_str(p->node->kernel), 1000.0*(end-beg));
+  // fprintf(stderr, "[i-mcraw] load %s %" PRItkn " in %3.2fms\n", dat->filename, dt_token_str(p->node->kernel), 1000.0*(end-beg));
   return 0;
 }
 
