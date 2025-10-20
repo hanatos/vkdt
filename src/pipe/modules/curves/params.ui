@@ -22,15 +22,12 @@ pad:hidden
 mode:combo:rgb:luminance:ych
 group:mode:0
 channel:combo:red:green:blue
-group:channel:0
-ddr0:slider:-1:1
-ddrn:slider:-1:1
-group:channel:1
-ddg0:slider:-1:1
-ddgn:slider:-1:1
-group:channel:2
-ddb0:slider:-1:1
-ddbn:slider:-1:1
+ddr0:hidden
+ddrn:hidden
+ddg0:hidden
+ddgn:hidden
+ddb0:hidden
+ddbn:hidden
 group:mode:2
 ych 3x3:btngrid:00Y/Y:04C/Y:05h/Y:03Y/C:01C/C:08h/C:06Y/h:07C/h:02h/h
 group:-1:-1
