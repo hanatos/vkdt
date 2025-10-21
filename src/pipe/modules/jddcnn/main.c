@@ -135,6 +135,15 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
         "output",  "write", "ssbo", "f16", &roi_out,
         "input",   "read",  "ssbo", "f16", dt_no_roi);
     index_weights_buffer += 9 * o_cnt * o_cnt + o_cnt;
+  }
+
+  for(int i=0;i<layers_cnt;i++)
+  {
+    const int o_cnt = featdec[i];
+    dt_roi_t roi_out = { .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = round16(o_cnt) };
+    int pc[] = { index_weights_buffer, wd[layers_cnt-i], ht[layers_cnt-i] };
+
+    if(i==layers_cnt-1) roi_out = (dt_roi_t){ .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = o_cnt };
     pc[0] = index_weights_buffer;
     id_convola[i] = dt_node_add(
         graph, module, "jddcnn", shader,
@@ -144,7 +153,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
         "output",  "write", "ssbo", "f16", &roi_out,
         "input",   "read",  "ssbo", "f16", dt_no_roi);
 
-    fprintf(stderr, "decoder conv %d [%d %d %d %d] running on %d x %d output %d x %d\n", i, o_cnt, o_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
+    fprintf(stderr, "decoder cnva %d [%d %d %d %d] running on %d x %d output %d x %d\n", i, o_cnt, o_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
     index_weights_buffer += 9 * o_cnt * o_cnt + o_cnt;
   }
 #if 0
@@ -202,6 +211,9 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   dt_connector_copy(graph, module, 1, id_output, 1);
   dt_node_connect_named(graph, id_input, "output", id_encoder[0], "input");
   // dt_node_connect_named(graph, id_last,  "output", id_output,     "input");
+  // XXX DEBUG
+  // dt_node_connect_named(graph, id_decoder[0], "output", id_output, "input");
+  // dt_node_connect_named(graph, id_encoder[4], "output", id_output, "input");
   dt_node_connect_named(graph, id_convola[layers_cnt-1], "output", id_output,     "input");
 
   for(int i=0;i<layers_cnt-1;i++)

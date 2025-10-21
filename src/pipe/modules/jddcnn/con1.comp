@@ -7,5 +7,6 @@ const uint INPUT_FEATURE_STRIDE = 80;
 const uint NB_OUTPUT_FEATURES = 80;
 const uint OUTPUT_FEATURE_STRIDE = 80;
 const uint F_OUT_32 = 96;
+#define F_OUT_BATCHES 3
 
 #include "conv-impl.glsl"
