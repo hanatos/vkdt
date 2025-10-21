@@ -23,12 +23,13 @@ dt_gui_style_to_state()
 {
   vkdt.style.panel_width_frac = dt_rc_get_float(&vkdt.rc, "gui/panelwd", 0.2f);
   vkdt.style.border_frac = 0.05f;
-  const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
+  const float pwd = vkdt.wstate.fullscreen_view ? 0 : vkdt.style.panel_width_frac * vkdt.win.width;
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
   vkdt.style.fontsize = MAX(5, floorf(20 * vkdt.win.content_scale[1] * dpi_scale));
   float border = MAX(vkdt.style.fontsize * 2 * 1.25, 4); // enough for large 2x font + border
   border = MIN(border, (vkdt.win.width  - pwd)/2);
   border = MIN(border,  vkdt.win.height/2);
+  if(vkdt.wstate.fullscreen_view) border = 0;
   // TODO clamp to sane values, in case our min size request is ignored
   vkdt.state = (dt_gui_state_t) {
     .center_x   = border,

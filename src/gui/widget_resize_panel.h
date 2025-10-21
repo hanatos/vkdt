@@ -3,6 +3,7 @@
 static inline int
 dt_resize_panel(int dragging)
 {
+  if(vkdt.wstate.fullscreen_view) return dragging;
   float w = vkdt.ctx.style.font->height;
   float pwd = vkdt.state.panel_wd;
   int win_y = vkdt.state.center_y;
