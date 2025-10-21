@@ -259,7 +259,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   { // only works for param->type == float and count == 4
     if((num % 4) == 0 && num+4 <= count)
     {
-      const float wd = ratio[0]*pwd/5.0f - ctx->style.window.spacing.x;
+      const float wd = ratio[0]*pwd/5.0f - ctx->style.window.spacing.x * 4.0f/5.0f;
       const float w5[] = { wd, wd, wd, 2*wd, ratio[1]*pwd};
       nk_layout_row(ctx, NK_STATIC, row_height, 5, w5);
       float *val = (float *)(vkdt.graph_dev.module[modid].param + param->offset) + 4*num;
