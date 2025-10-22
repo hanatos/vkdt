@@ -68,10 +68,15 @@ float16_t coef_of_image(const int i, const int j, const uint f_in)
   float16_t res = float16_t(0.);
 #ifdef INPUT_SKIP_CONNECTION
   if (f_in < NB_INPUT_FEATURES_1)
-  { // we need to upsample
+  { // first input, not the skip connection
+#ifdef INPUT_UPSAMPLE
+    // we need to upsample
     const uint cwd = (push.wd+1)/2;
     const uint pos = (i/2) * cwd + (j/2);
     res = buf_in_1[INPUT_1_FEATURE_STRIDE * pos + f_in];
+#else
+    res = buf_in_1[INPUT_1_FEATURE_STRIDE * (i * push.wd + j) + f_in];
+#endif
   }
   else
   { // this is input2, the skip connection at same res as our output
@@ -79,7 +84,14 @@ float16_t coef_of_image(const int i, const int j, const uint f_in)
     res = buf_in_2[INPUT_2_FEATURE_STRIDE * pos + (f_in - NB_INPUT_FEATURES_1)];
   }
 #else // no skip connection
+#ifdef INPUT_UPSAMPLE
+  // we need to upsample
+  const uint cwd = (push.wd+1)/2;
+  const uint pos = (i/2) * cwd + (j/2);
+  res = buf_in[INPUT_FEATURE_STRIDE * pos + f_in];
+#else
   res = buf_in[INPUT_FEATURE_STRIDE * (i * push.wd + j) + f_in];
+#endif
 #endif
   return res;
 }
@@ -192,8 +204,12 @@ void main()
           const uint line_O  = 16*i + 2*p + (id_loc >= 16 ? 1 : 0);
           const uint img_row = TILE_HEIGHT * gl_WorkGroupID.x + line_O / TILE_WIDTH;
           const uint img_col = TILE_WIDTH  * gl_WorkGroupID.y + line_O % TILE_WIDTH;
-          float16_t v0 = max(float16_t(0.0), current_column_I[32* p    + id_loc] + bias(feature));
-          float16_t v1 = max(float16_t(0.0), current_column_I[32*(p+4) + id_loc] + bias(feature));
+          float16_t v0 = current_column_I[32* p    + id_loc] + bias(feature);
+          float16_t v1 = current_column_I[32*(p+4) + id_loc] + bias(feature);
+          // v0 = max(float16_t(0.0), v0); // relu
+          // v1 = max(float16_t(0.0), v1);
+          v0 = mix(v0, float16_t(0.2)*v0, v0 < 0); // leaky relu
+          v1 = mix(v1, float16_t(0.2)*v1, v1 < 0);
           if(img_row   >= push.ht || img_col >= push.wd) v0 = float16_t(0.0);
           if(img_row+1 >= push.ht || img_col >= push.wd) v1 = float16_t(0.0);
           float16_t v = max(v0, v1);
@@ -211,7 +227,8 @@ void main()
           { // compute the final value
             float16_t value = current_column_I[32*p + id_loc];
             value += bias(feature);           // bias
-            value = max(value, float16_t(0)); // ReLU
+            // value = max(value, float16_t(0)); // ReLU
+            value = mix(value, float16_t(0.2)*value, value < 0); // leaky relu
             buf_out[OUTPUT_FEATURE_STRIDE * (img_row * push.wd + img_col) + feature] = value;
           }
         }

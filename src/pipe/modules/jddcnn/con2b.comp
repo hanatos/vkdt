@@ -1,6 +1,5 @@
 #version 460
 #extension GL_GOOGLE_include_directive : enable
-#define INPUT_UPSAMPLE
 
 const uint NB_INPUT_FEATURES = 64;
 const uint INPUT_FEATURE_STRIDE = 64;

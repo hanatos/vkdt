@@ -3,15 +3,15 @@
 
 #define INPUT_SKIP_CONNECTION
 
-const uint NB_INPUT_FEATURES_1 = 112;
-const uint NB_INPUT_FEATURES_2 = 112;
-const uint INPUT_1_FEATURE_STRIDE = 112;
-const uint INPUT_2_FEATURE_STRIDE = 112;
+const uint NB_INPUT_FEATURES_1 = 256;
+const uint NB_INPUT_FEATURES_2 = 256;
+const uint INPUT_1_FEATURE_STRIDE = 256;
+const uint INPUT_2_FEATURE_STRIDE = 256;
 const uint NB_INPUT_FEATURES = NB_INPUT_FEATURES_1 + NB_INPUT_FEATURES_2;
 
-const uint NB_OUTPUT_FEATURES = 112;
-const uint OUTPUT_FEATURE_STRIDE = 112;
-const uint F_OUT_32 = 128;
-#define F_OUT_BATCHES 2
+const uint NB_OUTPUT_FEATURES = 256;
+const uint OUTPUT_FEATURE_STRIDE = 256;
+const uint F_OUT_32 = 256;
+#define F_OUT_BATCHES 4
 
 #include "conv-impl.glsl"
