@@ -37,7 +37,6 @@ void cleanup(dt_module_t *mod)
   mod->data = 0;
 }
 
-
 void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *module)
@@ -75,7 +74,43 @@ check_params(
     int newv = dt_module_param_int(mod, pid_mode)[0];
     int *p = (int *)dt_module_param_int(mod, pid_channel);
     int oldv = *(int*)oldval;
-    if(newv != 2 && oldv == 2) *p = 0;
+    if(newv == 0 && oldv == 1)
+    { // if switching from lum to rgb, set all three rgb curves to luminance (in red channel)
+#define CP(dst,src,type,size) do {\
+      const int pid_src = dt_module_get_param(mod->so, dt_token(src));\
+      const int pid_dst = dt_module_get_param(mod->so, dt_token(dst));\
+      type *s = (type *)dt_module_param_ ## type(mod, pid_src);\
+      type *d = (type *)dt_module_param_ ## type(mod, pid_dst);\
+      memcpy(d, s, size);\
+      dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_dst, throttle);\
+      } while(0)
+      CP("cntg", "cntr", int, sizeof(int));   CP("cntb", "cntr", int, sizeof(int));
+      CP("xg", "xr", float, 8*sizeof(float)); CP("xb", "xr", float, 8*sizeof(float));
+      CP("yg", "yr", float, 8*sizeof(float)); CP("yb", "yr", float, 8*sizeof(float));
+#undef CP
+    }
+    else if(newv == 1 && oldv == 0)
+    { // if switching from rgb to lum .. uhm.. average the three?
+      // for now we just leave it at lum = r
+    }
+    else if((newv == 2 && oldv != 2) || (newv != 2 && oldv == 2))
+    { // if switching from rgb or lum to ych or the other direction, init diagonal curves as defaults
+#define RP(name, type, size) do {\
+      const int pid = dt_module_get_param(mod->so, dt_token(name));\
+      type *p = (type *)dt_module_param_ ## type(mod, pid);\
+      memcpy(p, mod->so->param[pid]->val, size);\
+      dt_graph_history_append(mod->graph, mod-mod->graph->module, pid, throttle);\
+      } while(0)
+      RP("cntr",int,sizeof(int));     RP("cntg",int,sizeof(int));     RP("cntb",int,sizeof(int));
+      RP("xr",float,sizeof(float)*2); RP("xg",float,sizeof(float)*2); RP("xb",float,sizeof(float)*2);
+      RP("yr",float,sizeof(float)*2); RP("yg",float,sizeof(float)*2); RP("yb",float,sizeof(float)*2);
+#undef RP
+    }
+    else
+    { // all good
+      return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
+    }
+    *p = 0; // reset active channel to zero
   }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
