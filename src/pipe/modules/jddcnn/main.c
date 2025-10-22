@@ -85,7 +85,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
 
     wd[i+2] = (wd[i+1]+1)/2;
     ht[i+2] = (ht[i+1]+1)/2;
-    dt_roi_t roi_out = { .wd = wd[i+2] * ht[i+2], .ht = round16(o_cnt) };
+    dt_roi_t roi_out = { .wd = wd[i+2] * ht[i+2], .ht = o_cnt };// XXX ? round16(o_cnt) };
     int pc[] = { index_weights_buffer, wd[i+1], ht[i+1] };
 
     snprintf(shader, sizeof(shader), "enc%d", i);
@@ -108,7 +108,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
 
     // layers upsample their inputs first thing when running. so the resolution to run the kernel here is the larger one,
     // i.e. the input resolution of the corresponding encoder layer.
-    dt_roi_t roi_out = { .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = round16(o_cnt) };
+    dt_roi_t roi_out = { .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = o_cnt }; // XXX round16(o_cnt) };
     int pc[] = { index_weights_buffer, wd[layers_cnt-i], ht[layers_cnt-i] };
 
     // TODO: can this go faster if we parallelise workgroups over feature channels too? i.e. z up to o_cnt/16
@@ -140,11 +140,12 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   for(int i=0;i<layers_cnt;i++)
   {
     const int o_cnt = featdec[i];
-    dt_roi_t roi_out = { .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = round16(o_cnt) };
+    dt_roi_t roi_out = { .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = o_cnt }; // XXX round16(o_cnt) };
     int pc[] = { index_weights_buffer, wd[layers_cnt-i], ht[layers_cnt-i] };
 
     if(i==layers_cnt-1) roi_out = (dt_roi_t){ .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = o_cnt };
     pc[0] = index_weights_buffer;
+    snprintf(shader, sizeof(shader), "con%d", i);
     id_convola[i] = dt_node_add(
         graph, module, "jddcnn", shader,
         (ht[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_X, (wd[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_Y,
