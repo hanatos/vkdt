@@ -1,8 +1,8 @@
 #version 460
 #extension GL_GOOGLE_include_directive : enable
 
-const uint NB_INPUT_FEATURES = 64;
-const uint INPUT_FEATURE_STRIDE = 64;
+const uint NB_INPUT_FEATURES = 32;
+const uint INPUT_FEATURE_STRIDE = 32;
 const uint NB_OUTPUT_FEATURES = 12;
 const uint OUTPUT_FEATURE_STRIDE = 12;
 const uint F_OUT_32 = 32;
