@@ -75,13 +75,15 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   int wd[layers_cnt+2] = {module->connector[0].roi.wd, (module->connector[0].roi.wd+1)/2};
   int ht[layers_cnt+2] = {module->connector[0].roi.ht, (module->connector[0].roi.ht+1)/2};
 
-  int i_cnt = 4;
-  int o_cnt = 32;
+  int i_cnt = 0;
+  int o_cnt = 0;
   for(int i=0;i<layers_cnt;i++)
   {
     wd[i+2] = (wd[i+1]+1)/2;
     ht[i+2] = (ht[i+1]+1)/2;
     {
+      i_cnt = i ? o_cnt : 4;
+      o_cnt = i ? i_cnt : 32;
       dt_roi_t roi_out = { .wd = wd[i+1] * ht[i+1], .ht = o_cnt };
       int pc[] = { index_weights_buffer, wd[i+1], ht[i+1] };
 
@@ -116,19 +118,20 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
   }
 
+  int id_bottom;
   i_cnt = o_cnt;
   { // bottom level
     int pc[] = { index_weights_buffer, wd[layers_cnt+1], ht[layers_cnt+1] };
     dt_roi_t roi_out = { .wd = wd[layers_cnt+1] * ht[layers_cnt+1], .ht = o_cnt };
-    snprintf(shader, sizeof(shader), "enc%da", layers_cnt);
-    id_encoder[i] = dt_node_add(
+    snprintf(shader, sizeof(shader), "con%da", layers_cnt);
+    id_bottom = dt_node_add(
         graph, module, "jddcnn", shader,
-        (ht[i+1]+7) / 8 * DT_LOCAL_SIZE_X, (wd[i+1]+7) / 8 * DT_LOCAL_SIZE_Y,
+        (ht[layers_cnt+1]+7) / 8 * DT_LOCAL_SIZE_X, (wd[layers_cnt+1]+7) / 8 * DT_LOCAL_SIZE_Y,
         1, sizeof(pc), pc, 3,
         "weights", "read",  "ssbo", "f16", dt_no_roi,
         "output",  "write", "ssbo", "f16", &roi_out,
         "input",   "read",  "ssbo", "f16", dt_no_roi);
-    fprintf(stderr, "bottom conv %d [%d %d %d %d] running on %d x %d output %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[layers_cnt+1], ht[layers_cnt+1], wd[layers_cnt+1], ht[layers_cnt+1]);
+    fprintf(stderr, "bottom  conv   [%d %d %d %d] running on %d x %d output %d x %d\n", o_cnt, i_cnt, 3, 3, wd[layers_cnt+1], ht[layers_cnt+1], wd[layers_cnt+1], ht[layers_cnt+1]);
     index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
   }
 
@@ -142,7 +145,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       id_convolv[i] = dt_node_add(
           graph, module, "jddcnn", shader,
           (ht[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_X, (wd[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_Y,
-          1, sizeof(pc), pc, 4,
+          1, sizeof(pc), pc, 3,
           "weights", "read",  "ssbo", "f16", dt_no_roi,
           "output",  "write", "ssbo", "f16", &roi_out,
           "input",   "read",  "ssbo", "f16", dt_no_roi);
@@ -167,10 +170,11 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     }
     { // extra convolution conXb
       i_cnt = o_cnt;
+      if(i == layers_cnt-1) o_cnt = 12;
       dt_roi_t roi_out = { .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = o_cnt };
       int pc[] = { index_weights_buffer, wd[layers_cnt-i], ht[layers_cnt-i] };
       snprintf(shader, sizeof(shader), "con%db", i);
-      id_convolv[i] = dt_node_add(
+      id_convolb[i] = dt_node_add(
           graph, module, "jddcnn", shader,
           (ht[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_X, (wd[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_Y,
           1, sizeof(pc), pc, 3,
@@ -195,8 +199,18 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     dt_node_connect_named(graph, id_lut, "weights", id_decoder[i], "weights");
     dt_node_connect_named(graph, id_lut, "weights", id_convolv[i], "weights");
     dt_node_connect_named(graph, id_lut, "weights", id_convola[i], "weights");
-    dt_node_connect_named(graph, id_decoder[i], "output", id_convolv[i], "input");
-    dt_node_connect_named(graph, id_convolv[i], "output", id_convola[i], "input");
+    dt_node_connect_named(graph, id_lut, "weights", id_convolb[i], "weights");
+    dt_node_connect_named(graph, id_convola[i], "output", id_encoder[i], "input");
+    dt_node_connect_named(graph, id_convolv[i], "output", id_decoder[i], "input");
+    dt_node_connect_named(graph, id_convola[layers_cnt-1-i], "output", id_decoder[i], "skip");
+  }
+  dt_node_connect_named(graph, id_encoder[layers_cnt-1], "output", id_bottom, "input");
+  dt_node_connect_named(graph, id_bottom, "output",  id_convolv[0], "input");
+  dt_node_connect_named(graph, id_lut,    "weights", id_bottom, "weights");
+  for(int i=0;i<layers_cnt-1;i++)
+  {
+    dt_node_connect_named(graph, id_encoder[i], "output", id_convola[i+1], "input");
+    dt_node_connect_named(graph, id_decoder[i], "output", id_convolv[i+1], "input");
   }
 
   dt_roi_t roi_out = (dt_roi_t){ .wd = wd[1] * ht[1], .ht = 4 };
@@ -213,21 +227,23 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       module->connector[1].roi.full_ht);
   dt_connector_copy(graph, module, 0, id_input,  0);
   dt_connector_copy(graph, module, 1, id_output, 1);
-  dt_node_connect_named(graph, id_input, "output", id_encoder[0], "input");
+  dt_node_connect_named(graph, id_input, "output", id_convola[0], "input");
+  dt_node_connect_named(graph, id_decoder[layers_cnt-1], "output", id_output, "input");
+  // dt_node_connect_named(graph, id_input, "output", id_encoder[0], "input");
   // dt_node_connect_named(graph, id_last,  "output", id_output,     "input");
   // XXX DEBUG
   // dt_node_connect_named(graph, id_decoder[0], "output", id_output, "input");
   // dt_node_connect_named(graph, id_encoder[4], "output", id_output, "input");
-  dt_node_connect_named(graph, id_convola[layers_cnt-1], "output", id_output,     "input");
+  // dt_node_connect_named(graph, id_convola[layers_cnt-1], "output", id_output,     "input");
 
-  for(int i=0;i<layers_cnt-1;i++)
-  {
-    dt_node_connect_named(graph, id_encoder[i], "output", id_encoder[i+1],            "input");
-    fprintf(stderr, "skip connection enc %d to dec %d\n", i, layers_cnt-2-i);
-    dt_node_connect_named(graph, id_encoder[i], "output", id_decoder[layers_cnt-2-i], "skip");
-    dt_node_connect_named(graph, id_convola[i], "output", id_decoder[i+1],            "input");
-  }
-  dt_node_connect_named(graph, id_encoder[layers_cnt-1], "output", id_decoder[0],            "input");
-  dt_node_connect_named(graph, id_input,                 "output", id_decoder[layers_cnt-1], "skip");
+  // for(int i=0;i<layers_cnt-1;i++)
+  // {
+  //   dt_node_connect_named(graph, id_encoder[i], "output", id_encoder[i+1],            "input");
+  //   fprintf(stderr, "skip connection enc %d to dec %d\n", i, layers_cnt-2-i);
+  //   dt_node_connect_named(graph, id_encoder[i], "output", id_decoder[layers_cnt-2-i], "skip");
+  //   dt_node_connect_named(graph, id_convola[i], "output", id_decoder[i+1],            "input");
+  // }
+  // dt_node_connect_named(graph, id_encoder[layers_cnt-1], "output", id_decoder[0],            "input");
+  // dt_node_connect_named(graph, id_input,                 "output", id_decoder[layers_cnt-1], "skip");
 }
 #undef layers_cnt
