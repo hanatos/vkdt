@@ -1,10 +1,5 @@
 #include "modules/api.h"
 
-static inline int round16(const int x)
-{ // rounds x to the next multiple of 16
-  return 16 * ((x+15)/16);
-}
-
 void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
@@ -97,7 +92,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
           "input",   "read",  "ssbo", "f16", dt_no_roi);
     }
     index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
-    fprintf(stderr, "encoder cona %d [%d %d %d %d] running on %d x %d output %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[i+1], ht[i+1], wd[i+1], ht[i+1]);
+    fprintf(stderr, "encoder %s %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[i+1], ht[i+1], wd[i+1], ht[i+1]);
 
     i_cnt  = o_cnt;
     o_cnt *= 2;
@@ -114,7 +109,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
           "input",   "read",  "ssbo", "f16", dt_no_roi);
     }
 
-    fprintf(stderr, "encoder conv %d [%d %d %d %d] running on %d x %d output %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[i+1], ht[i+1], wd[i+2], ht[i+2]);
+    fprintf(stderr, "encoder %s  %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[i+1], ht[i+1], wd[i+2], ht[i+2]);
     index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
   }
 
@@ -131,7 +126,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
         "weights", "read",  "ssbo", "f16", dt_no_roi,
         "output",  "write", "ssbo", "f16", &roi_out,
         "input",   "read",  "ssbo", "f16", dt_no_roi);
-    fprintf(stderr, "bottom  conv   [%d %d %d %d] running on %d x %d output %d x %d\n", o_cnt, i_cnt, 3, 3, wd[layers_cnt+1], ht[layers_cnt+1], wd[layers_cnt+1], ht[layers_cnt+1]);
+    fprintf(stderr, "bottom  %s   [%d %d %d %d] running on %d x %d output %d x %d\n", shader, o_cnt, i_cnt, 3, 3, wd[layers_cnt+1], ht[layers_cnt+1], wd[layers_cnt+1], ht[layers_cnt+1]);
     index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
   }
 
@@ -150,7 +145,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
           "output",  "write", "ssbo", "f16", &roi_out,
           "input",   "read",  "ssbo", "f16", dt_no_roi);
       index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
-      fprintf(stderr, "decoder con  %d [%d %d %d %d] running on %d x %d output %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i+1], ht[layers_cnt-i+1], wd[layers_cnt-i], ht[layers_cnt-i]);
+      fprintf(stderr, "decoder %s  %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i+1], ht[layers_cnt-i+1], wd[layers_cnt-i], ht[layers_cnt-i]);
     }
     { // decoder convolution, no upsampling but we get the skip connection
       i_cnt = 2*o_cnt; // we get the skip connection too, but reduce to current o_cnt
@@ -166,7 +161,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
           "input",   "read",  "ssbo", "f16", dt_no_roi,  // low res inputs, to be upsampled first
           "skip",    "read",  "ssbo", "f16", dt_no_roi); // these are the skip connections on high res
       index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
-      fprintf(stderr, "decoder dec  %d [%d %d %d %d] running on %d x %d output %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
+      fprintf(stderr, "decoder %s  %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
     }
     { // extra convolution conXb
       i_cnt = o_cnt;
@@ -182,7 +177,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
           "output",  "write", "ssbo", "f16", &roi_out,
           "input",   "read",  "ssbo", "f16", dt_no_roi);
       index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
-      fprintf(stderr, "decoder conb %d [%d %d %d %d] running on %d x %d output %d x %d\n", i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
+      fprintf(stderr, "decoder %s %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
     }
   }
 
@@ -202,6 +197,8 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     dt_node_connect_named(graph, id_lut, "weights", id_convolb[i], "weights");
     dt_node_connect_named(graph, id_convola[i], "output", id_encoder[i], "input");
     dt_node_connect_named(graph, id_convolv[i], "output", id_decoder[i], "input");
+    dt_node_connect_named(graph, id_decoder[i], "output", id_convolb[i], "input");
+    fprintf(stderr, "skip connection con%da -> dec%d\n", layers_cnt-1-i, i);
     dt_node_connect_named(graph, id_convola[layers_cnt-1-i], "output", id_decoder[i], "skip");
   }
   dt_node_connect_named(graph, id_encoder[layers_cnt-1], "output", id_bottom, "input");
@@ -210,7 +207,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   for(int i=0;i<layers_cnt-1;i++)
   {
     dt_node_connect_named(graph, id_encoder[i], "output", id_convola[i+1], "input");
-    dt_node_connect_named(graph, id_decoder[i], "output", id_convolv[i+1], "input");
+    dt_node_connect_named(graph, id_convolb[i], "output", id_convolv[i+1], "input");
   }
 
   dt_roi_t roi_out = (dt_roi_t){ .wd = wd[1] * ht[1], .ht = 4 };
@@ -228,22 +225,6 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   dt_connector_copy(graph, module, 0, id_input,  0);
   dt_connector_copy(graph, module, 1, id_output, 1);
   dt_node_connect_named(graph, id_input, "output", id_convola[0], "input");
-  dt_node_connect_named(graph, id_decoder[layers_cnt-1], "output", id_output, "input");
-  // dt_node_connect_named(graph, id_input, "output", id_encoder[0], "input");
-  // dt_node_connect_named(graph, id_last,  "output", id_output,     "input");
-  // XXX DEBUG
-  // dt_node_connect_named(graph, id_decoder[0], "output", id_output, "input");
-  // dt_node_connect_named(graph, id_encoder[4], "output", id_output, "input");
-  // dt_node_connect_named(graph, id_convola[layers_cnt-1], "output", id_output,     "input");
-
-  // for(int i=0;i<layers_cnt-1;i++)
-  // {
-  //   dt_node_connect_named(graph, id_encoder[i], "output", id_encoder[i+1],            "input");
-  //   fprintf(stderr, "skip connection enc %d to dec %d\n", i, layers_cnt-2-i);
-  //   dt_node_connect_named(graph, id_encoder[i], "output", id_decoder[layers_cnt-2-i], "skip");
-  //   dt_node_connect_named(graph, id_convola[i], "output", id_decoder[i+1],            "input");
-  // }
-  // dt_node_connect_named(graph, id_encoder[layers_cnt-1], "output", id_decoder[0],            "input");
-  // dt_node_connect_named(graph, id_input,                 "output", id_decoder[layers_cnt-1], "skip");
+  dt_node_connect_named(graph, id_convolb[layers_cnt-1], "output", id_output, "input");
 }
 #undef layers_cnt
