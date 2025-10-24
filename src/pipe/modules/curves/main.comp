@@ -24,8 +24,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float ddr0, ddrn;
   float ddg0, ddgn;
   float ddb0, ddbn;
-  vec4 vtx[18]; // vertex locations for interpolated relative curves, max 6 per curve, 6 curves, 2 coords
-  vec4 abcd0[6], abcd1[6], abcd2[6], abcd3[6], abcd4[6], abcd5[6];
+  vec4 vtx1[3], vtx2[3], vtx3[3], vtx4[3], vtx5[3], vtx6[3], vtx7[3], vtx8[3];
+  vec4 abcd1[6], abcd2[6], abcd3[6], abcd4[6], abcd5[6], abcd6[6], abcd7[6], abcd8[6];
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform sampler2D img_a;
@@ -60,8 +60,8 @@ void main()
     // step 1: apply curves to the diagonal (y/y, c/c, h/h, these are diagonal lines or splines):
     vec3 ycho = vec3(
         curve_eval(0, ychi.r, ddx),
-        curve_eval(1, ychi.g, ddx),
-        curve_eval(2, ychi.b, ddx));
+        ychi.g,
+        ychi.b);
 
     // only use blurred input for relative stuff
     float guided_a = texelFetch(img_a, ipos, 0).r;
@@ -70,14 +70,17 @@ void main()
     oklab.yz /= 0.4*max(0.01, oklab.x); // divide L for "hunt effect"
     ychi = vec3(oklab.x, length(oklab.yz), fract(1.0 + atan(oklab.z, oklab.y)/(2.0*M_PI)));
 
+    ycho.g += curve_horiz(1, ychi.g, ddx); // c/c
+    ycho.b += curve_horiz(2, ychi.b, ddx); // h/h
+
     // step 2: the off-diagonals: apply the remaining two dependencies. these are relative,
     // i.e. start from flat lines in the graphs. also these aren't splines but cosine interpolation (less ringing)
-    ycho.r += curve_horiz(0, ychi.g, ddx); // y/c
-    ycho.g += curve_horiz(1, ychi.r, ddx); // c/y
-    ycho.b += curve_horiz(2, ychi.r, ddx); // h/y
-    ycho.r += curve_horiz(3, ychi.b, ddx); // y/h
-    ycho.g += curve_horiz(4, ychi.b, ddx); // c/h
-    ycho.b += curve_horiz(5, ychi.g, ddx); // h/c
+    ycho.r += curve_horiz(3, ychi.g, ddx); // y/c
+    ycho.g += curve_horiz(4, ychi.r, ddx); // c/y
+    ycho.b += curve_horiz(5, ychi.r, ddx); // h/y
+    ycho.r += curve_horiz(6, ychi.b, ddx); // y/h
+    ycho.g += curve_horiz(7, ychi.b, ddx); // c/h
+    ycho.b += curve_horiz(8, ychi.g, ddx); // h/c
 
     ycho.g = max(ycho.g, 0.0); // no negative chroma, does weird shit
 

@@ -30,8 +30,9 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float ddr0, ddrn;
   float ddg0, ddgn;
   float ddb0, ddbn;
-  vec4 vtx[18];
-  vec4 abcd0[6], abcd1[6], abcd2[6], abcd3[6], abcd4[6], abcd5[6];
+  vec4 vtx1[3], vtx2[3], vtx3[3], vtx4[3], vtx5[3], vtx6[3], vtx7[3], vtx8[3];
+  vec4 abcd1[6], abcd2[6], abcd3[6], abcd4[6], abcd5[6], abcd6[6], abcd7[6], abcd8[6];
+  float radius, edges;
 } params;
 layout(set = 1, binding = 0, std430) buffer buf_hist { uint  histogram[]; };
 layout(set = 1, binding = 1) uniform writeonly image2D img_dspy;
@@ -70,7 +71,7 @@ void main()
     else // params.mode == 2
     { // ych
       float xx = x;
-      if(params.ychchan < 3) xx = e2l(x);
+      if(params.ychchan == 0) xx = e2l(x);
       // if(dep == 0) col = ych2rgb(vec3(xx,0.0,0.0));
       // if(dep == 1) col = ych2rgb(vec3(0.5,xx,0.5));
       // if(dep == 2) col = ych2rgb(vec3(0.5,1.0,xx));
@@ -79,6 +80,22 @@ void main()
       if(dep == 2) col = oklsh_to_rec2020(vec3(0.5,1.0,xx));
     }
     rgba = vec4(col, 1.0);
+  }
+  else if(params.mode == 2)
+  { // bg colour for ych mode
+    float y = 0.5-tc.y;
+    // float y = tc.y - 0.5;
+    vec3 col;
+    if     (params.ychchan == 0) col = oklsh_to_rec2020(vec3(e2l(max(x+y-0.5,0)),0,0)); // YY
+    else if(params.ychchan == 1) col = oklsh_to_rec2020(vec3(0.5,max(0,x+y),0.0)); // CC
+    else if(params.ychchan == 2) col = oklsh_to_rec2020(vec3(0.5,0.5,x+y)); // hh
+    else if(params.ychchan == 3) col = oklsh_to_rec2020(vec3(y+0.5,x,0.0)); // YC
+    else if(params.ychchan == 4) col = oklsh_to_rec2020(vec3(x,max(y+0.5,0),0.0)); // CY
+    else if(params.ychchan == 5) col = oklsh_to_rec2020(vec3(x,0.5,y)); // hY
+    else if(params.ychchan == 6) col = oklsh_to_rec2020(vec3(max(y+0.5,0),0.5,x)); // Yh
+    else if(params.ychchan == 7) col = oklsh_to_rec2020(vec3(0.5,max(y+0.5,0),x)); // Ch
+    else if(params.ychchan == 8) col = oklsh_to_rec2020(vec3(0.5,x,y)); // hC
+    rgba = vec4(0.5*col, 1);
   }
 
   if(params.mode == 2)
@@ -110,9 +127,9 @@ void main()
       }
       vec3 col = vec3(0.9);
       float ddx;
-      if(c < 3)
+      if(c == 0)
       { // splines on the diagonal
-        const int cnt = c == 0 ? params.cntr : c == 1 ? params.cntg : params.cntb;
+        const int cnt = params.cntr;
         float yl = curve_eval(c, e2l(x), ddx);
         float y = l2e(yl);
         if(params.edit > 0)
@@ -137,7 +154,7 @@ void main()
       }
       else
       {
-        float y = curve_horiz(c-3, x, ddx); // convert channel to index of 6 flat curves
+        float y = curve_horiz(c, x, ddx);
         const float w = c == params.ychchan ? 5.0 : 2.0; // stroke width
         float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
         float d = abs((0.5+of0-y) * (1.0-of0) * imageSize(img_dspy).y - ipos.y);
@@ -148,7 +165,7 @@ void main()
           y = 0.5-ipos.y/float(imageSize(img_dspy).y - off);
           for(int i=0;i<6;i++)
           {
-            vec2 dist = vec2(x,y)-vec2(eq_x(c-3, i), eq_y(c-3, i));
+            vec2 dist = vec2(x,y)-vec2(eq_x(c, i), eq_y(c, i));
             d = dot(dist,dist);
             float rad = params.sel == i ? 0.03 : 0.02;
             if(d < rad*rad)

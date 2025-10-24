@@ -27,8 +27,8 @@ layout(std140, set = 0, binding = 1) uniform params_t {
   float ddr0, ddrn;
   float ddg0, ddgn;
   float ddb0, ddbn;
-  vec4 vtx[18];
-  vec4 abcd0[6], abcd1[6], abcd2[6], abcd3[6], abcd4[6], abcd5[6];
+  vec4 vtx1[3], vtx2[3], vtx3[3], vtx4[3], vtx5[3], vtx6[3], vtx7[3], vtx8[3];
+  vec4 abcd1[6], abcd2[6], abcd3[6], abcd4[6], abcd5[6], abcd6[6], abcd7[6], abcd8[6];
 } params;
 #include "eq.glsl"
 #include "spline.glsl"
@@ -48,7 +48,7 @@ uint get_bin(vec3 rgb)
       l = ych.y; // depend on chroma
     if(params.ychchan == 2 || params.ychchan == 6 || params.ychchan == 7)
       l = ych.z; // depend on hue
-    if(params.ychchan < 3) l = l2e(l);
+    if(params.ychchan == 0) l = l2e(l);
   }
   else
   {

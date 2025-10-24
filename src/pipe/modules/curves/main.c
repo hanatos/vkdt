@@ -218,17 +218,20 @@ void commit_params(dt_graph_t *graph, dt_module_t *mod)
   }
 
   dt_token_t tkn_abcd[] = {
-    dt_token("abcd0"), dt_token("abcd1"), dt_token("abcd2"),
-    dt_token("abcd3"), dt_token("abcd4"), dt_token("abcd5")};
-  const int pid_v  = dt_module_get_param(mod->so, dt_token("vtx"));
-  const float *p_v = dt_module_param_float(mod, pid_v);
-  for(int channel=0;channel<6;channel++)
-  { // now the six horizontal curves.
-    int pid_abcd  = dt_module_get_param(mod->so, tkn_abcd[channel]);
+    dt_token("abcd1"), dt_token("abcd2"), dt_token("abcd3"), dt_token("abcd4"),
+    dt_token("abcd5"), dt_token("abcd6"), dt_token("abcd7"), dt_token("abcd8")};
+  dt_token_t tkn_vtx[] = {
+    dt_token("vtx1"), dt_token("vtx2"), dt_token("vtx3"), dt_token("vtx4"),
+    dt_token("vtx5"), dt_token("vtx6"), dt_token("vtx7"), dt_token("vtx8")};
+  for(int channel=0;channel<8;channel++)
+  { // now the eight horizontal curves.
+    const int pid_abcd  = dt_module_get_param(mod->so, tkn_abcd[channel]);
     float *p_abcd = (float *)dt_module_param_float(mod, pid_abcd);
+    const int pid_v  = dt_module_get_param(mod->so, tkn_vtx[channel]);
+    const float *p_v = dt_module_param_float(mod, pid_v);
     int cnt = 0;
     for(;cnt<6;cnt++)
-      if(p_v[6*channel+cnt] == -666.0f)
+      if(p_v[cnt] == -666.0f)
         break;
     for(int v=0;v<cnt;v++)
     { // init one segment per vertex pair (periodic for hues)
@@ -236,10 +239,10 @@ void commit_params(dt_graph_t *graph, dt_module_t *mod)
       const int vp = periodic ? (v+cnt-1)%cnt : CLAMP(v-1, 0, cnt-1);
       const int vn = periodic ? (v    +1)%cnt : CLAMP(v+1, 0, cnt-1);
       const int vf = periodic ? (v    +2)%cnt : CLAMP(v+2, 0, cnt-1);
-      float vp_x = p_v[6*channel+vp], vp_y = p_v[6*channel+vp+36];
-      float vc_x = p_v[6*channel+v ], vc_y = p_v[6*channel+v +36];
-      float vn_x = p_v[6*channel+vn], vn_y = p_v[6*channel+vn+36];
-      float vf_x = p_v[6*channel+vf], vf_y = p_v[6*channel+vf+36];
+      float vp_x = p_v[vp], vp_y = p_v[vp+6];
+      float vc_x = p_v[v ], vc_y = p_v[v +6];
+      float vn_x = p_v[vn], vn_y = p_v[vn+6];
+      float vf_x = p_v[vf], vf_y = p_v[vf+6];
       if(vp_x > vc_x) vp_x -= 1.0f; // modulo to ensure sort order of x pos
       if(vn_x < vc_x) vn_x += 1.0f;
       if(vf_x < vc_x) vf_x += 1.0f;
@@ -296,13 +299,11 @@ input(
   const int pid_cnt     = dt_module_get_param(mod->so, par[3*channel+0]);
   const int pid_x       = dt_module_get_param(mod->so, par[3*channel+1]);
   const int pid_y       = dt_module_get_param(mod->so, par[3*channel+2]);
-  const int pid_v       = dt_module_get_param(mod->so, dt_token("vtx"));
   const int pid_edit    = dt_module_get_param(mod->so, dt_token("edit"));
   int *p_sel = (int   *)dt_module_param_int  (mod, pid_sel);
   int *p_cnt = (int   *)dt_module_param_int  (mod, pid_cnt);
   float *p_x = (float *)dt_module_param_float(mod, pid_x);
   float *p_y = (float *)dt_module_param_float(mod, pid_y);
-  float *p_v = (float *)dt_module_param_float(mod, pid_v);
   const int edit = dt_module_param_int(mod, pid_edit)[0];
 
   static int active = -1;
@@ -312,9 +313,14 @@ input(
   else
     channel = CLAMP(channel, 0, 2); // make sure we don't go out of bounds
 
-  if(mode == 2 && channel > 2)
+  if(mode == 2 && channel > 0)
   { // flat/relative curves
-    int c = channel-3; // 6-based index
+    const dt_token_t tkn_vtx[] = { dt_token("null"),
+      dt_token("vtx1"), dt_token("vtx2"), dt_token("vtx3"), dt_token("vtx4"),
+      dt_token("vtx5"), dt_token("vtx6"), dt_token("vtx7"), dt_token("vtx8")};
+    const int pid_v = dt_module_get_param(mod->so, tkn_vtx[channel]);
+    float *p_v = (float *)dt_module_param_float(mod, pid_v);
+
     if(p->type == 1)
     { // mouse button
       if(p->action == 1)
@@ -323,8 +329,7 @@ input(
         else if(p->mbutton == 3)
         { // double click to reset x and y values of current curve
           const dt_ui_param_t *param = mod->so->param[pid_v];
-          memcpy(p_v + 6*c,      param->val + 6*c,      sizeof(float)*6);
-          memcpy(p_v + 6*c + 36, param->val + 6*c + 36, sizeof(float)*6);
+          memcpy(p_v, param->val, sizeof(float)*12);
           dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_v, throttle);
           return s_graph_run_record_cmd_buf;
         }
@@ -335,10 +340,10 @@ input(
     { // mouse position
       if(active >= 0 && active < 6)
       { // move active point around
-        float mx = active > 0   ? p_v[6*c+active-1]+1e-3f : 0.0f;
-        float Mx = active < 6-1 ? p_v[6*c+active+1]-1e-3f : 1.0f;
-        p_v[   6*c+active] = CLAMP(p->x, mx, Mx);
-        p_v[36+6*c+active] = p->y-0.5f;
+        float mx = active > 0   ? p_v[active-1]+1e-3f : 0.0f;
+        float Mx = active < 6-1 ? p_v[active+1]-1e-3f : 1.0f;
+        p_v[active  ] = CLAMP(p->x, mx, Mx);
+        p_v[active+6] = p->y-0.5f;
         dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_v, throttle);
         return s_graph_run_record_cmd_buf;
       }
@@ -347,7 +352,7 @@ input(
         int old = p_sel[0];
         p_sel[0] = -1;
         for(int i=0;i<6;i++)
-          if(fabs(p->x - p_v[6*c+i]) < 0.05 && fabs(p->y-0.5f-p_v[36+6*c+i]) < 0.05)
+          if(fabs(p->x - p_v[i]) < 0.05 && fabs(p->y-0.5f-p_v[i+6]) < 0.05)
             p_sel[0] = i;
         if(old != p_sel[0]) return s_graph_run_record_cmd_buf;
       }

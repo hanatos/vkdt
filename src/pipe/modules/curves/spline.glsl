@@ -9,12 +9,14 @@ float l2e(float v)
 
 vec4 abcd_horiz(int c, int i)
 {
-  if(c == 0) return params.abcd0[i];
   if(c == 1) return params.abcd1[i];
   if(c == 2) return params.abcd2[i];
   if(c == 3) return params.abcd3[i];
   if(c == 4) return params.abcd4[i];
-  /*c == 5*/ return params.abcd5[i];
+  if(c == 5) return params.abcd5[i];
+  if(c == 6) return params.abcd6[i];
+  if(c == 7) return params.abcd7[i];
+  /*c == 8*/ return params.abcd8[i];
 }
 
 vec4 abcd(int c, int i)

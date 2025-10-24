@@ -43,7 +43,7 @@ but works in a linear opponent space (YCbCr, the radial version of it).
 * `ddrn` the slope of the curve after the rightmost control vertex
 * `ddgn` the slope of the curve after the rightmost control vertex
 * `ddbn` the slope of the curve after the rightmost control vertex
-* `edit` edit linear values or in some gamma corrected space that gives more control over blacks. this only affects the ui and only rgb curves and the diagonals of YCh.
+* `edit` edit luminance as linear values or in some gamma corrected space that gives more control over blacks. this only affects the ui and only rgb curves and luminance
 * `radius` size of the guided filter chroma/hue blur to avoid colour noise
 * `edges` edge parameter of the guided filter chroma/hue blur to avoid colour noise
 
