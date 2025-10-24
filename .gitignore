@@ -5,6 +5,7 @@
 *ptooltips
 *.dSYM/
 cscope.out
+result
 built/
 src/core/version.h
 bin/config.mk
