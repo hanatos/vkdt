@@ -334,6 +334,12 @@ input(
           return s_graph_run_record_cmd_buf;
         }
       }
+      else if(p->action == 0 && p->mbutton == 0 && active >= 0)
+      { // released after selection
+        dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_v, throttle);
+        active = -1;
+        return s_graph_run_record_cmd_buf;
+      }
       else active = -1; // no mouse down no active vertex
     }
     else if(p->type == 2)
@@ -344,7 +350,7 @@ input(
         float Mx = active < 6-1 ? p_v[active+1]-1e-3f : 1.0f;
         p_v[active  ] = CLAMP(p->x, mx, Mx);
         p_v[active+6] = p->y-0.5f;
-        dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_v, throttle);
+        // dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_v, throttle);
         return s_graph_run_record_cmd_buf;
       }
       else
@@ -413,6 +419,14 @@ input(
         return s_graph_run_record_cmd_buf;
       }
     }
+    else if(p->action == 0 && p->mbutton == 0 && active >= 0)
+    { // released after selection
+      dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_x, throttle);
+      dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_y, throttle);
+      dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_cnt, throttle);
+      active = -1;
+      return s_graph_run_record_cmd_buf;
+    }
     else active = -1; // no mouse down no active vertex
   }
   else if(p->type == 2)
@@ -423,8 +437,6 @@ input(
       float Mx = active < p_cnt[0]-1 ? p_x[active+1]-1e-3f : 1.0f;
       p_x[active] = CLAMP(E2L(p->x), mx, Mx);
       p_y[active] = E2L(p->y);
-      dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_x, throttle);
-      dt_graph_history_append(mod->graph, mod-mod->graph->module, pid_y, throttle);
       return s_graph_run_record_cmd_buf;
     }
     else
