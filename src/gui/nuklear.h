@@ -11714,7 +11714,7 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     property->sym_right     = NK_SYMBOL_TRIANGLE_RIGHT;
     property->userdata      = nk_handle_ptr(0);
     property->padding       = nk_vec2(S(4),S(4));
-    property->border        = S(1);
+    property->border        = S(0);
     property->rounding      = S(12);
     property->draw_begin    = 0;
     property->draw_end      = 0;
