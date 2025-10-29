@@ -88,7 +88,7 @@ create_nodes(
   // input image -> seven quantised zones of exposure in [0,1] (output int 0..6)
   const int id_quant = dt_node_add(graph, module, "zones", "quant", wd, ht, dp, 0, 0, 2,
       "input",  "read",  "rgba", "f16", dt_no_roi,
-      "output", "write", "rgba", "f16", &module->connector[0].roi);
+      "output", "write", "r",    "f16", &module->connector[0].roi);
   // output: float image [0.0,6.0]
   // guided blur with I : zones, p : input image
   moddata_t *dat = module->data;

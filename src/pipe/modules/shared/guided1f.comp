@@ -28,8 +28,7 @@ void main()
   else
   {
     I = luminance_rec2020(texelFetch(img_in,   ipos, 0).rgb);
-    p = luminance_rec2020(texture(img_edge, (ipos+0.5)/vec2(imageSize(img_out))).rgb);
+    p = texture(img_edge, (ipos+0.5)/vec2(imageSize(img_out))).r;
   }
   imageStore(img_out, ipos, clamp(vec4(I, p, I*I, p*I), vec4(-1), vec4(1)));
 }
-
