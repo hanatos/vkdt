@@ -21,7 +21,7 @@ connect:colour:tint2:output:blend:tint2:input
 connect:guided:tint2:output:blend:tint2:mask
 connect:blend:tint1:output:guided:tint2:input
 connect:draw:tint2:output:guided:tint2:guide
-param:draw:tint1:opacity:5
+param:draw:tint1:opacity:1
 param:draw:tint1:radius:0.01
 param:draw:tint1:hardness:1
 param:draw:tint1:draw:1:0:0
