@@ -324,8 +324,8 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
       float scalex = max_wd > 0 ? r->full_wd / (float) max_wd : 1.0f;
       float scaley = max_ht > 0 ? r->full_ht / (float) max_ht : 1.0f;
       r->scale = MAX(scalex, scaley);
-      r->wd = r->full_wd/r->scale;
-      r->ht = r->full_ht/r->scale;
+      r->wd = (r->full_wd/r->scale + 0.5f);
+      r->ht = (r->full_ht/r->scale + 0.5f);
     }
     if(output < 0)
     {
