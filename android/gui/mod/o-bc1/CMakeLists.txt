@@ -1,0 +1,12 @@
+set(NAME o-bc1)
+set(MOD o-bc1)
+set(SRC_DIR ../../../../src)
+set(MOD_DIR ${SRC_DIR}/pipe/modules/${MOD})
+set(ASS_DIR ../../assets)
+include_directories(${SRC_DIR})
+include_directories(${MOD_DIR})
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DVKDT_DSO_BUILD -D__USE_BSD=1")
+add_library(o-bc1 SHARED ${MOD_DIR}/main.c)
+target_link_libraries(o-bc1 android)
+target_link_libraries(o-bc1 z)

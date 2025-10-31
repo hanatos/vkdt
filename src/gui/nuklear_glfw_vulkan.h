@@ -25,8 +25,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include "gui/win.h"
 
 NK_API void
 nk_glfw3_init(struct nk_context *ctx, VkRenderPass render_pass, GLFWwindow *win, VkDevice logical_device,
@@ -417,6 +416,7 @@ nk_glfw3_create_shader(struct nk_glfw_device *dev, unsigned char *spv_shader,
 NK_INTERN VkResult
 nk_glfw3_create_pipeline(struct nk_glfw_device *dev)
 {
+    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "create pipeline!!\n");
     VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
     VkPipelineRasterizationStateCreateInfo rasterization_state;
     VkPipelineColorBlendAttachmentState attachment_state = {
@@ -430,7 +430,6 @@ nk_glfw3_create_pipeline(struct nk_glfw_device *dev)
         VK_COLOR_COMPONENT_MASK_RGBA,
     };
     VkPipelineColorBlendStateCreateInfo color_blend_state;
-    VkPipelineViewportStateCreateInfo viewport_state;
     VkPipelineMultisampleStateCreateInfo multisample_state;
     VkDynamicState dynamic_states[2] = {VK_DYNAMIC_STATE_VIEWPORT,
                                         VK_DYNAMIC_STATE_SCISSOR};
@@ -463,12 +462,12 @@ nk_glfw3_create_pipeline(struct nk_glfw_device *dev)
     color_blend_state.attachmentCount = 1;
     color_blend_state.pAttachments = &attachment_state;
 
-    memset(&viewport_state, 0, sizeof(VkPipelineViewportStateCreateInfo));
-    viewport_state.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewport_state.viewportCount = 1;
-    viewport_state.scissorCount = 1;
-
+    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "initing viewport as %f x %f\n", viewport.width, viewport.height);
+    VkPipelineViewportStateCreateInfo viewport_state = {
+      .sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+      .viewportCount = 1,
+      .scissorCount  = 1,
+    };
     memset(&multisample_state, 0, sizeof(VkPipelineMultisampleStateCreateInfo));
     multisample_state.sType =
         VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -544,6 +543,7 @@ NK_INTERN VkResult
 nk_glfw3_create_render_resources(
     struct nk_glfw_device *dev)
 {
+    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "create resources XXXXXXXXXXX!!\n");
   VkResult result;
   result = nk_glfw3_create_descriptor_pool(dev);
   if(result != VK_SUCCESS) return result;
@@ -1029,6 +1029,7 @@ NK_API int nk_glfw3_font_load(
 NK_API void nk_glfw3_input_begin(struct nk_context *ctx, GLFWwindow *w, const int enable_grab)
 {
   nk_input_begin(ctx);
+#ifndef __ANDROID__
   if(enable_grab)
   { /* optional grabbing behavior */
     if (ctx->input.mouse.grab)
@@ -1036,6 +1037,7 @@ NK_API void nk_glfw3_input_begin(struct nk_context *ctx, GLFWwindow *w, const in
     else if (ctx->input.mouse.ungrab)
       glfwSetInputMode(w, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   }
+#endif
 }
 
 NK_API void nk_glfw3_input_end(struct nk_context *ctx, GLFWwindow *w, const int enable_grab)
@@ -1047,7 +1049,9 @@ NK_API void nk_glfw3_input_end(struct nk_context *ctx, GLFWwindow *w, const int 
     { // wayland does not support setting cursor position, but CURSOR_DISABLED handles it transparently. so we leave this in for xorg:
       float xscale, yscale;
       dt_gui_content_scale(w, &xscale, &yscale);
+#ifndef __ANDROID__
       glfwSetCursorPos(w, ctx->input.mouse.prev.x/xscale, ctx->input.mouse.prev.y/yscale);
+#endif
       ctx->input.mouse.pos.x = ctx->input.mouse.prev.x;
       ctx->input.mouse.pos.y = ctx->input.mouse.prev.y;
     }
@@ -1225,6 +1229,9 @@ void nk_glfw3_create_cmd(
 
   memcpy(dev->mapped_uniform, &projection, sizeof(projection));
 
+  // DEBUG: this is called all the time
+  // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "viewport %d x %d\n",
+      // win->width, win->height);
   VkViewport viewport = {
     .width    = (float)win->width,
     .height   = (float)win->height,
@@ -1268,8 +1275,10 @@ void nk_glfw3_create_cmd(
   vkCmdBindVertexBuffers(command_buffer, 0, 1, &dev->vertex_buffer, &voffset);
   vkCmdBindIndexBuffer(command_buffer, dev->index_buffer, ioffset, VK_INDEX_TYPE_UINT16);
 
-  int xpos, ypos;
-  glfwGetWindowPos(win->win, &xpos, &ypos);
+  int xpos = 0, ypos = 0;
+#ifndef __ANDROID__
+  glfwGetWindowPos(win->win, &xpos, &ypos); // doesn't do anything on wayland
+#endif
   memcpy(dev->push_constant+25, &xpos, sizeof(xpos));
   vkCmdPushConstants(command_buffer, dev->pipeline_layout,
       VK_SHADER_STAGE_ALL, 0, dev->push_constant_size, dev->push_constant);
@@ -1294,7 +1303,9 @@ void nk_glfw3_create_cmd(
           0, NULL);
       current_texture = cmd->texture.ptr; // i think this is already checked before pushing the cmd
     }
+    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "draw call with %d elements\n", cmd->elem_count);
     if(!cmd->elem_count) continue;
+    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "draw call with %d elements\n", cmd->elem_count);
 
     float str = cmd->strength;
     if(!cmd->texture.ptr) str = -1.0f;
@@ -1517,6 +1528,11 @@ nk_glfw3_init(
   ctx->clip.paste = nk_glfw3_clipboard_paste;
   ctx->clip.userdata = nk_handle_ptr(win);
   glfw.w0.last_button_click = 0;
+#ifdef __ANDROID__
+  // on android, we will never open a second window.
+  // however, if passed 0 as GLFWwindow*, we want to avoid matching it to this:
+  glfw.w1.win = (GLFWwindow*)-1;
+#endif
 
   glfwGetFramebufferSize(win, &glfw.w0.width, &glfw.w0.height);
 

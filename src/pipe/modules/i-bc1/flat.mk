@@ -1,1 +1,1 @@
-MOD_LDFLAGS=-lz
+MOD_LDFLAGS=-lz -lbsd
