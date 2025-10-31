@@ -115,7 +115,9 @@ dt_filebrowser(
 
   nk_style_push_font(ctx, nk_glfw3_font(2));
   float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
-  nk_layout_row_dynamic(ctx, row_height, 2);
+  float wds[] = {0, 0.5, 0.5};
+  nk_layout_row(ctx, NK_DYNAMIC, row_height, 3, wds);
+  nk_label(ctx, "", 0); // introduce fake object to match left alignment with list below
   nk_style_push_font(ctx, nk_glfw3_font(0));
   dt_tooltip("current working directory.\nedit to taste and press enter to change");
   nk_style_pop_font(ctx);
