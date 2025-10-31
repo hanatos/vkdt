@@ -19,6 +19,8 @@ there are quite a few new features, ui changes, and new modules to work with.
 * an implementation of [mcpg](https://www.lalber.org/2025/04/markov-chain-path-guiding/) (Markov chain path guiding) for 3d rendering/quake  
   ![quake](../../src/pipe/modules/quake/q1.png)
 * removed some old modules
+* rawnind/joint denoising and demosaicing via cnn  
+  [jddcnn](../../src/pipe/modules/jddcnn/readme.md)
 
 ## video and animation
 * keyframe interpolation modes in right-click menu (ease-in, ease-out, ..)  
@@ -60,12 +62,12 @@ there are quite a few new features, ui changes, and new modules to work with.
 * android compile fixes (thanks paolo!)
 
 
-### new modules
+## new modules
 * [dehaze](../../src/pipe/modules/dehaze/readme.md) haze removal and depth estimator
 * [filmsim](../../src/pipe/modules/filmsim/readme.md) spectral film simulation
 * [curves](../../src/pipe/modules/curves/readme.md) per-channel rgb/luminance or 3x3 combinations of ych curves
 * [o-copy](../../src/pipe/modules/o-copy/readme.md) to copy raw images on export
-* [jddcnn](../../src/pipe/modules/jddcnn/readme.md) experimental joint demosaicing and denoising based on a CNN
+* [jddcnn](../../src/pipe/modules/jddcnn/readme.md) joint demosaicing and denoising based on a CNN
 * [g-csolid](../../src/pipe/modules/g-csolid/readme.md) convert drawn brush strokes to 3d geometry
 * [bvh](../../src/pipe/modules/bvh/readme.md) 3d geometry sink for ray tracing
 * [i-obj](../../src/pipe/modules/i-obj/readme.md) 3d geometry source
