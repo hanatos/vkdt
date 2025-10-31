@@ -1,14 +1,15 @@
 #version 460
 #extension GL_GOOGLE_include_directive : enable
+#include "config.h"
 
-const uint NB_INPUT_FEATURES = 128;
-const uint INPUT_FEATURE_STRIDE = 128;
+const uint NB_INPUT_FEATURES = 4*FUNIT;
+const uint INPUT_FEATURE_STRIDE = 4*FUNIT;
 
-const uint NB_OUTPUT_FEATURES = 128;
-const uint OUTPUT_FEATURE_STRIDE = 128;
+const uint NB_OUTPUT_FEATURES = 4*FUNIT;
+const uint OUTPUT_FEATURE_STRIDE = 4*FUNIT;
 
-const uint F_OUT_32 = 128;
-#define F_OUT_BATCHES 2
+const uint F_OUT_32 = 4*FUNIT;
+#define F_OUT_BATCHES (2*FUNIT/32)
 
 #include "conv-impl.glsl"
 

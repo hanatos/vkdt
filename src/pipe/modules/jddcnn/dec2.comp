@@ -1,16 +1,17 @@
 #version 460
 #extension GL_GOOGLE_include_directive : enable
+#include "config.h"
 
 #define INPUT_SKIP_CONNECTION
 
-const uint NB_INPUT_FEATURES_1 = 64;
-const uint NB_INPUT_FEATURES_2 = 64;
-const uint INPUT_1_FEATURE_STRIDE = 64;
-const uint INPUT_2_FEATURE_STRIDE = 64;
+const uint NB_INPUT_FEATURES_1 = 2*FUNIT;
+const uint NB_INPUT_FEATURES_2 = 2*FUNIT;
+const uint INPUT_1_FEATURE_STRIDE = 2*FUNIT;
+const uint INPUT_2_FEATURE_STRIDE = 2*FUNIT;
 const uint NB_INPUT_FEATURES = NB_INPUT_FEATURES_1 + NB_INPUT_FEATURES_2;
 
-const uint NB_OUTPUT_FEATURES = 64;
-const uint OUTPUT_FEATURE_STRIDE = 64;
-const uint F_OUT_32 = 64;
+const uint NB_OUTPUT_FEATURES = 2*FUNIT;
+const uint OUTPUT_FEATURE_STRIDE = 2*FUNIT;
+const uint F_OUT_32 = 2*FUNIT;
 
 #include "conv-impl.glsl"
