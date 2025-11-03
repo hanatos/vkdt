@@ -18,7 +18,6 @@ uniform:slider:0:1.0
 group:process:0
 enlarge:combo:1x resolution:2x resolution:4x resolution
 group:process:2
-group:-1:-1
 filter c:slider:0:1
 filter m:slider:0:1
 filter y:slider:0:1
