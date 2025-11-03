@@ -352,7 +352,7 @@ int main(int argc, char *argv[])
   }
   else if(optimiser == 3)
   {
-    resid = dt_bogosearch(p, num_params, 1000, loss, lb, ub, &dat, &user_abort);
+    resid = dt_bogosearch(p, num_params, 2000, loss, lb, ub, &dat, &user_abort);
   }
 
   fprintf(stderr, "post-opt params: ");

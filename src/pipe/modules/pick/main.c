@@ -276,6 +276,9 @@ void write_sink(
     if(show == 2)
     {
       const float d = _cie_de76(picked+3*k, ref+3*k);
+      //fprintf(stderr, "read %g %g %g ref %g %g %g\n", 
+      //    picked[3*k+0], picked[3*k+1], picked[3*k+2],
+      //    ref[3*k+0], ref[3*k+1], ref[3*k+2]);
       picked[3*k+0] = fabsf(picked[3*k+0] - ref[3*k+0]);
       picked[3*k+1] = fabsf(picked[3*k+1] - ref[3*k+1]);
       picked[3*k+2] = fabsf(picked[3*k+2] - ref[3*k+2]);
@@ -284,7 +287,7 @@ void write_sink(
         // mi = k;
         de76[1] = d;
       }
-      else if(d > de76[2])
+      if(d > de76[2])
       {
         // Mi = k;
         de76[2] = d;
