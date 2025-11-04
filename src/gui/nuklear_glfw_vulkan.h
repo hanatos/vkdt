@@ -1308,7 +1308,9 @@ void nk_glfw3_create_cmd(
       .extent.width  = (uint32_t)(cmd->clip_rect.w+1),
       .extent.height = (uint32_t)(cmd->clip_rect.h+1),
     };
-    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+    // hack to draw rect with bg colour without clipping to window:
+    if(index_offset > 30) // no idea what require the first many indices here
+      vkCmdSetScissor(command_buffer, 0, 1, &scissor);
     vkCmdDrawIndexed(command_buffer, cmd->elem_count, 1, index_offset, 0, 0);
     index_offset += cmd->elem_count;
   }

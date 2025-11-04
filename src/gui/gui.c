@@ -555,7 +555,7 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
   win->frame_index = 0;
   win->sem_index = 0;
 
-  dt_gui_set_hdr_metadata(win, 1000.0f, 0.0f, 1000.0f, 70.0f);
+  dt_gui_set_hdr_metadata(win, 1000.0f, 0.0f, 1000.0f, 128.0f);
   return VK_SUCCESS;
 }
 

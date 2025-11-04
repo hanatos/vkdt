@@ -90,7 +90,7 @@ void main()
     const float m2 = 2523.0/32.0;
     // zimg says:
     // More stable arrangement that avoids some cancellation error.
-    const float inv_avg_nits = 1.0/70.0;
+    const float inv_avg_nits = 1.0/128.0;
     tex.rgb = max(vec3(0.0), inv_avg_nits*tex.rgb);
     tex.rgb = pow(tex.rgb, vec3(m1));
     vec3 num = (c1 - 1.0) + (c2 - c3) * tex.rgb;

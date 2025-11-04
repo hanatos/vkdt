@@ -141,7 +141,6 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   const char *vk_hdr_instance_extensions[] = {
     // colour management:
     VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME, // some nvidia/debian vk 1.3 doesn't have it, so we make it optional/depend on the hdr kill switch
-    // VK_EXT_HDR_METADATA_EXTENSION_NAME, // not present on hyprland
   };
 
   /* instance extensions */
@@ -164,6 +163,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     "VK_LAYER_hdr_wsi",
   };
   int num_layers = LENGTH(vk_requested_layers) + (enable_hdr_wsi ? 0 : -1);
+  qvk.hdr_supported = enable_hdr_wsi;
 
   /* create instance */
   VkInstanceCreateInfo inst_create_info = {
@@ -400,6 +400,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   requested_device_extensions[len++] = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
 #endif
   if(window) requested_device_extensions[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+  if(enable_hdr_wsi) requested_device_extensions[len++] = VK_EXT_HDR_METADATA_EXTENSION_NAME;
 
   VkDeviceCreateInfo dev_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,

@@ -57,7 +57,7 @@ style_name_to_colour(const char *name)
 }
 
 static inline void
-read_style_colours(struct nk_context *ctx, int hdr)
+read_style_colours(struct nk_context *ctx)
 {
   // set default colours
   nk_style_default(ctx);
@@ -72,28 +72,6 @@ read_style_colours(struct nk_context *ctx, int hdr)
     if(!name[0]) break;
     if(fgetc(f) == EOF) break;
     int idx = style_name_to_colour(name);
-    if(hdr) for(int i=0;i<3;i++)
-    {
-      float v = powf(rgba[i] / 256.0f, 1.0/2.2);
-      // HLG
-      // const float a = 0.17883277, b = /*1.0 - 4.0*a =*/ 0.28466892, c = /*0.5 - a*log(4.0*a) =*/ 0.55991073;
-      // zscale says:
-      // v = v <= 0.5f ? v*v/3.0 : (expf((v-c)/a) + b)/12.0f;
-      // PQ eotf
-      const float avg_nits = 70.0;
-      const float m1 = 1305.0/8192.0;
-      const float m2 = 2523.0/32.0;
-      const float c1 = 107.0/128.0;
-      const float c2 = 2413.0/128.0;
-      const float c3 = 2392.0/128.0;
-      const float xpow = powf(fmaxf(0.0f, v), 1.0f/m2);
-      const float num = fmaxf(xpow - c1, 0.0f);
-      const float den = fmaxf(c2 - c3 * xpow, 1e-10f);
-      // need to stop this down (*0.5) because our 8bit colours don't do hdr. it would all be saturated
-      // and disappear in the brightest 255 we can still see.
-      v = 0.5f * avg_nits * powf(num/den, 1.0f/m1);
-      rgba[i] = (int)(256.0f*v);
-    }
     if(idx >= 0) vkdt.style.colour[idx] = nk_rgba(rgba[0], rgba[1], rgba[2], rgba[3]);
   }
   // init from this table
@@ -129,12 +107,9 @@ void dt_gui_init_fonts()
   nk_style_from_table(&vkdt.ctx, vkdt.style.colour);
 }
 
-// TODO pull out into function to be called after swapchain *re-*creation: (not the first time)
-// TODO depends on window/ctx
 void dt_gui_update_cm()
 {
-  int hdr = (vkdt.win.surf_format.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT);
-  read_style_colours(&vkdt.ctx, hdr);
+  read_style_colours(&vkdt.ctx);
 
   int monitors_cnt;
   GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
@@ -255,6 +230,19 @@ void dt_gui_render_frame_nk()
     time_tab = now;
     vkdt.wstate.tab_state = 1;
   }
+
+  if(nk_begin(&vkdt.ctx, "dreggn",
+        nk_rect(0, 0, 1, 1),
+        NK_WINDOW_NO_SCROLLBAR))
+  { // hack to fill background with something that still goes through our colour management shader
+    struct nk_command_buffer *cmd = nk_window_get_canvas(&vkdt.ctx);
+    if(cmd)
+    {
+      cmd->use_clipping = NK_CLIPPING_OFF;
+      nk_fill_rect(cmd, (struct nk_rect){0, 0, vkdt.win.width, vkdt.win.height}, 0.0f, vkdt.style.colour[NK_COLOR_DT_BACKGROUND]);
+    }
+  }
+  nk_end(&vkdt.ctx);
 
   switch(vkdt.view_mode)
   {
