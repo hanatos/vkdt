@@ -42,6 +42,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [ab: a/b images in split screen](./ab/readme.md)
 * [check: mark out of gamut and under- and overexposure](./check/readme.md)
 * [ciediag: vectorscope diagram in cie chromaticity space](./ciediag/readme.md)
+* [coltgt: render a colorchecker target for verification of display colour management setup](./coltgt/readme.md)
 * [display: generic display sink node](./display/readme.md)
 * [hist: waveform histogram](./hist/readme.md)
 * [pick: colour picker and visualisation tool](./pick/readme.md)
