@@ -65,6 +65,7 @@ there are quite a few new features, ui changes, and new modules to work with.
 ## new modules
 * [dehaze](../../src/pipe/modules/dehaze/readme.md) haze removal and depth estimator
 * [filmsim](../../src/pipe/modules/filmsim/readme.md) spectral film simulation
+* [coltgt](../../src/pipe/modules/coltgt/readme.md) render a colour checker target
 * [curves](../../src/pipe/modules/curves/readme.md) per-channel rgb/luminance or 3x3 combinations of ych curves
 * [o-copy](../../src/pipe/modules/o-copy/readme.md) to copy raw images on export
 * [jddcnn](../../src/pipe/modules/jddcnn/readme.md) joint demosaicing and denoising based on a CNN
