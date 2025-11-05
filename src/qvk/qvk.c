@@ -46,6 +46,7 @@ const char *vk_requested_instance_extensions[] = {
   // debugging:
   VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
   VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
+  VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
 #ifdef __APPLE__
   VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
 #endif
@@ -439,11 +440,15 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PORTABILITY_SUBSET_PROPERTIES_KHR,
   };
 #endif
-  VkPhysicalDeviceAccelerationStructurePropertiesKHR devprop_acc = {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
+  VkPhysicalDeviceVulkan11Properties prop11 = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES,
 #ifdef __APPLE__
     .pNext = &subprop,
 #endif
+  };
+  VkPhysicalDeviceAccelerationStructurePropertiesKHR devprop_acc = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
+    .pNext = &prop11,
   };
   VkPhysicalDeviceProperties2 devprop = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
@@ -451,6 +456,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   };
   vkGetPhysicalDeviceProperties2(qvk.physical_device, &devprop);
   qvk.raytracing_acc_min_align = devprop_acc.minAccelerationStructureScratchOffsetAlignment;
+  qvk.max_allocation_size = prop11.maxMemoryAllocationSize;
 
   // create texture samplers
   VkSamplerCreateInfo sampler_dspy_info = {

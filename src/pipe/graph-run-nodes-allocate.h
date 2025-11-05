@@ -13,6 +13,27 @@
 // in further pipeline processing impossible, so it is only really useful
 // for dynamic texture caches that go directly from CPU to the consumer node.
 
+static inline VkResult
+dt_check_device_allocation(uint64_t size)
+{
+  // vkAllocateMemory overcommits, moves to system ram, and sometimes works even when you think it should not.
+  // find out whether we still stay in device memory, and fail over if not:
+  if(size > qvk.max_allocation_size) return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+  VkPhysicalDeviceMemoryBudgetPropertiesEXT budget = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT,
+  };
+  VkPhysicalDeviceMemoryProperties2 memprop = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2,
+    .pNext = &budget,
+  };
+  vkGetPhysicalDeviceMemoryProperties2(qvk.physical_device, &memprop);
+  for (int i=0;i<memprop.memoryProperties.memoryHeapCount;i++)
+    if(memprop.memoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+      if(budget.heapBudget[i] > size)
+        return VK_SUCCESS;
+  return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+}
+
 static inline VkFormat
 dt_connector_vkformat(const dt_connector_t *c)
 {
@@ -1310,6 +1331,8 @@ dt_graph_run_nodes_allocate(
       vkFreeMemory(qvk.device, graph->vkmem, 0);
       graph->vkmem = 0;
     }
+    graph->vkmem_size = 0;
+    QVKR(dt_check_device_allocation(graph->heap.vmsize));
     // image data to pass between nodes
     VkMemoryAllocateInfo mem_alloc_info = {
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -1329,6 +1352,8 @@ dt_graph_run_nodes_allocate(
       vkFreeMemory(qvk.device, graph->vkmem_ssbo, 0);
       graph->vkmem_ssbo = 0;
     }
+    graph->vkmem_ssbo_size = 0;
+    QVKR(dt_check_device_allocation(graph->heap_ssbo.vmsize));
     VkMemoryAllocateFlagsInfo allocation_flags = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
       .flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
@@ -1353,6 +1378,8 @@ dt_graph_run_nodes_allocate(
       vkFreeMemory(qvk.device, graph->vkmem_staging, 0);
       graph->vkmem_staging = 0;
     }
+    graph->vkmem_staging_size = 0;
+    QVKR(dt_check_device_allocation(graph->heap_staging.vmsize));
     // staging memory to copy to and from device
     VkMemoryAllocateFlagsInfo allocation_flags = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
@@ -1377,6 +1404,7 @@ dt_graph_run_nodes_allocate(
       vkFreeMemory(qvk.device, graph->vkmem_uniform, 0);
       graph->vkmem_uniform = 0;
     }
+    graph->vkmem_uniform_size = 0;
     // uniform data to pass parameters
     VkBufferCreateInfo buffer_info = {
       .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -1413,6 +1441,7 @@ dt_graph_run_nodes_allocate(
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
           VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
     };
+    QVKR(dt_check_device_allocation(mem_req.size));
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_uniform, 0, &graph->vkmem_uniform));
     graph->vkmem_uniform_size = 2 * graph->uniform_size;
     vkBindBufferMemory(qvk.device, graph->uniform_buffer, graph->vkmem_uniform, 0);
