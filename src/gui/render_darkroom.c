@@ -978,6 +978,9 @@ darkroom_process()
       vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
       vkdt.graph_res[vkdt.graph_dev.double_buffer] =
         dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
+      if(vkdt.graph_res[vkdt.graph_dev.double_buffer] != VK_SUCCESS)
+        dt_gui_notification("failed to run the graph %s!",
+            qvk_result_to_string(vkdt.graph_res[vkdt.graph_dev.double_buffer]));
       vkdt.graph_dev.runflags = 0; // clear this here, running graph has a copy.
       vkdt.graph_dev.double_buffer ^= 1; // reset to the locked/already finished one
       running = 1;
@@ -1003,6 +1006,9 @@ darkroom_process()
       // process double_buffer, wait for double_buffer^1
       vkdt.graph_res[vkdt.graph_dev.double_buffer] =
         dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
+      if(vkdt.graph_res[vkdt.graph_dev.double_buffer] != VK_SUCCESS)
+        dt_gui_notification("failed to run the graph %s!",
+            qvk_result_to_string(vkdt.graph_res[vkdt.graph_dev.double_buffer]));
       vkdt.graph_dev.runflags = 0; // we started this
       VkSemaphoreWaitInfo wait_info = {
         .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
