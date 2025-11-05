@@ -620,7 +620,29 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     snprintf(string, sizeof(string), "%" PRItkn " %d", dt_token_str(param->name), num);
     if(num == 0) nk_layout_row_dynamic(ctx, row_height, 6);
     struct nk_color col = {val[0]*255, val[1]*255, val[2]*255, 0xff };
-    dt_tooltip("%s\n%g %g %g", param->tooltip, val[0], val[1], val[2]);
+    if(nk_widget_is_hovered(ctx))
+    {
+      float xyzE[3] = {0}, xyz[3] = {0};
+      const float rec2020_to_xyz[] = { // a copy from glsl row major, i.e. transposed
+        6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
+        1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
+        1.68880975e-01, 5.93017165e-02, 1.06098506e+00};
+      for(int i=0;i<3;i++) for(int j=0;j<3;j++)
+        xyzE[i] += rec2020_to_xyz[3*j+i]*val[j];
+      // fucking icc uses some fucking variant of D50 as a reference white in the
+      // profile connection space, for XYZ! so now we do the same nonsense, just
+      // to try and match the spotread -x output. we'll use Bradford adaptation,
+      // as does icc:
+      const float lindbloom_E_to_D50[] = { // too lazy to do the math myself
+         0.9977545, -0.0041632, -0.0293713,
+        -0.0097677,  1.0183168, -0.0085490,
+        -0.0074169,  0.0134416,  0.8191853};
+      for(int i=0;i<3;i++) for(int j=0;j<3;j++)
+        xyz[i] += lindbloom_E_to_D50[3*i+j]*xyzE[j];
+      const float sum = xyz[0]+xyz[1]+xyz[2];
+      dt_tooltip("%s\n%5.3f %5.3f %5.3f bt2020\n%5.3f %5.3f %5.3f Yxy (D50)", param->tooltip,
+          val[0], val[1], val[2], xyz[1], xyz[0]/sum, xyz[1]/sum);
+    }
     nk_button_color(ctx, col);
   }
   else if(param->widget.type == dt_token("pers"))
