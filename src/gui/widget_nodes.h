@@ -74,6 +74,33 @@ dt_node_view_to_world(
       view.y/(nedit->zoom*nedit->dpi_scale) + nedit->scroll.y);
 }
 
+static inline int // return 1 if rect intersects bezier between v0 and v3
+dt_node_editor_overlap(
+    struct nk_vec2 v0,
+    struct nk_vec2 v3,
+    struct nk_rect r)
+{
+  const float sc = v0.x > v3.x ? 2.0f : 1.0f;
+  struct nk_vec2 v1 = {v0.x + sc*fabsf(v0.x - v3.x)*0.5f, v0.y};
+  struct nk_vec2 v2 = {v3.x - sc*fabsf(v0.x - v3.x)*0.5f, v3.y};
+  const int seg_cnt = 8;
+  struct nk_vec2 a = v0;
+  for(int s=0;s<seg_cnt;s++)
+  {
+    float t = s/(seg_cnt-1.0f), t2 = t*t, t3 = t2*t;
+    float tc = 1.0f-t, tc2 = tc*tc, tc3 = tc2*tc;
+    struct nk_vec2 b = {
+      tc3*v0.x + 3.0f*tc2*t*v1.x + 3.0f*tc*t2*v2.x + t3*v3.x,
+      tc3*v0.y + 3.0f*tc2*t*v1.y + 3.0f*tc*t2*v2.y + t3*v3.y};
+
+    if(MAX(a.x, b.x) >= r.x && MIN(a.x, b.x) <= r.x + r.w && 
+       MAX(a.y, b.y) >= r.y && MIN(a.y, b.y) <= r.y + r.h)
+      return 1;
+    a = b;
+  }
+  return 0;
+}
+
 static inline int
 dt_node_editor_context_menu(
     struct nk_context *ctx,
@@ -443,25 +470,21 @@ dt_node_editor(
             col = col_feedback;
           if(!disabled && nedit->selected &&
              !drag_selection && !nedit->connection.active &&
-              MAX(l0.x, p.x) >= selected_rect.x && MIN(l0.x, p.x) <= selected_rect.x + selected_rect.w && 
-              MAX(l0.y, p.y) >= selected_rect.y && MIN(l0.y, p.y) <= selected_rect.y + selected_rect.h)
+             dt_node_editor_overlap(l0, p, selected_rect))
           { // selected / active node overlaps here and is dropped connect it in between!
-            if(nedit->selected->so->has_inout_chain)
-            { // if selected module is disconnected and has inout chain
-              int mco = dt_module_get_connector(nedit->selected, dt_token("output"));
-              int mci = dt_module_get_connector(nedit->selected, dt_token("input"));
-              if(mco >= 0 && mci >= 0 &&
-                  !dt_connected(nedit->selected->connector+mco) &&
-                  !dt_connected(nedit->selected->connector+mci))
+            int mco = dt_module_get_connector(nedit->selected, dt_token("output"));
+            int mci = dt_module_get_connector(nedit->selected, dt_token("input"));
+            if(mco >= 0 && mci >= 0 &&
+                !dt_connected(nedit->selected->connector+mco) &&
+                !dt_connected(nedit->selected->connector+mci))
+            {
+              if(nk_input_is_mouse_down(in, NK_BUTTON_LEFT))
+                col = vkdt.style.colour[NK_COLOR_DT_ACCENT];
+              if(nk_input_is_mouse_released(in, NK_BUTTON_LEFT))
               {
-                if(nk_input_is_mouse_down(in, NK_BUTTON_LEFT))
-                  col = vkdt.style.colour[NK_COLOR_DT_ACCENT];
-                if(nk_input_is_mouse_released(in, NK_BUTTON_LEFT))
-                {
-                  dt_module_connect_with_history(&vkdt.graph_dev, mido, cido, nedit->selected - vkdt.graph_dev.module, mci);
-                  dt_module_connect_with_history(&vkdt.graph_dev, nedit->selected - vkdt.graph_dev.module, mco, mid, c);
-                  vkdt.graph_dev.runflags = s_graph_run_all;
-                }
+                dt_module_connect_with_history(&vkdt.graph_dev, mido, cido, nedit->selected - vkdt.graph_dev.module, mci);
+                dt_module_connect_with_history(&vkdt.graph_dev, nedit->selected - vkdt.graph_dev.module, mco, mid, c);
+                vkdt.graph_dev.runflags = s_graph_run_all;
               }
             }
           }
