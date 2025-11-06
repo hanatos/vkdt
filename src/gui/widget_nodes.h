@@ -112,6 +112,7 @@ dt_node_editor_context_menu(
   // TODO: scale size of popup
   if(nk_contextual_begin(ctx, 0, nk_vec2(vkdt.state.panel_wd, nedit->dpi_scale*220), nk_window_get_bounds(ctx)))
   { // right click over node/selection to open context menu
+    ret = 1;
     int sel_node_cnt = dt_node_editor_selection(nedit, &vkdt.graph_dev, 0);
     int *sel_node_id  = (int *)alloca(sizeof(int)*sel_node_cnt);
     dt_node_editor_selection(nedit, &vkdt.graph_dev, sel_node_id);
@@ -286,9 +287,7 @@ dt_node_editor(
 
   static int clicked_circle = 0;
   // right click context menues:
-  int context_menu_clicked = 0;
-  if(!clicked_circle) // don't open context menu if we right clicked on a circle/disconnect before. this comes with one frame delay.
-    context_menu_clicked = dt_node_editor_context_menu(ctx, nedit);
+  static int context_menu_clicked = 0;
   clicked_circle = 0;
 
   if(nedit->zoom > 0.3)
@@ -390,10 +389,10 @@ dt_node_editor(
           .w = 2*pin_radius,
           .h = 2*pin_radius,
         };
-        const int hovering_circle = nk_input_is_mouse_hovering_rect(in, circle);
+        const int hovering_circle = !disabled && nk_input_is_mouse_hovering_rect(in, circle);
         nk_fill_circle(canvas, circle, hovering_circle ? vkdt.style.colour[NK_COLOR_DT_ACCENT] : nk_rgb(100, 100, 100));
 
-        if (!disabled && hovering_circle) mouse_over_something = 1;
+        if (hovering_circle) mouse_over_something = 1;
         if (!disabled && nk_input_has_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, circle, nk_true))
         { // start link
           nedit->connection.active = nk_true;
@@ -518,7 +517,8 @@ dt_node_editor(
     if(nk_group_begin(ctx, str, NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE))
     {
       if(!disabled && nk_input_is_mouse_hovering_rect(in, bb)) mouse_over_something = 1;
-      if(!disabled && nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, bb, nk_true) &&
+      if(!disabled && (nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT,  bb, nk_true) ||
+                       nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_RIGHT, bb, nk_true)) &&
           nk_input_is_mouse_hovering_rect(in, nk_window_get_bounds(ctx)))
       {
         if((mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid] == 0 &&
@@ -608,6 +608,9 @@ dt_node_editor(
   row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
 
   nk_layout_space_end(ctx);
+
+  if(!clicked_circle) // don't open context menu if we right clicked on a circle/disconnect before. this comes with one frame delay.
+    context_menu_clicked = dt_node_editor_context_menu(ctx, nedit);
 
   if (!disabled &&
       nk_input_is_mouse_hovering_rect(in, nk_window_get_bounds(ctx)) &&
