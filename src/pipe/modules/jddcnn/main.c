@@ -150,6 +150,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     }
     { // decoder convolution, no upsampling but we get the skip connection
       i_cnt = 2*o_cnt; // we get the skip connection too, but reduce to current o_cnt
+      if(i == layers_cnt-1) i_cnt = 4+o_cnt; // skip connection comes from input directly
       dt_roi_t roi_out = { .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = o_cnt };
       int pc[] = { index_weights_buffer, wd[layers_cnt-i], ht[layers_cnt-i] };
       snprintf(shader, sizeof(shader), "dec%d", i);
@@ -200,7 +201,9 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     dt_node_connect_named(graph, id_convolv[i], "output", id_decoder[i], "input");
     dt_node_connect_named(graph, id_decoder[i], "output", id_convolb[i], "input");
     fprintf(stderr, "skip connection con%da -> dec%d\n", layers_cnt-1-i, i);
-    dt_node_connect_named(graph, id_convola[layers_cnt-1-i], "output", id_decoder[i], "skip");
+    // dt_node_connect_named(graph, id_convola[layers_cnt-1-i], "output", id_decoder[i], "skip");
+    if(i < layers_cnt-1)
+      dt_node_connect_named(graph, id_encoder[layers_cnt-i], "output", id_decoder[i], "skip");
   }
   dt_node_connect_named(graph, id_encoder[layers_cnt-1], "output", id_bottom, "input");
   dt_node_connect_named(graph, id_bottom, "output",  id_convolv[0], "input");
@@ -223,6 +226,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       ht[0], module->connector[1].roi.ht,
       module->connector[1].roi.full_wd,
       module->connector[1].roi.full_ht);
+  dt_node_connect_named(graph, id_input, "output", id_decoder[layers_cnt-1], "skip");
   dt_connector_copy(graph, module, 0, id_input,  0);
   dt_connector_copy(graph, module, 1, id_output, 1);
   dt_node_connect_named(graph, id_input, "output", id_convola[0], "input");

@@ -7,7 +7,9 @@
 const uint NB_INPUT_FEATURES_1 = FUNIT;
 const uint NB_INPUT_FEATURES_2 = FUNIT;
 const uint INPUT_1_FEATURE_STRIDE = FUNIT;
-const uint INPUT_2_FEATURE_STRIDE = FUNIT;
+// skip connection from encoder:
+// const uint INPUT_2_FEATURE_STRIDE = FUNIT;
+const uint INPUT_2_FEATURE_STRIDE = 4;
 const uint NB_INPUT_FEATURES = NB_INPUT_FEATURES_1 + NB_INPUT_FEATURES_2;
 
 const uint NB_OUTPUT_FEATURES = FUNIT;
