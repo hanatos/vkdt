@@ -7,10 +7,10 @@ there are quite a few new features, ui changes, and new modules to work with.
 * [spectral film simulation](../../src/pipe/modules/filmsim/readme.md)  
   thanks to arctic for crunching all the data and doing the research!  
   thanks to jedypod for adding the latest film/paper stock!  
-  ![neg](../../src/pipe/modules/filmsim/neg_004.png)
-  ![pos](../../src/pipe/modules/filmsim/print_004.png)
+  <img src="../../src/pipe/modules/filmsim/neg_004.png" style="width:25%"/>
+  <img src="../../src/pipe/modules/filmsim/print_004.png" style="width:25%"/>
 * vkdt-rendered logo (animated, looks best in hdr mode)  
-  ![vid](../../favicon.png)
+  <img src="../../favicon.png" style="width:25%"/>
 * [i-lut](../../src/pipe/modules/i-lut/readme.md) now supports lists of input files, useful for textures/3d rendering
 * improved the [grain module](../../src/pipe/modules/grain/readme.md) with additional parameters for low frequency components
   [![grain](../../src/pipe/modules/grain/grain.jpg)](../../src/pipe/modules/grain/grain.jpg)
@@ -19,8 +19,6 @@ there are quite a few new features, ui changes, and new modules to work with.
 * an implementation of [mcpg](https://www.lalber.org/2025/04/markov-chain-path-guiding/) (Markov chain path guiding) for 3d rendering/quake  
   ![quake](../../src/pipe/modules/quake/q1.png)
 * removed some old modules
-* rawnind/joint denoising and demosaicing via cnn  
-  [jddcnn](../../src/pipe/modules/jddcnn/readme.md)
 
 ## video and animation
 * keyframe interpolation modes in right-click menu (ease-in, ease-out, ..)  
@@ -46,7 +44,7 @@ there are quite a few new features, ui changes, and new modules to work with.
   ![radial](radial-menu.png)
 * introduce mouse interaction on `dspy` outputs of modules to change their parameters. 
   the new `curves` module is the first user.  
-  ![curves](curves.png)
+  <img src="curves.png" style="width:25%"/>
 * lighttable: can filter filenames by regular expression now
 * lighttable: allow moving selected files around on disk
 * lighttable: access favourite preset buttons from here too
