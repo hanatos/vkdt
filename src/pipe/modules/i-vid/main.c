@@ -443,7 +443,7 @@ void modify_roi_out(
   // for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
   double frame_rate = av_q2d(d->fmtc->streams[d->video_idx]->avg_frame_rate);
   double duration = d->fmtc->duration / (double)AV_TIME_BASE; // in seconds
-  mod->graph->frame_cnt = duration * frame_rate;
+  mod->graph->frame_cnt = duration * frame_rate - 1;
   // XXX FIXME: the number is correct but needs more testing because
   // we can't deliver 60fps on slower computers, killing audio etc
   // this first needs a robust way of doing frame drops.
@@ -469,7 +469,7 @@ int read_source(
 
   if(p->a == 0)
   { // first channel, new frame. parse + decode + handle audio:
-    if(mod->graph->frame + 1 != d->vctx->frame_num) // zero vs 1 based
+    if(mod->graph->frame != d->vctx->frame_num) // zero vs 1 based, will increment frame_num when decoding below
     { // seek
       double rate = AV_TIME_BASE / mod->graph->frame_rate;
       int ts = mod->graph->frame * rate;
@@ -558,6 +558,10 @@ int read_source(
         memcpy(mapped + sizeof(uint16_t) * wd * j, d->vframe->data[p->a] + d->vframe->linesize[p->a]*j, wd * sizeof(uint16_t));
     }
   }
+
+  // fprintf(stderr, "frame %d %ld %ld channel %d linesize %d ret %s \n",
+  //     mod->graph->frame, d->frame, d->vctx->frame_num,
+  //     p->a, d->vframe->linesize[p->a], av_err2str(ret));
 
   if(p->a == 2) av_frame_unref(d->vframe);
 

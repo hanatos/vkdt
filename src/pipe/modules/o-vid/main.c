@@ -116,37 +116,33 @@ add_stream(
   switch ((*codec)->type)
   {
     case AVMEDIA_TYPE_AUDIO:
-#if 0 // ffmpeg7:
-      AVSampleFormat *sample_fmts;
-      int ret = avcodec_get_supported_config(
-          c,
-          codec,
+    { // ffmpeg 7 way of doing things:
+      enum AVSampleFormat *sample_fmts = 0;
+      avcodec_get_supported_config(
+          c, *codec,
           AV_CODEC_CONFIG_SAMPLE_FORMAT,
-          0,
-          &sample_fmts,
-          0);
-      c->sample_fmt = sample_fmts[0] != AV_SAMPLE_FMT_NONE ? sample_fmts[0] : AV_SAMPLE_FMT_S16;
-#else
-      // direct access now deprecated in ffmpeg 7
-      c->sample_fmt  = (*codec)->sample_fmts ? (*codec)->sample_fmts[0] : AV_SAMPLE_FMT_S16;
-#endif
+          0, (const void**)&sample_fmts, 0);
+      c->sample_fmt = sample_fmts && (sample_fmts[0] != AV_SAMPLE_FMT_NONE) ? sample_fmts[0] : AV_SAMPLE_FMT_S16;
       // c->sample_fmt  = AV_SAMPLE_FMT_S16;
       c->bit_rate    = 64000;
       c->sample_rate = 48000;
-      // TODO: see dance above, get zero terminated list of supported samplerates, int
-      if ((*codec)->supported_samplerates)
-      {
-        c->sample_rate = (*codec)->supported_samplerates[0];
-        for (int i = 0; (*codec)->supported_samplerates[i]; i++)
-        {
-          if ((*codec)->supported_samplerates[i] == 48000) c->sample_rate = 48000;
-        }
-      }
-      // TODO: ch_layout also has a callback, AVChannelLayout, zero terminated
+      int *sample_rates = 0;
+      avcodec_get_supported_config(
+          c, *codec,
+          AV_CODEC_CONFIG_SAMPLE_RATE,
+          0, (const void**)&sample_rates, 0);
+      for(int i=0; sample_rates&&sample_rates[i]; i++)
+        if (sample_rates[i] == 48000) c->sample_rate = 48000;
+      // AVChannelLayout *ch_layouts;
+      // avcodec_get_supported_config(
+      //     c, *codec,
+      //     AV_CODEC_CONFIG_CHANNEL_LAYOUT,
+      //     0, (const void**)&ch_layouts, 0);
+      // for(int i=0; ch_layouts&&ch_layouts[i]; i++)
       av_channel_layout_copy(&c->ch_layout, &(AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO);
       ost->st->time_base = (AVRational){ 1, c->sample_rate };
       break;
-
+    }
     case AVMEDIA_TYPE_VIDEO:
       c->codec_id = codec_id;
       /* timebase: This is the fundamental unit of time (in seconds) in terms
