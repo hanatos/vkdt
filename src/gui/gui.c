@@ -95,9 +95,8 @@ dt_gui_win_init(dt_gui_win_t *win)
   int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
   int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  // glfwWindowHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
   // glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
-  glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
+  // glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
   glfwWindowHintString(GLFW_X11_CLASS_NAME, "vkdt");
 #if (((GLFW_VERSION_MAJOR == 3) && (GLFW_VERSION_MINOR < 4)) || defined(VKDT_USE_PENTABLET))
   // need to rebase the pentablet support custom glfw to newer upstream, too.
@@ -200,6 +199,7 @@ int dt_gui_init()
   else if(!strcmp(hdr_wsi, "1")) enable_hdr_wsi = 1;
   if(enable_hdr_wsi) dt_log(s_log_gui, "attempting to load HDR WSI aux layer");
 
+  glfwInitHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
   if(!glfwInit())
   {
     const char* description;
