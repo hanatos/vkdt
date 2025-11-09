@@ -443,7 +443,7 @@ void modify_roi_out(
   // for(int i=0;i<sizeof(mod->img_param.maker);i++) if(mod->img_param.maker[i] == ' ') mod->img_param.maker[i] = 0;
   double frame_rate = av_q2d(d->fmtc->streams[d->video_idx]->avg_frame_rate);
   double duration = d->fmtc->duration / (double)AV_TIME_BASE; // in seconds
-  mod->graph->frame_cnt = duration * frame_rate - 1;
+  mod->graph->frame_cnt = duration * frame_rate - 2;
   // XXX FIXME: the number is correct but needs more testing because
   // we can't deliver 60fps on slower computers, killing audio etc
   // this first needs a robust way of doing frame drops.
