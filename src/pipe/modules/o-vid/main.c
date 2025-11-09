@@ -319,6 +319,7 @@ open_audio(
     AVFormatContext *oc, const AVCodec *codec,
     output_stream_t *ost, AVDictionary *opt_arg)
 {
+  buf_t *dat = mod->data;
   AVCodecContext *c;
   int nb_samples;
   int ret;
@@ -339,12 +340,14 @@ open_audio(
 
   ost->frame = alloc_audio_frame(c->sample_fmt, &c->ch_layout, c->sample_rate, nb_samples);
   // this is the frame as it comes from our audio module: we need to init it according to audio_mod img_param sound properties:
-  buf_t *dat = mod->data;
-  int src_fmt = mod->graph->module[dat->audio_mod].img_param.snd_format == 2 ? // TODO: support others
-      AV_SAMPLE_FMT_S16 : 0;
-  int src_sample_rate = mod->graph->module[dat->audio_mod].img_param.snd_samplerate;
+  int src_fmt = dat->audio_mod < 0 ? AV_SAMPLE_FMT_S16 :
+    mod->graph->module[dat->audio_mod].img_param.snd_format == 2 ? // TODO: support others
+    AV_SAMPLE_FMT_S16 : 0;
+  int src_sample_rate = dat->audio_mod < 0 ? 48000 :
+    mod->graph->module[dat->audio_mod].img_param.snd_samplerate;
 
-  AVChannelLayout src_layout = mod->graph->module[dat->audio_mod].img_param.snd_channels == 2?
+  AVChannelLayout src_layout = dat->audio_mod < 0 ||
+    mod->graph->module[dat->audio_mod].img_param.snd_channels == 2 ?
     (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO :
     (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
   ost->tmp_frame = alloc_audio_frame(src_fmt, &src_layout, src_sample_rate, nb_samples);
@@ -391,8 +394,8 @@ open_file(dt_module_t *mod)
   if(dat->oc) close_file(dat);
   dat->time_beg = dt_time();
   dat->audio_mod = -1;
-  for(int i=0;i<mod->graph->num_modules;i++)
-    if(mod->graph->module[i].name && mod->graph->module[i].so->audio) { dat->audio_mod = i; break; }
+  // for(int i=0;i<mod->graph->num_modules;i++)
+    // if(mod->graph->module[i].name && mod->graph->module[i].so->audio) { dat->audio_mod = i; break; }
   const char *basename  = dt_module_param_string(mod, 0);
   char filename[512];
   const int p_codec = dt_module_param_int(mod, 2)[0];
