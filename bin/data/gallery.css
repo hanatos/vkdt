@@ -3,6 +3,12 @@
 * core based on gallery-4.0.3 from https://github.com/maoberlehner/gallery
 */
 
+video
+{
+  max-height:100%;
+  max-width:100%;
+}
+
 body{
   max-width:100em;
   background-color:black;
