@@ -174,7 +174,11 @@ jobs:
           retention-days: 1
 
   WindowsRawler:
-    if: github.repository == 'hanatos/vkdt'
+    # if: github.repository == 'hanatos/vkdt'
+    # unfortunately sf.net does not allow github runners to
+    # download exiftool. oh wtf i'm so tired of this dance
+    # between stupid companies, and all for a windows binary.
+    if: false
     name: nightly vkdt windows with rawler backend
     runs-on: windows-latest
     strategy:
@@ -304,7 +308,7 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [AppImage, WindowsRawler]
+    needs: [AppImage]
     steps:
       - name: download artifacts
         uses: actions/download-artifact@v4
@@ -330,37 +334,29 @@ jobs:
             you also currently need the `exiftool` binary installed on your
             host system to enable all features (metadata handling).
 
-            appimage with rawler
+            appimage
             ====================
-            use this for CR3 raws (newer canon cameras) and for older ubuntu
-            that don't have a recent libstdc++, uses the rust-based backend
-            instead of the c++-based rawspeed which does not have CR3 support.
-            also it builds a custom glfw with pentablet/wacom support
+            regular build with stock glfw
 
-            appimage with rawspeed
-            ======================
-            these are currently temporarily disabled due to some dynaming linking error
-            when running the appimage.
 
             appimage with pentablet
             =======================
             links against a custom version of glfw, enabling drawing of masks via pentablet/wacom device.
-            only available in xorg version currently.
 
-            windows with rawler
+            windows
             ===================
+            windows builds are currently disabled (but otherwise work). sf.net disallows downloading stuff from within github runners it seems.
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
             it compiles less features
             (mlv, i-vid, o-vid)
             and leaves out many
             (no v4l, no sound, no quake, no pentablet support).
-            you can help by reporting more issues (or maybe even fixing, if you can ;) ).
 
             macintosh
             =========
             the macintosh version is currently just verifying the build but not creating a nightly dmg image.
+            it builds (using brew) and runs (using the lunarg sdk) both on intel and apple silicon devices.
 
           files: |
             artifact-appimage-rawler-glfw3.4/*
             artifact-appimage-rawler-pentablet/*
-            artifact-windows-rawler/*
