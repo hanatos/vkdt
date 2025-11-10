@@ -591,16 +591,6 @@ int audio(
       if(ret == AVERROR(EAGAIN)) { } // receive frame needs moar packets! but sorry the main loop is in read_source()
       return written; // got zero samples in the last round
     }
-#if 0
-      fprintf(stderr, "frame %d, lag %ld got audio with %d channels, lay %lu, %d samples, %s format, rate %d\n",
-          // d->aframe->pts,
-          mod->graph->frame,
-          d->snd_lag,
-          d->aframe->channels, d->aframe->channel_layout, // layout 3 means front left | front right (= 1 | 2)
-          d->aframe->nb_samples,
-          av_get_sample_fmt_name(d->aframe->format), // fltp means floating point -1..1 in planes.
-          d->aframe->sample_rate);
-#endif
     const float *input_l = (const float *)d->aframe->extended_data[0];
     const float *input_r = (const float *)d->aframe->extended_data[1];
     if(!input_r) input_r = input_l;
@@ -630,8 +620,8 @@ int audio(
     }
     memcpy(((uint8_t*)d->sndbuf) + written*bps*channels, input_l, d->aframe->nb_samples * bps * channels);
     written += d->aframe->nb_samples;
-    d->snd_lag = written - need_samples;
-  } while(d->snd_lag < 0);
+    d->snd_lag = written - need_samples; // negative snd_lag means we're behind video, assuming one audio() call per frame (i.e. sample_cnt == 0)
+  } while((sample_cnt == 0 && d->snd_lag < 0) || (sample_cnt > 0 && written < sample_cnt));
   return written;
 }
 

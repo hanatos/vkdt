@@ -360,7 +360,10 @@ open_audio(
   }
 
   ost->swr_ctx = 0;
-  if(av_channel_layout_compare(&src_layout, &c->ch_layout) || src_sample_rate != c->sample_rate || src_fmt != c->sample_fmt)
+  if((src_fmt != 0) && (src_sample_rate != 0) &&
+    (av_channel_layout_compare(&src_layout, &c->ch_layout) ||
+     src_sample_rate != c->sample_rate ||
+     src_fmt != c->sample_fmt))
   {
     /* create resampler context */
     ost->swr_ctx = swr_alloc();
@@ -394,8 +397,17 @@ open_file(dt_module_t *mod)
   if(dat->oc) close_file(dat);
   dat->time_beg = dt_time();
   dat->audio_mod = -1;
-  // for(int i=0;i<mod->graph->num_modules;i++)
-    // if(mod->graph->module[i].name && mod->graph->module[i].so->audio) { dat->audio_mod = i; break; }
+  for(int i=0;i<mod->graph->num_modules;i++)
+    if(mod->graph->module[i].name && mod->graph->module[i].so->audio) { dat->audio_mod = i; break; }
+  if(dat->audio_mod >= 0)
+  { // TODO: support others (and switch internal representation from alsa to ffmpeg?)
+    if(mod->graph->module[dat->audio_mod].img_param.snd_format != 2)
+      dat->audio_mod = -1;
+    if(mod->graph->module[dat->audio_mod].img_param.snd_samplerate != 48000)
+      dat->audio_mod = -1;
+    if(dat->audio_mod < 0)
+      fprintf(stderr, "[o-vid] no audio because unsupported format!\n");
+  }
   const char *basename  = dt_module_param_string(mod, 0);
   char filename[512];
   const int p_codec = dt_module_param_int(mod, 2)[0];
@@ -414,7 +426,7 @@ open_file(dt_module_t *mod)
 
   enum AVCodecID codec_id = AV_CODEC_ID_H264;
   if(p_codec == 0) codec_id = AV_CODEC_ID_PRORES;
-  add_stream(mod, &dat->video_stream, dat->oc, &dat->video_codec, codec_id);  
+  add_stream(mod, &dat->video_stream, dat->oc, &dat->video_codec, codec_id);
   add_stream(mod, &dat->audio_stream, dat->oc, &dat->audio_codec, fmt->audio_codec);
 
   AVDictionary *opt = NULL;
@@ -624,12 +636,11 @@ void write_sink(
             dat->video_stream.next_pts, dat->video_stream.enc->time_base,
             dat->audio_stream.next_pts, dat->audio_stream.enc->time_base) > 0) // XXX is this the right time base for next_pts?
       {
-
         if(!ost->swr_ctx)
           frame = ost->frame;
 
         int src_nb_samples = frame->nb_samples;
-        while(src_nb_samples)
+        while(src_nb_samples > 0)
         { // fill exactly the packet size we can get
           uint16_t *samples = 0;
           int sample_cnt = mod->graph->module[dat->audio_mod].so->audio(
