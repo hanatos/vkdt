@@ -116,8 +116,10 @@ you can also build without rawspeed or rawler if that is useful for you.
 
 
 ## faq
-* **can i load canon cr3 files?**  
-yes. use the rawler backend.
+* **which platforms are supported**
+`vkdt` has native support for nix os, arch linux via aur, and builds and runs
+on macintosh (intel and apple silicon, use brew to build and the lunarg vulkan
+sdk to run). there is an unfinished android port (see pr on github).
 
 * **does it work with wayland?**  
 `vkdt` officially runs natively on wayland and *better* than on x11. use
