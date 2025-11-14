@@ -5,7 +5,7 @@
 #define INPUT_SKIP_CONNECTION
 
 const uint NB_INPUT_FEATURES_1 = FUNIT;
-const uint NB_INPUT_FEATURES_2 = FUNIT;
+const uint NB_INPUT_FEATURES_2 = 4; // FUNIT;
 const uint INPUT_1_FEATURE_STRIDE = FUNIT;
 // skip connection from encoder:
 // const uint INPUT_2_FEATURE_STRIDE = FUNIT;
