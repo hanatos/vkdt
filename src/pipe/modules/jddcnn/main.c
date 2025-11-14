@@ -200,10 +200,12 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     dt_node_connect_named(graph, id_convola[i], "output", id_encoder[i], "input");
     dt_node_connect_named(graph, id_convolv[i], "output", id_decoder[i], "input");
     dt_node_connect_named(graph, id_decoder[i], "output", id_convolb[i], "input");
-    fprintf(stderr, "skip connection con%da -> dec%d\n", layers_cnt-1-i, i);
     // dt_node_connect_named(graph, id_convola[layers_cnt-1-i], "output", id_decoder[i], "skip");
     if(i < layers_cnt-1)
-      dt_node_connect_named(graph, id_encoder[layers_cnt-i], "output", id_decoder[i], "skip");
+    {
+      fprintf(stderr, "skip connection enc%d -> dec%d\n", layers_cnt-i-2, i);
+      dt_node_connect_named(graph, id_encoder[layers_cnt-i-2], "output", id_decoder[i], "skip");
+    }
   }
   dt_node_connect_named(graph, id_encoder[layers_cnt-1], "output", id_bottom, "input");
   dt_node_connect_named(graph, id_bottom, "output",  id_convolv[0], "input");
@@ -221,12 +223,13 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   const int id_output = dt_node_add(graph, module, "jddcnn", "output", wd[0], ht[0], 1, 0, 0, 2,
       "input",  "read",  "ssbo", "f16", dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[1].roi);
+  dt_node_connect_named(graph, id_input, "output", id_decoder[layers_cnt-1], "skip");
+  fprintf(stderr, "skip connection input -> dec%d\n", layers_cnt-1);
   fprintf(stderr, "output node width %d %d x %d %d, full %d x %d\n",
       wd[0], module->connector[1].roi.wd,
       ht[0], module->connector[1].roi.ht,
       module->connector[1].roi.full_wd,
       module->connector[1].roi.full_ht);
-  dt_node_connect_named(graph, id_input, "output", id_decoder[layers_cnt-1], "skip");
   dt_connector_copy(graph, module, 0, id_input,  0);
   dt_connector_copy(graph, module, 1, id_output, 1);
   dt_node_connect_named(graph, id_input, "output", id_convola[0], "input");
