@@ -5,18 +5,21 @@ void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-  module->connector[1].roi = module->connector[0].roi;
+  dt_roi_t *ri = &module->connector[0].roi;
+  dt_roi_t *ro = &module->connector[1].roi;
+  ro->full_wd = ri->full_wd;
+  ro->full_ht = ri->full_ht;
+  module->img_param.filters = 0u; // after we're done there won't be any more mosaic
 }
 
 void modify_roi_in(
-    dt_graph_t *graph,
+    dt_graph_t  *graph,
     dt_module_t *module)
-{ // we work on full res/bayer
-  module->connector[0].roi.wd = module->connector[0].roi.full_wd;
-  module->connector[0].roi.ht = module->connector[0].roi.full_ht;
-  module->connector[1].roi.wd = module->connector[0].roi.full_wd;
-  module->connector[1].roi.ht = module->connector[0].roi.full_ht;
-  module->connector[0].roi.scale = 1.0f;
+{
+  dt_roi_t *ri = &module->connector[0].roi;
+  ri->wd = ri->full_wd;
+  ri->ht = ri->full_ht;
+  ri->scale = 1.0f;
 }
 
 int read_source(
@@ -52,6 +55,36 @@ int read_source(
 
 void create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
+  const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
+  if(!img_param) return; // must have disconnected input somewhere
+  module->img_param.filters = 0u; // after we're done there won't be any more mosaic
+  const int block = 2; // bayer only
+  if(module->connector[1].roi.scale >= block)
+  { // half size
+    dt_roi_t roi_half = module->connector[0].roi;
+    roi_half.full_wd /= block;
+    roi_half.full_ht /= block;
+    roi_half.wd /= block;
+    roi_half.ht /= block;
+    const int pc[] = { 0, 0, 0, 0, img_param->filters };
+    const int id_half = dt_node_add(graph, module, "demosaic", "halfsize",
+        roi_half.wd, roi_half.ht, 1, sizeof(pc), pc, 2,
+        "input",  "read",  "rggb", "*",   dt_no_roi,
+        "output", "write", "rgba", "f16", &roi_half);
+    dt_connector_copy(graph, module, 0, id_half, 0);
+    if(block != module->connector[1].roi.scale)
+    { // resample to get to the rest of the resolution, only if block != scale!
+      const int id_resample = dt_node_add(graph, module, "shared", "resample",
+          module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,
+          "input",  "read",  "rgba", "f16", dt_no_roi,
+          "output", "write", "rgba", "f16", &module->connector[1].roi);
+      CONN(dt_node_connect(graph, id_half, 1, id_resample, 0));
+      dt_connector_copy(graph, module, 1, id_resample, 1);
+    }
+    else dt_connector_copy(graph, module, 1, id_half, 1);
+    return;
+  }
+
   fprintf(stderr, "bw %f %f\n", module->img_param.black[0], module->img_param.white[0]);
   fprintf(stderr, "mat\n%f %f %f\n%f %f %f\n%f %f %f\n",
       module->img_param.cam_to_rec2020[0], module->img_param.cam_to_rec2020[1], module->img_param.cam_to_rec2020[2],
@@ -200,7 +233,6 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     dt_node_connect_named(graph, id_convola[i], "output", id_encoder[i], "input");
     dt_node_connect_named(graph, id_convolv[i], "output", id_decoder[i], "input");
     dt_node_connect_named(graph, id_decoder[i], "output", id_convolb[i], "input");
-    // dt_node_connect_named(graph, id_convola[layers_cnt-1-i], "output", id_decoder[i], "skip");
     if(i < layers_cnt-1)
     {
       fprintf(stderr, "skip connection enc%d -> dec%d\n", layers_cnt-i-2, i);
@@ -231,7 +263,16 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       module->connector[1].roi.full_wd,
       module->connector[1].roi.full_ht);
   dt_connector_copy(graph, module, 0, id_input,  0);
-  dt_connector_copy(graph, module, 1, id_output, 1);
+  if(module->connector[1].roi.scale != 1.0)
+  { // add resample node to graph, copy its output instead:
+    const int id_resample = dt_node_add(graph, module, "shared", "resample",
+        module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,
+        "input",  "read",  "rgba", "f16", dt_no_roi,
+        "output", "write", "rgba", "f16", &module->connector[1].roi);
+    CONN(dt_node_connect(graph, id_output, 1, id_resample, 0));
+    dt_connector_copy(graph, module, 1, id_resample, 1);
+  }
+  else dt_connector_copy(graph, module, 1, id_output, 1);
   dt_node_connect_named(graph, id_input, "output", id_convola[0], "input");
   dt_node_connect_named(graph, id_convolb[layers_cnt-1], "output", id_output, "input");
 }
