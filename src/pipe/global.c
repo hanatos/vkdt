@@ -224,6 +224,7 @@ dt_module_so_load(
         ((char*)data)[len] = ((char*)data)[len+1] = 0;
         b += len; // set pointer to the end
       }
+      else if(type == dt_token("ab"))      {}
       else if(type == dt_token("colour"))  {}
       else if(type == dt_token("straight")){}
       else if(type == dt_token("crop"))    {}

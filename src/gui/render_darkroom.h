@@ -904,6 +904,40 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       }
     }
   }
+  else if(param->widget.type == dt_token("ab"))
+  { // mouse over image selects split plane
+    int sz = dt_ui_param_size(param->type, 1);
+    float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset + num*sz);
+    nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
+    if(vkdt.wstate.active_widget_modid == modid &&
+       vkdt.wstate.active_widget_parid == parid &&
+       vkdt.wstate.active_widget_parnm == num)
+    {
+      snprintf(string, sizeof(string), "done");
+      nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      if(nk_button_label(ctx, string))
+      {
+        widget_end();
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      }
+      nk_style_pop_style_item(ctx);
+    }
+    else
+    {
+      if(nk_button_label(ctx, "ab split"))
+      {
+        widget_end(); // if another one is still in progress, end that now
+        vkdt.wstate.active_widget_modid = modid;
+        vkdt.wstate.active_widget_parid = parid;
+        vkdt.wstate.active_widget_parnm = num;
+        vkdt.wstate.active_widget_parsz = sz;
+        vkdt.wstate.state[0] = v[0];
+      }
+    }
+    dt_tooltip(param->tooltip);
+    KEYFRAME
+    nk_label(ctx, str, NK_TEXT_LEFT);
+  }
   else if(param->widget.type == dt_token("rbmap"))
   { // red/blue chromaticity mapping via src/target coordinates
     if(6*(num / 6) == num) nk_layout_row_dynamic(ctx, row_height, 6);

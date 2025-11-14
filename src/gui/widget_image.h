@@ -193,6 +193,24 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
         vkdt.wstate.state[3] = MAX(vkdt.wstate.state[3], n[1]);
       }
     }
+    else if(widget == dt_token("ab"))
+    {
+      float v[2] = { vkdt.wstate.state[0], 0.5 };
+      float p[2];
+      dt_image_to_view(&vkdt.wstate.img_widget, v, p);
+      nk_stroke_line(buf, p[0], vkdt.state.center_y, p[0], vkdt.state.center_ht, 1.0, nk_white);
+      float vv[] = {pos.x, pos.y}, n[2] = {0};
+      dt_image_from_view(&vkdt.wstate.img_widget, vv, n);
+      fprintf(stderr, "ab float %g line %g %g %g %g\n", n[0], p[0], 0.0f, p[1], 1.0f);
+      if(hovered && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_LEFT))
+        vkdt.wstate.state[0] = n[0];
+      if(hovered && nk_input_is_mouse_down(&ctx->input, NK_BUTTON_LEFT))
+      {
+        ((float *)dt_module_param_float(vkdt.graph_dev.module+vkdt.wstate.active_widget_modid,
+            vkdt.wstate.active_widget_parid))[0] = vkdt.wstate.state[0] = n[0];
+        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
+      }
+    }
     else if(widget == dt_token("draw"))
     { // draw indicators for opacity/hardness/radius for each stroke
       float radius   = vkdt.wstate.state[0];
