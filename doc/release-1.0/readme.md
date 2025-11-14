@@ -3,6 +3,9 @@
 these release notes contain the change log over the last release, vkdt 0.9.1.
 there are quite a few new features, ui changes, and new modules to work with.
 
+1.0 is just a number, but it's also the first version that comes with a
+[backward compatibility promise for *core* modules](../core.md).
+
 ## image processing/rendering
 * [spectral film simulation](../../src/pipe/modules/filmsim/readme.md)  
   thanks to arctic for crunching all the data and doing the research!  
