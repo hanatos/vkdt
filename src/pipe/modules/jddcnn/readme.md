@@ -1,43 +1,24 @@
 # jddcnn: joined denoising and demosaicing convolutional neural network
 
-disclaimer: this module is in a highly experimental stage and is probably
-not very useful for productive use.
+this implements an integrated version of Benoit Brummer's cnn denoiser
+based on his raw natural image dataset. in particular this is compatile
+with [the weights produced by this fork here.](https://github.com/hanatos/rawnind_jddc/tree/jddcnn)
 
 the weights are read from `~/.config/vkdt/data/jddcnn-weights.dat`.
 
-this executes a network trained externally (pytorch ipython notebook).
-in the pipeline it should replace denoising and demosaicing.
+in the pipeline it replaces denoising and demosaicing.
+at the time of writing, the input should be the output of the `denoise` module, with
+`strength` set to zero (i.e. crop black borders and rescale black and white points only).
 
 the network architecture is a u-net very much inspired by intel's OIDN.
-the input is rggb bayer data in four planes of half resolution, and a fifth input channel
-is added as a noise estimate for the bayer block, using the poissonian/gaussian noise
-profile data.
+the input is rggb bayer data in four planes of half resolution.
 
-the original code was written by [Adrien Vannson](https://github.com/AdrienVannson/gpu-denoising.git)
-and has been modified to work on bayer images and ported from tensorflow to pytorch.
+the original glsl cooperative matrix convolution code was written by [Adrien
+Vannson](https://github.com/AdrienVannson/gpu-denoising.git).
 
 as a sidenote, [working with neural networks is pretty exciting](https://youtu.be/4h-wVe9a6rQ?t=116).
 
-## TODO
-
-compatibility:
-* make it work for non-coopmat devices (compile two versions of the shaders)
-
-for optimisation:
-* main loop over channels: use workgroup dimension z to parallelise more for more channels?
-* uvec4 loads (though i think i don't want to be doing this)
-* look at nvidia coopmat gemm sample and at tencent ncnn 3x3 convolution kernel for comparison
-
-for quality:
-* oidn has some extra convolutions on input/output, does it help quality?
-* try loss after tone curve
-
 ## parameters
-
-* `black` custom raw black level
-* `white` custom raw white level
-* `noise_a` gaussian part of the noise model
-* `noise_b` poissonian part of the noise model
 
 ## connectors
 

@@ -1,13 +1,14 @@
 #version 460
 #extension GL_GOOGLE_include_directive : enable
+#include "config.h"
 #define PRE_POOL
 
-const uint NB_INPUT_FEATURES = 5;
-const uint INPUT_FEATURE_STRIDE = 5;
+const uint NB_INPUT_FEATURES = FUNIT;
+const uint INPUT_FEATURE_STRIDE = FUNIT;
 
-const uint NB_OUTPUT_FEATURES = 32;
-const uint OUTPUT_FEATURE_STRIDE = 32;
+const uint NB_OUTPUT_FEATURES = 2*FUNIT;
+const uint OUTPUT_FEATURE_STRIDE = 2*FUNIT;
 
-const uint F_OUT_32 = 32;
+const uint F_OUT_32 = 2*FUNIT;
 
 #include "conv-impl.glsl"
