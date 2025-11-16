@@ -18,7 +18,7 @@ dt_check_device_allocation(uint64_t size)
 {
   // vkAllocateMemory overcommits, moves to system ram, and sometimes works even when you think it should not.
   // find out whether we still stay in device memory, and fail over if not:
-  if(size > qvk.max_allocation_size) return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+  // if(size > qvk.max_allocation_size) return VK_ERROR_OUT_OF_DEVICE_MEMORY;
   VkPhysicalDeviceMemoryBudgetPropertiesEXT budget = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT,
   };
