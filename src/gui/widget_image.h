@@ -201,7 +201,6 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
       nk_stroke_line(buf, p[0], vkdt.state.center_y, p[0], vkdt.state.center_ht, 1.0, nk_white);
       float vv[] = {pos.x, pos.y}, n[2] = {0};
       dt_image_from_view(&vkdt.wstate.img_widget, vv, n);
-      fprintf(stderr, "ab float %g line %g %g %g %g\n", n[0], p[0], 0.0f, p[1], 1.0f);
       if(hovered && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_LEFT))
         vkdt.wstate.state[0] = n[0];
       if(hovered && nk_input_is_mouse_down(&ctx->input, NK_BUTTON_LEFT))
