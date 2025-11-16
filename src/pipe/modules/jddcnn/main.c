@@ -56,8 +56,6 @@ int read_source(
   return 0;
 }
 
-// TODO: something commit params and replace black and white values
-
 void create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
   const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
