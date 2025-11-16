@@ -6,6 +6,11 @@ with [the weights produced by this fork here.](https://github.com/hanatos/rawnin
 the fork replaces the u-net by a slightly simpler one, following the
 open image denoise architecture by Attila Afra.
 
+<div class="compare_box">
+<textarea readonly style="background-image:url(denoise-off.jpg)"></textarea>
+<textarea readonly style="background-image:url(denoise-on.jpg)" ></textarea>
+</div>
+
 the weights are read from `~/.config/vkdt/data/jddcnn-weights.dat`.
 download links will follow once the training converged.
 
@@ -30,5 +35,5 @@ as a sidenote, [working with neural networks is pretty exciting](https://youtu.b
 
 ## connectors
 
-* `input` a raw rggb bayer pattern image, after the denoise module scaled it to [0,1)
+* `input` a raw rggb bayer pattern image, after the denoise module scaled it to [0,1]
 * `output` the denoised and demosaiced rgb image

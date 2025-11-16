@@ -6,12 +6,19 @@ there are quite a few new features, ui changes, and new modules to work with.
 1.0 is just a number, but it's also the first version that comes with a
 [backward compatibility promise for *core* modules](../core.md).
 
+vkdt runs best/natively on linux/wayland (arch or nix os), compiles and runs
+on macintosh (build using brew, install the lunarg vulkan sdk), and with
+some caveats on windows too (msys2, but why would you).
+
 ## image processing/rendering
 * [spectral film simulation](../../src/pipe/modules/filmsim/readme.md)  
-  thanks to arctic for crunching all the data and doing the research!  
-  thanks to jedypod for adding the latest film/paper stock!  
+  thanks to @arctic for crunching all the data and doing the research!  
+  thanks to @jedypod for adding the latest film/paper stock!  
   <img src="../../src/pipe/modules/filmsim/neg_004.png" style="width:25%"/>
   <img src="../../src/pipe/modules/filmsim/print_004.png" style="width:25%"/>
+* [jddcnn](../../src/pipe/modules/jddcnn/readme.md) joint demosaicing and denoising based on a CNN  
+  based on the rawnind dataset by and with loads of help by @trougnouf  
+  <img src="jddcnn.png" style="width:40%"/>
 * vkdt-rendered logo (animated, looks best in hdr mode)  
   <img src="../../favicon.png" style="width:25%"/>
 * [i-lut](../../src/pipe/modules/i-lut/readme.md) now supports lists of input files, useful for textures/3d rendering
@@ -60,7 +67,7 @@ there are quite a few new features, ui changes, and new modules to work with.
 * improved wayland support (better than x11)
 * rewrote `vkdt read-icc` in c to reduce dependencies for packaging
 * arch aur package `vkdt-git`
-* android compile fixes (thanks paolo!)
+* android compile fixes (thanks @paolod!), see [pr #197](https://github.com/hanatos/vkdt/pull/197) for progress on a native android build
 
 
 ## new modules
