@@ -27,6 +27,7 @@ int read_source(
     void                    *mapped,
     dt_read_source_params_t *p)
 {
+  static char errmsg[256];
   if(p->node->kernel == dt_token("weights"))
   {
     FILE *f = dt_graph_open_resource(mod->graph, 0, "data/jddcnn-weights.dat", "r");
@@ -40,13 +41,17 @@ int read_source(
         fread(mapped, sz, 1, f);
       }
       else
-      {
-        // TODO gui message
-        fprintf(stderr, "weight file has unexpected size! discarding..\n");
+      { // issue a gui message
+        snprintf(errmsg, sizeof(errmsg), "jddcnn: weight file has unexpected size! discarding..");
+        mod->graph->gui_msg = errmsg;
       }
       fclose(f);
     }
-    else fprintf(stderr, "could not find data/jddcnn-weights.dat!\n");
+    else
+    {
+      snprintf(errmsg, sizeof(errmsg), "jddcnn: could not find data/jddcnn-weights.dat!");
+      mod->graph->gui_msg = errmsg;
+    }
   }
   return 0;
 }
@@ -85,11 +90,6 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     return;
   }
 
-  fprintf(stderr, "bw %f %f\n", module->img_param.black[0], module->img_param.white[0]);
-  fprintf(stderr, "mat\n%f %f %f\n%f %f %f\n%f %f %f\n",
-      module->img_param.cam_to_rec2020[0], module->img_param.cam_to_rec2020[1], module->img_param.cam_to_rec2020[2],
-      module->img_param.cam_to_rec2020[3], module->img_param.cam_to_rec2020[4], module->img_param.cam_to_rec2020[5],
-      module->img_param.cam_to_rec2020[6], module->img_param.cam_to_rec2020[7], module->img_param.cam_to_rec2020[8]);
 #define layers_cnt 4
   char shader[10];
 
@@ -126,7 +126,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
           "input",   "read",  "ssbo", "f16", dt_no_roi);
     }
     index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
-    fprintf(stderr, "encoder %s %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[i+1], ht[i+1], wd[i+1], ht[i+1]);
+    // fprintf(stderr, "encoder %s %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[i+1], ht[i+1], wd[i+1], ht[i+1]);
 
     i_cnt  = o_cnt;
     o_cnt *= 2;
@@ -143,7 +143,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
           "input",   "read",  "ssbo", "f16", dt_no_roi);
     }
 
-    fprintf(stderr, "encoder %s  %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[i+1], ht[i+1], wd[i+2], ht[i+2]);
+    // fprintf(stderr, "encoder %s  %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[i+1], ht[i+1], wd[i+2], ht[i+2]);
     index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
   }
 
@@ -160,7 +160,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
         "weights", "read",  "ssbo", "f16", dt_no_roi,
         "output",  "write", "ssbo", "f16", &roi_out,
         "input",   "read",  "ssbo", "f16", dt_no_roi);
-    fprintf(stderr, "bottom  %s   [%d %d %d %d] running on %d x %d output %d x %d\n", shader, o_cnt, i_cnt, 3, 3, wd[layers_cnt+1], ht[layers_cnt+1], wd[layers_cnt+1], ht[layers_cnt+1]);
+    // fprintf(stderr, "bottom  %s   [%d %d %d %d] running on %d x %d output %d x %d\n", shader, o_cnt, i_cnt, 3, 3, wd[layers_cnt+1], ht[layers_cnt+1], wd[layers_cnt+1], ht[layers_cnt+1]);
     index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
   }
 
@@ -179,7 +179,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
           "output",  "write", "ssbo", "f16", &roi_out,
           "input",   "read",  "ssbo", "f16", dt_no_roi);
       index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
-      fprintf(stderr, "decoder %s  %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i+1], ht[layers_cnt-i+1], wd[layers_cnt-i], ht[layers_cnt-i]);
+      // fprintf(stderr, "decoder %s  %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i+1], ht[layers_cnt-i+1], wd[layers_cnt-i], ht[layers_cnt-i]);
     }
     { // decoder convolution, no upsampling but we get the skip connection
       i_cnt = 2*o_cnt; // we get the skip connection too, but reduce to current o_cnt
@@ -196,7 +196,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
           "input",   "read",  "ssbo", "f16", dt_no_roi,  // low res inputs, to be upsampled first
           "skip",    "read",  "ssbo", "f16", dt_no_roi); // these are the skip connections on high res
       index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
-      fprintf(stderr, "decoder %s  %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
+      // fprintf(stderr, "decoder %s  %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
     }
     { // extra convolution conXb
       i_cnt = o_cnt;
@@ -212,11 +212,11 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
           "output",  "write", "ssbo", "f16", &roi_out,
           "input",   "read",  "ssbo", "f16", dt_no_roi);
       index_weights_buffer += 9 * i_cnt * o_cnt + o_cnt;
-      fprintf(stderr, "decoder %s %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
+      // fprintf(stderr, "decoder %s %d [%d %d %d %d] running on %d x %d output %d x %d\n", shader, i, o_cnt, i_cnt, 3, 3, wd[layers_cnt-i], ht[layers_cnt-i], wd[layers_cnt-i], ht[layers_cnt-i]);
     }
   }
 
-  fprintf(stderr, "weights %lu bytes\n", sizeof(uint16_t)*index_weights_buffer);
+  // fprintf(stderr, "weights %lu bytes\n", sizeof(uint16_t)*index_weights_buffer);
 
   // wire weights from file
   dt_roi_t roi_weights = { .wd = index_weights_buffer, .ht = 1, .full_wd = index_weights_buffer, .full_ht = 1, .scale = 1 };
@@ -235,7 +235,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     dt_node_connect_named(graph, id_decoder[i], "output", id_convolb[i], "input");
     if(i < layers_cnt-1)
     {
-      fprintf(stderr, "skip connection enc%d -> dec%d\n", layers_cnt-i-2, i);
+      // fprintf(stderr, "skip connection enc%d -> dec%d\n", layers_cnt-i-2, i);
       dt_node_connect_named(graph, id_encoder[layers_cnt-i-2], "output", id_decoder[i], "skip");
     }
   }
@@ -256,12 +256,12 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       "input",  "read",  "ssbo", "f16", dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[1].roi);
   dt_node_connect_named(graph, id_input, "output", id_decoder[layers_cnt-1], "skip");
-  fprintf(stderr, "skip connection input -> dec%d\n", layers_cnt-1);
-  fprintf(stderr, "output node width %d %d x %d %d, full %d x %d\n",
-      wd[0], module->connector[1].roi.wd,
-      ht[0], module->connector[1].roi.ht,
-      module->connector[1].roi.full_wd,
-      module->connector[1].roi.full_ht);
+  // fprintf(stderr, "skip connection input -> dec%d\n", layers_cnt-1);
+  // fprintf(stderr, "output node width %d %d x %d %d, full %d x %d\n",
+  //     wd[0], module->connector[1].roi.wd,
+  //     ht[0], module->connector[1].roi.ht,
+  //     module->connector[1].roi.full_wd,
+  //     module->connector[1].roi.full_ht);
   dt_connector_copy(graph, module, 0, id_input,  0);
   if(module->connector[1].roi.scale != 1.0)
   { // add resample node to graph, copy its output instead:
