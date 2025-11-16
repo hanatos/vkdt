@@ -7,6 +7,7 @@ the fork replaces the u-net by a slightly simpler one, following the
 open image denoise architecture by Attila Afra.
 
 the weights are read from `~/.config/vkdt/data/jddcnn-weights.dat`.
+download links will follow once the training converged.
 
 in the pipeline it replaces denoising and demosaicing.
 at the time of writing, the input should be the output of the `denoise` module, with
@@ -21,7 +22,9 @@ the original glsl cooperative matrix convolution code was written by [Adrien
 Vannson](https://github.com/AdrienVannson/gpu-denoising.git).
 
 a word of warning: this module is *extremely slow*. it can take like a full
-second on a 42MP image (RTX 3080 Ti).
+second on a 42MP image (RTX 3080 Ti). you might want to directly route out the result
+via `o-exr` (maybe after input device transform in the `colour` module) and then
+do the rest of the grading on the exr for faster interaction.
 
 as a sidenote, [working with neural networks is pretty exciting](https://youtu.be/4h-wVe9a6rQ?t=116).
 
