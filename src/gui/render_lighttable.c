@@ -237,8 +237,6 @@ void render_lighttable_center()
   }
 #endif
   struct nk_rect bounds = {vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht};
-  // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "lt center bounds %f %f %f %f\n", bounds.x, bounds.y, bounds.w, bounds.h);
-  // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "window bounds %d x %d\n", vkdt.win.width, vkdt.win.height);
   const int disabled = vkdt.wstate.popup;
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
   if(!nk_begin(&vkdt.ctx, "lighttable center", bounds, disabled ? NK_WINDOW_NO_INPUT : 0))
@@ -251,11 +249,6 @@ void render_lighttable_center()
 
   if(vkdt.db.collection_cnt == 0)
   {
-    struct nk_command_buffer *cmd = nk_window_get_canvas(&vkdt.ctx);
-    struct nk_rect box = {vkdt.win.width/2-100, vkdt.win.height/2-100, 200, 200};
-    // DEBUG: this one draws an ellipse stretched out to the screen aspect ratio
-    nk_fill_circle(cmd, box, nk_rgb(255,0,255));
-    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "collection count zero, dir `%s'\n", vkdt.db.dirname);
     nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_ht/5, 1);
     nk_label(&vkdt.ctx, "", 0);
     nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_ht/3, 3);

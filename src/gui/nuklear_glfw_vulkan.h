@@ -416,7 +416,6 @@ nk_glfw3_create_shader(struct nk_glfw_device *dev, unsigned char *spv_shader,
 NK_INTERN VkResult
 nk_glfw3_create_pipeline(struct nk_glfw_device *dev)
 {
-    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "create pipeline!!\n");
     VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
     VkPipelineRasterizationStateCreateInfo rasterization_state;
     VkPipelineColorBlendAttachmentState attachment_state = {
@@ -462,7 +461,6 @@ nk_glfw3_create_pipeline(struct nk_glfw_device *dev)
     color_blend_state.attachmentCount = 1;
     color_blend_state.pAttachments = &attachment_state;
 
-    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "initing viewport as %f x %f\n", viewport.width, viewport.height);
     VkPipelineViewportStateCreateInfo viewport_state = {
       .sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
       .viewportCount = 1,
@@ -543,7 +541,6 @@ NK_INTERN VkResult
 nk_glfw3_create_render_resources(
     struct nk_glfw_device *dev)
 {
-    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "create resources XXXXXXXXXXX!!\n");
   VkResult result;
   result = nk_glfw3_create_descriptor_pool(dev);
   if(result != VK_SUCCESS) return result;
@@ -1229,9 +1226,6 @@ void nk_glfw3_create_cmd(
 
   memcpy(dev->mapped_uniform, &projection, sizeof(projection));
 
-  // DEBUG: this is called all the time
-  // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "viewport %d x %d\n",
-      // win->width, win->height);
   VkViewport viewport = {
     .width    = (float)win->width,
     .height   = (float)win->height,
@@ -1303,9 +1297,7 @@ void nk_glfw3_create_cmd(
           0, NULL);
       current_texture = cmd->texture.ptr; // i think this is already checked before pushing the cmd
     }
-    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "draw call with %d elements\n", cmd->elem_count);
     if(!cmd->elem_count) continue;
-    // __android_log_print(ANDROID_LOG_WARN, "[vkdt]", "draw call with %d elements\n", cmd->elem_count);
 
     float str = cmd->strength;
     if(!cmd->texture.ptr) str = -1.0f;
