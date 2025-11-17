@@ -16,9 +16,10 @@ void modify_roi_in(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  dt_roi_t *ro = &module->connector[1].roi;
   dt_roi_t *ri = &module->connector[0].roi;
-  ri->wd = ri->full_wd;
-  ri->ht = ri->full_ht;
+  ro->wd = ri->wd = ri->full_wd;
+  ro->ht = ri->ht = ri->full_ht;
   ri->scale = 1.0f;
 }
 
