@@ -1,4 +1,1 @@
-black:float:4:200
-white:float:4:4095
-noise_a:float:1:0
-noise_b:float:1:0
+model:int:1:0

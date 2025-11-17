@@ -11,7 +11,9 @@ open image denoise architecture by Attila Afra.
 <textarea readonly style="background-image:url(denoise-on.jpg)" ></textarea>
 </div>
 
-the weights are read from `~/.config/vkdt/data/jddcnn-weights.dat`.
+the weights are read from `~/.config/vkdt/data/jddcnn-weights-heavy.dat` or,
+for the slightly more light-weight variant with only 16 base channels
+`~/.config/vkdt/data/jddcnn-weights-light.dat`.
 download links will follow once the training converged.
 
 in the pipeline it replaces denoising and demosaicing.
@@ -32,6 +34,10 @@ via `o-exr` (maybe after input device transform in the `colour` module) and then
 do the rest of the grading on the exr for faster interaction.
 
 as a sidenote, [working with neural networks is pretty exciting](https://youtu.be/4h-wVe9a6rQ?t=116).
+
+## parameters
+
+* `model` use the heavy model (8.6M parameters) or the lighter one with 4M parameters
 
 ## connectors
 

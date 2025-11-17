@@ -1,4 +1,1 @@
-black:slider:0:4096
-white:slider:0:65535
-noise_a:slider:0:500
-noise_b:slider:0:20
+model:combo:heavy:light

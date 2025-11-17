@@ -22,15 +22,34 @@ void modify_roi_in(
   ri->scale = 1.0f;
 }
 
+dt_graph_run_t
+check_params(
+    dt_module_t *mod,
+    uint32_t     parid,
+    uint32_t     num,
+    void        *oldval)
+{
+  const int pid = dt_module_get_param(mod->so, dt_token("model"));
+  const int mdl = CLAMP(dt_module_param_int(mod, pid)[0], 0, 1);
+  if(parid == pid) // model changed
+    if(*(int*)oldval != mdl) 
+      return s_graph_run_all;
+  return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms is fine
+}
+
 int read_source(
     dt_module_t             *mod,
     void                    *mapped,
     dt_read_source_params_t *p)
 {
-  static char errmsg[256];
+  char mdlfile[256];
+  const int pid = dt_module_get_param(mod->so, dt_token("model"));
+  const int mdl = CLAMP(dt_module_param_int(mod, pid)[0], 0, 1);
+  const char *mdl_type[2] = {"heavy", "light"};
+  snprintf(mdlfile, sizeof(mdlfile), "data/jddcnn-weights-%s.dat", mdl_type[mdl]);
   if(p->node->kernel == dt_token("weights"))
   {
-    FILE *f = dt_graph_open_resource(mod->graph, 0, "data/jddcnn-weights.dat", "r");
+    FILE *f = dt_graph_open_resource(mod->graph, 0, mdlfile, "r");
     if(f)
     { // load hardcoded name of weights
       fseek(f, 0, SEEK_END);
@@ -42,15 +61,17 @@ int read_source(
       }
       else
       { // issue a gui message
-        snprintf(errmsg, sizeof(errmsg), "jddcnn: weight file has unexpected size! discarding..");
-        mod->graph->gui_msg = errmsg;
+        snprintf(mod->graph->gui_msg_buf, sizeof(mod->graph->gui_msg_buf),
+            "jddcnn: weight file has unexpected size! discarding..");
+        mod->graph->gui_msg = mod->graph->gui_msg_buf;
       }
       fclose(f);
     }
     else
     {
-      snprintf(errmsg, sizeof(errmsg), "jddcnn: could not find data/jddcnn-weights.dat!");
-      mod->graph->gui_msg = errmsg;
+      snprintf(mod->graph->gui_msg_buf, sizeof(mod->graph->gui_msg_buf),
+          "jddcnn: could not find %s", mdlfile);
+      mod->graph->gui_msg = mod->graph->gui_msg_buf;
     }
   }
   return 0;
@@ -89,7 +110,10 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   }
 
 #define layers_cnt 4
+  const int pid = dt_module_get_param(module->so, dt_token("model"));
+  const int mdl = CLAMP(dt_module_param_int(module, pid)[0], 0, 1);
   char shader[10];
+  const char *mdl_suffix[2] = { "", "16" };
 
   int id_encoder[layers_cnt];   // convolution layer nodes
   int id_decoder[layers_cnt];   // decoder with skip connections as input
@@ -114,7 +138,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       dt_roi_t roi_out = { .wd = wd[i+1] * ht[i+1], .ht = o_cnt };
       int pc[] = { index_weights_buffer, wd[i+1], ht[i+1] };
 
-      snprintf(shader, sizeof(shader), "con%da", i);
+      snprintf(shader, sizeof(shader), "con%da%s", i, mdl_suffix[mdl]);
       id_convola[i] = dt_node_add(
           graph, module, "jddcnn", shader,
           (ht[i+1]+7) / 8 * DT_LOCAL_SIZE_X, (wd[i+1]+7) / 8 * DT_LOCAL_SIZE_Y,
@@ -131,7 +155,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     {
       int pc[] = { index_weights_buffer, wd[i+1], ht[i+1] };
       dt_roi_t roi_out = { .wd = wd[i+2] * ht[i+2], .ht = o_cnt };
-      snprintf(shader, sizeof(shader), "enc%d", i);
+      snprintf(shader, sizeof(shader), "enc%d%s", i, mdl_suffix[mdl]);
       id_encoder[i] = dt_node_add(
           graph, module, "jddcnn", shader,
           (ht[i+1]+7) / 8 * DT_LOCAL_SIZE_X, (wd[i+1]+7) / 8 * DT_LOCAL_SIZE_Y,
@@ -150,7 +174,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   { // bottom level
     int pc[] = { index_weights_buffer, wd[layers_cnt+1], ht[layers_cnt+1] };
     dt_roi_t roi_out = { .wd = wd[layers_cnt+1] * ht[layers_cnt+1], .ht = o_cnt };
-    snprintf(shader, sizeof(shader), "con%da", layers_cnt);
+    snprintf(shader, sizeof(shader), "con%da%s", layers_cnt, mdl_suffix[mdl]);
     id_bottom = dt_node_add(
         graph, module, "jddcnn", shader,
         (ht[layers_cnt+1]+7) / 8 * DT_LOCAL_SIZE_X, (wd[layers_cnt+1]+7) / 8 * DT_LOCAL_SIZE_Y,
@@ -168,7 +192,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       o_cnt = i_cnt / 2;
       dt_roi_t roi_out = { .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = o_cnt };
       int pc[] = { index_weights_buffer, wd[layers_cnt-i], ht[layers_cnt-i] };
-      snprintf(shader, sizeof(shader), "con%d", i);
+      snprintf(shader, sizeof(shader), "con%d%s", i, mdl_suffix[mdl]);
       id_convolv[i] = dt_node_add(
           graph, module, "jddcnn", shader,
           (ht[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_X, (wd[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_Y,
@@ -184,7 +208,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       if(i == layers_cnt-1) i_cnt = 4+o_cnt; // skip connection comes from input directly
       dt_roi_t roi_out = { .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = o_cnt };
       int pc[] = { index_weights_buffer, wd[layers_cnt-i], ht[layers_cnt-i] };
-      snprintf(shader, sizeof(shader), "dec%d", i);
+      snprintf(shader, sizeof(shader), "dec%d%s", i, mdl_suffix[mdl]);
       id_decoder[i] = dt_node_add(
           graph, module, "jddcnn", shader,
           (ht[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_X, (wd[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_Y,
@@ -201,7 +225,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       if(i == layers_cnt-1) o_cnt = 12;
       dt_roi_t roi_out = { .wd = wd[layers_cnt-i] * ht[layers_cnt-i], .ht = o_cnt };
       int pc[] = { index_weights_buffer, wd[layers_cnt-i], ht[layers_cnt-i] };
-      snprintf(shader, sizeof(shader), "con%db", i);
+      snprintf(shader, sizeof(shader), "con%db%s", i, mdl_suffix[mdl]);
       id_convolb[i] = dt_node_add(
           graph, module, "jddcnn", shader,
           (ht[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_X, (wd[layers_cnt-i]+7) / 8 * DT_LOCAL_SIZE_Y,

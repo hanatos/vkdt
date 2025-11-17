@@ -328,6 +328,7 @@ VkResult dt_graph_run(
   // double_buffer is initialised to 0 and has to be set from the outside if flipping the double buffer is requested.
   const int buf_curr = graph->double_buffer & 1; // recording this pipeline and writing to this buffer index now
   const int buf_prev = 1-buf_curr;               // waiting for the previous double buffer
+  graph->gui_msg = 0;
 
   // wait for last invocation of our command buffer to finish:
   VkSemaphoreWaitInfo wait_info = {
@@ -520,9 +521,7 @@ VkResult dt_graph_run(
       dt_log(s_log_perf, "total time:\t%8.3f ms", graph->query[q].last_frame_duration);
     }
   }
-  // reset run flags and gui error message
   graph->runflags = 0;
-  graph->gui_msg = 0;
   return VK_SUCCESS;
 }
 
