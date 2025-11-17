@@ -8,10 +8,10 @@
 #include "widget_radial_menu_dr-fwd.h"
 #include "nk.h"
 #include "hsluv.h"
+#include "gui/win.h"
 
 #include <vulkan/vulkan.h>
 #include <math.h>
-#include <GLFW/glfw3.h>
 
 // max images in flight in vulkan pipeline/swap chain
 #define DT_GUI_MAX_IMAGES 8

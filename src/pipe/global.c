@@ -92,10 +92,15 @@ dt_module_so_load(
     return 1;
   memset(mod, 0, sizeof(*mod));
   mod->name = dt_token(dirname);
-  char filename[PATH_MAX], line[8192];
-  snprintf(filename, sizeof(filename), "%s/modules/%s/lib%s.so", dt_pipe.basedir, dirname, dirname);
   mod->dlhandle = 0;
+  char filename[PATH_MAX], line[8192];
+#ifdef __ANDROID__ // has these in the regular ld path:
+  snprintf(filename, sizeof(filename), "lib%s.so", dirname);
+  // lack of isreg_file produces some errors on loading. do we care?
+#else
+  snprintf(filename, sizeof(filename), "%s/modules/%s/lib%s.so", dt_pipe.basedir, dirname, dirname);
   if(fs_isreg_file(filename))
+#endif
   {
     mod->dlhandle = dlopen(filename, RTLD_LAZY | RTLD_LOCAL);
     if(!mod->dlhandle)
@@ -408,7 +413,7 @@ compare_module_name(const void *a, const void *b)
   return strncmp(dt_token_str(ma->name), dt_token_str(mb->name), 8);
 }
 
-int dt_pipe_global_init()
+int dt_pipe_global_init(void *appv)
 {
   memset(&dt_pipe, 0, sizeof(dt_pipe));
 #ifdef __ANDROID__

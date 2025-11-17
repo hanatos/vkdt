@@ -1,0 +1,75 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    ndkVersion rootProject.ext.ndkVersion
+    defaultConfig {
+        ndkVersion "28.2.13676358"
+        applicationId "org.dreggn.vkdt"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        ndk {
+            abiFilters rootProject.ext.abiFilters
+        }
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++14"
+                arguments "-DANDROID_STL=c++_shared", '-DANDROID_TOOLCHAIN=clang'
+            }
+        }
+    }
+    sourceSets {
+        main.assets.srcDirs = ['assets']
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+        }
+    }
+}
+
+task copyTask {
+    copy {
+        from '../../bin/data'
+        into "assets/data"
+        include 'bomb.bc1'
+        include 'busybee.bc1'
+        include 'font_msdf.lut'
+        include 'font_metrics.lut'
+        include 'filmsim.lut'
+        include 'abney.lut'
+        include 'spectra.lut'
+        include 'spectra-em.lut'
+        include 'spectra-em.lut'
+    }
+    copy {
+      from '../../bin/keyaccel'
+      into 'assets/keyaccel'
+    }
+    copy {
+      from '../../bin/presets'
+      into 'assets/presets'
+    }
+    copy {
+        from '../../src/pipe/modules'
+        into 'assets/modules'
+        include '**/connectors'
+        include '**/ctooltips'
+        include '**/ptooltips'
+        include '**/*.spv'
+        include '**/params'
+        include '**/params.ui'
+        include '**/readme.md'
+        exclude 'readme.md'
+    }
+}
+
+preBuild.dependsOn copyTask

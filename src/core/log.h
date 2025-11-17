@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
 
 // layered logging facility
 
@@ -102,7 +105,11 @@ dt_log_init_arg(int argc, char *argv[])
 static inline void
 dt_log_init(dt_log_mask_t verbose)
 {
+#ifdef __ANDROID__
+  dt_log_global.mask = s_log_all;
+#else
   dt_log_global.mask = verbose;
+#endif
 }
 
 static inline void
@@ -127,13 +134,18 @@ dt_log(
 
   if(dt_log_global.mask & mask)
   {
-    char str[2048];
     uint32_t index = mask ? 32-__builtin_clz(mask) : 0;
     if(index > sizeof(pre)/sizeof(pre[0])) index = 0;
-    snprintf(str, sizeof(str), "%s %s\n", pre[index], format);
     va_list args;
     va_start(args, format);
+    char str[2048];
+#ifdef __ANDROID__ // android logs are so busy, make sure we can grep for [vkdt]:
+    snprintf(str, sizeof(str), "[vkdt] %s\n", format);
+     __android_log_vprint(ANDROID_LOG_WARN, pre[index], str, args);
+#else
+    snprintf(str, sizeof(str), "%s %s\n", pre[index], format);
     vfprintf(stdout, str, args);
+#endif
     va_end(args);
   }
 }

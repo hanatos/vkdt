@@ -6,10 +6,9 @@
 #include "render.h"
 #include "pipe/asciiio.h"
 #include "pipe/modules/api.h"
-#include "widget_recentcollect.h"
+#include "gui/widget_recentcollect.h"
+#include "gui/win.h"
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <float.h>
@@ -88,6 +87,10 @@ void window_content_scale_callback(GLFWwindow* w, float xscale, float yscale)
 static inline void
 dt_gui_win_init(dt_gui_win_t *win)
 {
+#ifdef __ANDROID__
+  win->window = 0;
+  win->content_scale[0] = win->content_scale[1] = 1.0;
+#else
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
@@ -119,12 +122,13 @@ dt_gui_win_init(dt_gui_win_t *win)
     glfwGetWindowContentScale(win->window, win->content_scale, win->content_scale+1);
   }
   glfwSetWindowSizeLimits(win->window, 512, 128, GLFW_DONT_CARE, GLFW_DONT_CARE);
+#endif
 }
 
 static inline int
 dt_gui_win_init_vk(dt_gui_win_t *win)
 {
-  /* create surface */
+#ifndef __ANDROID__
   if(glfwCreateWindowSurface(qvk.instance, win->window, NULL, &win->surface))
   {
     dt_log(s_log_qvk|s_log_err, "could not create surface!");
@@ -141,6 +145,13 @@ dt_gui_win_init_vk(dt_gui_win_t *win)
     dt_log(s_log_qvk|s_log_err, "if you're on nvidia and wayland, this might be a driver issue (can you run `vulkaninfo` successfully?)");
     return 1;
   }
+#else
+  VkAndroidSurfaceCreateInfoKHR create_info = {
+    .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
+    .window = dt_pipe.app->window
+  };
+  QVKR(vkCreateAndroidSurfaceKHR(qvk.instance, &create_info, 0, &win->surface));
+#endif
 
   QVKR(dt_gui_recreate_swapchain(win));
 
@@ -200,6 +211,7 @@ int dt_gui_init()
   if(enable_hdr_wsi) dt_log(s_log_gui, "attempting to load HDR WSI aux layer");
 
   glfwInitHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
+#ifndef __ANDROID__
   if(!glfwInit())
   {
     const char* description;
@@ -216,6 +228,7 @@ int dt_gui_init()
     glfwTerminate(); // for correctness, if in future we don't just exit(1)
     return 1;
   }
+#endif
 
   dt_rc_init(&vkdt.rc);
   char configfile[512];
@@ -227,6 +240,7 @@ int dt_gui_init()
 
   dt_gui_win_init(&vkdt.win);
 
+#ifndef __ANDROID__
   // be verbose about monitor names so we can colour manage them:
   int monitors_cnt;
   GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
@@ -251,6 +265,14 @@ int dt_gui_init()
     dt_log(s_log_gui|s_log_err, "couldn't get GLFW instance extensions");
     return 1;
   }
+#else
+  static const char *instance_extensions[] = {
+    VK_KHR_SURFACE_EXTENSION_NAME,
+    VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
+  };
+  qvk.glfw_extensions = instance_extensions;
+  qvk.num_glfw_extensions = 2;
+#endif
 
   dt_log(s_log_gui, "vk extension required by GLFW:");
   for(int i = 0; i < qvk.num_glfw_extensions; i++)
@@ -269,6 +291,8 @@ int dt_gui_init()
   if(dt_gui_win_init_vk(&vkdt.win)) return 1;
 
   // joystick detection: find first gamepad.
+  vkdt.wstate.have_joystick = 0;
+#ifndef __ANDROID__
   FILE *f = fopen("/usr/share/sdl/gamecontrollerdb.txt", "r");
   if(f)
   { // load additional controller descriptions from file above if present
@@ -282,7 +306,6 @@ int dt_gui_init()
     glfwUpdateGamepadMappings(buf);
     free(buf);
   }
-  vkdt.wstate.have_joystick = 0;
   for(int js=GLFW_JOYSTICK_1;!vkdt.wstate.have_joystick&&js<GLFW_JOYSTICK_LAST;js++)
   {
     if(glfwJoystickPresent(js) && glfwJoystickIsGamepad(js))
@@ -306,6 +329,7 @@ int dt_gui_init()
   }
   if(!vkdt.wstate.have_joystick)
     dt_log(s_log_gui, "no gamepad found");
+#endif
 
   dt_gui_init_nk();
 
@@ -392,10 +416,15 @@ out:;
   win->present_mode = VK_PRESENT_MODE_FIFO_KHR; // guaranteed to be there, but has vsync frame time jitter
 
   VkExtent2D extent;
+#ifdef __ANDROID__
+  extent = surf_capabilities.currentExtent;
+  dt_log(s_log_qvk, "[swapchain] window size %d x %d", extent.width, extent.height);
+#else
   extent.width  = MIN(surf_capabilities.maxImageExtent.width,  win->width);
   extent.height = MIN(surf_capabilities.maxImageExtent.height, win->height);
   extent.width  = MAX(surf_capabilities.minImageExtent.width,  extent.width);
   extent.height = MAX(surf_capabilities.minImageExtent.height, extent.height);
+#endif
 
   // this is stupid, but it seems if the window manager does not allow going fullscreen
   // it crashes otherwise. sometimes you need to first make the window floating in dwm
