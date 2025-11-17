@@ -18,6 +18,7 @@ some caveats on windows too (msys2, but why would you).
   <img src="../../src/pipe/modules/filmsim/print_004.png" style="width:25%"/>
 * [jddcnn](../../src/pipe/modules/jddcnn/readme.md) joint demosaicing and denoising based on a CNN  
   based on the rawnind dataset by and with loads of help by @trougnouf  
+  fully integrated implementation in portable vulkan, i.e. does not depend on python, torch, or cuda.  
   <img src="jddcnn.png" style="width:40%"/>
 * vkdt-rendered logo (animated, looks best in hdr mode)  
   <img src="../../favicon.png" style="width:25%"/>
