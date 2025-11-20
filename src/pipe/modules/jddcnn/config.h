@@ -2,3 +2,4 @@
 #ifndef FUNIT
 #define FUNIT 32
 #endif
+#define FUNIT_MIN 32

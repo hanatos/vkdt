@@ -6,6 +6,6 @@ const uint NB_INPUT_FEATURES = FUNIT;
 const uint INPUT_FEATURE_STRIDE = FUNIT;
 const uint NB_OUTPUT_FEATURES = 12;
 const uint OUTPUT_FEATURE_STRIDE = 12;
-const uint F_OUT_32 = FUNIT;
+const uint F_OUT_32 = FUNIT_MIN;
 
 #include "conv-impl.glsl"
