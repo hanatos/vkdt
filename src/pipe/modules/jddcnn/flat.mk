@@ -26,4 +26,4 @@ pipe/modules/jddcnn/enc316.comp.spv
 modules: $(SHADERS)
 
 pipe/modules/jddcnn/%16.comp.spv: pipe/modules/jddcnn/%.comp pipe/modules/jddcnn/conv-impl.glsl
-	$(GLSLC) -Ipipe/modules -Ipipe/modules/jddcnn $(GLSLC_FLAGS) -DFUINT=16 $< -o $@
+	$(GLSLC) -Ipipe/modules -Ipipe/modules/jddcnn $(GLSLC_FLAGS) -DFUNIT=16 $< -o $@
