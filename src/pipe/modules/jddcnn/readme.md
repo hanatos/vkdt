@@ -37,7 +37,7 @@ as a sidenote, [working with neural networks is pretty exciting](https://youtu.b
 
 ## parameters
 
-* `model` use the heavy model (8.6M parameters) or the lighter one with 4M parameters
+* `model` use the heavy model (8.6M parameters) or the lighter one with 2M parameters
 
 ## connectors
 
