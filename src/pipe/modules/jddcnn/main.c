@@ -134,7 +134,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     ht[i+2] = (ht[i+1]+1)/2;
     {
       i_cnt = i ? o_cnt : 4;
-      o_cnt = i ? i_cnt : FUNIT;
+      o_cnt = i ? i_cnt : (mdl ? 16 : FUNIT);
       dt_roi_t roi_out = { .wd = wd[i+1] * ht[i+1], .ht = o_cnt };
       int pc[] = { index_weights_buffer, wd[i+1], ht[i+1] };
 
