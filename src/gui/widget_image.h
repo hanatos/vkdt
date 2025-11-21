@@ -385,6 +385,14 @@ dt_image(
   const int display_frame = out->module->graph->double_buffer;
   struct nk_rect subimg = {w->wd * im0[0], w->ht * im0[1], w->wd * (im1[0]-im0[0]), w->ht * (im1[1]-im0[1])};
   struct nk_rect disp = {v0[0], v0[1], v1[0]-v0[0], v1[1]-v0[1]};
+  if(w->scale >= 1.0f)
+  { // make sure we align pixels accurately. avoids jittered display for not-quite-accurate correspondence
+    // of image pixels to multiple screen pixels. the cost is jittering image display size lower/right.
+    subimg.x = (int)subimg.x; subimg.y = (int)subimg.y;
+    subimg.w = (int)(subimg.w+0.5f); subimg.h = (int)(subimg.h+0.5f);
+    disp.x = MAX((int)w->win_x, (int)disp.x); disp.y = MAX((int)w->win_y, (int)disp.y);
+    disp.w = (int)(w->scale * subimg.w); disp.h = (int)(w->scale * subimg.h);
+  }
   struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
   struct nk_image nkimg = nk_subimage_ptr(out->dset[display_frame], w->wd, w->ht, subimg);
   int hover = nk_input_is_mouse_hovering_rect(&ctx->input, disp);
