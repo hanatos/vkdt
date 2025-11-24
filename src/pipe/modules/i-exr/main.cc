@@ -1,7 +1,7 @@
 #include "modules/api.h"
 #include "core/half.h"
 #include "core/core.h"
-#include "../i-raw/mat3.h"
+#include "core/colour.h"
 
 #include <zlib.h>
 #define TINYEXR_USE_THREAD (1)
@@ -106,45 +106,13 @@ read_header(
   }
 
   if(chroma)
-  { // bruce lindbloom says (oh why can't they just store the matrix..):
-    float Xr = chroma[0] / chroma[1];
-    float Yr = 1.0;
-    float Zr = (1.0-chroma[0]-chroma[1])/chroma[1];
-    float Xg = chroma[2] / chroma[3];
-    float Yg = 1.0;
-    float Zg = (1.0-chroma[2]-chroma[3])/chroma[3];
-    float Xb = chroma[4] / chroma[5];
-    float Yb = 1.0;
-    float Zb = (1.0f-chroma[4]-chroma[5])/chroma[5];
-    float w[] = { chroma[6]/chroma[7], 1.0f,
-      (1.0f-chroma[6]-chroma[7])/chroma[7]};
-    float Ri[9], R[9] = {
-      Xr, Xg, Xb,
-      Yr, Yg, Yb,
-      Zr, Zg, Zb};
-    if(!mat3inv(Ri, R))
-    {
-      float S[3] = {0.0};
-      for(int j=0;j<3;j++) for(int i=0;i<3;i++) S[j] += Ri[3*j+i]*w[i];
-      float M[9] = { // rgb to xyz
-        S[0] * Xr, S[1] * Xg, S[2] * Xb,
-        S[0] * Yr, S[1] * Yg, S[2] * Yb,
-        S[0] * Zr, S[1] * Zg, S[2] * Zb,
-      };
-      float XYZ_to_rec2020[] = {
-        1.7166511880, -0.3556707838, -0.2533662814,
-       -0.6666843518,  1.6164812366,  0.0157685458,
-        0.0176398574, -0.0427706133,  0.9421031212 };
-      for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-        mod->img_param.cam_to_rec2020[3*j+i] = 0.0;
-      for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
-        mod->img_param.cam_to_rec2020[3*j+i] += XYZ_to_rec2020[3*j+k] * M[3*k+i];
-      mod->img_param.colour_primaries = s_colour_primaries_custom;
-    }
+  {
+    chromaticities_to_matrix(mod->img_param.cam_to_rec2020, chroma, chroma+2, chroma+4, chroma+6);
+    mod->img_param.colour_primaries = s_colour_primaries_custom;
   }
   if(trc)
   {
-    const char *names[] = {"linear", "bt709", "sRGB", "PQ", "DCI", "HLG", "gamma", "mclog"};
+    const char *names[] = {"linear", "bt709", "sRGB", "PQ", "DCI", "HLG", "gamma"};
     for(int i=0;i<sizeof(names)/sizeof(names[0]);i++)
       if(!strcmp(trc, names[i])) mod->img_param.colour_trc = i;
   }

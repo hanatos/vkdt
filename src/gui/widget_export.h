@@ -198,7 +198,7 @@ dt_export(
 
   struct nk_vec2 size = { ratio[0]*vkdt.state.panel_wd, ratio[0]*vkdt.state.panel_wd };
   const char *colour_prim_text = "custom\0sRGB\0rec2020\0AdobeRGB\0P3\0XYZ\0\0";
-  const char *colour_trc_text  = "linear\0bt709\0sRGB\0PQ\0DCI\0HLG\0gamma\0mclog\0\0";
+  const char *colour_trc_text  = "linear\0bt709\0sRGB\0PQ\0DCI\0HLG\0gamma\0\0";
   int new_prim = nk_combo_string(ctx, colour_prim_text, w->colour_prim, 0xffff, row_height, size);
   if(new_prim != w->colour_prim)
   {

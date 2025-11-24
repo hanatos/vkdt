@@ -1,5 +1,5 @@
 #include "modules/api.h"
-#include "mat3.h"
+#include "core/mat3.h"
 #include "rawloader-c/rawloader.h"
 // #include "core/log.h"
 #include "dng_opcode.h"

@@ -39,7 +39,6 @@ typedef enum dt_colour_trc_t
   s_colour_trc_DCI    = 4, // SMPTE ST 428-1
   s_colour_trc_HLG    = 5, // Rec. ITU-R BT.2100-1 (HLG)
   s_colour_trc_gamma  = 6, //
-  s_colour_trc_mclog  = 7, // mcraw log
   s_colour_trc_unknown = 0xffff,
 }
 dt_colour_trc_t;

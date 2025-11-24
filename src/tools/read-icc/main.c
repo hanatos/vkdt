@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include "../../pipe/modules/i-raw/mat3.h"
+#include "../../core/mat3.h"
 
 typedef struct icc_tag_t
 {

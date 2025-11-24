@@ -3,7 +3,7 @@
 #include "pipe/geo.h"
 #include "core/half.h"
 #include "../rt/quat.h"
-#include "../i-raw/mat3.h"
+#include "core/mat3.h"
 #undef CLAMP // ouch. careful! quake redefines this but with (m, x, M) param order!
 
 #include "config.h"

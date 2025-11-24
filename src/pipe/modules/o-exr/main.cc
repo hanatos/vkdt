@@ -1,5 +1,6 @@
 #include "modules/api.h"
 #include "core/core.h"
+#include "core/colour.h"
 
 #include <zlib.h>
 #define TINYEXR_USE_THREAD (1)
@@ -72,8 +73,8 @@ void write_sink(
   }
 
   // rr gg bb ww assuming rec2020 D65
-  const float chromaticities[][8] = {
-    { 0, }, // custom matrix, would need to multiply rec2020_to_XYZ * img_param.cam_to_rec2020 * (1,0,0) and then convert to xy chromaticities etc
+  float chromaticities[][8] = {
+    { 0, }, // custom matrix, need to multiply rec2020_to_XYZ * cam_to_rec2020 * (1,0,0) and then convert to xy chromaticities etc
     { 0.6400, 0.3300, 0.3000, 0.6000, 0.1500, 0.0600, 0.3127, 0.3290}, // sRGB
     { 0.708,  0.292,  0.170,  0.797,  0.131,  0.046,  0.3127, 0.3290}, // rec2020
     { 0.6400, 0.3300, 0.2100, 0.7100, 0.1500, 0.0600, 0.3127, 0.3290}, // adobe rgb
@@ -81,14 +82,16 @@ void write_sink(
     { 1.0,    0.0,    0.0,    1.0,    0.0,    0.0,    0.3333, 0.3333}, // XYZ illum E
     { 0.708,  0.292,  0.170,  0.797,  0.131,  0.046,  0.3127, 0.3290}, // unknown, assume rec2020
   };
-  const char *trc[] = {"linear", "bt709", "sRGB", "PQ", "DCI", "HLG", "gamma", "mclog"};
+  matrix_to_chromaticities(img_param->cam_to_rec2020,
+      &chromaticities[0][0], &chromaticities[0][2], &chromaticities[0][4], &chromaticities[0][6]);
+  const char *trc[] = {"linear", "bt709", "sRGB", "PQ", "DCI", "HLG", "gamma"};
   EXRAttribute custom_attributes[] = {{
     "chromaticities",
     "chromaticities",
     (unsigned char*)(chromaticities[CLAMP(img_param->colour_primaries, 0, 7)]),
     sizeof(chromaticities[0]),
   },{
-    "trc", "char", (unsigned char*)trc[CLAMP(img_param->colour_trc, 0, 7)], sizeof(trc[CLAMP(img_param->colour_trc, 0, 7)]),
+    "trc", "char", (unsigned char*)trc[CLAMP(img_param->colour_trc, 0, 6)], sizeof(trc[CLAMP(img_param->colour_trc, 0, 6)]),
   }};
   hdr.custom_attributes = custom_attributes;
   hdr.num_custom_attributes = sizeof(custom_attributes)/sizeof(custom_attributes[0]);

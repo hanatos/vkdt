@@ -1,4 +1,5 @@
 #pragma once
+#include "core/colour.h"
 #include "pipe/graph.h"
 #include "db/thumbnails.h"
 #include "db/db.h"
@@ -7,7 +8,6 @@
 #include "widget_image_util.h"
 #include "widget_radial_menu_dr-fwd.h"
 #include "nk.h"
-#include "hsluv.h"
 
 #include <vulkan/vulkan.h>
 #include <math.h>
@@ -279,52 +279,6 @@ dt_gui_content_scale(GLFWwindow *w, float *x, float *y)
     x[0] = vkdt.win1.content_scale[0];
     y[0] = vkdt.win1.content_scale[1];
   }
-}
-
-// some gui colour things. we want perceptually uniform colour picking.
-// since hsv is a severely broken concept, we mean oklab LCh (or hCL really)
-static inline void rec2020_to_oklab(const float rgb[], float oklab[])
-{ // these matrices are the same as in glsl, i.e. transposed:
-  const float M[] = { // M1 * rgb_to_xyz
-      0.61668844, 0.2651402 , 0.10015065,
-      0.36015907, 0.63585648, 0.20400432,
-      0.02304329, 0.09903023, 0.69632468};
-  float lms[3] = {0.0f};
-  for(int k=0;k<3;k++)
-    for(int i=0;i<3;i++)
-      lms[k] += M[3*i+k] * rgb[i];
-  for(int k=0;k<3;k++)
-    lms[k] = cbrtf(lms[k]);
-  const float M2[] = {
-      0.21045426,  1.9779985 ,  0.02590404,
-      0.79361779, -2.42859221,  0.78277177,
-     -0.00407205,  0.45059371, -0.80867577};
-  oklab[0] = oklab[1] = oklab[2] = 0.0f;
-  for(int k=0;k<3;k++)
-    for(int i=0;i<3;i++)
-      oklab[k] += M2[3*i+k] * lms[i];
-}
-
-static inline void oklab_to_rec2020(const float oklab[], float rgb[])
-{
-  const float M2inv[] = {
-      1.        ,  1.00000001,  1.00000005,
-      0.39633779, -0.10556134, -0.08948418,
-      0.21580376, -0.06385417, -1.29148554};
-  float lms[3] = {0.0f};
-  for(int k=0;k<3;k++)
-    for(int i=0;i<3;i++)
-      lms[k] += M2inv[3*i+k] * oklab[i];
-  for(int k=0;k<3;k++)
-    lms[k] *= lms[k]*lms[k];
-  float M[] = { // = xyz_to_rec2020 * M1inv
-        2.14014041, -0.88483245, -0.04857906,
-       -1.24635595,  2.16317272, -0.45449091,
-        0.10643173, -0.27836159,  1.50235629};
-  rgb[0] = rgb[1] = rgb[2] = 0.0f;
-  for(int k=0;k<3;k++)
-    for(int i=0;i<3;i++)
-      rgb[k] += M[3*i+k] * lms[i];
 }
 
 static inline struct nk_colorf

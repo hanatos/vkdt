@@ -3,7 +3,7 @@ extern "C" {
 #include "connector.h"
 #include "core/core.h"
 // #include "core/log.h"
-#include "../i-raw/mat3.h"
+#include "core/mat3.h"
 #include "pipe/dng_opcode.h"
 }
 

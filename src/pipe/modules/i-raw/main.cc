@@ -5,7 +5,7 @@ extern "C" {
 #include "dng_opcode_decode.c"
 }
 #include "RawSpeed-API.h"
-#include "mat3.h"
+#include "core/mat3.h"
 #include <omp.h>
 #include <unistd.h>
 #include <mutex>

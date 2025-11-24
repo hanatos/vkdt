@@ -1,3 +1,115 @@
+#pragma once
+#include "core/core.h"
+#include "core/mat3.h"
+#include <float.h>
+#include <math.h>
+
+// every so often we need a tiny bit of colour work on the cpu/host side.
+// we collect this stuff here:
+
+// some gui colour things. we want perceptually uniform colour picking.
+// since hsv is a severely broken concept, we mean oklab LCh (or hCL really)
+static inline void rec2020_to_oklab(const float rgb[], float oklab[])
+{ // these matrices are the same as in glsl, i.e. transposed:
+  const float M[] = { // M1 * rgb_to_xyz
+      0.61668844, 0.2651402 , 0.10015065,
+      0.36015907, 0.63585648, 0.20400432,
+      0.02304329, 0.09903023, 0.69632468};
+  float lms[3] = {0.0f};
+  for(int k=0;k<3;k++)
+    for(int i=0;i<3;i++)
+      lms[k] += M[3*i+k] * rgb[i];
+  for(int k=0;k<3;k++)
+    lms[k] = cbrtf(lms[k]);
+  const float M2[] = {
+      0.21045426,  1.9779985 ,  0.02590404,
+      0.79361779, -2.42859221,  0.78277177,
+     -0.00407205,  0.45059371, -0.80867577};
+  oklab[0] = oklab[1] = oklab[2] = 0.0f;
+  for(int k=0;k<3;k++)
+    for(int i=0;i<3;i++)
+      oklab[k] += M2[3*i+k] * lms[i];
+}
+
+static inline void oklab_to_rec2020(const float oklab[], float rgb[])
+{
+  const float M2inv[] = {
+      1.        ,  1.00000001,  1.00000005,
+      0.39633779, -0.10556134, -0.08948418,
+      0.21580376, -0.06385417, -1.29148554};
+  float lms[3] = {0.0f};
+  for(int k=0;k<3;k++)
+    for(int i=0;i<3;i++)
+      lms[k] += M2inv[3*i+k] * oklab[i];
+  for(int k=0;k<3;k++)
+    lms[k] *= lms[k]*lms[k];
+  float M[] = { // = xyz_to_rec2020 * M1inv
+        2.14014041, -0.88483245, -0.04857906,
+       -1.24635595,  2.16317272, -0.45449091,
+        0.10643173, -0.27836159,  1.50235629};
+  rgb[0] = rgb[1] = rgb[2] = 0.0f;
+  for(int k=0;k<3;k++)
+    for(int i=0;i<3;i++)
+      rgb[k] += M[3*i+k] * lms[i];
+}
+
+// convert a matrix to rgb primary chromaticity coordinates
+static inline void
+matrix_to_chromaticities(
+    const float *M, // your-rgb (e.g. camera) to rec2020
+    float *r,       // will output 2d xy coordinate of red primary
+    float *g,
+    float *b,
+    float *w)       // transform 111 in your-rgb to xyz
+{
+  float T[9] = {0.0f};
+  const float rec2020_to_xyz[] = {
+    0.6369580483, 0.1446169036, 0.1688809752,
+    0.2627002120, 0.6779980715, 0.0593017165,
+    0.0000000000, 0.0280726930, 1.0609850577 };
+  mat3mul(T, rec2020_to_xyz, M);
+  float wc[3] = {1.0f, 1.0f, 1.0f}, n[3];
+  mat3mulv(n, T, wc);
+  float s;
+  s = n[0]+n[1]+n[2]; w[0] = n[0]/s; w[1] = n[1]/s;
+  s = T[0]+T[3]+T[6]; r[0] = T[0]/s; r[1] = T[3]/s;
+  s = T[1]+T[4]+T[7]; g[0] = T[1]/s; g[1] = T[4]/s;
+  s = T[2]+T[5]+T[8]; b[0] = T[2]/s; b[1] = T[5]/s;
+}
+
+static inline void
+chromaticities_to_matrix(
+    float *O,        // output X to rec2020 matrix
+    const float *rc, // xy coordinates of the red primary
+    const float *gc,
+    const float *bc,
+    const float *wc) // reference white
+{ // bruce lindbloom says (oh why can't they just store the matrix..):
+  float Xr = rc[0] / rc[1], Yr = 1.0f, Zr = (1.0f-rc[0]-rc[1])/rc[1];
+  float Xg = gc[0] / gc[1], Yg = 1.0f, Zg = (1.0f-gc[0]-gc[1])/gc[1];
+  float Xb = bc[0] / bc[1], Yb = 1.0f, Zb = (1.0f-bc[0]-bc[1])/bc[1];
+  float w[] = { wc[0]/wc[1],     1.0f,      (1.0f-wc[0]-wc[1])/wc[1]};
+  float Ri[9], R[9] = {
+    Xr, Xg, Xb,
+    Yr, Yg, Yb,
+    Zr, Zg, Zb};
+  if(!mat3inv(Ri, R))
+  {
+    float S[3] = {0.0};
+    mat3mulv(S, Ri, w);
+    float M[9] = { // rgb to xyz
+      S[0] * Xr, S[1] * Xg, S[2] * Xb,
+      S[0] * Yr, S[1] * Yg, S[2] * Yb,
+      S[0] * Zr, S[1] * Zg, S[2] * Zb,
+    };
+    const float xyz_to_rec2020[] = {
+       1.7166511880, -0.3556707838, -0.2533662814,
+      -0.6666843518,  1.6164812366,  0.0157685458,
+       0.0176398574, -0.0427706133,  0.9421031212 };
+    mat3mul(O, xyz_to_rec2020, M);
+  }
+}
+
 /*
  * HSLuv-C: Human-friendly HSL
  * <https://github.com/hsluv/hsluv-c>
@@ -25,8 +137,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-
 static inline void
 hsluv_get_bounds(float l, float bounds[6][2])
 {
@@ -252,12 +362,12 @@ rec2020_to_hsluv(const float rgb[], float hsl[])
 {
   float tmp[3] = {0.0f};
   const float rec2020_to_xyz[] = {
-    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
-    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
-    1.68880975e-01, 5.93017165e-02, 1.06098506e+00};
+    0.6369580483, 0.1446169036, 0.1688809752,
+    0.2627002120, 0.6779980715, 0.0593017165,
+    0.0000000000, 0.0280726930, 1.0609850577 };
   for(int k=0;k<3;k++)
     for(int i=0;i<3;i++)
-      tmp[k] += rec2020_to_xyz[3*i+k] * rgb[i];
+      tmp[k] += rec2020_to_xyz[3*k+i] * rgb[i];
   xyz2luv(tmp);
   luv2lch(tmp);
   lch2hsluv(tmp);

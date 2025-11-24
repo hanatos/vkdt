@@ -41,7 +41,6 @@ dt_graph_replace_display(
   int cid = dt_module_get_connector(graph->module+mid, dt_token("input"));
   int m0 = graph->module[mid].connector[cid].connected_mi;
   int o0 = graph->module[mid].connector[cid].connected_mc;
-  if(prim == s_colour_primaries_custom) prim = s_colour_primaries_2020; // don't currently support free matrices
 
   if(m0 < 0) return -2; // display input not connected
 
