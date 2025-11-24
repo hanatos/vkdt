@@ -201,10 +201,17 @@ void write_sink(
           dt_pipe.basedir, src_filename, filename)) return;
     // or async if(fork()) exec(cmd); ? for cli probably staying in this thread is safer:
     FILE *f = popen(cmd, "r");
+    int ret = 0;
     if(f)
     { // drain empty
       while(!feof(f) && !ferror(f) && (fgetc(f) != EOF));
-      pclose(f);
+      ret = pclose(f);
+    }
+    if(ret)
+    { // issue a gui message
+      snprintf(module->graph->gui_msg_buf, sizeof(module->graph->gui_msg_buf),
+          "o-jpg: unable to run exiftool to copy metadata! maybe you need to install it?");
+      module->graph->gui_msg = module->graph->gui_msg_buf;
     }
   }
 #endif
