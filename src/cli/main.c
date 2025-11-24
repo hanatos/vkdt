@@ -31,7 +31,6 @@ parse_trc(const char *str)
   if(!strcasecmp(str, "PQ"))       return s_colour_trc_PQ;
   if(!strcasecmp(str, "DCI"))      return s_colour_trc_DCI;
   if(!strcasecmp(str, "gamma2.2")) return s_colour_trc_gamma;
-  if(!strcasecmp(str, "mclog"))    return s_colour_trc_mclog;
   return s_colour_trc_unknown;
 }
 
@@ -115,7 +114,7 @@ int main(int argc, char *argv[])
     "    [--colour-prim <prim-id>]     colour primaries to use for encoding, one of:\n"
     "                                  sRGB, bt2020, AdobeRGB, P3, XYZ\n"
     "    [--colour-trc <trc-id>]       colour tone response curve for encoding, one of:\n"
-    "                                  linear, bt709, sRGB, PQ, DCI, HLG, gamma2.2, mclog\n"
+    "                                  linear, bt709, sRGB, PQ, DCI, HLG, gamma2.2\n"
     "    [--output <inst>]             name the instance of the output to write (can use multiple)\n"
     "                                  this harvests and then resets output specific options: quality, width, height,\n"
     "                                  audio, colour-prim, colour-trc, filename\n"
