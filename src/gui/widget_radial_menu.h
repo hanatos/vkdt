@@ -138,18 +138,17 @@ dt_radial_widget(
   int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
   struct nk_rect bounds = {win_x, win_y, win_w, win_h};
   dt_graph_run_t flags = s_graph_run_none;
-  int ret = 1;
+  int ret = 1; // assume we're done
   if(nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
   { // reset param
     memcpy(vkdt.graph_dev.module[modid].param + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
     goto changed;
-    return 1;
   }
   // but ensure we block input if the radial widget is active
   struct nk_command_buffer *cmd = &vkdt.global_cmd;
   if(param->type == dt_token("float"))
   {
-    ret = 0;
+    ret = 0; // keep open
     const float min = param->widget.min;
     const float max = param->widget.max;
     float x = vkdt.state.center_x, w = vkdt.state.center_wd;
@@ -181,6 +180,10 @@ dt_radial_widget(
       const struct nk_vec2 pos = ctx->input.mouse.pos;
       val[0] = min + (max-min)*(pos.x - x)/w;
       goto changed;
+    }
+    else if(ctx->input.mouse.buttons[NK_BUTTON_RIGHT].down)
+    {
+      ret = 1;
     }
   }
   if(0)
