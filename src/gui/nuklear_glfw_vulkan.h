@@ -1438,7 +1438,7 @@ nk_glfw3_mouse_button_callback(
 #endif
     nk_input_button(ctx, NK_BUTTON_LEFT, (int)x, (int)y, action == GLFW_PRESS);
 #ifdef __APPLE__
-  if (button == GLFW_MOUSE_BUTTON_LEFT && ((mods & GLFW_MOD_CONTROL) == 0))
+  if (button == GLFW_MOUSE_BUTTON_LEFT && ((mods & GLFW_MOD_CONTROL) != 0))
 #else
   if (button == GLFW_MOUSE_BUTTON_MIDDLE)
 #endif
