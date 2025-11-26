@@ -887,6 +887,48 @@ void render_lighttable_right_panel()
   if(vkdt.db.selection_cnt > 0 && nk_tree_push(ctx, NK_TREE_TAB, "selected images", NK_MINIMIZED))
   {
     // ==============================================================
+    // star rating and colour labels
+    nk_layout_row_dynamic(ctx, row_height, 5);
+    uint32_t main_imgid = dt_db_current_imgid(&vkdt.db);
+    for(int k=0;k<5;k++)
+    {
+      int sel = main_imgid != -1u ? vkdt.db.image[main_imgid].rating > k : 0;
+      if(!sel) nk_style_push_style_item(ctx, &ctx->style.button.normal,
+          nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
+      if(k)        dt_tooltip("assign %d stars\n"
+          "this list is initialised from the current image, "
+          "i.e. the one you clicked last", k+1);
+      else if(sel) dt_tooltip("set zero stars");
+      else         dt_tooltip("assign one star");
+      if(nk_button_label(ctx, "\ue838"))
+      {
+        if(!k && sel) dt_gui_rate(0);
+        else          dt_gui_rate(k+1);
+      }
+      if(!sel) nk_style_pop_style_item(ctx);
+    }
+    const struct nk_color col[] = {
+      {0xee, 0x11, 0x11, 0xff},
+      {0x11, 0xee, 0x11, 0xff},
+      {0x11, 0x11, 0xee, 0xff},
+      {0xee, 0xee, 0x11, 0xff},
+      {0xee, 0x11, 0xee, 0xff}};
+    for(int k=0;k<5;k++)
+    {
+      int sel = main_imgid != -1u ? vkdt.db.image[main_imgid].labels & (1<<k) : 0;
+      struct nk_color cc = col[k];
+      if(!sel) { cc.r /= 8; cc.g /= 8; cc.b /= 8; }
+      nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(cc));
+      dt_tooltip(k==0?"red":k==1?"green":k==2?"blue":k==3?"yellow":"purple");
+      if(nk_button_label(ctx, " "))
+      {
+        if(sel) dt_gui_label_unset(1<<k);
+        else    dt_gui_label_set  (1<<k);
+      }
+      nk_style_pop_style_item(ctx);
+    }
+
+    // ==============================================================
     // copy/paste history stack
     nk_layout_row_dynamic(ctx, row_height, 2);
 
