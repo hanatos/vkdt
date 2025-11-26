@@ -1166,6 +1166,7 @@ darkroom_enter()
     else vkdt.graph_dev.active_module = -1;
   }
 
+  dt_gui_set_lod(vkdt.wstate.lod_fine);
   vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
   if((vkdt.graph_res[vkdt.graph_dev.double_buffer] =
         dt_graph_run(&vkdt.graph_dev, s_graph_run_all & ~s_graph_run_wait_done)) != VK_SUCCESS)
