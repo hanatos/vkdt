@@ -104,9 +104,9 @@ export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 CC=gcc
 CXX=g++
 GLSLC=/ucrt64/bin/glslangValidator.exe
-GLSLC_FLAGS=--target-env vulkan1.2
+GLSLC_FLAGS=--target-env vulkan1.3
 # GLSLC=glslc
-# GLSLC_FLAGS=--target-env=vulkan1.2
+# GLSLC_FLAGS=--target-env=vulkan1.3
 CFLAGS=-I/c/msys64/ucrt64/include -I.
 CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -I/c/msys64/ucrt64/include
 LDFLAGS=-L/c/msys64/ucrt64/lib -lregex
