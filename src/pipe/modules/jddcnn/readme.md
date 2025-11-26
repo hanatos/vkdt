@@ -10,6 +10,7 @@ open image denoise architecture by Attila Afra.
 <textarea readonly style="background-image:url(denoise-off.jpg)"></textarea>
 <textarea readonly style="background-image:url(denoise-on.jpg)" ></textarea>
 </div>
+image by piratenpanda (pixls.us), CC-BY-SA
 
 the weights are read from `~/.config/vkdt/data/jddcnn-weights-heavy.dat` or,
 for the slightly more light-weight variant with only 16 base channels

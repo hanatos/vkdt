@@ -19,7 +19,8 @@ some caveats on windows too (msys2, but why would you).
 * [jddcnn](../../src/pipe/modules/jddcnn/readme.md) joint demosaicing and denoising based on a CNN  
   based on the rawnind dataset by and with loads of help by @trougnouf  
   fully integrated implementation in portable vulkan, i.e. does not depend on python, torch, or cuda.  
-  <img src="jddcnn.png" style="width:40%"/>
+  <img src="jddcnn.png" style="width:40%"/>  
+  image by @piratenpanda, CC-BY-SA
 * vkdt-rendered logo (animated, looks best in hdr mode)  
   <img src="../../favicon.png" style="width:25%"/>
 * [i-lut](../../src/pipe/modules/i-lut/readme.md) now supports lists of input files, useful for textures/3d rendering
