@@ -21,13 +21,16 @@ cmake -DMSDF_ATLAS_USE_VCPKG=off -DMSDF_ATLAS_USE_SKIA=off ..
 make -j20
 ```
 
-copy a ttf/otf of your choice into the `build/` directory, as well as
+copy a ttf/otf of your choice (the example uses Roboto-Regular.ttf) into the `build/` directory, as well as
 MaterialIcons-Regular.ttf for the ui. then generate the font atlas
 ```
 bin/msdf-atlas-gen -outerpxpadding 2 -size 64 -yorigin top -type msdf -format png -imageout atlas.png -json metrics.json -font Roboto-Regular.ttf -chars "[' ','~']" -fontscale 1 -and -font MaterialIcons-Regular.ttf -chars 0xe01f,0xe020,0xe034,0xe037,0xe042,0xe044,0xe045,0xe047,0xe15b,0xe5e0,0xe5e1,0xe612,0xe836,0xe838 -fontscale 1
 ```
-replace the `-chars` entries by your custom codepoint ranges. the material icon
-codepoints are needed for vkdt's ui rendering:
+replace the `-chars` entries by your custom codepoint ranges. for instance for
+chinese characters you can use `-chars [0x4e00,0x9fd0]` in conjunction with a font file
+that holds these codepoints (say `Source Han Sans CN Light.otf` to replace
+`Roboto-Regular.ttf`).
+the material icon codepoints are needed for vkdt's ui rendering:
 ```
  0xe01f, // next keyframe
  0xe020, // prev keyframe
@@ -51,3 +54,15 @@ in this directory:
 python fontlut.py
 ```
 the two `.lut` files go into `bin/data` or your home directory `.config/vkdt/data`.
+
+you can hold multiple font atlases in your data directory at the same time
+and select which by pointing vkdt to one of them in the config file:
+`~/.config/vkdt/config.rc:`
+```
+..
+strgui/msdffont:font
+..
+```
+this entry above will use `font_metrics.lut` and `font_msdf.lut` (note the common
+prefix of the file names).
+
