@@ -28,8 +28,12 @@ bin/msdf-atlas-gen -outerpxpadding 2 -size 64 -yorigin top -type msdf -format pn
 ```
 replace the `-chars` entries by your custom codepoint ranges. for instance for
 chinese characters you can use `-chars [0x4e00,0x9fd0]` in conjunction with a font file
-that holds these codepoints (say `Source Han Sans CN Light.otf` to replace
-`Roboto-Regular.ttf`).
+that holds these codepoints:
+```
+bin/msdf-atlas-gen -outerpxpadding 2 -size 64 -yorigin top -type msdf -format png -imageout atlas.png -json metrics.json -font 'NotoSansSC-Regular.ttf' -chars "[' ','~'],[0x4E00,0x9fd0]" -fontscale 1 -and -font MaterialIcons-Regular.ttf -chars 0xe01f,0xe020,0xe034,0xe037,0xe042,0xe044,0xe045,0xe047,0xe15b,0xe5e0,0xe5e1,0xe612,0xe836,0xe838 -fontscale 1
+```
+note that this can take a few minutes.
+
 the material icon codepoints are needed for vkdt's ui rendering:
 ```
  0xe01f, // next keyframe
@@ -56,8 +60,8 @@ python fontlut.py
 the two `.lut` files go into `bin/data` or your home directory `.config/vkdt/data`.
 
 you can hold multiple font atlases in your data directory at the same time
-and select which by pointing vkdt to one of them in the config file:
-`~/.config/vkdt/config.rc:`
+and select which by pointing vkdt to one of them in the config file
+`~/.config/vkdt/config.rc`:
 ```
 ..
 strgui/msdffont:font
@@ -66,3 +70,13 @@ strgui/msdffont:font
 this entry above will use `font_metrics.lut` and `font_msdf.lut` (note the common
 prefix of the file names).
 
+if you want to install a chinese font at the side, inside the atlas gen build
+directory, do
+```
+$ mv font_metrics.lut ~/.config/vkdt/data/cnfont_metrics.lut
+$ mv font_msdf.lut ~/.config/vkdt/data/cnfont_msdf.lut
+```
+and set, in `~/.config/vkdt/config.rc`:
+```
+strgui/msdffont:cnfont
+```
