@@ -359,7 +359,7 @@ void render_darkroom()
   static int resize_panel = 0;
   resize_panel = dt_resize_panel(resize_panel);
 
-  const int disabled = vkdt.wstate.popup;
+  const int disabled = vkdt.wstate.popup || dt_radial_menu_dr_active(&vkdt.wstate.radial_menu_dr);
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
   if(nk_begin(&vkdt.ctx, "darkroom center", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
   { // draw center view image:
