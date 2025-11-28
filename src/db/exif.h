@@ -15,7 +15,11 @@ dt_db_exif_mini(
   if(model_size) model[0] = 0;
   createdate[0] = 0;
   FILE *f = fopen(filename, "rb");
-  if(!f) return 1;
+  if(!f)
+  {
+    snprintf(createdate, 20, "1970:01:01 00:00:00");
+    return 1;
+  }
 
   char buf[512];
 
