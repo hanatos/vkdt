@@ -1432,20 +1432,29 @@ nk_glfw3_mouse_button_callback(
   }
 
 #ifdef __APPLE__
-  if (button == GLFW_MOUSE_BUTTON_LEFT && ((mods & GLFW_MOD_CONTROL) == 0))
-#else
-  if (button == GLFW_MOUSE_BUTTON_LEFT)
-#endif
-    nk_input_button(ctx, NK_BUTTON_LEFT, (int)x, (int)y, action == GLFW_PRESS);
-#ifdef __APPLE__
-  if (button == GLFW_MOUSE_BUTTON_LEFT && ((mods & GLFW_MOD_CONTROL) != 0))
-#else
+  // macintosh computers have no concept for middle or right mouse buttons.
+  // apparently attaching an external mouse, the buttons are routed through
+  // as you would expect, but using only stock hardware we need to emulate
+  // middle and right. we do that by ctrl-click (right) and super-click (that's
+  // command-click in apple-speak, results in middle mouse).
   if (button == GLFW_MOUSE_BUTTON_MIDDLE)
-#endif
     nk_input_button(ctx, NK_BUTTON_MIDDLE, (int)x, (int)y, action == GLFW_PRESS);
-
+  else if (button == GLFW_MOUSE_BUTTON_RIGHT)
+    nk_input_button(ctx, NK_BUTTON_RIGHT,  (int)x, (int)y, action == GLFW_PRESS);
+  else if (mods & GLFW_MOD_CONTROL)
+    nk_input_button(ctx, NK_BUTTON_RIGHT,  (int)x, (int)y, action == GLFW_PRESS);
+  else if (mods & GLFW_MOD_SUPER)
+    nk_input_button(ctx, NK_BUTTON_MIDDLE, (int)x, (int)y, action == GLFW_PRESS);
+  else
+    nk_input_button(ctx, NK_BUTTON_LEFT,   (int)x, (int)y, action == GLFW_PRESS);
+#else // code for normal people:
+  if (button == GLFW_MOUSE_BUTTON_LEFT)
+    nk_input_button(ctx, NK_BUTTON_LEFT,   (int)x, (int)y, action == GLFW_PRESS);
+  if (button == GLFW_MOUSE_BUTTON_MIDDLE)
+    nk_input_button(ctx, NK_BUTTON_MIDDLE, (int)x, (int)y, action == GLFW_PRESS);
   if (button == GLFW_MOUSE_BUTTON_RIGHT)
-    nk_input_button(ctx, NK_BUTTON_RIGHT, (int)x, (int)y, action == GLFW_PRESS);
+    nk_input_button(ctx, NK_BUTTON_RIGHT,  (int)x, (int)y, action == GLFW_PRESS);
+#endif
 }
 
 NK_INTERN void nk_glfw3_clipboard_paste(
