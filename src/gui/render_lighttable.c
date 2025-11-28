@@ -1191,6 +1191,11 @@ void render_lighttable_right_panel()
       {
         cmd[len-4] = '\''; // cut away .cfg
         cmd[len-3] = 0;
+        if(len > 7 && cmd[len-7] == '_' && cmd[len-6] >= '0' && cmd[len-6] <= '9' && cmd[len-5] >= '0' && cmd[len-5] <= '9') 
+        { // for duplicates, for instance IMG_9999.CR2_01.cfg
+          cmd[len-7] = '\'';
+          cmd[len-6] = 0;
+        }
         FILE *f = popen(cmd, "r");
         if(f)
         {
