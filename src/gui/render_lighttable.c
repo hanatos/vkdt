@@ -36,6 +36,7 @@ static hk_t hk_lighttable[] = {
   {"scroll cur",    "scroll to current image",          {GLFW_KEY_LEFT_SHIFT,    GLFW_KEY_C}},
   {"scroll end",    "scroll to end of collection",      {GLFW_KEY_LEFT_SHIFT,    GLFW_KEY_G}},
   {"scroll top",    "scroll to top of collection",      {GLFW_KEY_G}},
+  {"fullscreen",    "show/hide side panel",             {GLFW_KEY_TAB}},
   {"duplicate",     "duplicate selected images",        {GLFW_KEY_LEFT_SHIFT,    GLFW_KEY_D}},
   {"rate 0",        "assign zero stars",                {GLFW_KEY_0}},
   {"rate 1",        "assign one star",                  {GLFW_KEY_1}},
@@ -62,20 +63,21 @@ typedef enum hotkey_names_t
   s_hotkey_scroll_cur    = 6,
   s_hotkey_scroll_end    = 7,
   s_hotkey_scroll_top    = 8,
-  s_hotkey_duplicate     = 9,
-  s_hotkey_rate_0        = 10,
-  s_hotkey_rate_1        = 11,
-  s_hotkey_rate_2        = 12,
-  s_hotkey_rate_3        = 13,
-  s_hotkey_rate_4        = 14,
-  s_hotkey_rate_5        = 15,
-  s_hotkey_label_1       = 16,
-  s_hotkey_label_2       = 17,
-  s_hotkey_label_3       = 18,
-  s_hotkey_label_4       = 19,
-  s_hotkey_label_5       = 20,
-  s_hotkey_zoom_in       = 21,
-  s_hotkey_zoom_out      = 22,
+  s_hotkey_fullscreen    = 9,
+  s_hotkey_duplicate     = 10,
+  s_hotkey_rate_0        = 11,
+  s_hotkey_rate_1        = 12,
+  s_hotkey_rate_2        = 13,
+  s_hotkey_rate_3        = 14,
+  s_hotkey_rate_4        = 15,
+  s_hotkey_rate_5        = 16,
+  s_hotkey_label_1       = 17,
+  s_hotkey_label_2       = 18,
+  s_hotkey_label_3       = 19,
+  s_hotkey_label_4       = 20,
+  s_hotkey_label_5       = 21,
+  s_hotkey_zoom_in       = 22,
+  s_hotkey_zoom_out      = 23,
 } hotkey_names_t;
 static int g_hotkey = -1; // to pass hotkey from handler to rendering. necessary for scrolling/export
 static int g_scroll_colid = -1; // to scroll to certain file name
@@ -119,6 +121,9 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
       g_image_cursor = -1;
       g_hotkey = hotkey;
       return;
+    case s_hotkey_fullscreen:
+      dt_gui_toggle_fullscreen_view();
+      break;
     case s_hotkey_copy_hist:
       dt_gui_copy_history();
       return;
