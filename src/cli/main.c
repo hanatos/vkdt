@@ -129,6 +129,7 @@ int main(int argc, char *argv[])
 
   dt_graph_t graph;
   dt_graph_init(&graph, s_queue_compute);
+  snprintf(graph.searchpath, sizeof(graph.searchpath), ".");
 
   param.extra_param_cnt = config_start ? argc - config_start : 0;
   param.p_extra_param   = argv + config_start;

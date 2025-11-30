@@ -256,6 +256,7 @@ int main(int argc, char *argv[])
   }
 
   dt_graph_init(&dat.graph, s_queue_compute);
+  snprintf(dat.graph.searchpath, sizeof(dat.graph.searchpath), ".");
   VkResult err = dt_graph_read_config_ascii(&dat.graph, graph_cfg);
   if(err)
   {

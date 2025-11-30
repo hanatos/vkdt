@@ -283,7 +283,7 @@ int dt_graph_read_config_ascii(
     dt_graph_t *graph,
     const char *filename)
 {
-  FILE *f = dt_graph_open_resource(0, 0, filename, "rb");
+  FILE *f = dt_graph_open_resource(graph, 0, filename, "rb");
   if(!f) return 1;
   dt_graph_set_searchpath(graph, filename);
   // needs to be large enough to hold 10000 vertices of drawn masks:
@@ -517,86 +517,5 @@ int dt_graph_write_config_ascii(
 error:
   dt_log(s_log_err, "failed to write config file %s", filename);
   free(org);
-  return 1;
-}
-
-// helper to read and replace
-static inline int
-scanline_replace(
-    FILE *f,
-    char *line,
-    const int num_rules,
-    dt_token_t *search,
-    dt_token_t *replace)
-{
-  char buf[300000];
-  fscanf(f, "%299999[^\n]", buf);
-  if(fgetc(f) == EOF) return 1; // read \n // TODO: check if this is in fact '\n'?
-  int slen[num_rules];
-  int dlen[num_rules];
-  for(int r=0;r<num_rules;r++)
-  {
-    slen[r] = strnlen(dt_token_str(search [r]), 8);
-    dlen[r] = strnlen(dt_token_str(replace[r]), 8);
-  }
-  char *esi = buf, *edi = line;
-  while(*esi != '\n' && *esi != 0)
-  {
-    for(int r=0;r<=num_rules;r++)
-    {
-      if(r == num_rules)
-      {
-        *edi = *esi;
-        edi++; esi++;
-      }
-      else if(!strncmp(esi, dt_token_str(search[r]), slen[r]))
-      {
-        memcpy(edi, dt_token_str(replace[r]), dlen[r]);
-        esi += slen[r];
-        edi += dlen[r];
-      }
-    }
-  }
-  *edi = 0;
-  return 0;
-}
-
-int
-dt_graph_read_block(
-    dt_graph_t *graph,
-    const char *filename,
-    dt_token_t inst,
-    dt_token_t out_mod,
-    dt_token_t out_inst,
-    dt_token_t out_conn,
-    dt_token_t in_mod,
-    dt_token_t in_inst,
-    dt_token_t in_conn)
-{
-  FILE *f = dt_graph_open_resource(graph, 0, filename, "rb");
-  if(f)
-  { // read lines individually, we need to search/replace generic input/output/instance strings
-    // needs to be large enough to hold 1000 vertices of drawn masks:
-    char line[300000];
-    dt_token_t search [] = {
-      dt_token("INSTANCE"),
-      dt_token("OUTMOD"), dt_token("OUTINST"), dt_token("OUTCONN"),
-      dt_token("INMOD"),  dt_token("ININST"),  dt_token("INCONN")};
-    dt_token_t replace[] = {inst, out_mod, out_inst, out_conn, in_mod, in_inst, in_conn};
-    uint32_t lno = 0;
-    while(!feof(f))
-    {
-      if(scanline_replace(f, line, 7, search, replace)) break;
-      lno++;
-      // just ignore whatever goes wrong:
-      if(dt_graph_read_config_line(graph, line))
-        dt_log(s_log_pipe, "failed in line %u: '%s'", lno, line);
-      dt_graph_history_line(graph, line);
-    }
-    fclose(f);
-    return 0;
-  }
-  for(int m=0;m<graph->num_modules;m++) dt_module_keyframe_post_update(graph->module+m);
-  dt_log(s_log_pipe|s_log_err, "could not open '%s'", filename);
   return 1;
 }

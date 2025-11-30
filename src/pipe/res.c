@@ -51,17 +51,16 @@ dt_graph_open_resource(
   char fstr[5] = {0}, *c = 0;
   snprintf(fstr, sizeof(fstr), "%04d", frame); // for security reasons don't use user-supplied fname as format string
   char filename[2*PATH_MAX+10];
-  { // try the file name as is, for absolute or relative to cwd
+#ifdef _WIN64
+  if(fname[0] == '/' || fname[1] == ':')
+#else
+  if(fname[0] == '/')
+#endif
+  { // try the file name as is, but only for absolute paths
     strncpy(filename, fname, sizeof(filename)-1);
     if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
     FILE *f = fopen(filename, mode);  // absolute path or relative to current dir
-    if(f) return f;
-#ifdef _WIN64
-    if(fname[0] == '/' || fname[1] == ':')
-#else
-    if(fname[0] == '/')
-#endif
-      return 0; // this was an absolute path, continuing the game is hopeless.
+    return f; // this was an absolute path, continuing the game is hopeless.
   }
   if(graph && graph->searchpath[0])
   { // for relative paths, add search path
