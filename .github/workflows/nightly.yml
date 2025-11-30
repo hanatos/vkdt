@@ -424,7 +424,7 @@ jobs:
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          path: ${SRC_DIR}/vkdt-${{ env.VERSION }}.dmg
+          path: ${{ env.SRC_DIR }}/vkdt-${{ env.VERSION }}.dmg
           name: artifact-macos
           retention-days: 1
 
