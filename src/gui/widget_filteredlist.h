@@ -154,7 +154,7 @@ filteredlist(
           dt_res_rewinddir(dirp, 0); // second pass actually record stuff
           ent_local = malloc(sizeof(ent_local[0])*(ent_local_cnt+1));
           ent_local_cnt = 0;
-          ent_local[0] = ent[ent_cnt];
+          ent_local[0] = ent ? ent[ent_cnt] : fnbuf;
           while((basename = dt_res_next_basename(dirp, 0)))
           {
             int len = strlen(basename);
