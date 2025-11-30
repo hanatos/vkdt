@@ -1,3 +1,3 @@
 filename:string:256:output
 quality:float:1:95
-exif:int:1:0
+exif:int:1:1
