@@ -284,14 +284,20 @@ jobs:
     env:
       SRC_DIR: ${{ github.workspace }}/src
       INSTALL_PREFIX: ${{ github.workspace }}/install
+      APPDIR: ${{ github.workspace }}/vkdt.app
     steps:
       - name: install dependencies
         run: |
-          brew install make glfw3 vulkan-validationlayers vulkan-headers rust molten-vk
+          brew install pkgconf cmake jpeg-turbo ffmpeg make glfw3 vulkan-validationlayers vulkan-headers rust molten-vk
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           path: src
+      - name: configure
+        run: |
+          cd ${SRC_DIR}
+          echo "OPT_LDFLAGS=\"-Wl,-rpath,@executable_path/../../../Frameworks\"" > bin/config.mk
+          echo "export OPT_LDLFAGS" >> bin/config.mk
       - name: compile
         run: |
           export PATH="/usr/local/opt/make/libexec/gnubin:$PATH"
@@ -299,15 +305,135 @@ jobs:
           # might be in: /opt/homebrew/Cellar/
           # export PKG_CONFIG_PATH=$(find /usr/local/Cellar -name 'pkgconfig' -type d | grep lib/pkgconfig | tr '\n' ':' | sed s/.$//)
           # export PKG_CONFIG_PATH=$(find /usr/homebrew/Cellar -name 'pkgconfig' -type d | grep lib/pkgconfig | tr '\n' ':' | sed s/.$//)
-          make -C ${SRC_DIR}
-          # and then install etc and test-run as: MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=1 ./vkdt
+          make -C ${SRC_DIR} -j20
+      - name: get version info
+        run: |
+          cd ${SRC_DIR}
+          echo "VERSION=$(git describe)" >> $GITHUB_ENV
+      - name: install into appdir
+        run: |
+          cd ${SRC_DIR}
+          mkdir -p ${APPDIR}/Contents/MacOS
+          mkdir ${APPDIR}/Contents/Frameworks
+          mkdir ${APPDIR}/Contents/Resources
+          make VKDTBIN=/tmp/dontinstall DESTDIR=${APPDIR} prefix=/Contents/MacOS install
+          cp vkdt.png ${APPDIR}/Contents/Resources/vkdt.png
+          ditto /opt/homebrew/lib/libMoltenVK.dylib ${APPDIR}/Contents/Frameworks/libMoltenVK.dylib
+      - name: copy library dependencies
+        run: |
+          cd ${SRC_DIR}
+          find ${APPDIR} -type f | xargs otool -L | grep homebrew | sort | uniq | cut -wf 2 | xargs -I {} ditto {} ${APPDIR}/Contents/Frameworks/
+          # Repeat above until satiated
+          find ${APPDIR} -type f -print0 | xargs -0 file | grep Mach-O | cut -wf 1 | sed 's/.$//' | tr '\n' '\0' | xargs -0 -n1 sh -c 'otool -L $0 | tail -n +2 | grep -v "/System/" | grep -v "/usr/lib" | grep -v "@rpath" | cut -wf 2 | xargs echo $0' | tr '\n' '\0' | xargs -0 -n1 bash -c 'depender=$(echo $0 | cut -wf 1); dependent=${0//$depender /}; for i in $dependent; do install_name_tool -change $i @rpath/$(basename $i) $depender; done'
+          find ${APPDIR} -type f -print0 | xargs -0 file | grep "Mach-O 64-bit dynamically linked shared library" | grep -v "Contents/Frameworks" | cut -wf 1 | sed 's/.$//' | xargs -I {} mv {} ${APPDIR}/Contents/Frameworks/
+
+          cd ${APPDIR}/Contents/Frameworks
+
+          versionedLibs=$(ls ${APPDIR}/Contents/Frameworks | tr '\n' '\0' | xargs -0 -n1 bash -c 'echo "$0" "$(otool -D $0 | grep $0 | wc -l)"' | grep " 1" | cut -wf 1)
+
+      - name: something more on libs
+        run: |
+          cd ${APPDIR}/Contents/Frameworks
+          for i in $(seq 1 5)
+          do
+            for lib in $versionedLibs
+            do
+              currentVersion=$(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//') | grep -v dylib);
+              if [ "$currentVersion" ]
+              then
+                if [ "$lib" != "$currentVersion.dylib" ]
+                then
+                  ln -s $lib $(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//')).dylib
+                fi
+              fi
+            done
+          done
+      - name: install moltenvk icd
+        run: |
+          mkdir -p ${APPDIR}/Contents/Resources/vulkan/icd.d
+          echo "{
+              "file_format_version": "1.0.0",
+              "ICD": {
+                  "library_path": "../../../../../Frameworks/libMoltenVK.dylib",
+                  "api_version": "1.3.0",
+                  "is_portability_driver": true
+              }
+          }" >> ${APPDIR}/Contents/Resources/vulkan/icd.d/MoltenVK_icd.json
+      - name: build dmg image
+        run: |
+          cd ${SRC_DIR}
+          cat > ${APPDIR}/Contents/Info.plist << EOM
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleDevelopmentRegion</key>
+            <string>English</string>
+            <key>CFBundleExecutable</key>
+            <string>lib/vkdt/vkdt</string>
+            <key>CFBundleIconFile</key>
+            <string>vkdt.png</string>
+            <key>CFBundleIdentifier</key>
+            <string>org.vkdt</string>
+            <key>CFBundleInfoDictionaryVersion</key>
+            <string>6.0</string>
+            <key>CFBundleName</key>
+            <string>vkdt</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleSignature</key>
+            <string>vkdt</string>
+            <key>NSPrincipalClass</key>
+            <string>NSApplication</string>
+            <key>CFBundleDocumentTypes</key>
+            <array>
+              <dict>
+                <key>CFBundleTypeRole</key>
+                <string>Viewer</string>
+                <key>LSItemContentTypes</key>
+                <array>
+                  <string>public.image</string>
+                  <string>public.directory</string>
+                </array>
+              </dict>
+            </array>
+          </dict>
+          </plist>
+          EOM
+          cat > Entitlements.plist << EOM
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>com.apple.security.cs.disable-library-validation</key>
+            <true/>
+          </dict>
+          </plist>
+          EOM
+
+          find ${APPDIR} -type f -exec codesign -f -s - --entitlements Entitlements.plist -o runtime {} \;
+          codesign -f -s - --entitlements Entitlements.plist -o runtime ${APPDIR}
+
+          mkdir vkdt-image
+          mv ${APPDIR} vkdt-image/vkdt.app
+
+          hdiutil create -srcfolder vkdt-image -format UDSB vkdt-image.sparsebundle
+          hdiutil convert vkdt-image.sparsebundle -format ULMO -o vkdt-${{ env.VERSION }}.dmg
+          # TODO: codesign --force -s - /path/to/dylib on every dylib
+      - name: package upload
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          path: ${SRC_DIR}/vkdt-${{ env.VERSION }}.dmg
+          name: artifact-macos
+          retention-days: 1
 
   upload_to_release:
     if: ${{ github.event_name != 'pull_request' }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [AppImage, WindowsRawler]
+    needs: [AppImage, WindowsRawler, macintosh]
     steps:
       - name: download artifacts
         uses: actions/download-artifact@v4
@@ -354,10 +480,11 @@ jobs:
 
             macintosh
             =========
-            the macintosh version is currently just verifying the build but not creating a nightly dmg image.
+            the macintosh version is extremely experimental (completely untested!)
             it builds (using brew) and runs (using the lunarg sdk) both on intel and apple silicon devices.
 
           files: |
             artifact-appimage-rawler-glfw3.4/*
             artifact-appimage-rawler-pentablet/*
             artifact-windows-rawler/*
+            artifact-macos/*

@@ -33,9 +33,12 @@ VKDTBIN?=$(DESTDIR)$(prefix)/bin
 VKDTLIBDIR?=$(DESTDIR)$(prefix)/lib
 VKDTINCDIR?=$(DESTDIR)$(prefix)/include/vkdt
 install-bin: all Makefile
+	mkdir -p $(VKDTDIR)
+ifneq ($(shell uname),Darwin)
 	mkdir -p $(VKDTBIN)
 	ln -rsf $(VKDTDIR)/vkdt $(VKDTBIN)/vkdt || true
 	ln -rsf $(VKDTDIR)/vkdt-cli $(VKDTBIN)/vkdt-cli || true
+endif
 	cp -rfL bin/vkdt $(VKDTDIR)
 	cp -rfL bin/vkdt-cli $(VKDTDIR)
 	cp -rfL bin/exiftool $(VKDTDIR)
