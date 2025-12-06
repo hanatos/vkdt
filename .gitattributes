@@ -1,0 +1,3 @@
+params text eol=lf
+params.ui text eol=lf
+connectors text eol=lf
