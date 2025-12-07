@@ -34,3 +34,4 @@ src/macadam
 src/macadam.lut
 src/mkabney
 src/mkspectra
+*.exe
