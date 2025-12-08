@@ -3652,6 +3652,8 @@ NK_API void nk_menu_end(struct nk_context*);
 
 enum nk_style_colors {
     NK_COLOR_TEXT,
+    NK_COLOR_TEXT_HOVER,
+    NK_COLOR_TEXT_ACTIVE,
     NK_COLOR_WINDOW,
     NK_COLOR_HEADER,
     NK_COLOR_BORDER,
@@ -11272,6 +11274,8 @@ nk_input_is_key_down(const struct nk_input *i, enum nk_keys key)
 NK_API void nk_style_default(struct nk_context *ctx){nk_style_from_table(ctx, 0);}
 #define NK_COLOR_MAP(NK_COLOR)\
     NK_COLOR(NK_COLOR_TEXT,                     175,175,175,255) \
+    NK_COLOR(NK_COLOR_TEXT_HOVER,               175,175,175,255) \
+    NK_COLOR(NK_COLOR_TEXT_ACTIVE,              175,175,175,255) \
     NK_COLOR(NK_COLOR_WINDOW,                   45, 45, 45, 255) \
     NK_COLOR(NK_COLOR_HEADER,                   40, 40, 40, 255) \
     NK_COLOR(NK_COLOR_BORDER,                   65, 65, 65, 255) \
@@ -11395,8 +11399,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     button->border_color               = table[NK_COLOR_BORDER];
     button->text_background            = table[NK_COLOR_BUTTON];
     button->text_normal                = table[NK_COLOR_TEXT];
-    button->text_hover                 = table[NK_COLOR_TEXT];
-    button->text_active                = table[NK_COLOR_TEXT];
+    button->text_hover                 = table[NK_COLOR_TEXT_HOVER];
+    button->text_active                = table[NK_COLOR_TEXT_ACTIVE];
     button->padding                    = nk_vec2(S(0.0f),S(0.0f));
     button->image_padding              = nk_vec2(0.0f, 0.0f);
     button->touch_padding              = nk_vec2(0.0f, 0.0f);
@@ -11419,8 +11423,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     button->border_color    = table[NK_COLOR_WINDOW];
     button->text_background = table[NK_COLOR_WINDOW];
     button->text_normal     = table[NK_COLOR_TEXT];
-    button->text_hover      = table[NK_COLOR_TEXT];
-    button->text_active     = table[NK_COLOR_TEXT];
+    button->text_hover      = table[NK_COLOR_TEXT_HOVER];
+    button->text_active     = table[NK_COLOR_TEXT_ACTIVE];
     button->padding         = nk_vec2(S(2.0f),S(2.0f));
     button->touch_padding   = nk_vec2(0.0f,0.0f);
     button->userdata        = nk_handle_ptr(0);
@@ -11442,8 +11446,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     button->border_color    = table[NK_COLOR_WINDOW];
     button->text_background = table[NK_COLOR_WINDOW];
     button->text_normal     = table[NK_COLOR_TEXT];
-    button->text_hover      = table[NK_COLOR_TEXT];
-    button->text_active     = table[NK_COLOR_TEXT];
+    button->text_hover      = table[NK_COLOR_TEXT_HOVER];
+    button->text_active     = table[NK_COLOR_TEXT_ACTIVE];
     button->padding         = nk_vec2(S(2.0f),S(2.0f));
     button->touch_padding   = nk_vec2(0.0f,0.0f);
     button->userdata        = nk_handle_ptr(0);
@@ -11467,8 +11471,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     toggle->userdata        = nk_handle_ptr(0);
     toggle->text_background = table[NK_COLOR_WINDOW];
     toggle->text_normal     = table[NK_COLOR_TEXT];
-    toggle->text_hover      = table[NK_COLOR_TEXT];
-    toggle->text_active     = table[NK_COLOR_TEXT];
+    toggle->text_hover      = table[NK_COLOR_TEXT_HOVER];
+    toggle->text_active     = table[NK_COLOR_TEXT_ACTIVE];
     toggle->padding         = nk_vec2(S(2.0f), S(2.0f));
     toggle->touch_padding   = nk_vec2(0,0);
     toggle->border_color    = nk_rgba(0,0,0,0);
@@ -11488,8 +11492,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     toggle->userdata        = nk_handle_ptr(0);
     toggle->text_background = table[NK_COLOR_WINDOW];
     toggle->text_normal     = table[NK_COLOR_TEXT];
-    toggle->text_hover      = table[NK_COLOR_TEXT];
-    toggle->text_active     = table[NK_COLOR_TEXT];
+    toggle->text_hover      = table[NK_COLOR_TEXT_HOVER];
+    toggle->text_active     = table[NK_COLOR_TEXT_ACTIVE];
     toggle->padding         = nk_vec2(S(3.0f), S(3.0f));
     toggle->touch_padding   = nk_vec2(0,0);
     toggle->border_color    = nk_rgba(0,0,0,0);
@@ -11508,11 +11512,11 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     select->hover_active    = nk_style_item_color(table[NK_COLOR_SELECT_ACTIVE]);
     select->pressed_active  = nk_style_item_color(table[NK_COLOR_SELECT_ACTIVE]);
     select->text_normal     = table[NK_COLOR_TEXT];
-    select->text_hover      = table[NK_COLOR_TEXT];
-    select->text_pressed    = table[NK_COLOR_TEXT];
-    select->text_normal_active  = table[NK_COLOR_TEXT];
-    select->text_hover_active   = table[NK_COLOR_TEXT];
-    select->text_pressed_active = table[NK_COLOR_TEXT];
+    select->text_hover      = table[NK_COLOR_TEXT_HOVER];
+    select->text_pressed    = table[NK_COLOR_TEXT_ACTIVE];
+    select->text_normal_active  = table[NK_COLOR_TEXT_ACTIVE];
+    select->text_hover_active   = table[NK_COLOR_TEXT_ACTIVE];
+    select->text_pressed_active = table[NK_COLOR_TEXT_ACTIVE];
     select->padding         = nk_vec2(S(2.0f),S(2.0f));
     select->image_padding   = nk_vec2(S(2.0f),S(2.0f));
     select->touch_padding   = nk_vec2(0,0);
@@ -11679,15 +11683,15 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     edit->hover             = nk_style_item_color(table[NK_COLOR_EDIT]);
     edit->active            = nk_style_item_color(table[NK_COLOR_EDIT]);
     edit->cursor_normal     = table[NK_COLOR_TEXT];
-    edit->cursor_hover      = table[NK_COLOR_TEXT];
+    edit->cursor_hover      = table[NK_COLOR_TEXT_HOVER];
     edit->cursor_text_normal= table[NK_COLOR_EDIT];
     edit->cursor_text_hover = table[NK_COLOR_EDIT];
     edit->border_color      = table[NK_COLOR_BORDER];
     edit->text_normal       = table[NK_COLOR_TEXT];
-    edit->text_hover        = table[NK_COLOR_TEXT];
-    edit->text_active       = table[NK_COLOR_TEXT];
+    edit->text_hover        = table[NK_COLOR_TEXT_HOVER];
+    edit->text_active       = table[NK_COLOR_TEXT_ACTIVE];
     edit->selected_normal   = table[NK_COLOR_TEXT];
-    edit->selected_hover    = table[NK_COLOR_TEXT];
+    edit->selected_hover    = table[NK_COLOR_TEXT_HOVER];
     edit->selected_text_normal  = table[NK_COLOR_EDIT];
     edit->selected_text_hover   = table[NK_COLOR_EDIT];
     edit->scrollbar_size    = nk_vec2(S(10),S(10));
@@ -11708,8 +11712,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     property->active        = nk_style_item_color(table[NK_COLOR_PROPERTY]);
     property->border_color  = table[NK_COLOR_BORDER];
     property->label_normal  = table[NK_COLOR_TEXT];
-    property->label_hover   = table[NK_COLOR_TEXT];
-    property->label_active  = table[NK_COLOR_TEXT];
+    property->label_hover   = table[NK_COLOR_TEXT_HOVER];
+    property->label_active  = table[NK_COLOR_TEXT_ACTIVE];
     property->sym_left      = NK_SYMBOL_TRIANGLE_LEFT;
     property->sym_right     = NK_SYMBOL_TRIANGLE_RIGHT;
     property->userdata      = nk_handle_ptr(0);
@@ -11730,8 +11734,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     button->border_color    = nk_rgba(0,0,0,0);
     button->text_background = table[NK_COLOR_PROPERTY];
     button->text_normal     = table[NK_COLOR_TEXT];
-    button->text_hover      = table[NK_COLOR_TEXT];
-    button->text_active     = table[NK_COLOR_TEXT];
+    button->text_hover      = table[NK_COLOR_TEXT_HOVER];
+    button->text_active     = table[NK_COLOR_TEXT_ACTIVE];
     button->padding         = nk_vec2(0.0f,0.0f);
     button->touch_padding   = nk_vec2(0.0f,0.0f);
     button->userdata        = nk_handle_ptr(0);
@@ -11753,14 +11757,14 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     edit->active            = nk_style_item_color(table[NK_COLOR_PROPERTY]);
     edit->border_color      = nk_rgba(0,0,0,0);
     edit->cursor_normal     = table[NK_COLOR_TEXT];
-    edit->cursor_hover      = table[NK_COLOR_TEXT];
+    edit->cursor_hover      = table[NK_COLOR_TEXT_HOVER];
     edit->cursor_text_normal= table[NK_COLOR_EDIT];
     edit->cursor_text_hover = table[NK_COLOR_EDIT];
     edit->text_normal       = table[NK_COLOR_TEXT];
-    edit->text_hover        = table[NK_COLOR_TEXT];
-    edit->text_active       = table[NK_COLOR_TEXT];
+    edit->text_hover        = table[NK_COLOR_TEXT_HOVER];
+    edit->text_active       = table[NK_COLOR_TEXT_ACTIVE];
     edit->selected_normal   = table[NK_COLOR_TEXT];
-    edit->selected_hover    = table[NK_COLOR_TEXT];
+    edit->selected_hover    = table[NK_COLOR_TEXT_HOVER];
     edit->selected_text_normal  = table[NK_COLOR_EDIT];
     edit->selected_text_hover   = table[NK_COLOR_EDIT];
     edit->padding           = nk_vec2(0,0);
@@ -11791,8 +11795,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     combo->active           = nk_style_item_color(table[NK_COLOR_COMBO]);
     combo->border_color     = table[NK_COLOR_BORDER];
     combo->label_normal     = table[NK_COLOR_TEXT];
-    combo->label_hover      = table[NK_COLOR_TEXT];
-    combo->label_active     = table[NK_COLOR_TEXT];
+    combo->label_hover      = table[NK_COLOR_TEXT_HOVER];
+    combo->label_active     = table[NK_COLOR_TEXT_ACTIVE];
     combo->sym_normal       = NK_SYMBOL_TRIANGLE_DOWN;
     combo->sym_hover        = NK_SYMBOL_TRIANGLE_DOWN;
     combo->sym_active       = NK_SYMBOL_TRIANGLE_DOWN;
@@ -11813,8 +11817,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     button->border_color    = nk_rgba(0,0,0,0);
     button->text_background = table[NK_COLOR_COMBO];
     button->text_normal     = table[NK_COLOR_TEXT];
-    button->text_hover      = table[NK_COLOR_TEXT];
-    button->text_active     = table[NK_COLOR_TEXT];
+    button->text_hover      = table[NK_COLOR_TEXT_HOVER];
+    button->text_active     = table[NK_COLOR_TEXT_ACTIVE];
     button->padding         = nk_vec2(S(2.0f),S(2.0f));
     button->touch_padding   = nk_vec2(0.0f,0.0f);
     button->userdata        = nk_handle_ptr(0);
@@ -11851,8 +11855,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     button->border_color    = nk_rgba(0,0,0,0);
     button->text_background = table[NK_COLOR_TAB_HEADER];
     button->text_normal     = table[NK_COLOR_TEXT];
-    button->text_hover      = table[NK_COLOR_TEXT];
-    button->text_active     = table[NK_COLOR_TEXT];
+    button->text_hover      = table[NK_COLOR_TEXT_HOVER];
+    button->text_active     = table[NK_COLOR_TEXT_ACTIVE];
     button->padding         = nk_vec2(S(2.0f),S(2.0f));
     button->touch_padding   = nk_vec2(0.0f,0.0f);
     button->userdata        = nk_handle_ptr(0);
@@ -11875,8 +11879,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     button->border_color    = nk_rgba(0,0,0,0);
     button->text_background = table[NK_COLOR_TAB_HEADER];
     button->text_normal     = table[NK_COLOR_TEXT];
-    button->text_hover      = table[NK_COLOR_TEXT];
-    button->text_active     = table[NK_COLOR_TEXT];
+    button->text_hover      = table[NK_COLOR_TEXT_HOVER];
+    button->text_active     = table[NK_COLOR_TEXT_ACTIVE];
     button->padding         = nk_vec2(S(2.0f),S(2.0f));
     button->touch_padding   = nk_vec2(0.0f,0.0f);
     button->userdata        = nk_handle_ptr(0);
@@ -11900,8 +11904,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     win->header.hover = nk_style_item_color(table[NK_COLOR_HEADER]);
     win->header.active = nk_style_item_color(table[NK_COLOR_HEADER]);
     win->header.label_normal = table[NK_COLOR_TEXT];
-    win->header.label_hover = table[NK_COLOR_TEXT];
-    win->header.label_active = table[NK_COLOR_TEXT];
+    win->header.label_hover = table[NK_COLOR_TEXT_HOVER];
+    win->header.label_active = table[NK_COLOR_TEXT_ACTIVE];
     win->header.label_padding = nk_vec2(S(4),S(4));
     win->header.padding = nk_vec2(S(4),S(4));
     win->header.spacing = nk_vec2(0,0);
@@ -11915,8 +11919,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     button->border_color    = nk_rgba(0,0,0,0);
     button->text_background = table[NK_COLOR_HEADER];
     button->text_normal     = table[NK_COLOR_TEXT];
-    button->text_hover      = table[NK_COLOR_TEXT];
-    button->text_active     = table[NK_COLOR_TEXT];
+    button->text_hover      = table[NK_COLOR_TEXT_HOVER];
+    button->text_active     = table[NK_COLOR_TEXT_ACTIVE];
     button->padding         = nk_vec2(0.0f,0.0f);
     button->touch_padding   = nk_vec2(0.0f,0.0f);
     button->userdata        = nk_handle_ptr(0);
@@ -11938,8 +11942,8 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     button->border_color    = nk_rgba(0,0,0,0);
     button->text_background = table[NK_COLOR_HEADER];
     button->text_normal     = table[NK_COLOR_TEXT];
-    button->text_hover      = table[NK_COLOR_TEXT];
-    button->text_active     = table[NK_COLOR_TEXT];
+    button->text_hover      = table[NK_COLOR_TEXT_HOVER];
+    button->text_active     = table[NK_COLOR_TEXT_ACTIVE];
     button->padding         = nk_vec2(0.0f,0.0f);
     button->touch_padding   = nk_vec2(0.0f,0.0f);
     button->userdata        = nk_handle_ptr(0);

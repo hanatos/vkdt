@@ -18,6 +18,8 @@ static inline int
 style_name_to_colour(const char *name)
 {
   if(!strcmp(name, "TEXT"))                        return  NK_COLOR_TEXT;
+  if(!strcmp(name, "TEXT_HOVER"))                  return  NK_COLOR_TEXT_HOVER;
+  if(!strcmp(name, "TEXT_ACTIVE"))                 return  NK_COLOR_TEXT_ACTIVE;
   if(!strcmp(name, "WINDOW"))                      return  NK_COLOR_WINDOW;
   if(!strcmp(name, "HEADER"))                      return  NK_COLOR_HEADER;
   if(!strcmp(name, "BORDER"))                      return  NK_COLOR_BORDER;
@@ -49,6 +51,9 @@ style_name_to_colour(const char *name)
   if(!strcmp(name, "KNOB_CURSOR"))                 return  NK_COLOR_KNOB_CURSOR;
   if(!strcmp(name, "KNOB_CURSOR_HOVER"))           return  NK_COLOR_KNOB_CURSOR_HOVER;
   if(!strcmp(name, "KNOB_CURSOR_ACTIVE"))          return  NK_COLOR_KNOB_CURSOR_ACTIVE;
+  if(!strcmp(name, "DT_ACCENT_TEXT"))              return  NK_COLOR_DT_ACCENT_TEXT;
+  if(!strcmp(name, "DT_ACCENT_TEXT_HOVER"))        return  NK_COLOR_DT_ACCENT_TEXT_HOVER;
+  if(!strcmp(name, "DT_ACCENT_TEXT_ACTIVE"))       return  NK_COLOR_DT_ACCENT_TEXT_ACTIVE;
   if(!strcmp(name, "DT_ACCENT"))                   return  NK_COLOR_DT_ACCENT;
   if(!strcmp(name, "DT_ACCENT_HOVER"))             return  NK_COLOR_DT_ACCENT_HOVER;
   if(!strcmp(name, "DT_ACCENT_ACTIVE"))            return  NK_COLOR_DT_ACCENT_ACTIVE;
