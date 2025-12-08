@@ -34,6 +34,9 @@ camera rgb along with the image matrix out to exr, or maybe you want to export
 after input device transform in the `colour` module) and then do the rest of
 the grading on the exr for faster interaction.
 
+the `light` version of the net tends to be less sharp, but is much faster and
+also avoids some psychedelic halucination problems of the heavy one.
+
 as a sidenote, [working with neural networks is pretty exciting](https://youtu.be/4h-wVe9a6rQ?t=116).
 
 ## parameters
