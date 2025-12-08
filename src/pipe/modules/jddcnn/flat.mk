@@ -1,4 +1,6 @@
 pipe/modules/jddcnn/*.comp.spv: pipe/modules/jddcnn/conv-impl.glsl
+pipe/modules/jddcnn/output.comp.spv: pipe/modules/jddcnn/pu.glsl
+pipe/modules/jddcnn/input.comp.spv: pipe/modules/jddcnn/pu.glsl
 
 SHADERS=\
 pipe/modules/jddcnn/con0a16.comp.spv\

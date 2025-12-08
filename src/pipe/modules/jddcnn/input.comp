@@ -3,6 +3,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: enable
 
 #include "shared.glsl"
+#include "pu.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
@@ -21,7 +22,7 @@ void main()
   if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
 
   float v = texelFetch(img_in, ipos, 0).r;
-  const float s = params.white.r - params.black.r;
+  // const float s = params.white.r - params.black.r;
   // we assume a no-op denoise module has run before this and cropped ad rescaled and gainmapped the data for us:
   // v = (v*65535.0 - params.black.r)/s;
   // write out in ssbo index format, 5 channels
@@ -38,7 +39,7 @@ void main()
   // if(c == 0) v = float16_t(0);
   // if(c == 1 || c == 2) v = float16_t(0);
   // if(c == 3) v = float16_t(0);
-  buf.v[idx] = float16_t(v);
+  buf.v[idx] = float16_t(pu_transfer_function(v));
 #if 0 // network did not use it as simple as that anyways:
   if(c == 1)
   { // add noise estimate. could load it from painted input too
