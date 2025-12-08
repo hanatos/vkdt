@@ -10,6 +10,10 @@
 // #define VKDT_COOPMAT_FALLBACK
 #include "shared/coopmat.glsl"
 
+#ifndef RELU_NEG_SLOPE
+#define RELU_NEG_SLOPE 0.001
+#endif
+
 // we can't always get enough shared memory or register file to embrace
 // all the input variables and cooperative matrices we wish for. if this
 // is set, it will divide the memory cost for shared and registers for
@@ -206,10 +210,13 @@ void main()
           const uint img_col = TILE_WIDTH  * gl_WorkGroupID.y + line_O % TILE_WIDTH;
           float16_t v0 = current_column_I[32* p    + id_loc] + bias(feature);
           float16_t v1 = current_column_I[32*(p+4) + id_loc] + bias(feature);
+#if 1//def RELU_NEG_SLOPE
+          v0 = mix(v0, float16_t(RELU_NEG_SLOPE)*v0, v0 < float16_t(0.0)); // leaky relu
+          v1 = mix(v1, float16_t(RELU_NEG_SLOPE)*v1, v1 < float16_t(0.0));
+#else
           v0 = max(float16_t(0.0), v0); // relu
           v1 = max(float16_t(0.0), v1);
-          // v0 = mix(v0, float16_t(0.2)*v0, v0 < float16_t(0.0)); // leaky relu
-          // v1 = mix(v1, float16_t(0.2)*v1, v1 < float16_t(0.0));
+#endif
           if(img_row   >= push.ht || img_col >= push.wd) v0 = float16_t(0.0);
           if(img_row+1 >= push.ht || img_col >= push.wd) v1 = float16_t(0.0);
           float16_t v = max(v0, v1);
@@ -227,8 +234,11 @@ void main()
           { // compute the final value
             float16_t value = current_column_I[32*p + id_loc];
             value += bias(feature);           // bias
+#if 1 // def RELU_NEG_SLOPE
+            value = mix(value, float16_t(RELU_NEG_SLOPE)*value, value < float16_t(0.0)); // leaky relu
+#else
             value = max(value, float16_t(0)); // ReLU
-            // value = mix(value, float16_t(0.2)*value, value < float16_t(0.0)); // leaky relu
+#endif
             buf_out[OUTPUT_FEATURE_STRIDE * (img_row * push.wd + img_col) + feature] = value;
           }
         }
