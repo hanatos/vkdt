@@ -502,16 +502,22 @@ dt_node_editor(
     {
       nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
       nk_style_push_style_item(ctx, &ctx->style.window.header.hover,  nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]));
+      nk_style_push_color(ctx, &ctx->style.window.header.label_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
+      nk_style_push_color(ctx, &ctx->style.window.header.label_hover,  vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT_HOVER]);
     }
     else if(module->disabled)
     {
       nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(nk_rgb(0,0,0)));
       nk_style_push_style_item(ctx, &ctx->style.window.header.hover,  nk_style_item_color(nk_rgb(0,0,0)));
+      nk_style_push_color(ctx, &ctx->style.window.header.label_normal, vkdt.style.colour[NK_COLOR_TEXT]);
+      nk_style_push_color(ctx, &ctx->style.window.header.label_hover, vkdt.style.colour[NK_COLOR_TEXT]);
     }
     else
     {
       nk_style_push_style_item(ctx, &ctx->style.window.header.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_HEADER]));
       nk_style_push_style_item(ctx, &ctx->style.window.header.hover,  nk_style_item_color(vkdt.style.colour[NK_COLOR_BUTTON_HOVER]));
+      nk_style_push_color(ctx, &ctx->style.window.header.label_normal, vkdt.style.colour[NK_COLOR_TEXT]);
+      nk_style_push_color(ctx, &ctx->style.window.header.label_hover,  vkdt.style.colour[NK_COLOR_TEXT_HOVER]);
     }
     struct nk_rect bb = nk_widget_bounds(ctx);
     if(nk_group_begin(ctx, str, NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE))
@@ -564,6 +570,8 @@ dt_node_editor(
     }
     nk_style_pop_style_item(ctx);
     nk_style_pop_style_item(ctx);
+    nk_style_pop_color(ctx);
+    nk_style_pop_color(ctx);
   } // for all modules
 
   if(!disabled && !nedit->connection.active)

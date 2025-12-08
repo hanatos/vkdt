@@ -480,9 +480,11 @@ void render_darkroom()
         }
         else if(i+1 == (int)vkdt.graph_dev.history_item_cur)
         { // last active item
-          pop = 2;
+          pop = 4;
           nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
           nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.hover,  nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]));
+          nk_style_push_color(&vkdt.ctx, &vkdt.ctx.style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
+          nk_style_push_color(&vkdt.ctx, &vkdt.ctx.style.button.text_hover,  vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT_HOVER]);
         }
         if(nk_button_label(&vkdt.ctx, vkdt.graph_dev.history_item[i]))
         {
@@ -493,6 +495,11 @@ void render_darkroom()
         {
           nk_style_pop_style_item(&vkdt.ctx);
           nk_style_pop_style_item(&vkdt.ctx);
+        }
+        if(pop == 4)
+        {
+          nk_style_pop_color(&vkdt.ctx);
+          nk_style_pop_color(&vkdt.ctx);
         }
       }
       nk_style_pop_flags(&vkdt.ctx);
@@ -658,6 +665,8 @@ void render_darkroom()
       {
         nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
         nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.hover,  nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]));
+        nk_style_push_color(&vkdt.ctx, &vkdt.ctx.style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
+        nk_style_push_color(&vkdt.ctx, &vkdt.ctx.style.button.text_hover,  vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT_HOVER]);
       }
       if(nk_button_label(ctx, "history"))
         dt_gui_dr_toggle_history();
@@ -665,6 +674,8 @@ void render_darkroom()
       {
         nk_style_pop_style_item(&vkdt.ctx);
         nk_style_pop_style_item(&vkdt.ctx);
+        nk_style_pop_color(&vkdt.ctx);
+        nk_style_pop_color(&vkdt.ctx);
       }
       render_darkroom_full(filter_name, filter_inst);
     }

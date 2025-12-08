@@ -34,13 +34,13 @@ dt_radial_menu_text(
         struct nk_rect bx = {box.x+font.height, box.y, box.w-2*font.height, box.h};
         nk_draw_text(cmd, bx, t, len, &font,
             (struct nk_color){0,0,0,0xff},
-            (struct nk_color){0,0,0,0xff});
+            vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT_HOVER]);
       }
       else
       {
         nk_draw_text(cmd, box, t, len, nk_glfw3_font(0),
             (struct nk_color){0,0,0,0xff},
-            (struct nk_color){0xff,0xff,0xff,0xff});
+            vkdt.style.colour[NK_COLOR_TEXT]);
       }
       box.y += box.h-1;
     }

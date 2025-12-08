@@ -95,6 +95,7 @@ void render_files()
         if(red)
         {
           nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+          nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
         }
         dt_tooltip(red ? "click to unmount" : "click to mount");
         if(nk_button_label(ctx, devname[i]))
@@ -118,6 +119,7 @@ void render_files()
         if(red)
         {
           nk_style_pop_style_item(ctx);
+          nk_style_pop_color(ctx);
           dt_tooltip("%s", mountpoint[i]);
           if(nk_button_label(ctx, "go to mountpoint"))
             set_cwd(mountpoint[i], 0);

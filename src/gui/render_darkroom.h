@@ -481,12 +481,20 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       for(int k=0;k<32;k++)
       {
         const int sel = val[0] & (1<<k);
-        if(sel) nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+        if(sel)
+        {
+          nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+          nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
+        }
         char label[10];
         snprintf(label, sizeof(label), "%d", k);
         dt_tooltip(c);
         if(nk_button_label(ctx, label)) { val[0] ^= (1<<k); change = 1; }
-        if(sel) nk_style_pop_style_item(ctx);
+        if(sel)
+        {
+          nk_style_pop_style_item(ctx);
+          nk_style_pop_color(ctx);
+        }
 
         for(;*c!=0;c++);
         c++;
@@ -575,14 +583,21 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         {
           int idx = CLAMP(c[0]-'0',0,9)*10+CLAMP(c[1]-'0',0,9);
           const int sel = *val == idx;
-          if(sel) nk_style_push_style_item(ctx, &ctx->style.button.normal,
-              nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+          if(sel)
+          {
+            nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+            nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
+          }
           if(nk_button_label(ctx, c+2))
           {
             *val = idx;
             change = 1;
           }
-          if(sel) nk_style_pop_style_item(ctx);
+          if(sel)
+          {
+            nk_style_pop_style_item(ctx);
+            nk_style_pop_color(ctx);
+          }
           rowidx++;
         }
         if(!c[0] || (rowidx % 3) == 0)
@@ -657,6 +672,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       int accept = 0;
       snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
       nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
       if(nk_button_label(ctx, string) || accept)
       {
         // dt_gamepadhelp_pop();
@@ -666,6 +682,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
       nk_style_pop_style_item(ctx);
+      nk_style_pop_color(ctx);
     }
     else
     {
@@ -724,12 +741,14 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
       nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
       if(nk_button_label(ctx, "done"))
       {
         widget_end();
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
       nk_style_pop_style_item(ctx);
+      nk_style_pop_color(ctx);
     }
     else
     {
@@ -778,6 +797,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       int accept = 0;
       snprintf(string, sizeof(string), "%" PRItkn" done", dt_token_str(param->name));
       nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
       if(nk_button_label(ctx, string) || accept)
       {
         vkdt.wstate.state[0] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
@@ -790,6 +810,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
       nk_style_pop_style_item(ctx);
+      nk_style_pop_color(ctx);
     }
     else
     {
@@ -882,12 +903,14 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     {
       snprintf(string, sizeof(string), "done");
       nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
       if(nk_button_label(ctx, string))
       {
         widget_end();
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
       nk_style_pop_style_item(ctx);
+      nk_style_pop_color(ctx);
     }
     else
     {
@@ -915,12 +938,14 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     {
       snprintf(string, sizeof(string), "done");
       nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
       if(nk_button_label(ctx, string))
       {
         widget_end();
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
       nk_style_pop_style_item(ctx);
+      nk_style_pop_color(ctx);
     }
     else
     {
@@ -952,12 +977,14 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     {
       snprintf(string, sizeof(string), "done");
       nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
       if(nk_button_label(ctx, string))
       {
         widget_end();
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
       nk_style_pop_style_item(ctx);
+      nk_style_pop_color(ctx);
     }
     else
     {
@@ -1075,12 +1102,14 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     {
       snprintf(string, sizeof(string), "done");
       nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
       if(nk_button_label(ctx, string))
       {
         widget_end();
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
       nk_style_pop_style_item(ctx);
+      nk_style_pop_color(ctx);
     }
     else
     {
@@ -1513,10 +1542,14 @@ render_darkroom_modals()
             if(select_all == 2) sel[i] = 0;
             const int selected = sel[i];
             if(selected)
+            {
               nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+              nk_style_push_color(&vkdt.ctx, &vkdt.ctx.style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
+            }
             dt_tooltip(selected ? "click to drop from preset" : "click to include in preset");
             if(nk_button_label(&vkdt.ctx, line[i])) sel[i] ^= 1;
             if(selected) nk_style_pop_style_item(&vkdt.ctx);
+            if(selected) nk_style_pop_color(&vkdt.ctx);
           }
         }
         nk_group_end(&vkdt.ctx);

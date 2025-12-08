@@ -106,9 +106,11 @@ dt_draw_param_line(
 #define ANIM_ITEM(mode, str) do {\
       set = mod->keyframe[k].anim == s_anim_ ## mode; \
       if(set) nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.contextual_button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));\
+      if(set) nk_style_push_color(&vkdt.ctx, &vkdt.ctx.style.contextual_button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);\
       if(nk_contextual_item_label(ctx, str, NK_TEXT_LEFT))\
         mod->keyframe[k].anim = s_anim_ ## mode ;\
       if(set) nk_style_pop_style_item(&vkdt.ctx);\
+      if(set) nk_style_pop_color(&vkdt.ctx);\
       } while(0)
 
       ANIM_ITEM(step,"step");
