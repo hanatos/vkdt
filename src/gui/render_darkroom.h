@@ -1115,6 +1115,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     {
       snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
       dt_tooltip("start drawing brush strokes with the mouse\n"
+          "shift click start and end: draw straight line\n"
           "scroll - fine tune radius\n"
           "ctrl scroll - fine tune hardness\n"
           "shift scroll - fine tune opacity\n"

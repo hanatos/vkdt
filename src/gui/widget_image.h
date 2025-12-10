@@ -263,12 +263,12 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
         vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].flags = s_module_request_read_source;
       }
       float yoff = ctx->input.mouse.scroll_delta.y;
+      int shift = glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS || glfwGetKey(vkdt.win.window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS;
+      int ctrl  = glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(vkdt.win.window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
       if(hovered && yoff != 0)
       {
         ctx->input.mouse.scroll_delta.y = 0; // handled this
         const float scale = yoff > 0.0 ? 1.2f : 1.0/1.2f;
-        int shift = glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS || glfwGetKey(vkdt.win.window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS;
-        int ctrl  = glfwGetKey(vkdt.win.window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(vkdt.win.window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
         if(shift) // opacity
           vkdt.wstate.state[1] = CLAMP(vkdt.wstate.state[1] * scale, 0.1f, 1.0f);
         else if(ctrl) // hardness
@@ -282,7 +282,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
         dt_image_from_view(&vkdt.wstate.img_widget, v, n);
         if(hovered && nk_input_is_mouse_down(&ctx->input, NK_BUTTON_LEFT))
           dt_gui_dr_draw_position(n, 1.0f);
-        else
+        else if(!shift)
           dt_gui_dr_draw_position(n, 0.0f);
       }
     }

@@ -15,6 +15,7 @@ the resulting mask.
 the module allows to draw line segments by clicking and holding the left mouse
 button while drawing a stroke. releasing the button will finalise the stroke.
 to remove the last stroke, press the right mouse button.
+to draw a straight line, hold shift and click the start and then the end point.
 
 you can also alter the properties of the strokes: opacity, radius, and
 hardness. these properties can be set globally as parameters on sliders, and will
