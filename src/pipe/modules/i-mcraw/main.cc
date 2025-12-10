@@ -195,6 +195,8 @@ check_params(
     if(noise_a == 0.0 && noise_b == 0.0)
       return s_graph_run_all; // need to do modify_roi_out again to read noise model from file
   }
+  if(pid == 4 || pid == 5)  // black and white levels
+    return s_graph_run_all; // re-read file and img_param
   return s_graph_run_record_cmd_buf;
 }
 
@@ -214,14 +216,17 @@ void modify_roi_out(
   ro->full_wd = wd;
   ro->full_ht = ht;
 
+  const int *p_black = dt_module_param_int(mod, 4);
+  const int *p_white = dt_module_param_int(mod, 5);
   const nlohmann::json& cmeta = dat->dec->getContainerMetadata();
   std::vector<uint16_t> black = cmeta["blackLevel"];
-  float white = cmeta["whiteLevel"];
+  float white = p_white[0] > 0 ? p_white[0] : (float)cmeta["whiteLevel"];
   std::string sensorArrangement = cmeta["sensorArrangment"];
   std::vector<double> cm1 = cmeta["colorMatrix1"];
   // std::vector<double> colorMatrix2 = cmeta["colorMatrix2"];
   // std::vector<double> fwd = cmeta["forwardMatrix1"];
   // std::vector<double> forwardMatrix2 = cmeta["forwardMatrix2"];
+  for(int k=0;k<4;k++) if(p_black[k] > 0) black[k] = p_black[k];
 
   mod->img_param = (dt_image_params_t) {
     .black          = {(float)black[0], (float)black[1], (float)black[2], (float)black[3]}, // XXX do we always get 4?
