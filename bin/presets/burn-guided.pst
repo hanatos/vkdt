@@ -23,6 +23,6 @@ connect:blend:dodge:output:colour:01:input
 param:blend:burn:opacity:1
 param:blend:burn:mode:0
 param:blend:burn:mask:1
-param:exposure:burn:exposure:2
+param:exposure:burn:exposure:-2
 param:draw:burn:opacity:1
 param:draw:burn:hardness:1

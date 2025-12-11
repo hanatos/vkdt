@@ -18,4 +18,4 @@ connect:blend:burn:output:colour:01:input
 param:blend:dodge:opacity:1
 param:blend:dodge:mode:0
 param:blend:dodge:mask:1
-param:exposure:dodge:exposure:-2
+param:exposure:dodge:exposure:2
