@@ -121,5 +121,10 @@
   cn0->connected_mi++;
   cn0->connected_mc = 0;
 
+  // reset to common default. this is rather an esoteric use case that usually requires
+  // custom create_nodes code to do the right thing (useful for concatenations of buffers as in unets).
+  // such code has to *first* connect, then overwrite the offset manually on the node connectors.
+  cn0->ssbo_offset = cn1->ssbo_offset = 0;
+
   return 0;
 }

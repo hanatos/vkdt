@@ -122,7 +122,7 @@ write_descriptor_sets(
               node - graph->node, c - node->connector, k, MIN(f, c->frames-1));
           int iii = cur_buf++;
           buf_info[iii].buffer = img->buffer;
-          buf_info[iii].offset = 0;
+          buf_info[iii].offset = c->ssbo_offset;
           buf_info[iii].range  = img->size;
         }
         int dset = cur_dset++;
@@ -207,7 +207,7 @@ write_descriptor_sets(
           { // storage buffer
             int iii = cur_buf++;
             buf_info[iii].buffer = img->buffer;
-            buf_info[iii].offset = 0;
+            buf_info[iii].offset = c->ssbo_offset;
             buf_info[iii].range  = img->size;
           }
           else
