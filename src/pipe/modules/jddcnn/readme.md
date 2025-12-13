@@ -2,7 +2,7 @@
 
 this implements an integrated cnn denoiser based on Attila Afra's open image
 denoise architecture. in particular this is compatile with [the weights
-produced by this fork here.](https://codeberg.org/hanatos/oidn/src/branch/main/training).
+produced by this fork here](https://codeberg.org/hanatos/oidn/src/branch/main/training).
 the fork introduces minor differences to the u-net, mainly leaky relu
 parameter, channel counts, and pixel shuffles on both ends to account for bayer
 patters. note that this does not work with fuji xtrans or full colour images.
@@ -16,7 +16,9 @@ image by piratenpanda (pixls.us), CC-BY-SA
 the weights are read from `~/.config/vkdt/data/jddcnn-weights-heavy.dat` or,
 for the slightly more light-weight variant with only 16 base channels
 `~/.config/vkdt/data/jddcnn-weights-light.dat`.
-download links will follow once the training converged.
+download links:
+* [heavy](https://github.com/hanatos/vkdt/releases/download/1.0.0/jddcnn-weights-heavy.dat)
+* [light](https://github.com/hanatos/vkdt/releases/download/1.0.0/jddcnn-weights-light.dat)
 
 in the pipeline it replaces denoising and demosaicing.
 the input is rggb bayer data in four planes of half resolution, scaled to the
@@ -35,7 +37,7 @@ after input device transform in the `colour` module) and then do the rest of
 the grading on the exr for faster interaction.
 
 the `light` version of the net tends to be less sharp, but is much faster and
-also avoids some psychedelic halucination problems of the heavy one.
+also avoids some psychedelic hallucination problems of the heavy one.
 
 as a sidenote, [working with neural networks is pretty exciting](https://youtu.be/4h-wVe9a6rQ?t=116).
 
