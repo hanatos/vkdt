@@ -56,7 +56,9 @@ dt_graph_get_resource_filename(
   return 0;
 }
 
+#ifdef __ANDROID__
 static int dt_res_mod = 0;
+#endif
 // open directory in either home or in basedir/apk
 // note: for android, this is *not thread-safe*!
 static inline void*
