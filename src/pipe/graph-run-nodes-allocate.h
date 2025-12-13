@@ -123,7 +123,7 @@ write_descriptor_sets(
           int iii = cur_buf++;
           buf_info[iii].buffer = img->buffer;
           buf_info[iii].offset = c->ssbo_offset;
-          buf_info[iii].range  = img->size;
+          buf_info[iii].range  = img->size-c->ssbo_offset;
         }
         int dset = cur_dset++;
         img_dset[dset].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -208,7 +208,7 @@ write_descriptor_sets(
             int iii = cur_buf++;
             buf_info[iii].buffer = img->buffer;
             buf_info[iii].offset = c->ssbo_offset;
-            buf_info[iii].range  = img->size;
+            buf_info[iii].range  = img->size-c->ssbo_offset;
           }
           else
           { // image buffer
