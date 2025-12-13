@@ -30,8 +30,8 @@ settings in `bin/config.mk` when issuing `make release`.
 to generate it for local testing purposes without pushing the tag
 to the public repository, (c)
 ```
-git tag -s '1.0.0' -m "this is release 1.0.0"
-git push dreggn 1.0.0
+git tag -s '1.0.1' -m "this is release 1.0.1"
+git push dreggn 1.0.1
 git fetch --all --tags
 ```
 
@@ -49,8 +49,8 @@ cat src/core/version.h
 
 ```
 cd /tmp
-tar xvJf vkdt-1.0.0.tar.xz
-cd vkdt-1.0.0/
+tar xvJf vkdt-1.0.1.tar.xz
+cd vkdt-1.0.1/
 make -j20
 DESTDIR=/tmp/testrel make install
 /tmp/testrel/usr/bin/vkdt
@@ -64,10 +64,10 @@ packages from github nightly ci.
 
 ## upload
 
-(g) push to public: `git push origin 1.0.0 release-1.0`
+(g) push to public: `git push origin 1.0.1 release-1.0`
 
 (h) sign the tarball:
-`gpg -u jo@dreggn.org --detach-sign vkdt-1.0.0.tar.xz`
+`gpg -u jo@dreggn.org --detach-sign vkdt-1.0.1.tar.xz`
 
 (i) github release announcement
 
