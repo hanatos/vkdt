@@ -755,7 +755,7 @@ dt_gui_toggle_fullscreen()
     glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
     int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
     int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
-    glfwSetWindowMonitor(vkdt.win.window, 0, 0, 0, wd, ht, mode->refreshRate);
+    glfwSetWindowMonitor(vkdt.win.window, 0, wd*1/6, ht*1/6, wd, ht, mode->refreshRate);
     vkdt.win.fullscreen = 0;
   }
   else
