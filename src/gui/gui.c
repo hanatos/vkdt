@@ -93,7 +93,7 @@ dt_gui_win_init(dt_gui_win_t *win)
 
   // in fact this doesn't matter, on startup we'll resize after the first present:
   int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
-  int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
+  int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));\
   win->width  = wd;
   win->height = ht;
   win->xpos_restore   = wd/6;
