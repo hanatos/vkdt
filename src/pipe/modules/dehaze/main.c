@@ -22,6 +22,23 @@ void cleanup(dt_module_t *mod)
   mod->data = 0;
 }
 
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    uint32_t     num,
+    void        *oldval)
+{
+  const int pid_rad = dt_module_get_param(module->so, dt_token("radius"));
+  if(parid == pid_rad)
+  { // guided filter blur radius
+    float oldrad = *(float*)oldval;
+    float newrad = dt_module_param_float(module, parid)[0];
+    return dt_api_blur_check_params(oldrad, newrad);
+  }
+  return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
+}
+
 void commit_params(dt_graph_t *graph, dt_module_t *mod)
 { // let guided filter know we updated the push constants:
   moddata_t *dat = mod->data;
@@ -30,7 +47,6 @@ void commit_params(dt_graph_t *graph, dt_module_t *mod)
       graph->node[dat->id_guided].kernel == dt_token("guided2f"))
     memcpy(graph->node[dat->id_guided].push_constant, radius, sizeof(float)*2);
 }
-
 
 void
 create_nodes(

@@ -670,13 +670,14 @@ dt_api_guided_filter_full(
   const uint32_t ht = roi->ht;
   const uint32_t dp = 1;
   const float radius_px = params[0] * wd;
+  dt_token_t format = conn_input->format;
 
   // compute (I,p,I*I,I*p)
   const int id_guided1 = dt_node_add(graph, module, "shared", "guided1f", wd, ht, dp,
       sizeof(int), &grey, 3,
       "input",  "read",  "*",    "*",   dt_no_roi,
       "guide",  "read",  "*",    "*",   dt_no_roi,
-      "output", "write", "rgba", "f16", roi);
+      "output", "write", "rgba", dt_token_str(format), roi);
   if(id_in) *id_in = id_guided1;
 
   // mean_I  = blur(I)
@@ -692,7 +693,7 @@ dt_api_guided_filter_full(
   const int id_guided2 = dt_node_add(graph, module, "shared", "guided2f", wd, ht, dp,
       sizeof(float)*2, (const int*)params, 2,
       "input", "read",  "*",  "*",   dt_no_roi,
-      "ab",    "write", "rg", "f16", roi);
+      "ab",    "write", "rg", dt_token_str(format), roi);
   CONN(dt_node_connect_named(graph, id_blur1, "output", id_guided2, "input"));
   if(id_pc) *id_pc = id_guided2;
 
@@ -706,7 +707,7 @@ dt_api_guided_filter_full(
       sizeof(int), &grey, 3,
       "input",  "read",  "*",    "*",   dt_no_roi,
       "ab",     "read",  "*",    "*",   dt_no_roi,
-      "output", "write", grey ? "r" : "rgba", "f16", roi);
+      "output", "write", grey ? "r" : "rgba", dt_token_str(format), roi);
   CONN(dt_node_connect_named(graph, id_blur, "output", id_guided3, "ab"));
   if(id_out) *id_out = id_guided3;
   if(nodeid_guide >= 0)
