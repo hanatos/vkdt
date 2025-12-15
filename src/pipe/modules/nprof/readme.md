@@ -1,7 +1,7 @@
 # nprof: estimate parameters for noise profiling
 
 this output module fits a gaussian/poissonian noise model and creates noise
-profile files to be stored in `~/.config/vkdt/nprof` or `data/nprof/` and read back in by `vkdt`.
+profile files to be stored in `~/.config/vkdt/nprof` or `nprof/` and read back in by `vkdt`.
 
 ## parameters
 

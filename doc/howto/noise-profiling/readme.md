@@ -6,7 +6,7 @@ standard noise reduction is done by the
 [default denoise module](../../../src/pipe/modules/denoise/readme.md).
 it makes use of a noise model to use as a prior for the expected amount of
 noise in the image, depending on iso value. this model can be tweaked manually
-by changing the `noise_a` and `noise_b` parameters in the
+by changing the `noise a` and `noise b` parameters in the
 [raw input module](../../../src/pipe/modules/i-raw/readme.md).
 just up the sliders until the perceived amount of noise in the image is
 lowered enough while still preserving good detail.
@@ -53,7 +53,7 @@ signal variance).
 note that the same considerations with regard to good profiling shots hold as
 they did for darktable previously (cover all dynamic range, out of focus). on
 the other hand the new outlier rejection scheme seems to be a lot more robust,
-and profiling the raw raw data has the advantage that *black stripes* outside
+and profiling the raw data has the advantage that *black stripes* outside
 the crop window contribute to a good estimate of the gaussian portion. as a
 result i could pretty much use any shot i wanted to denoise out of the box for
 single-shot noise profiling, without the need for dedicated profiling shots.
@@ -63,13 +63,15 @@ single-shot noise profiling, without the need for dedicated profiling shots.
 for quick and dirty profiling of single shots, `vkdt` supplies a preset:
 `noise-profile.pst`. apply this on the graph (press `ctrl-p` in darkroom or
 node editor view), it will add a raw histogram (`rawhist` module) as well as a
-noise profiling module `nprof`. this `nprof` module contains two buttons
+[noise profiling module `nprof`](../../../src/pipe/modules/nprof/readme.md).
+this `nprof` module contains two buttons
 that allow you to test the newly created profile locally as well as install it
 for later automatic application in your home directory. the raw histogram
 can be used to inspect the quality of the profile as described above.
 
 you want to remove the `rawhist` module from the `i-raw` module after finishing
-the profiling process for performance reasons.
+the profiling process for performance reasons. there is a third button in the `nprof`
+ui to accomplish just that.
 
 ## contributing noise profiles
 
