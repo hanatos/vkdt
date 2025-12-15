@@ -50,7 +50,7 @@ framebuffer_size_callback(GLFWwindow* w, int width, int height)
   if(w == vkdt.win1.window) win = &vkdt.win1;
   if(width != win->width || height != win->height)
   {
-    win->width = width; win->height = height;
+    // win->width = width; win->height = height;
     dt_gui_recreate_swapchain(win);
     nk_glfw3_resize(w, win->width, win->height);
   }
@@ -93,7 +93,11 @@ dt_gui_win_init(dt_gui_win_t *win)
 
   // in fact this doesn't matter, on startup we'll resize after the first present:
   int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
-  int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
+  int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));\
+  win->width  = wd;
+  win->height = ht;
+  win->xpos_restore   = wd/6;
+  win->ypos_restore   = ht/6;
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   // glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
   // glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
@@ -106,8 +110,8 @@ dt_gui_win_init(dt_gui_win_t *win)
   // glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_FALSE); // correct events, blurry appearance
   glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE); // broken events, sharp render
 #endif
-  win->window = glfwCreateWindow(wd, ht, "vkdt", NULL, NULL);
-  glfwSetWindowPos(win->window, wd/8, ht/8);
+  win->window = glfwCreateWindow(win->width, win->height, "vkdt", NULL, NULL);
+  glfwSetWindowPos(win->window, win->xpos_restore, win->ypos_restore);
   glfwGetFramebufferSize(win->window, &win->width, &win->height);
   glfwSetWindowSizeCallback(win->window, window_size_callback);
   glfwSetFramebufferSizeCallback(win->window, framebuffer_size_callback);

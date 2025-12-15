@@ -338,7 +338,17 @@ int main(int argc, char *argv[])
       dt_gui_present();
 
     static int bs = 1;
-    if(bs) { dt_gui_toggle_fullscreen(); bs = 0; }
+    // if(bs) { dt_gui_toggle_fullscreen(); bs = 0; }
+    if (bs) {
+      bs = 0;
+      // set the windowed mode size from saved rc values and center it on the current monitor
+      GLFWmonitor* monitor = dt_gui_get_current_monitor(vkdt.win.window);
+      const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+      int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
+      int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
+      glfwSetWindowMonitor(vkdt.win.window, 0, wd/6, ht/6, wd, ht, mode->refreshRate);
+      vkdt.win.fullscreen = 0;
+    }
   }
   if(joystick_present) pthread_join(joystick_thread, 0);
 

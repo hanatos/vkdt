@@ -752,14 +752,19 @@ dt_gui_toggle_fullscreen()
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
   if(vkdt.win.fullscreen)
   {
+    // restore last window size and position
     glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
-    int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
-    int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
-    glfwSetWindowMonitor(vkdt.win.window, 0, wd*1/6, ht*1/6, wd, ht, mode->refreshRate);
+    // int wd = MIN(3*mode->width/4,  dt_rc_get_int(&vkdt.rc, "gui/wd", 3*mode->width/4));
+    // int ht = MIN(3*mode->height/4, dt_rc_get_int(&vkdt.rc, "gui/ht", 3*mode->height/4));
+    // glfwSetWindowMonitor(vkdt.win.window, 0, wd*1/6, ht*1/6, wd, ht, mode->refreshRate);
+    glfwSetWindowMonitor(vkdt.win.window, NULL, vkdt.win.xpos_restore, vkdt.win.ypos_restore, vkdt.win.width_restore, vkdt.win.height_restore, mode->refreshRate);
     vkdt.win.fullscreen = 0;
   }
   else
   {
+    // backup window position and size
+    glfwGetWindowSize(vkdt.win.window, &vkdt.win.width_restore, &vkdt.win.height_restore);
+    glfwGetWindowPos(vkdt.win.window, &vkdt.win.xpos_restore, &vkdt.win.ypos_restore);
     glfwSetWindowMonitor(vkdt.win.window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
     vkdt.win.fullscreen = 1;
   }

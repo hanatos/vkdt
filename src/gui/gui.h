@@ -133,6 +133,10 @@ typedef struct dt_gui_win_t
   GLFWwindow        *window;
   int                width;
   int                height;
+  int                width_restore;
+  int                height_restore;
+  int                xpos_restore;
+  int                ypos_restore;
   float              content_scale[2]; // cached content scale factor
 
   VkSurfaceKHR       surface;
