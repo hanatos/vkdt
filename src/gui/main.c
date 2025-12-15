@@ -338,7 +338,6 @@ int main(int argc, char *argv[])
       dt_gui_present();
 
     static int bs = 1;
-    // if(bs) { dt_gui_toggle_fullscreen(); bs = 0; }
     if (bs) {
       bs = 0;
       // set the windowed mode size from saved rc values and center it on the current monitor
