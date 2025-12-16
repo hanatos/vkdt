@@ -482,9 +482,13 @@ fs_expand_import_filename(
 {
   char date[10] = {0}, yyyy[5] = {0};
 #ifdef _WIN64
-#warning "port me! (year, date)"
   char home[MAX_PATH];
   SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
+  time_t t = time(0);
+  struct tm result;
+  localtime_s(&result, &t);
+  strftime(date, sizeof(date), "%Y%m%d", &result);
+  strftime(yyyy, sizeof(yyyy), "%Y", &result);
 #else
   char *home = getenv("HOME");
   time_t t = time(0);
@@ -514,9 +518,13 @@ fs_expand_export_filename(
   fs_dirname(filename);
   char date[10] = {0}, yyyy[5] = {0}, istr[5] = {0};
 #ifdef _WIN64
-#warning "port me! (year and date)"
   char home[MAX_PATH];
   SHGetFolderPath(0, CSIDL_PROFILE, 0, 0, home);
+  time_t t = time(0);
+  struct tm result;
+  localtime_s(&result, &t);
+  strftime(date, sizeof(date), "%Y%m%d", &result);
+  strftime(yyyy, sizeof(yyyy), "%Y", &result);
 #else
   char *home = getenv("HOME");
   time_t t = time(0);
