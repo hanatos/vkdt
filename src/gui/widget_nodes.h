@@ -627,4 +627,18 @@ dt_node_editor(
     nedit->scroll.x -= in->mouse.delta.x/(nedit->zoom*nedit->dpi_scale);
     nedit->scroll.y -= in->mouse.delta.y/(nedit->zoom*nedit->dpi_scale);
   }
+
+  if (glfwGetKey(vkdt.win.window, GLFW_KEY_DELETE) == GLFW_PRESS ||
+      glfwGetKey(vkdt.win.window, GLFW_KEY_BACKSPACE) == GLFW_PRESS)
+  { // delete selected modules
+    int sel_node_cnt = dt_node_editor_selection(nedit, &vkdt.graph_dev, 0);
+    int *sel_node_id  = (int *)alloca(sizeof(int)*sel_node_cnt);
+    dt_node_editor_selection(nedit, &vkdt.graph_dev, sel_node_id);
+    if(sel_node_cnt)
+    {
+      dt_node_editor_clear_selection(nedit);
+      for(int i=0;i<sel_node_cnt;i++)
+        dt_gui_dr_remove_module(sel_node_id[i]);
+    }
+  }
 }
