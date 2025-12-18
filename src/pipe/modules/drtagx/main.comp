@@ -1,0 +1,126 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float awp_contrast;
+  float awp_toe_a;
+  float awp_slope;
+  float awp_w;
+  float awp_shoulder_max;
+} params;
+
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+// layout(set = 1, binding = 2) uniform writeonly image2D img_crv;
+
+
+// allenwp tonemapping curve; developed for use in the Godot game engine.
+// Source and details: https://allenwp.com/blog/2025/05/29/allenwp-tonemapping-curve/
+// Input must be a non-negative linear scene value.
+vec3 allenwp_curve(vec3 x) {
+	// These constants must match the those in the C++ code that calculates the parameters.
+	// 18% "middle gray" is perceptually 50% of the brightness of reference white.
+	// const float awp_crossover_point = 0.18;
+  const float awp_crossover_point = 0.1841865;
+
+	float awp_contrast = params.awp_contrast;
+	float awp_toe_a = params.awp_toe_a;
+	float awp_slope = params.awp_slope;
+	float awp_w = params.awp_w;
+  float awp_shoulder_max = params.awp_shoulder_max;
+
+  x = max(x, 0.0); // Negative input causes undefined behaviour from pow function!
+
+	// Reinhard-like shoulder:
+	vec3 s = x - awp_crossover_point;
+	vec3 slope_s = awp_slope * s;
+	s = slope_s * (1.0 + s / awp_w) / (1.0 + (slope_s / awp_shoulder_max));
+	s += awp_crossover_point;
+
+	// Sigmoid power function toe:
+	vec3 t = pow(x, vec3(awp_contrast));
+	t = t / (t + awp_toe_a);
+
+	return mix(s, t, lessThan(x, vec3(awp_crossover_point)));
+}
+
+
+// https://iolite-engine.com/blog_posts/minimal_agx_implementation
+// Mean error^2: 3.6705141e-06
+vec3 agx_curve_approx( vec3 x ) {
+	vec3 x2 = x * x;
+	vec3 x4 = x2 * x2;
+	return + 15.5 * x4 * x2
+		- 40.14 * x4 * x
+		+ 31.96 * x4
+		- 6.868 * x2 * x
+		+ 0.4298 * x2
+		+ 0.1191 * x
+		- 0.00232;
+}
+
+// AGX Tone Mapping implementation based on Filament, which is in turn based
+// on Blender's implementation for rec 2020 colors:
+// https://github.com/google/filament/pull/7236
+
+vec3 agx( vec3 color ) {
+	// AgX constants
+	const mat3 agx_mat = mat3(
+		vec3( 0.856627153315983, 0.137318972929847, 0.11189821299995 ),
+		vec3( 0.0951212405381588, 0.761241990602591, 0.0767994186031903 ),
+		vec3( 0.0482516061458583, 0.101439036467562, 0.811302368396859 )
+	);
+	// explicit agx_mat_inv generated from google/Filament
+	const mat3 agx_mat_inv = mat3(
+		vec3( 1.1271005818144368, - 0.1413297634984383, - 0.14132976349843826 ),
+		vec3( - 0.11060664309660323, 1.157823702216272, - 0.11060664309660294 ),
+		vec3( - 0.016493938717834573, - 0.016493938717834257, 1.2519364065950405 )
+	);
+	// LOG2_MIN      = -10.0
+	// LOG2_MAX      =  +6.5
+	// MIDDLE_GRAY   =  0.18
+	const float min_ev = -12.47393;  // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
+	const float max_ev =   4.026069; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
+
+	color = agx_mat * color;
+	
+  // Log2 space encoding
+	color = max(color, vec3(1e-10)); // avoid 0 or negative numbers for log2
+	color = log2(color);
+	color = ( color - min_ev ) / ( max_ev - min_ev );
+	color = clamp(color, 0.0, 1.0);
+
+	// Apply sigmoid
+	color = agx_curve_approx(color);
+  // color = allenwp_curve(color);
+
+
+	color = agx_mat_inv * color;
+
+	// Linearize
+  // color may have negative components, clamp to zero before pow
+  color = max( vec3( 0.0 ), color );
+	color = pow( color, vec3( 2.4 ) );
+
+	return color;
+}
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  vec3 col0 = texelFetch(img_in, ipos, 0).rgb;
+
+  vec3 col1 = agx(col0);
+
+  imageStore(img_out, ipos, vec4(col1, 1));
+}
+
