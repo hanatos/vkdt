@@ -8,7 +8,7 @@ the curve is parametric and uses the [weibull distribution](https://en.wikipedia
 * `light` change the overall brightness of the output. this is the reciprocal lambda parameter of the weibull distribution
 * `contrast` contrast of the output. this is the k parameter of the weibull distribution
 * `bias` offset to add to black pixels. use to lift for low contrast renders and to correct elevated raw black level
-* `colour` how to reconstruct colour after applying the curve to the brightness channel. darktable ucs has in general better colours, but hsl is more robust for edge cases near black. munsell is data driven and navigates brightess by munsell coordinates.
+* `colour` how to reconstruct colour after applying the curve to the brightness channel. darktable ucs has in general better colours, but hsl is more robust for edge cases near black. munsell is data driven and navigates brightess by munsell coordinates. agx aims to replicate how film and human eyes perceive of light.
 
 ## connectors
 

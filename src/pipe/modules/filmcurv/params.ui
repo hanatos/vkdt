@@ -1,4 +1,4 @@
 light:slider:0:10
 contrast:slider:0:2
 bias:slider:0:0.02
-colour:combo:darktable ucs:per channel:munsell:hsl
+colour:combo:darktable ucs:per channel:munsell:hsl:agx
