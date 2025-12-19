@@ -6,7 +6,7 @@ void modify_roi_out(
 { // request something square for dspy output
   module->connector[2].roi.full_wd = 1024;
   module->connector[2].roi.full_ht = 1024;
-  // module->connector[1].roi = module->connector[0].roi; // output
+  module->connector[1].roi = module->connector[0].roi; // output
 }
 
 typedef struct agx_return_t
