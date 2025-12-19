@@ -133,7 +133,7 @@ void create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  const int nodeid = dt_node_add(graph, module, "drtagx", "main",
+  const int nodeid = dt_node_add(graph, module, "agx", "main",
       module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 3,
       "input",   "read",  "rgba", "f16",  dt_no_roi,
       "output",  "write", "rgba", "f16",  &module->connector[0].roi,

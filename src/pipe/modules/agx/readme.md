@@ -1,8 +1,9 @@
-# drtagx: agx display rendering transform
+# agx: agx display rendering transform
 
 this module applies a the AgX display rendering transform 
-that transform the image data from scene referred to display referred
- or presentation on a display device
+along with the allenwp tonemapping curve to transform the 
+image data from scene referred to display referred for 
+presentation on a display device.
 
 ## parameters
 
