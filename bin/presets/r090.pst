@@ -1,2 +1,3 @@
+# rotates the image 90 degrees
 param:crop:01:crop:0.12662:0.86625:-0.165485:1.15414
 param:crop:01:rotate:90

@@ -1,2 +1,3 @@
+# rotates the image 180 degrees
 param:crop:01:crop:0.00197266:0.989517:0.00250744:0.987061
 param:crop:01:rotate:180

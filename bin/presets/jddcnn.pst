@@ -1,0 +1,8 @@
+# wires the joint denoising and demosaicing cnn.
+# by default, the light model is chosen. see
+# [the jddcnn model](../../../src/pipe/modules/jddcnn/readme.md).
+module:jddcnn:01:393:200
+connect:denoise:01:output:jddcnn:01:input
+connect:jddcnn:01:output:crop:01:input
+param:denoise:01:strength:0
+param:jddcnn:01:model:1

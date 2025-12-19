@@ -1,2 +1,3 @@
+# rotates the image 0 degrees
 param:crop:01:crop:0:0.988066:0.000164495:0.989839
 param:crop:01:rotate:0
