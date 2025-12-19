@@ -18,7 +18,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
-// layout(set = 1, binding = 2) uniform writeonly image2D img_crv;
+layout(set = 1, binding = 2) uniform writeonly image2D img_crv;
 
 
 // allenwp tonemapping curve; developed for use in the Godot game engine.
@@ -51,9 +51,13 @@ vec3 allenwp_curve(vec3 x) {
 	return mix(s, t, lessThan(x, vec3(awp_crossover_point)));
 }
 
+float allenwp_curve(float x) {
+  return allenwp_curve(vec3(x)).r;
+}
 
 // https://iolite-engine.com/blog_posts/minimal_agx_implementation
 // Mean error^2: 3.6705141e-06
+// expects log2 space encoding
 vec3 agx_curve_approx( vec3 x ) {
 	vec3 x2 = x * x;
 	vec3 x4 = x2 * x2;
@@ -71,7 +75,8 @@ vec3 agx_curve_approx( vec3 x ) {
 // https://github.com/google/filament/pull/7236
 
 vec3 agx( vec3 color ) {
-	// AgX constants
+	// AgX inset and outset constants
+  // generated from https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBaseRec2020.py
 	const mat3 agx_mat = mat3(
 		vec3( 0.856627153315983, 0.137318972929847, 0.11189821299995 ),
 		vec3( 0.0951212405381588, 0.761241990602591, 0.0767994186031903 ),
@@ -91,26 +96,48 @@ vec3 agx( vec3 color ) {
 
 	color = agx_mat * color;
 	
-  // Log2 space encoding
-	color = max(color, vec3(1e-10)); // avoid 0 or negative numbers for log2
-	color = log2(color);
-	color = ( color - min_ev ) / ( max_ev - min_ev );
-	color = clamp(color, 0.0, 1.0);
-
+  // log2 space encoding
+	// color = max(color, vec3(1e-10)); // avoid 0 or negative numbers for log2
+	// color = log2(color);
+	// color = ( color - min_ev ) / ( max_ev - min_ev );
+	// color = clamp(color, 0.0, 1.0);
 	// Apply sigmoid
-	color = agx_curve_approx(color);
-  // color = allenwp_curve(color);
+	// color = agx_curve_approx(color);
 
+  color = allenwp_curve(color);
 
 	color = agx_mat_inv * color;
 
 	// Linearize
   // color may have negative components, clamp to zero before pow
-  color = max( vec3( 0.0 ), color );
-	color = pow( color, vec3( 2.4 ) );
+  // color = max( vec3( 0.0 ), color );
+	// color = pow( color, vec3( 2.4 ) );
 
 	return color;
 }
+
+// https://www.shadertoy.com/view/stVcDz
+float implicit(float x, float y) { return allenwp_curve(x) - y; }
+float delf_delx(float x, float y)
+{ 
+    /* Numeric derivative. */
+    const float dx=0.001;
+    return ( implicit(x+dx, y)-implicit(x-dx, y) ) / (2.*dx);
+    /* Analytic derivative. *
+    return 2.*x;
+    /**/
+}
+float delf_dely(float x, float y) 
+{ 
+    /* Numeric derivative. */
+    const float dy=0.001;
+    return ( implicit(x, y+dy)-implicit(x, y-dy) ) / (2.*dy);
+    /* Analytic derivative. *
+    return 2.*y;
+    /**/
+}
+vec2 implicit_gradient(float x, float y) { return vec2(delf_delx(x, y), delf_dely(x, y)); }
+float draw_implicit_func(float unit, float fxy, vec2 grad) { return smoothstep(unit, 0.0, abs(fxy) / length(grad)); } // L2-norm
 
 void
 main()
@@ -122,5 +149,24 @@ main()
   vec3 col1 = agx(col0);
 
   imageStore(img_out, ipos, vec4(col1, 1));
+  
+  if(all(lessThan(ipos, imageSize(img_crv))))
+  {
+    vec2 origin = vec2(-0.5,-0.5);
+    const float scene_scale = 0.5;
+    float unit = 2.0 * scene_scale / float(imageSize(img_crv).y);
+
+    vec2 mouse = vec2(0.0, 0.0); // pan
+    // normalized device coordinates
+    vec2 ndc = ((2. * (ipos - mouse) - imageSize(img_crv).xy) / imageSize(img_crv).y) * scene_scale - origin;
+    ndc.y = 2.0 * abs(origin.y) - ndc.y; // flip y for correct orientation
+
+    vec3 col_crv = vec3(0.0);
+    float fxy = implicit(ndc.x, ndc.y);
+    vec2 grad = implicit_gradient(ndc.x, ndc.y);
+    col_crv = mix(col_crv, vec3(0.2), draw_implicit_func(unit, fxy, grad)); // L2-norm
+
+    imageStore(img_crv, ipos, vec4(col_crv, 1));
+  }
 }
 

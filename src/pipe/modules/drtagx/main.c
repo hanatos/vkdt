@@ -4,9 +4,9 @@ void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
 { // request something square for dspy output
-  // module->connector[2].roi.full_wd = 1024;
-  // module->connector[2].roi.full_ht = 1024;
-  module->connector[1].roi = module->connector[0].roi; // output
+  module->connector[2].roi.full_wd = 1024;
+  module->connector[2].roi.full_ht = 1024;
+  // module->connector[1].roi = module->connector[0].roi; // output
 }
 
 typedef struct agx_return_t
@@ -98,13 +98,6 @@ agx_return_t allenwp_curve_cpu_code(float awp_contrast, float awp_high_clip)
 	awp_w = awp_w * awp_slope;
 
 	// Use the allenwp curve to support variable / extended dynamic range (EDR, SDR, and HDR):
-// 	vec3 tonemapped = allenwp_curve(post_exposure_linear_scene_rgb,
-// 		output_max_value,
-// 		awp_contrast,
-// 		awp_toe_a,
-// 		awp_slope,
-// 		awp_w,
-// 		awp_shoulder_max);
   agx_return_t ret;
   ret.awp_contrast = awp_contrast;
   ret.awp_toe_a = awp_toe_a;
@@ -141,9 +134,11 @@ void create_nodes(
     dt_module_t *module)
 {
   const int nodeid = dt_node_add(graph, module, "drtagx", "main",
-      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 2,
+      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 3,
       "input",   "read",  "rgba", "f16",  dt_no_roi,
-      "output",  "write", "rgba", "f16",  &module->connector[0].roi);
+      "output",  "write", "rgba", "f16",  &module->connector[0].roi,
+      "dspy",    "write", "rgba", "f16",  &module->connector[2].roi);
   dt_connector_copy(graph, module, 0, nodeid, 0);
   dt_connector_copy(graph, module, 1, nodeid, 1);
+  dt_connector_copy(graph, module, 2, nodeid, 2);
 }
