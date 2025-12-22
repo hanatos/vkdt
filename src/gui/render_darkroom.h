@@ -1321,19 +1321,27 @@ static inline void render_darkroom_widgets(
       int cid = dt_module_get_connector(arr+curr, dt_token("dspy"));
       if(cid >= 0)
       { // if 'dspy' output exists, connect to 'dspy' display
-        int mid = dt_module_add(graph, dt_token("display"), dt_token("dspy"));
-        if(graph->module[mid].connector[0].connected_mi != curr ||
-           graph->module[mid].connector[0].connected_mc != cid)
-        { // only if not connected yet, don't record in history
-          CONN(dt_module_connect(graph, curr, cid, mid, 0));
+        if(graph->module[curr].disabled)
+        { // if the module is disabled, disconnect
+          CONN(dt_module_connect(graph, curr, cid, -1, -1));
           vkdt.graph_dev.runflags = s_graph_run_all;
         }
-        if(mid >= 0)
-        { // scale output to match panel
-          const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
-          graph->module[mid].connector[0].max_wd = pwd;
-          graph->module[mid].connector[0].max_ht = pwd;
-          vkdt.graph_dev.runflags = s_graph_run_all;
+        else
+        {
+          int mid = dt_module_add(graph, dt_token("display"), dt_token("dspy"));
+          if(graph->module[mid].connector[0].connected_mi != curr ||
+             graph->module[mid].connector[0].connected_mc != cid)
+          { // only if not connected yet, don't record in history
+            CONN(dt_module_connect(graph, curr, cid, mid, 0));
+            vkdt.graph_dev.runflags = s_graph_run_all;
+          }
+          if(mid >= 0)
+          { // scale output to match panel
+            const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
+            graph->module[mid].connector[0].max_wd = pwd;
+            graph->module[mid].connector[0].max_ht = pwd;
+            vkdt.graph_dev.runflags = s_graph_run_all;
+          }
         }
       }
       active = 1;
