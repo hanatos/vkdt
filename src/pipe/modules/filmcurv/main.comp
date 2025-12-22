@@ -44,51 +44,51 @@ weibull_cdf(vec3 x, float il, float k)
 
 float lerp_chromaticity_angle(float h1, float h2, float t)
 {
-    float delta = h2 - h1;
-    if (delta > M_PI)
-    {
-        h2 -= 2.0 * M_PI;  // Go the reverse direction
-    }
-    else if (delta < -M_PI)
-    {
-        h2 += 2.0 * M_PI;  // Go the reverse direction
-    }
-    float lerped = h1 + t * (h2 - h1);
-    return mod(lerped, 2.0 * M_PI);  // Wrap around at 2*pi
+  float delta = h2 - h1;
+  if (delta > M_PI)
+  {
+    h2 -= 2.0 * M_PI;  // Go the reverse direction
+  }
+  else if (delta < -M_PI)
+  {
+    h2 += 2.0 * M_PI;  // Go the reverse direction
+  }
+  float lerped = h1 + t * (h2 - h1);
+  return mod(lerped, 2.0 * M_PI);  // Wrap around at 2*pi
 }
 
 
 vec3 
 agx(vec3 color, float il, float k)
 {
-	// AgX inset and outset constants
+  // AgX inset and outset constants
   // generated from https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBaseRec2020.py
-	const mat3 agx_mat = mat3(
-		vec3( 0.856627153315983, 0.137318972929847, 0.11189821299995 ),
-		vec3( 0.0951212405381588, 0.761241990602591, 0.0767994186031903 ),
-		vec3( 0.0482516061458583, 0.101439036467562, 0.811302368396859 )
-	);
-	const mat3 agx_mat_inv = mat3(
-		vec3( 1.1271005818144368, - 0.1413297634984383, - 0.14132976349843826 ),
-		vec3( - 0.11060664309660323, 1.157823702216272, - 0.11060664309660294 ),
-		vec3( - 0.016493938717834573, - 0.016493938717834257, 1.2519364065950405 )
-	);
-	color = agx_mat * color;
+  const mat3 agx_mat = mat3(
+      vec3( 0.856627153315983, 0.137318972929847, 0.11189821299995 ),
+      vec3( 0.0951212405381588, 0.761241990602591, 0.0767994186031903 ),
+      vec3( 0.0482516061458583, 0.101439036467562, 0.811302368396859 )
+      );
+  const mat3 agx_mat_inv = mat3(
+      vec3( 1.1271005818144368, - 0.1413297634984383, - 0.14132976349843826 ),
+      vec3( - 0.11060664309660323, 1.157823702216272, - 0.11060664309660294 ),
+      vec3( - 0.016493938717834573, - 0.016493938717834257, 1.2519364065950405 )
+      );
+  color = agx_mat * color;
 
   // similar hack to https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBaseRec2020.py
   float mix_percent = 0.4;
   vec3 color0_hsv = rgb2hsv(color);
 
-	// Apply curve
+  // Apply curve
   color = weibull_cdf(color, il, k);
-  
+
   vec3 color1_hsv = rgb2hsv(color);
   color1_hsv[0] = lerp_chromaticity_angle(color0_hsv[0], color1_hsv[0], mix_percent);
   color = hsv2rgb(color1_hsv);
 
-	color = agx_mat_inv * color;
+  color = agx_mat_inv * color;
 
-	return color;
+  return color;
 }
 
 void
@@ -162,4 +162,3 @@ main()
 
   imageStore(img_out, ipos, vec4(col1, 1));
 }
-

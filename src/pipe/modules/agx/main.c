@@ -1,4 +1,5 @@
 #include "modules/api.h"
+#include "core/core.h"
 
 void modify_roi_out(
     dt_graph_t *graph,
@@ -19,86 +20,86 @@ typedef struct agx_return_t
 } agx_return_t;
 
 /*
-Copyright (c) 2025 Allen Pestaluky
+   Copyright (c) 2025 Allen Pestaluky
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+ */
 
 // allenwp tonemapping curve; developed for use in the Godot game engine
 // Source and details: https://allenwp.com/blog/2025/05/29/allenwp-tonemapping-curve/
 agx_return_t allenwp_curve_cpu_code(float awp_contrast, float awp_high_clip)
 {
-	// TODO: Run this part of the allenwp tonemapping curve code on the
-	// CPU and pass in the calculated parameters as uniforms.
+  // TODO: Run this part of the allenwp tonemapping curve code on the
+  // CPU and pass in the calculated parameters as uniforms.
 
-	// allenwp tonemapping curve user parameters:
-	// float awp_contrast = 1.25; // Should be 1.0 or larger
-	// float awp_high_clip = 16.0; // Can be adjusted based the expected input range
+  // allenwp tonemapping curve user parameters:
+  // float awp_contrast = 1.25; // Should be 1.0 or larger
+  // float awp_high_clip = 16.0; // Can be adjusted based the expected input range
 
-	// This constant must match the one in the shader code.
-	// 18% "middle grey" is perceptually 50% of the lightness of reference white.
-	const float awp_crossover_point = 0.1841865;
+  // This constant must match the one in the shader code.
+  // 18% "middle grey" is perceptually 50% of the lightness of reference white.
+  const float awp_crossover_point = 0.1841865;
 
-	// Use one of the following four approaches to get your output_max_value:
+  // Use one of the following four approaches to get your output_max_value:
 
-	// 1) SDR
-	float reference_white_luminance_nits = 100.0;
-	float max_luminance_nits = 100.0;
-	float output_max_value = max_luminance_nits / reference_white_luminance_nits;
+  // 1) SDR
+  float reference_white_luminance_nits = 100.0;
+  float max_luminance_nits = 100.0;
+  float output_max_value = max_luminance_nits / reference_white_luminance_nits;
 
-	// 2) Traditional HDR
-	//float reference_white_luminance_nits = 100.0;
-	//float max_luminance_nits = 1000.0;
-	//float output_max_value = max_luminance_nits / reference_white_luminance_nits;
+  // 2) Traditional HDR
+  //float reference_white_luminance_nits = 100.0;
+  //float max_luminance_nits = 1000.0;
+  //float output_max_value = max_luminance_nits / reference_white_luminance_nits;
 
-	// 3) Variable Extended Dynamic Range (EDR) on Apple
-	//float output_max_value = maximumExtendedDynamicRangeColorComponentValue;
+  // 3) Variable Extended Dynamic Range (EDR) on Apple
+  //float output_max_value = maximumExtendedDynamicRangeColorComponentValue;
 
-	// 4) Variable Extended Dynamic Range (EDR) on Windows or similar
-	//float reference_white_luminance_nits = get_sdr_content_brightness_nits();
-	//float max_luminance_nits = get_max_luminance_nits();
-	//float output_max_value = max_luminance_nits / reference_white_luminance_nits;
+  // 4) Variable Extended Dynamic Range (EDR) on Windows or similar
+  //float reference_white_luminance_nits = get_sdr_content_brightness_nits();
+  //float max_luminance_nits = get_max_luminance_nits();
+  //float output_max_value = max_luminance_nits / reference_white_luminance_nits;
 
-	// Calculate allenwp tonemapping curve parameters on the CPU to improve shader performance:
+  // Calculate allenwp tonemapping curve parameters on the CPU to improve shader performance:
 
-	// Ensure that the Reinhard-like shoulder always behaves nicely in EDR across
-	// all ranges of output_max_value (such as when awp_high_clip is less than output_max_value):
-	awp_high_clip = max(awp_high_clip, output_max_value);
-	// Instead of constraining to output_max_value, choose a min_high_clip
-	// that creates the desired non-uniform scaling behaviour in the shoulder
-	// and maintain that behaviour by multiplying by output_max_value.
-	// awp_high_clip = max(awp_high_clip, min_high_clip);
-	// awp_high_clip *= output_max_value;
+  // Ensure that the Reinhard-like shoulder always behaves nicely in EDR across
+  // all ranges of output_max_value (such as when awp_high_clip is less than output_max_value):
+  awp_high_clip = MAX(awp_high_clip, output_max_value);
+  // Instead of constraining to output_max_value, choose a min_high_clip
+  // that creates the desired non-uniform scaling behaviour in the shoulder
+  // and maintain that behaviour by multiplying by output_max_value.
+  // awp_high_clip = MAX(awp_high_clip, min_high_clip);
+  // awp_high_clip *= output_max_value;
 
-	// awp_toe_a is a solution generated by Mathematica that ensures intersection at awp_crossover_point
-	float awp_toe_a = ((1.0 / awp_crossover_point) - 1.0) * pow(awp_crossover_point, awp_contrast);
-	// Slope formula is simply the derivative of the toe function with an input of awp_crossover_point
-	float awp_slope_denom = pow(awp_crossover_point, awp_contrast) + awp_toe_a;
-	float awp_slope = (awp_contrast * pow(awp_crossover_point, awp_contrast - 1.0) * awp_toe_a) / (awp_slope_denom * awp_slope_denom);
+  // awp_toe_a is a solution generated by Mathematica that ensures intersection at awp_crossover_point
+  float awp_toe_a = ((1.0 / awp_crossover_point) - 1.0) * pow(awp_crossover_point, awp_contrast);
+  // Slope formula is simply the derivative of the toe function with an input of awp_crossover_point
+  float awp_slope_denom = pow(awp_crossover_point, awp_contrast) + awp_toe_a;
+  float awp_slope = (awp_contrast * pow(awp_crossover_point, awp_contrast - 1.0) * awp_toe_a) / (awp_slope_denom * awp_slope_denom);
 
-	float awp_shoulder_max = output_max_value - awp_crossover_point;
-	float awp_w = awp_high_clip - awp_crossover_point;
-	awp_w = awp_w * awp_w;
-	awp_w = awp_w / awp_shoulder_max;
-	awp_w = awp_w * awp_slope;
+  float awp_shoulder_max = output_max_value - awp_crossover_point;
+  float awp_w = awp_high_clip - awp_crossover_point;
+  awp_w = awp_w * awp_w;
+  awp_w = awp_w / awp_shoulder_max;
+  awp_w = awp_w * awp_slope;
 
-	// Use the allenwp curve to support variable / extended dynamic range (EDR, SDR, and HDR):
+  // Use the allenwp curve to support variable / extended dynamic range (EDR, SDR, and HDR):
   agx_return_t ret;
   ret.awp_contrast = awp_contrast;
   ret.awp_toe_a = awp_toe_a;
