@@ -58,7 +58,8 @@ float lerp_chromaticity_angle(float h1, float h2, float t)
 }
 
 
-vec3 agx(vec3 color, float il, float k)
+vec3 
+agx(vec3 color, float il, float k)
 {
 	// AgX inset and outset constants
   // generated from https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBaseRec2020.py
@@ -67,30 +68,23 @@ vec3 agx(vec3 color, float il, float k)
 		vec3( 0.0951212405381588, 0.761241990602591, 0.0767994186031903 ),
 		vec3( 0.0482516061458583, 0.101439036467562, 0.811302368396859 )
 	);
-	// explicit agx_mat_inv generated from google/Filament
 	const mat3 agx_mat_inv = mat3(
 		vec3( 1.1271005818144368, - 0.1413297634984383, - 0.14132976349843826 ),
 		vec3( - 0.11060664309660323, 1.157823702216272, - 0.11060664309660294 ),
 		vec3( - 0.016493938717834573, - 0.016493938717834257, 1.2519364065950405 )
 	);
-	// LOG2_MIN      = -10.0
-	// LOG2_MAX      =  +6.5
-	// MIDDLE_GRAY   =  0.18
-	const float min_ev = -12.47393;  // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
-	const float max_ev =   4.026069; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
-
 	color = agx_mat * color;
 
   // similar hack to https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBaseRec2020.py
   float mix_percent = 0.4;
-  vec3 color0_hsv = rgb2hsv(color); // temp hack to test lerp_chromaticity_angle
+  vec3 color0_hsv = rgb2hsv(color);
 
 	// Apply curve
   color = weibull_cdf(color, il, k);
   
   vec3 color1_hsv = rgb2hsv(color);
   color1_hsv[0] = lerp_chromaticity_angle(color0_hsv[0], color1_hsv[0], mix_percent);
-  color = hsv2rgb(color1_hsv); // temp hack to test lerp_chromaticity_angle
+  color = hsv2rgb(color1_hsv);
 
 	color = agx_mat_inv * color;
 
@@ -107,13 +101,14 @@ main()
   float k  = max(1e-5, params.contrast);
   vec3 col0 = texelFetch(img_in, ipos, 0).rgb;
   col0 += params.bias;
-  vec3 col1 = weibull_cdf(col0, il, k);
+  vec3 col1;
   if(params.colourmode == 0)
   { // colour using aurelien's patented ucs:
     const mat3 xyz_to_rec2020 = mat3(
         1.7166511880, -0.6666843518, 0.0176398574, 
         -0.3556707838, 1.6164812366, -0.0427706133, 
         -0.2533662814, 0.0157685458, 0.9421031212);
+    col1 = weibull_cdf(col0, il, k);
     vec3 xyz0 = inverse(xyz_to_rec2020) * col0;
     vec3 xyz1 = inverse(xyz_to_rec2020) * col1;
     vec3 xyY0 = vec3(xyz0.xy / max(1e-4, dot(vec3(1),xyz0)), xyz0.y);
@@ -128,6 +123,7 @@ main()
   }
   else if(params.colourmode == 2)
   { // colour reconstruction using munsell hue constancy.
+    col1 = weibull_cdf(col0, il, k);
     vec3 xyY0 = rec2020_to_xyY(col0);
     vec2 m0   = munsell_from_xy(xyY0.xy);
     vec3 xyY1 = rec2020_to_xyY(col1);
@@ -137,10 +133,12 @@ main()
   }
   else if(params.colourmode == 3)
   { // simple rgb/hsv hack:
+    col1 = weibull_cdf(col0, il, k);
     col1 = adjust_colour_dng(col0, col1);
   }
   else if(params.colourmode == 1)
   { // apply per channel
+    col1 = weibull_cdf(col0, il, k);
   }
   else if (params.colourmode == 4)
   { // agx tone mapping
