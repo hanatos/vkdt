@@ -74,7 +74,7 @@ vec3 agx_curve_approx( vec3 x ) {
 // on Blender's implementation for rec 2020 colors:
 // https://github.com/google/filament/pull/7236
 
-vec3 agx( vec3 color ) {
+vec3 agx(vec3 color) {
 	// AgX inset and outset constants
   // generated from https://github.com/EaryChow/AgX_LUT_Gen/blob/main/AgXBaseRec2020.py
 	const mat3 agx_mat = mat3(
@@ -88,23 +88,27 @@ vec3 agx( vec3 color ) {
 		vec3( - 0.11060664309660323, 1.157823702216272, - 0.11060664309660294 ),
 		vec3( - 0.016493938717834573, - 0.016493938717834257, 1.2519364065950405 )
 	);
-	// LOG2_MIN      = -10.0
-	// LOG2_MAX      =  +6.5
-	// MIDDLE_GRAY   =  0.18
-	const float min_ev = -12.47393;  // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
-	const float max_ev =   4.026069; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 
 	color = agx_mat * color;
 	
-  // log2 space encoding
+  // log2 space encoding (sRGB)
+	// // LOG2_MIN      = -10.0
+	// // LOG2_MAX      =  +6.5
+	// // MIDDLE_GRAY   =  0.18
+	// const float min_ev = -12.47393;  // log2(pow(2, LOG2_MIN) * MIDDLE_GRAY)
+	// const float max_ev =   4.026069; // log2(pow(2, LOG2_MAX) * MIDDLE_GRAY)
 	// color = max(color, vec3(1e-10)); // avoid 0 or negative numbers for log2
 	// color = log2(color);
 	// color = ( color - min_ev ) / ( max_ev - min_ev );
 	// color = clamp(color, 0.0, 1.0);
-	// Apply sigmoid
+	// // Apply sigmoid
 	// color = agx_curve_approx(color);
 
+  // Apply allenwp curve
   color = allenwp_curve(color);
+
+	const float output_max_value = 1.0; // SDR always has an output_max_value of 1.0
+  color = min(color, vec3(output_max_value));
 
 	color = agx_mat_inv * color;
 
@@ -120,24 +124,30 @@ vec3 agx( vec3 color ) {
 float implicit(float x, float y) { return allenwp_curve(x) - y; }
 float delf_delx(float x, float y)
 { 
-    /* Numeric derivative. */
-    const float dx=0.001;
-    return ( implicit(x+dx, y)-implicit(x-dx, y) ) / (2.*dx);
-    /* Analytic derivative. *
-    return 2.*x;
-    /**/
+  /* Numeric derivative. */
+  const float dx=0.001;
+  return ( implicit(x+dx, y)-implicit(x-dx, y) ) / (2.*dx);
+  /* Analytic derivative. *
+  return 2.*x;
+  /**/
 }
 float delf_dely(float x, float y) 
 { 
-    /* Numeric derivative. */
-    const float dy=0.001;
-    return ( implicit(x, y+dy)-implicit(x, y-dy) ) / (2.*dy);
-    /* Analytic derivative. *
-    return 2.*y;
-    /**/
+  /* Numeric derivative. */
+  const float dy=0.001;
+  return ( implicit(x, y+dy)-implicit(x, y-dy) ) / (2.*dy);
+  /* Analytic derivative. *
+  return 2.*y;
+  /**/
 }
-vec2 implicit_gradient(float x, float y) { return vec2(delf_delx(x, y), delf_dely(x, y)); }
-float draw_implicit_func(float unit, float fxy, vec2 grad) { return smoothstep(unit, 0.0, abs(fxy) / length(grad)); } // L2-norm
+vec2 implicit_gradient(float x, float y)
+{ 
+  return vec2(delf_delx(x, y), delf_dely(x, y)); 
+}
+float draw_implicit_func(float unit, float fxy, vec2 grad)
+{ 
+  return smoothstep(unit, 0.0, abs(fxy) / length(grad)); // L2-norm
+} 
 
 void
 main()
