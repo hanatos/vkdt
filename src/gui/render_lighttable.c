@@ -865,7 +865,7 @@ void render_lighttable_right_panel()
     if(main_imgid != -1u)
     {
       dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
-      if(fs_islnk_file(filename) && nk_button_label(ctx, "jump to original collection"))
+      if(fs_islnk_file(filename) && nk_button_label(ctx, "goto origin"))
       {
         char *resolved = fs_realpath(filename, 0);
         if(resolved)
