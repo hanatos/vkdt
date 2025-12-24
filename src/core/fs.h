@@ -246,7 +246,6 @@ fs_find_usb_block_devices(
     char devname[20][20],
     char mountpoint[20][50])
 { // pretty much ls /sys/class/scsi_disk/*/device/block/{sda,sdb,sdd,..}/{..sdd1..} and then grep for it in /proc/mounts
-  fprintf(stdout, "fs_find_usb_block_devices\n");
 #ifdef _WIN64
   int cnt = 0;
   DWORD mask = GetLogicalDrives();
