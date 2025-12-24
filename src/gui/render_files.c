@@ -12,8 +12,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <windows.h>
-
 static dt_filebrowser_widget_t filebrowser = {{0}};
 
 static hk_t hk_files[] = {
