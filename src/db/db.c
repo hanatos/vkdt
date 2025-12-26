@@ -8,6 +8,11 @@
 #include "stringpool.h"
 #include "exif.h"
 
+#ifdef _WIN64
+#include "strptime.h"
+#define timegm _mkgmtime
+#endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -96,13 +101,10 @@ dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20])
   char model[32];
   model[0] = 0;
   dt_db_exif_mini(f, createdate, model, sizeof(model));
-
-#ifndef _WIN64 // oh whatever. is this dead os really worth all the trouble?
   // now consider the model/time offset table stored in the vkdt.db folder structure
   uint32_t i = dt_stringpool_get((dt_stringpool_t*)&db->timeoffset_model, model, strlen(model), -1u, 0);
   i = CLAMP(i, 0, sizeof(db->timeoffset)/sizeof(db->timeoffset[0])-1);
   if(i == -1u) return;
-  // fprintf(stderr, "time `%s` model `%s` \n", createdate, model);
   int64_t to = db->timeoffset[i];
   struct tm tm;
   strptime(createdate, "%Y:%m:%d %T", &tm);
@@ -110,8 +112,6 @@ dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20])
   t += to;
   gmtime_r(&t, &tm);
   strftime(createdate, 20, "%Y:%m:%d %T", &tm);
-  // fprintf(stderr, "backconv - off %ld %s\n", to, createdate);
-#endif
 }
 
 static int

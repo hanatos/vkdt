@@ -91,23 +91,35 @@ void render_files()
       nk_layout_row_dynamic(ctx, row_height, 2);
       for(int i=0;i<cnt;i++)
       {
-        int red = mountpoint[i][0];
-        if(red)
+        int mounted = mountpoint[i][0];
+        if(mounted)
         {
           nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
           nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
         }
-        dt_tooltip(red ? "click to unmount" : "click to mount");
+        dt_tooltip("%s", mountpoint[i]);
         if(nk_button_label(ctx, devname[i]))
+           set_cwd(mountpoint[i], 0);
+        if(mounted)
         {
-          if(red) snprintf(command, sizeof(command), "/usr/bin/udisksctl unmount -b %s", devname[i]);
+          nk_style_pop_style_item(ctx);
+          nk_style_pop_color(ctx);
+        }
+#ifdef _WIN64
+        // disable (un)mounting on Windows for now
+        nk_widget_disable_begin(ctx);
+#endif // _WIN64
+        dt_tooltip(mounted ? "click to unmount" : "click to mount");
+        if(nk_button_label(ctx, mounted ? "unmount" : "mount"))
+        {
+          if(mounted) snprintf(command, sizeof(command), "/usr/bin/udisksctl unmount -b %s", devname[i]);
           // TODO: use -f for lazy unmounting?
           // TODO: also send a (blocking?) power-off command right after that?
           else    snprintf(command, sizeof(command), "/usr/bin/udisksctl mount -b %s", devname[i]);
           FILE *f = popen(command, "r");
           if(f)
           {
-            if(!red)
+            if(!mounted)
             {
               fscanf(f, "Mounted %*s at %49s", mountpoint[i]);
               set_cwd(mountpoint[i], 0);
@@ -116,15 +128,9 @@ void render_files()
             pclose(f); // TODO: if(.) need to refresh the list
           }
         }
-        if(red)
-        {
-          nk_style_pop_style_item(ctx);
-          nk_style_pop_color(ctx);
-          dt_tooltip("%s", mountpoint[i]);
-          if(nk_button_label(ctx, "go to mountpoint"))
-            set_cwd(mountpoint[i], 0);
-        }
-        else nk_label(ctx, "", 0); // fill row
+#ifdef _WIN64
+        nk_widget_disable_end(ctx);
+#endif // _WIN64
       }
       nk_tree_pop(ctx);
     } // end drives

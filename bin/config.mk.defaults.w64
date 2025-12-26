@@ -101,13 +101,14 @@ VKDT_VULKAN_LDFLAGS=-L/ucrt64/lib -lvulkan-1
 export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 
 # compiler config
+# D_POSIX_C_SOURCE is for gmtime_r
 CC=gcc
 CXX=g++
 GLSLC=/ucrt64/bin/glslangValidator.exe
 GLSLC_FLAGS=--target-env vulkan1.3
 # GLSLC=glslc
 # GLSLC_FLAGS=--target-env=vulkan1.3
-CFLAGS=-I/c/msys64/ucrt64/include -I.
+CFLAGS=-I/c/msys64/ucrt64/include -I. -D_POSIX_C_SOURCE
 CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -I/c/msys64/ucrt64/include
 LDFLAGS=-L/c/msys64/ucrt64/lib -lregex
 export CFLAGS CXXFLAGS LDFLAGS
