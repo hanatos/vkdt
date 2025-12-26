@@ -50,7 +50,7 @@ framebuffer_size_callback(GLFWwindow* w, int width, int height)
   if(w == vkdt.win1.window) win = &vkdt.win1;
   if(width != win->width || height != win->height)
   {
-    // win->width = width; win->height = height;
+    win->width = width; win->height = height;
     dt_gui_recreate_swapchain(win);
     nk_glfw3_resize(w, win->width, win->height);
   }
