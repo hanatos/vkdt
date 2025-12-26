@@ -1197,7 +1197,7 @@ void render_lighttable_right_panel()
           cmd[len-7] = '\"';
           cmd[len-6] = 0;
         }
-        FILE *f = _popen(cmd, "r");
+        FILE *f = popen(cmd, "r");
         if(f)
         {
           len = fread(text, 1, sizeof(text), f);
