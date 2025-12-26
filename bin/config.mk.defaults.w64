@@ -101,6 +101,7 @@ VKDT_VULKAN_LDFLAGS=-L/ucrt64/lib -lvulkan-1
 export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 
 # compiler config
+# D_POSIX_C_SOURCE is for gmtime_r
 CC=gcc
 CXX=g++
 GLSLC=/ucrt64/bin/glslangValidator.exe

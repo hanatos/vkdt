@@ -8,6 +8,7 @@
 #include "db/hash.h"
 #include "db/exif.h"
 #include "core/fs.h"
+#include "core/exiftool.h"
 #include "pipe/graph-defaults.h"
 #include "gui/render_view.h"
 #include "gui/hotkey.h"
@@ -25,6 +26,8 @@
 #include <ctype.h>
 #include <stdatomic.h>
 
+#include <sys/types.h>
+#include <unistd.h>
 
 static hk_t hk_lighttable[] = {
   {"tag",           "assign a tag to selected images",  {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_T}},
@@ -1168,40 +1171,33 @@ void render_lighttable_right_panel()
     static int looked_for_exiftool = 0; // only go looking for it once
     if(imgid != vkdt.db.current_imgid)
     {
-      const char *exiftool_path[] = {"/usr/bin", "/usr/bin/vendor_perl", "/usr/local/bin", dt_pipe.basedir };
-      static char def_cmd[PATH_MAX] = {0};
+      static char exiftool[PATH_MAX] = {0};
       if(!looked_for_exiftool)
       {
-        for(int k=0;k<4;k++)
-        {
-          char test[PATH_MAX];
-          snprintf(test, sizeof(test), "%s/exiftool", exiftool_path[k]);
-          if(fs_isreg_file(test))
-          { // found at least a file here
-            snprintf(def_cmd, sizeof(def_cmd), "%s/exiftool -l -createdate -aperture -shutterspeed -iso", exiftool_path[k]);
-            break;
-          }
-        }
+        dt_exiftool_get_binary(exiftool, sizeof(exiftool));
         looked_for_exiftool = 1;
       }
-      text[0] = 0; text_end = text;
-      const char *rccmd = dt_rc_get(&vkdt.rc, "gui/metadata/command", def_cmd);
+      static char exif_def_cmd[PATH_MAX] = {0};
+      snprintf(exif_def_cmd, sizeof(exif_def_cmd), "%s -l -createdate -aperture -shutterspeed -iso", exiftool);
+      const char *rccmd = dt_rc_get(&vkdt.rc, "gui/metadata/command", exif_def_cmd);
       dt_sanitize_user_string((char*)rccmd); // be sure nothing evil is in here. we won't change the length so we don't care about const.
       char cmd[2*PATH_MAX], imgpath[PATH_MAX];
-      snprintf(cmd, PATH_MAX, "%s '", rccmd);
+      snprintf(cmd, PATH_MAX, "%s \"", rccmd);
       dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, imgpath, sizeof(imgpath));
       fs_realpath(imgpath, cmd+strlen(cmd)); // use GNU extension: fill path even if it doesn't exist
+
+      text[0] = 0; text_end = text;
       size_t len = strnlen(cmd, sizeof(cmd));
       if(len > 4)
       {
-        cmd[len-4] = '\''; // cut away .cfg
+        cmd[len-4] = '\"'; // cut away .cfg
         cmd[len-3] = 0;
         if(len > 7 && cmd[len-7] == '_' && cmd[len-6] >= '0' && cmd[len-6] <= '9' && cmd[len-5] >= '0' && cmd[len-5] <= '9') 
         { // for duplicates, for instance IMG_9999.CR2_01.cfg
-          cmd[len-7] = '\'';
+          cmd[len-7] = '\"';
           cmd[len-6] = 0;
         }
-        FILE *f = popen(cmd, "r");
+        FILE *f = _popen(cmd, "r");
         if(f)
         {
           len = fread(text, 1, sizeof(text), f);

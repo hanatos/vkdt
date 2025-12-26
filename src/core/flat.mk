@@ -4,7 +4,8 @@ CORE_H=core/colour.h \
        core/core.h \
        core/log.h \
        core/mat3.h \
-       core/threads.h
+       core/threads.h \
+       core/exiftool.h
 CORE_CFLAGS=
 CORE_LDFLAGS=-pthread -ldl
 
