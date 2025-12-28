@@ -25,9 +25,6 @@
 #include <ctype.h>
 #include <stdatomic.h>
 
-#include <sys/types.h>
-#include <unistd.h>
-
 static hk_t hk_lighttable[] = {
   {"tag",           "assign a tag to selected images",  {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_T}},
   {"select all",    "toggle select all/none",           {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_A}},
