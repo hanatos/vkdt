@@ -8,7 +8,6 @@
 #include "db/hash.h"
 #include "db/exif.h"
 #include "core/fs.h"
-#include "core/exiftool.h"
 #include "pipe/graph-defaults.h"
 #include "gui/render_view.h"
 #include "gui/hotkey.h"
@@ -1174,7 +1173,26 @@ void render_lighttable_right_panel()
       static char exiftool[PATH_MAX] = {0};
       if(!looked_for_exiftool)
       {
-        dt_exiftool_get_binary(exiftool, sizeof(exiftool));
+        // look for the exiftool binary in standard locations
+#ifdef _WIN64
+        const char *paths[] = { dt_pipe.basedir };
+#else
+        const char *paths[] = {"/usr/bin", "/usr/bin/vendor_perl", "/usr/local/bin", dt_pipe.basedir };
+#endif
+        for(int k=0;k<4;k++)
+        {
+          char test[PATH_MAX];
+          char cmd_real[PATH_MAX] = {0};
+          snprintf(test, sizeof(test), "%s/exiftool", paths[k]);
+          if(fs_isreg_file(test))
+          { // found at least a file here
+            fs_realpath(test, cmd_real); // use GNU extension: fill path even if it doesn't exist
+            // convert backslashes to slashes before dt_sanitize_user_string()
+            for(int i=0;cmd_real[i]!=0;i++) if(cmd_real[i] == '\\') cmd_real[i] = '/';
+            snprintf(exiftool, sizeof(exiftool), "%s", cmd_real);
+            break;
+          }
+        }
         looked_for_exiftool = 1;
       }
       static char exif_def_cmd[PATH_MAX] = {0};
