@@ -251,8 +251,8 @@ jobs:
         run: |
           wget https://oliverbetz.de/cms/files/Artikel/ExifTool-for-Windows/exiftool-13.44_64.zip
           unzip exiftool-13.44_64.zip
-          mv ExifTool.exe /usr/lib/vkdt/exiftool.exe
-          mv exiftool_files/ /usr/lib/vkdt
+          mv ExifTool.exe ${INSTALL_PREFIX_U}/usr/lib/vkdt/exiftool.exe
+          mv exiftool_files/ ${INSTALL_PREFIX_U}/usr/lib/vkdt
       - name: check if it runs
         run: |
           ${INSTALL_PREFIX_U}/usr/lib/vkdt/vkdt.exe --version
