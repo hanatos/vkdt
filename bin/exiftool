@@ -1,3 +1,3 @@
 #!/bin/sh
 # this is just a trampoline here to find exiftool in PATH via popen()
-exiftool $@
+exiftool "$@"
