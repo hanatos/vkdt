@@ -197,7 +197,7 @@ void write_sink(
 
     // maybe route this string in via o-jpg params (beware of the ':' and then dt_sanitize_user_string + dt_strexpand it)
     char cmd[1024];
-    if(sizeof(cmd) <= snprintf(cmd, sizeof(cmd), "%s/exiftool -TagsFromFile %s \"-all:all>all:all\" -Software=\"vkdt\" -ModifyDate=\"now\" -*orientation*= -overwrite_original %s",
+    if(sizeof(cmd) <= snprintf(cmd, sizeof(cmd), "%s/exiftool -TagsFromFile \"%s\" \"-all:all>all:all\" -Software=\"vkdt\" -ModifyDate=\"now\" -*orientation*= -overwrite_original \"%s\"",
           dt_pipe.basedir, src_filename, filename)) return;
     // TODO find a way to access the model-based time offset in the db (cli doesn't have a db).
     // then insert "-AllDates+=%s", timeoffset before the "now" above.
