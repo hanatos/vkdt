@@ -23,8 +23,6 @@ dt_gui_set_lod(int lod)
   }
   vkdt.wstate.busy++;
   vkdt.graph_dev.runflags = s_graph_run_all;
-  // reset view? would need to set zoom, too
-  dt_image_reset_zoom(&vkdt.wstate.img_widget);
 }
 
 static inline void

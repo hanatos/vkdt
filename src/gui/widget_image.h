@@ -219,12 +219,11 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
       int cnt = sizeof(p)/sizeof(p[0])/2;
 
       const int modid = vkdt.wstate.active_widget_modid;
-      const float scale = vkdt.wstate.img_widget.scale <= 0.0f ?
+      const float scale = vkdt.wstate.img_widget.scale *
         MIN(vkdt.state.center_wd / (float)
             vkdt.graph_dev.module[modid].connector[0].roi.wd,
             vkdt.state.center_ht / (float)
-            vkdt.graph_dev.module[modid].connector[0].roi.ht) :
-        vkdt.wstate.img_widget.scale;
+            vkdt.graph_dev.module[modid].connector[0].roi.ht);
       for(int i=0;i<2;i++)
       { // ui scaled roi wd * radius * stroke radius
         vkdt.wstate.state[4] = vkdt.graph_dev.module[modid].connector[0].roi.wd;
@@ -301,10 +300,13 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
     if((!vkdt.wstate.pentablet_enabled && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_LEFT)) ||
        ( vkdt.wstate.pentablet_enabled && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_MIDDLE)))
     { // click to pan
+      if(w->m_x < 0)
+      {
+        w->old_look_x = w->look_at_x;
+        w->old_look_y = w->look_at_y;
+      }
       w->m_x = mpos.x;
       w->m_y = mpos.y;
-      w->old_look_x = w->look_at_x;
-      w->old_look_y = w->look_at_y;
     }
     else if(!vkdt.wstate.pentablet_enabled && nk_input_mouse_clicked(&ctx->input, NK_BUTTON_MIDDLE, bounds))
     { // middle click to 1:1
@@ -314,27 +316,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
     if(yoff != 0)
     { // mouse wheel (yoff is the input)
       ctx->input.mouse.scroll_delta.y = 0;
-      const float fit_scale = MIN(w->win_w/w->wd, w->win_h/w->ht);
-      const float scale = w->scale <= 0.0f ? fit_scale : w->scale;
-      const float im_x = mpos.x - (w->win_x + w->win_w/2.0f);
-      const float im_y = mpos.y - (w->win_y + w->win_h/2.0f);
-      w->scale = scale * (yoff > 0.0f ? 1.1f : 0.9f);
-      w->scale = CLAMP(w->scale, 0.1f, 8.0f);
-      if(w->scale > fit_scale)
-      { // try to place mouse after zoom on same spot:
-        // look_at + im / scale is mouse in old zoom image space
-        // that - im / new scale should be the new center
-        const float dscale = 1.0f/scale - 1.0f/w->scale;
-        w->look_at_x += im_x * dscale;
-        w->look_at_y += im_y * dscale;
-        w->look_at_x = CLAMP(w->look_at_x, 0.0f, w->wd);
-        w->look_at_y = CLAMP(w->look_at_y, 0.0f, w->ht);
-      }
-      else
-      {
-        w->look_at_x = w->wd/2.0f;
-        w->look_at_y = w->ht/2.0f;
-      }
+      w->scale *= yoff > 0.0f ? 1.1f : 0.9f;
     }
   }
   else
@@ -345,15 +327,22 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
       w->m_x = w->m_y = -1;
     }
   }
-  if(w->m_x > 0 && w->scale > 0.0f)
+  if(w->m_x > 0 && w->scale > 1.0f)
   { // mouse moved while dragging
-    struct nk_vec2 mpos = ctx->input.mouse.pos;
-    struct nk_vec2 d = {mpos.x - w->m_x, mpos.y - w->m_y};
-    w->look_at_x = w->old_look_x - d.x / w->scale;
-    w->look_at_y = w->old_look_y - d.y / w->scale;
-    w->look_at_x = CLAMP(w->look_at_x, 0.0f, w->wd);
-    w->look_at_y = CLAMP(w->look_at_y, 0.0f, w->ht);
+    float img0[2], img1[2];
+    float view0[2] = {
+      ctx->input.mouse.buttons[0].clicked_pos.x,
+      ctx->input.mouse.buttons[0].clicked_pos.y};
+    float view1[2] = {
+      ctx->input.mouse.pos.x,
+      ctx->input.mouse.pos.y};
+    dt_image_from_view(w, view0, img0);
+    dt_image_from_view(w, view1, img1);
+    w->look_at_x = w->old_look_x-img1[0]+img0[0];
+    w->look_at_y = w->old_look_y-img1[1]+img0[1];
   }
+  w->look_at_x = CLAMP(w->look_at_x, -0.5f, 0.5f);
+  w->look_at_y = CLAMP(w->look_at_y, -0.5f, 0.5f);
 }
 
 static inline void
@@ -385,22 +374,24 @@ dt_image(
   const int display_frame = out->module->graph->double_buffer;
   struct nk_rect subimg = {w->wd * im0[0], w->ht * im0[1], w->wd * (im1[0]-im0[0]), w->ht * (im1[1]-im0[1])};
   struct nk_rect disp = {v0[0], v0[1], v1[0]-v0[0], v1[1]-v0[1]};
-  if(w->scale >= 1.0f)
+  float scale1 = 1.0f/MIN(w->win_w/w->wd, w->win_h/w->ht);
+  float ns = w->scale / scale1;
+  if(ns >= 1.0f)
   { // make sure we align pixels accurately. avoids jittered display for not-quite-accurate correspondence
     // of image pixels to multiple screen pixels. the cost is jittering image display size lower/right.
     subimg.x = (int)subimg.x; subimg.y = (int)subimg.y;
     subimg.w = (int)(subimg.w+0.5f); subimg.h = (int)(subimg.h+0.5f);
     disp.x = MAX((int)w->win_x, (int)disp.x); disp.y = MAX((int)w->win_y, (int)disp.y);
-    disp.w = (int)(w->scale * subimg.w); disp.h = (int)(w->scale * subimg.h);
+    disp.w = (int)(ns * subimg.w); disp.h = (int)(ns * subimg.h);
   }
   struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
   struct nk_image nkimg = nk_subimage_ptr(out->dset[display_frame], w->wd, w->ht, subimg);
   int hover = nk_input_is_mouse_hovering_rect(&ctx->input, disp);
   nk_draw_image(buf, disp, &nkimg, (struct nk_color){0xff,0xff,0xff,0xff});
   char scaletext[10];
-  if(w->scale >= 1.0f)
+  if(ns >= 1.0f)
   {
-    snprintf(scaletext, sizeof(scaletext), "%d%%", (int)(w->scale*100.0));
+    snprintf(scaletext, sizeof(scaletext), "%d%%", (int)(ns*100.0));
     nk_draw_text(buf, (struct nk_rect){w->win_x+0.9*w->win_w,w->win_y+0.05*w->win_h, 0.5*w->win_w, 0.05*w->win_h},
         scaletext, strlen(scaletext), nk_glfw3_font(0), (struct nk_color){0}, (struct nk_color){0xff,0xff,0xff,0xff});
   }

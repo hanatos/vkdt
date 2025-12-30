@@ -59,9 +59,9 @@ void render_nodes_right_panel()
     nk_image(ctx, img);
   }
   static dt_image_widget_t imgw[] = {
-    { .look_at_x = FLT_MAX, .look_at_y = FLT_MAX, .scale=-1.0 },
-    { .look_at_x = FLT_MAX, .look_at_y = FLT_MAX, .scale=-1.0 },
-    { .look_at_x = FLT_MAX, .look_at_y = FLT_MAX, .scale=-1.0 }};
+    { .look_at_x = 0, .look_at_y = 0, .scale=1.0 },
+    { .look_at_x = 0, .look_at_y = 0, .scale=1.0 },
+    { .look_at_x = 0, .look_at_y = 0, .scale=1.0 }};
   dt_token_t dsp[] = { dt_token("main"), dt_token("view0"), dt_token("view1") };
   for(uint32_t d = 0; d < sizeof(dsp)/sizeof(dsp[0]); d++)
   {

@@ -23,6 +23,7 @@ GUI_H=gui/gui.h\
       gui/widget_filteredlist.h\
       gui/widget_tooltip.h\
       gui/widget_image.h\
+      gui/widget_image_util.h\
       gui/widget_nodes.h\
       gui/widget_radial_menu.h\
       gui/widget_radial_menu_dr.h\

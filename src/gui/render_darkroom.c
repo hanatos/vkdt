@@ -965,15 +965,6 @@ darkroom_process()
     start_time = (struct timespec){0};
   }
 
-  int reset_view = 0;
-  dt_roi_t old_roi;
-  if(vkdt.graph_dev.runflags & s_graph_run_roi)
-  {
-    reset_view = 1;
-    dt_node_t *md = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-    if(md) old_roi = md->connector[0].roi;
-  }
-
   const int grabbed = vkdt.wstate.grabbed;
   if(!grabbed)
   { // async graph compute vs. sync cpu + gui rendering
@@ -1031,12 +1022,6 @@ darkroom_process()
       if(res == VK_SUCCESS)
         vkdt.graph_dev.double_buffer ^= 1; // lock ^1 as display buffer, we waited for it to complete
     }
-  }
-  if(reset_view)
-  {
-    dt_node_t *md = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-    if(md && memcmp(&old_roi, &md->connector[0].roi, sizeof(dt_roi_t))) // did the output roi change?
-      dt_image_reset_zoom(&vkdt.wstate.img_widget);
   }
 
   if(vkdt.state.anim_playing && advance)
@@ -1350,8 +1335,8 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
     if(zi > -1.0f) scale *= powf(2.0, -0.04*SMOOTH(zi+1.0f)); 
     if(zo > -1.0f) scale *= powf(2.0,  0.04*SMOOTH(zo+1.0f)); 
     // scale *= powf(2.0, -0.1*SMOOTH(axes[4])); 
-    vkdt.wstate.img_widget.look_at_x += SMOOTH(ax) * wd * 0.01 / scale;
-    vkdt.wstate.img_widget.look_at_y += SMOOTH(ay) * ht * 0.01 / scale;
+    vkdt.wstate.img_widget.look_at_x += SMOOTH(ax) * 0.01 / scale;
+    vkdt.wstate.img_widget.look_at_y += SMOOTH(ay) * wd/ht * 0.01 / scale;
     vkdt.wstate.img_widget.scale = scale;
 #undef SMOOTH
   }
