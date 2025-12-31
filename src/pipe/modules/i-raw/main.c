@@ -154,12 +154,10 @@ void modify_roi_out(
   mod->connector[0].roi.full_wd = mod_data->img.width;
   mod->connector[0].roi.full_ht = mod_data->img.height;
 
-  for(int k=0;k<9;k++)
-    mod->img_param.cam_to_rec2020[k] = 0.0f/0.0f; // mark as uninitialised
   mod->img_param.colour_primaries = s_colour_primaries_custom;
   mod->img_param.colour_trc       = s_colour_trc_linear;
 
-  // set a bit of metadata, overwrite exiv2 because this one is more consistent:
+  // set a bit of metadata
   snprintf(mod->img_param.maker, sizeof(mod->img_param.maker), "%s", mod_data->img.clean_maker);
   snprintf(mod->img_param.model, sizeof(mod->img_param.model), "%s", mod_data->img.clean_model);
   mod->img_param.iso = mod_data->img.iso;
@@ -224,33 +222,29 @@ void modify_roi_out(
     mod->img_param.filters = 0;
   }
 
-  float test = mod->img_param.cam_to_rec2020[0];
-  if(!(test == test))
-  { // camera matrix not found in exif or compiled without exiv2
-    float xyz_to_cam[12], mat[9] = {0};
-    // get d65 camera matrix from rawloader
-    for(int j=0;j<3;j++) for(int i=0;i<3;i++)
-      xyz_to_cam[3*j+i] = mod_data->img.xyz_to_cam[j][i];
-    mat3inv(mat, xyz_to_cam);
+  float xyz_to_cam[12], mat[9] = {0};
+  // get d65 camera matrix from rawloader
+  for(int j=0;j<3;j++) for(int i=0;i<3;i++)
+    xyz_to_cam[3*j+i] = mod_data->img.xyz_to_cam[j][i];
+  mat3inv(mat, xyz_to_cam);
 
-    // compute matrix camrgb -> rec2020 d65
-    double cam_to_xyz[] = {
-      mat[0], mat[1], mat[2],
-      mat[3], mat[4], mat[5],
-      mat[6], mat[7], mat[8]};
+  // compute matrix camrgb -> rec2020 d65
+  double cam_to_xyz[] = {
+    mat[0], mat[1], mat[2],
+    mat[3], mat[4], mat[5],
+    mat[6], mat[7], mat[8]};
 
-    const float xyz_to_rec2020[] = {
-       1.7166511880, -0.3556707838, -0.2533662814,
-      -0.6666843518,  1.6164812366,  0.0157685458,
-       0.0176398574, -0.0427706133,  0.9421031212
-    };
-    float cam_to_rec2020[9] = {0.0f};
-    for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
-      cam_to_rec2020[3*j+i] +=
-        xyz_to_rec2020[3*j+k] * cam_to_xyz[3*k+i];
-    for(int k=0;k<9;k++)
-      mod->img_param.cam_to_rec2020[k] = cam_to_rec2020[k];
-  }
+  const float xyz_to_rec2020[] = {
+    1.7166511880, -0.3556707838, -0.2533662814,
+    -0.6666843518,  1.6164812366,  0.0157685458,
+    0.0176398574, -0.0427706133,  0.9421031212
+  };
+  float cam_to_rec2020[9] = {0.0f};
+  for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
+    cam_to_rec2020[3*j+i] +=
+      xyz_to_rec2020[3*j+k] * cam_to_xyz[3*k+i];
+  for(int k=0;k<9;k++)
+    mod->img_param.cam_to_rec2020[k] = cam_to_rec2020[k];
 }
 
 int read_source(
