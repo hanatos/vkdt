@@ -327,7 +327,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
       w->m_x = w->m_y = -1;
     }
   }
-  if(w->m_x > 0 && w->scale > 1.0f)
+  if(w->m_x > 0)
   { // mouse moved while dragging
     float img0[2], img1[2];
     float view0[2] = {
