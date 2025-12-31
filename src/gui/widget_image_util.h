@@ -71,6 +71,7 @@ dt_image_zoom(
     w->scale = 1.0f;
     w->look_at_x = 0.0f;
     w->look_at_y = 0.0f;
+    return; // don't care about mouse cursor
   }
   else if(w->scale >= scale1)
   { // double up
