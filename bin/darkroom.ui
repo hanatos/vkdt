@@ -17,4 +17,4 @@ preset:rot 270:r270
 preset:wb cam:whitebalance-camera
 preset:wb D65:whitebalance-D65
 preset:filmsim:filmsim
-preset:neural denoise:jddcnn
+preset:cnn denoise:jddcnn
