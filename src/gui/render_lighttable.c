@@ -1161,46 +1161,20 @@ void render_lighttable_right_panel()
 
   if(vkdt.db.selection_cnt > 0 && nk_tree_push(ctx, NK_TREE_TAB, "metadata", NK_MINIMIZED))
   {
-    nk_layout_row_static(ctx, row_height, vkdt.state.panel_wd, 1);
+    nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
     static uint32_t imgid = -1u;
     static char text[2048], *text_end = text;
-    static int looked_for_exiftool = 0; // only go looking for it once
     if(imgid != vkdt.db.current_imgid)
     {
-      static char exiftool[PATH_MAX] = {0};
-      if(!looked_for_exiftool)
-      {
-        // look for the exiftool binary in standard locations
-#ifdef _WIN64
-        const char *paths[] = { dt_pipe.basedir };
-#else
-        const char *paths[] = {"/usr/bin", "/usr/bin/vendor_perl", "/usr/local/bin", dt_pipe.basedir };
-#endif
-        for(int k=0;k<4;k++)
-        {
-          char test[PATH_MAX];
-          char cmd_real[PATH_MAX] = {0};
-          snprintf(test, sizeof(test), "%s/exiftool", paths[k]);
-          if(fs_isreg_file(test))
-          { // found at least a file here
-            fs_realpath(test, cmd_real); // use GNU extension: fill path even if it doesn't exist
-            // convert backslashes to slashes before dt_sanitize_user_string()
-            for(int i=0;cmd_real[i]!=0;i++) if(cmd_real[i] == '\\') cmd_real[i] = '/';
-            snprintf(exiftool, sizeof(exiftool), "%s", cmd_real);
-            break;
-          }
-        }
-        looked_for_exiftool = 1;
-      }
-      static char exif_def_cmd[PATH_MAX] = {0};
-      snprintf(exif_def_cmd, sizeof(exif_def_cmd), "%s -l -createdate -aperture -shutterspeed -iso", exiftool);
-      const char *rccmd = dt_rc_get(&vkdt.rc, "gui/metadata/command", exif_def_cmd);
-      dt_sanitize_user_string((char*)rccmd); // be sure nothing evil is in here. we won't change the length so we don't care about const.
+      const char *rcflags = dt_rc_get(&vkdt.rc, "gui/metadata/flags", "-l -createdate -aperture -shutterspeed -iso");
+      dt_sanitize_user_string((char*)rcflags); // be sure nothing evil is in here. we won't change the length so we don't care about const.
+      char rccmd[1024];
+      if(sizeof(rccmd) <= snprintf(rccmd, sizeof(rccmd), "\"%s/exiftool\" %s", dt_pipe.basedir, rcflags))
+        rccmd[0] = 0;
       char cmd[2*PATH_MAX], imgpath[PATH_MAX];
       snprintf(cmd, PATH_MAX, "%s \"", rccmd);
       dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, imgpath, sizeof(imgpath));
       fs_realpath(imgpath, cmd+strlen(cmd)); // use GNU extension: fill path even if it doesn't exist
-
       text[0] = 0; text_end = text;
       size_t len = strnlen(cmd, sizeof(cmd));
       if(len > 4)
@@ -1212,7 +1186,14 @@ void render_lighttable_right_panel()
           cmd[len-7] = '\"';
           cmd[len-6] = 0;
         }
+#ifdef _WIN64
+        // sometimes another set of quotes is needed
+        char tmp[2*PATH_MAX];
+        snprintf(tmp, sizeof(tmp), "\"%s\"", cmd);
+        snprintf(cmd, sizeof(cmd), "%s", tmp);
+#endif
         FILE *f = popen(cmd, "r");
+        int ret = 0;
         if(f)
         {
           len = fread(text, 1, sizeof(text), f);
@@ -1220,7 +1201,12 @@ void render_lighttable_right_panel()
           text_end = text + len;
           text[len] = 0;
           imgid = vkdt.db.current_imgid;
-          pclose(f);
+          ret = pclose(f);
+        }
+        if(ret)
+        {
+          snprintf(text, sizeof(text), "failed to run exiftool, return code %d", ret);
+          text_end = text + strlen(text);
         }
       }
     }
