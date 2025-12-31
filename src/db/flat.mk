@@ -10,3 +10,7 @@ db/thumbnails.h\
 db/stringpool.h
 DB_CFLAGS=
 DB_LDFLAGS=
+
+ifeq ($(OS),Windows_NT)
+DB_O+=db/strptime.o
+endif

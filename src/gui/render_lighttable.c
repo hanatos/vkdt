@@ -25,7 +25,6 @@
 #include <ctype.h>
 #include <stdatomic.h>
 
-
 static hk_t hk_lighttable[] = {
   {"tag",           "assign a tag to selected images",  {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_T}},
   {"select all",    "toggle select all/none",           {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_A}},
@@ -865,7 +864,7 @@ void render_lighttable_right_panel()
     if(main_imgid != -1u)
     {
       dt_db_image_path(&vkdt.db, main_imgid, filename, sizeof(filename));
-      if(fs_islnk_file(filename) && nk_button_label(ctx, "jump to original collection"))
+      if(fs_islnk_file(filename) && nk_button_label(ctx, "goto origin"))
       {
         char *resolved = fs_realpath(filename, 0);
         if(resolved)
@@ -1162,46 +1161,39 @@ void render_lighttable_right_panel()
 
   if(vkdt.db.selection_cnt > 0 && nk_tree_push(ctx, NK_TREE_TAB, "metadata", NK_MINIMIZED))
   {
-    nk_layout_row_static(ctx, row_height, vkdt.state.panel_wd, 1);
+    nk_layout_row_dynamic(&vkdt.ctx, row_height, 1);
     static uint32_t imgid = -1u;
     static char text[2048], *text_end = text;
-    static int looked_for_exiftool = 0; // only go looking for it once
     if(imgid != vkdt.db.current_imgid)
     {
-      const char *exiftool_path[] = {"/usr/bin", "/usr/bin/vendor_perl", "/usr/local/bin", dt_pipe.basedir };
-      static char def_cmd[PATH_MAX] = {0};
-      if(!looked_for_exiftool)
-      {
-        for(int k=0;k<4;k++)
-        {
-          char test[PATH_MAX];
-          snprintf(test, sizeof(test), "%s/exiftool", exiftool_path[k]);
-          if(fs_isreg_file(test))
-          { // found at least a file here
-            snprintf(def_cmd, sizeof(def_cmd), "%s/exiftool -l -createdate -aperture -shutterspeed -iso", exiftool_path[k]);
-            break;
-          }
-        }
-        looked_for_exiftool = 1;
-      }
-      text[0] = 0; text_end = text;
-      const char *rccmd = dt_rc_get(&vkdt.rc, "gui/metadata/command", def_cmd);
-      dt_sanitize_user_string((char*)rccmd); // be sure nothing evil is in here. we won't change the length so we don't care about const.
+      const char *rcflags = dt_rc_get(&vkdt.rc, "gui/metadata/flags", "-l -createdate -aperture -shutterspeed -iso");
+      dt_sanitize_user_string((char*)rcflags); // be sure nothing evil is in here. we won't change the length so we don't care about const.
+      char rccmd[1024];
+      if(sizeof(rccmd) <= snprintf(rccmd, sizeof(rccmd), "\"%s/exiftool\" %s", dt_pipe.basedir, rcflags))
+        rccmd[0] = 0;
       char cmd[2*PATH_MAX], imgpath[PATH_MAX];
-      snprintf(cmd, PATH_MAX, "%s '", rccmd);
+      snprintf(cmd, PATH_MAX, "%s \"", rccmd);
       dt_db_image_path(&vkdt.db, vkdt.db.current_imgid, imgpath, sizeof(imgpath));
       fs_realpath(imgpath, cmd+strlen(cmd)); // use GNU extension: fill path even if it doesn't exist
+      text[0] = 0; text_end = text;
       size_t len = strnlen(cmd, sizeof(cmd));
       if(len > 4)
       {
-        cmd[len-4] = '\''; // cut away .cfg
+        cmd[len-4] = '\"'; // cut away .cfg
         cmd[len-3] = 0;
         if(len > 7 && cmd[len-7] == '_' && cmd[len-6] >= '0' && cmd[len-6] <= '9' && cmd[len-5] >= '0' && cmd[len-5] <= '9') 
         { // for duplicates, for instance IMG_9999.CR2_01.cfg
-          cmd[len-7] = '\'';
+          cmd[len-7] = '\"';
           cmd[len-6] = 0;
         }
+#ifdef _WIN64
+        // sometimes another set of quotes is needed
+        char tmp[2*PATH_MAX];
+        snprintf(tmp, sizeof(tmp), "\"%s\"", cmd);
+        snprintf(cmd, sizeof(cmd), "%s", tmp);
+#endif
         FILE *f = popen(cmd, "r");
+        int ret = 0;
         if(f)
         {
           len = fread(text, 1, sizeof(text), f);
@@ -1209,7 +1201,12 @@ void render_lighttable_right_panel()
           text_end = text + len;
           text[len] = 0;
           imgid = vkdt.db.current_imgid;
-          pclose(f);
+          ret = pclose(f);
+        }
+        if(ret)
+        {
+          snprintf(text, sizeof(text), "failed to run exiftool, return code %d", ret);
+          text_end = text + strlen(text);
         }
       }
     }

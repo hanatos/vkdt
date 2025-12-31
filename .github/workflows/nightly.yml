@@ -4,9 +4,9 @@ name: nightly packages
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
 
 permissions:
   contents: read
@@ -26,7 +26,12 @@ jobs:
           - { backend: rawler }
           - { backend: rawspeed }
         compiler:
-          - { compiler: clang, CC: clang-17, CXX: clang++-17, packages: clang-17 libomp-17-dev }
+          - {
+              compiler: clang,
+              CC: clang-17,
+              CXX: clang++-17,
+              packages: clang-17 libomp-17-dev,
+            }
     env:
       CC: ${{ matrix.compiler.CC }}
       CXX: ${{ matrix.compiler.CXX }}
@@ -242,15 +247,12 @@ jobs:
           echo "export VKDT_USE_EXIV2" >> ${SRC_DIR}/bin/config.mk
           make -C ${SRC_DIR}
           make DESTDIR=${INSTALL_PREFIX_U} -C ${SRC_DIR} install
-# unfortunately sf.net does not allow github runners to
-# download exiftool. oh wtf i'm so tired of this dance
-# between stupid companies, and all for a windows binary.
-# - name: bundle exiftool
-#         run: |
-#           wget https://sourceforge.net/projects/exiftool/files/exiftool-13.33_64.zip/download
-#           mv download dreggn.zip
-#           unzip dreggn.zip
-#           mv exiftool*/exiftool*exe ${INSTALL_PREFIX_U}/usr/lib/vkdt/exiftool.exe
+      - name: bundle exiftool
+        run: |
+          wget https://oliverbetz.de/cms/files/Artikel/ExifTool-for-Windows/exiftool-13.44_64.zip
+          unzip exiftool-13.44_64.zip
+          mv ExifTool.exe ${INSTALL_PREFIX_U}/usr/lib/vkdt/exiftool.exe
+          mv exiftool_files/ ${INSTALL_PREFIX_U}/usr/lib/vkdt
       - name: check if it runs
         run: |
           ${INSTALL_PREFIX_U}/usr/lib/vkdt/vkdt.exe --version
@@ -444,7 +446,7 @@ jobs:
         with:
           tag_name: nightly
           prerelease: true
-          name: 'vkdt nightly build $$'
+          name: "vkdt nightly build $$"
           body: |
             this is an automated nightly build of vkdt.
 

@@ -247,8 +247,23 @@ fs_find_usb_block_devices(
     char mountpoint[20][50])
 { // pretty much ls /sys/class/scsi_disk/*/device/block/{sda,sdb,sdd,..}/{..sdd1..} and then grep for it in /proc/mounts
 #ifdef _WIN64
-#warning "port me! (find block devices)"
-  return 0;
+  int cnt = 0;
+  DWORD mask = GetLogicalDrives();
+  if(mask == 0) return 0;
+  for(int i=0; i<26 && cnt<20; i++)
+  {
+    if(!(mask & (1u << i))) continue;
+    char root[4] = "A:\\"; // e.g. "C:\\"
+    root[0] = 'A' + i;
+    UINT dtype = GetDriveTypeA(root);
+    if(dtype == DRIVE_REMOVABLE || dtype == DRIVE_FIXED || dtype == DRIVE_REMOTE)
+    {
+      snprintf(devname[cnt], sizeof(devname[0]), "%c:", 'A' + i);
+      snprintf(mountpoint[cnt], sizeof(mountpoint[0]), "%s", root);
+      cnt++;
+    }
+  }
+  return cnt;
 #else
   int cnt = 0;
   char block[1000];
@@ -301,8 +316,9 @@ next:
 static inline int fs_islnk_file(const char *filename)
 {
 #ifdef _WIN64
-#warning "port me!"
-  return 0;
+  DWORD attr = GetFileAttributesA(filename);
+  if(attr == INVALID_FILE_ATTRIBUTES) return 0;
+  return (attr & FILE_ATTRIBUTE_REPARSE_POINT) ? 1 : 0;
 #else
   struct stat buf = {0};
   lstat(filename, &buf);
@@ -313,8 +329,9 @@ static inline int fs_islnk_file(const char *filename)
 static inline int fs_islnk(const char *dirname, const struct dirent *e)
 {
 #ifdef _WIN64
-#warning "port me!"
-  return 0;
+  char buf[PATH_MAX];
+  if((int)sizeof(buf) <= snprintf(buf, sizeof(buf), "%s/%s", dirname, e->d_name)) return 0;
+  return fs_islnk_file(buf);
 #else
   if (e->d_type == DT_LNK) return 1;
   else if (e->d_type == DT_UNKNOWN)
@@ -544,8 +561,9 @@ fs_createtime(
     const char *filename) // filename to stat
 {
 #ifdef _WIN64
-#warning "port me! (create time)"
-  return 0; // TODO!
+  struct stat statbuf = {0};
+  stat(filename, &statbuf);
+  return statbuf.st_ctime;
 #elif defined(__APPLE__)
   struct stat statbuf = {0};
   stat(filename, &statbuf);
@@ -562,8 +580,11 @@ fs_createdate(
     char       *datetime)  // at least [20]
 {
 #ifdef _WIN64
-#warning "port me! (create date)"
-  datetime[0] = 0;
+  struct stat statbuf = {0};
+  stat(filename, &statbuf);
+  struct tm result;
+  localtime_s(&result, &statbuf.st_ctime);
+  strftime(datetime, 20, "%Y:%m:%d %H:%M:%S", &result);
 #else
   struct stat statbuf = {0};
   if(!stat(filename, &statbuf))
