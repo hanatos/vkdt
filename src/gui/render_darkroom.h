@@ -286,11 +286,20 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
 #endif
 
       // if not mouse down and hovering over bounds, or mouse clicked pos is in bounds
-#define DECORATE(VAL, COL, SC) do {\
+#define DECORATE(VAL, COL, SC, NUM) do {\
       if((!ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && nk_input_is_mouse_hovering_rect(&ctx->input, bounds)) || \
          ( ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && \
          NK_INBOX(ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos.x,ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos.y,bounds.x,bounds.y,bounds.w,bounds.h)))\
       {\
+        if(ctx->input.mouse.buttons[NK_BUTTON_LEFT].down) {\
+          if(vkdt.wstate.active_widget_modid != modid && vkdt.wstate.active_widget_parid != parid &&\
+             vkdt.wstate.active_widget_parnm != NUM) widget_end();\
+          dt_gui_set_lod(vkdt.wstate.lod_interact);\
+          vkdt.wstate.active_widget_modid = modid;\
+          vkdt.wstate.active_widget_parid = parid;\
+          vkdt.wstate.active_widget_parnm = NUM;\
+          vkdt.wstate.active_widget_parsz = 0;\
+        }\
         const float c[] = { bounds.x + bounds.w/2.0, bounds.y + bounds.h/2.0 };\
         int N = 40;\
         float phi = (3.0f/2.0f*M_PI-dead_angle/2.0f*M_PI/180.0f), delta_phi = (2.0f*M_PI - dead_angle*M_PI/180.0f)/N,\
@@ -323,7 +332,9 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           nk_fill_polygon(cmd, x, 4, k==N ? nk_rgba(100,100,100,200) : c);\
           phi -= delta_phi;\
         }\
-      }} while(0)
+      } else if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid &&\
+                vkdt.wstate.active_widget_parnm == NUM) widget_end();\
+      } while(0)
 
       if(mode == 0)
       { // rgb
@@ -331,21 +342,21 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         struct nk_rect bounds = nk_widget_bounds(ctx);
         nk_knob_float(ctx, 0.0, val+0, 1.0, 1.0/100.0, NK_DOWN, dead_angle);
         nk_style_pop_color(ctx);
-        DECORATE(val[0], nk_rgba_f((k+0.5)/N, val[1], val[2], 1.0f), 1.0f/256.0f);
+        DECORATE(val[0], nk_rgba_f((k+0.5)/N, val[1], val[2], 1.0f), 1.0f/256.0f, 0);
         ROTARY_KNOB(val[0], 1.0);
 
         nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_f(0.1, 0.5, 0.1, 1.0));
         bounds = nk_widget_bounds(ctx);
         nk_knob_float(ctx, 0.0, val+1, 1.0, 1.0/100.0, NK_DOWN, dead_angle);
         nk_style_pop_color(ctx);
-        DECORATE(val[1], nk_rgba_f(val[0], (k+0.5)/N, val[2], 1.0f), 1.0f/256.0f);
+        DECORATE(val[1], nk_rgba_f(val[0], (k+0.5)/N, val[2], 1.0f), 1.0f/256.0f, 1);
         ROTARY_KNOB(val[1], 1.0);
 
         nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_f(0.1, 0.1, 0.5, 1.0));
         bounds = nk_widget_bounds(ctx);
         nk_knob_float(ctx, 0.0, val+2, 1.0, 1.0/100.0, NK_DOWN, dead_angle);
         nk_style_pop_color(ctx);
-        DECORATE(val[2], nk_rgba_f(val[0], val[1], (k+0.5)/N, 1.0f), 1.0f/256.0f);
+        DECORATE(val[2], nk_rgba_f(val[0], val[1], (k+0.5)/N, 1.0f), 1.0f/256.0f, 2);
         ROTARY_KNOB(val[2], 1.0);
 
         if(memcmp(&oldval, val, sizeof(float)*3)) change = 1;
@@ -356,21 +367,21 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         struct nk_rect bounds = nk_widget_bounds(ctx);
         nk_knob_float(ctx, 0.0, &hsv.r, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // H
         nk_style_pop_color(ctx);
-        DECORATE(hsv.r, hsv2rgb((k+0.5)/N, .4, 0.6), 1.0f);
+        DECORATE(hsv.r, hsv2rgb((k+0.5)/N, .4, 0.6), 1.0f, 0);
         ROTARY_KNOB(hsv.r, 1.0);
 
         nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, 1.0)));
         bounds = nk_widget_bounds(ctx);
         nk_knob_float(ctx, 0.0, &hsv.g, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // S
         nk_style_pop_color(ctx);
-        DECORATE(hsv.g, hsv2rgb(hsv.r, (k+0.5)/N, 0.5), 1.0f);
+        DECORATE(hsv.g, hsv2rgb(hsv.r, (k+0.5)/N, 0.5), 1.0f, 1);
         ROTARY_KNOB(hsv.g, 1.0);
 
         // nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, hsv.b)));
         bounds = nk_widget_bounds(ctx);
         nk_knob_float(ctx, 0.0, &hsv.b, 2.0, 1.0/100.0, NK_DOWN, dead_angle); // V
         // nk_style_pop_color(ctx);
-        DECORATE(hsv.b/2.0, hsv2rgb(hsv.r, hsv.g, 2.0*(k+0.5)/N), 1.0f);
+        DECORATE(hsv.b/2.0, hsv2rgb(hsv.r, hsv.g, 2.0*(k+0.5)/N), 1.0f, 2);
         ROTARY_KNOB(hsv.b, 2.0);
 
         struct nk_colorf hsv_old = rgb2hsv_prior(oldval.r, oldval.g, oldval.b, cc_hsv[hash]);
