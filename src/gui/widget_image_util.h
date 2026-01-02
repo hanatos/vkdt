@@ -82,3 +82,26 @@ dt_image_zoom(
   w->look_at_x += -img1[0]+img[0];
   w->look_at_y += -img1[1]+img[1];
 }
+
+// zoom by a multiplicative factor centered at (x,y) in screen coordinates
+static inline void
+dt_image_zoom_at(
+    dt_image_widget_t *w,
+    float              x,
+    float              y,
+    float              factor)
+{
+  float view[2] = {x,y}, img[2];
+  dt_image_from_view(w, view, img);
+
+  float scale_fit = MIN(w->win_w/w->wd, w->win_h/w->ht);
+  float min_scale = 1.0f; // zoom-to-fit
+  float max_scale = 8.0f * (1.0f/scale_fit);
+
+  w->scale = CLAMP(w->scale * factor, min_scale, max_scale);
+
+  float img1[2];
+  dt_image_from_view(w, view, img1);
+  w->look_at_x += -img1[0] + img[0];
+  w->look_at_y += -img1[1] + img[1];
+}
