@@ -398,21 +398,21 @@ out:;
   {
     for(uint32_t i=0;i<num_present_modes;i++) if(avail_present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) { win->present_mode = VK_PRESENT_MODE_MAILBOX_KHR; break; }
     if(win->present_mode == VK_PRESENT_MODE_MAILBOX_KHR)
-      dt_log(s_log_gui, "present mode: MAILBOX (low-latency vsync)");
+      dt_log(s_log_qvk, "present mode: MAILBOX (low-latency vsync)");
     else
-      dt_log(s_log_gui, "MAILBOX not available, falling back to FIFO");
+      dt_log(s_log_qvk, "MAILBOX not available, falling back to FIFO");
   }
   else if(pref == 2)
   {
     for(uint32_t i=0;i<num_present_modes;i++) if(avail_present_modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR) { win->present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR; break; }
     if(win->present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR)
-      dt_log(s_log_gui, "present mode: IMMEDIATE (no vsync)");
+      dt_log(s_log_qvk, "present mode: IMMEDIATE (no vsync)");
     else
-      dt_log(s_log_gui, "IMMEDIATE not available, falling back to FIFO");
+      dt_log(s_log_qvk, "IMMEDIATE not available, falling back to FIFO");
   }
   else
   {
-    dt_log(s_log_gui, "present mode: FIFO (vsync)");
+    dt_log(s_log_qvk, "present mode: FIFO (vsync)");
   }
 
   VkExtent2D extent;
