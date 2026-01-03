@@ -389,7 +389,31 @@ out:;
   vkGetPhysicalDeviceSurfacePresentModesKHR(qvk.physical_device, win->surface, &num_present_modes, NULL);
   VkPresentModeKHR *avail_present_modes = alloca(sizeof(VkPresentModeKHR) * num_present_modes);
   vkGetPhysicalDeviceSurfacePresentModesKHR(qvk.physical_device, win->surface, &num_present_modes, avail_present_modes);
-  win->present_mode = VK_PRESENT_MODE_FIFO_KHR; // guaranteed to be there, but has vsync frame time jitter
+
+  // present mode selection: allow user to pick via config `gui/present_mode`:
+  // 0 = FIFO (default, vsync), 1 = MAILBOX (low-latency vsync if available), 2 = IMMEDIATE (no vsync, tearing)
+  int pref = dt_rc_get_int(&vkdt.rc, "gui/present_mode", 0);
+  win->present_mode = VK_PRESENT_MODE_FIFO_KHR; // safe default
+  if(pref == 1)
+  {
+    for(uint32_t i=0;i<num_present_modes;i++) if(avail_present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) { win->present_mode = VK_PRESENT_MODE_MAILBOX_KHR; break; }
+    if(win->present_mode == VK_PRESENT_MODE_MAILBOX_KHR)
+      dt_log(s_log_gui, "present mode: MAILBOX (low-latency vsync)");
+    else
+      dt_log(s_log_gui, "MAILBOX not available, falling back to FIFO");
+  }
+  else if(pref == 2)
+  {
+    for(uint32_t i=0;i<num_present_modes;i++) if(avail_present_modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR) { win->present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR; break; }
+    if(win->present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR)
+      dt_log(s_log_gui, "present mode: IMMEDIATE (no vsync)");
+    else
+      dt_log(s_log_gui, "IMMEDIATE not available, falling back to FIFO");
+  }
+  else
+  {
+    dt_log(s_log_gui, "present mode: FIFO (vsync)");
+  }
 
   VkExtent2D extent;
   extent.width  = MIN(surf_capabilities.maxImageExtent.width,  win->width);
