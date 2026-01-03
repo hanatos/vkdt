@@ -316,7 +316,8 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
     if(yoff != 0)
     { // mouse wheel (yoff is the input)
       ctx->input.mouse.scroll_delta.y = 0;
-      w->scale *= yoff > 0.0f ? 1.1f : 0.9f;
+      const float factor = yoff > 0.0f ? 1.1f : 0.9f;
+      dt_image_zoom_at(w, mpos.x, mpos.y, factor);
     }
   }
   else
