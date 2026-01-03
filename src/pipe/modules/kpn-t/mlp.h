@@ -5,8 +5,8 @@
 // if evaluated backward, define BACKWARD before including.
 
 void warp_activation(
-    in  coopmat_t x,
-    out coopmat_t r)
+    in  coopmat_C_t x,
+    out coopmat_C_t r)
 { // note that [.] only accesses the element owned by this invocation, and length only returns the count of these.
   // relu: for NaN, max is specified to keep the first argument
 #if (MLP_ACTIVATION==MLP_ACTIVATION_RELU)
@@ -22,9 +22,9 @@ void warp_activation(
 }
 
 void warp_activation_backward(
-    in  coopmat_t x,  // fragment
-    in  coopmat_t f,  // forward fragment
-    out coopmat_t r)  // result
+    in  coopmat_C_t x,  // fragment
+    in  coopmat_C_t f,  // forward fragment
+    out coopmat_C_t r)  // result
 { // inverted activation, i.e. if warp_activation: y=s(x) we compute dE/dx = act_bck(dE/dy) = dE/dy * dy/dx = x * s'(f)
 #if (MLP_ACTIVATION==MLP_ACTIVATION_RELU)
   for (int i = 0; i < x.length(); ++i) r[i] = f[i] > 0.0 ? x[i] : float16_t(0.0); // relu
@@ -66,9 +66,9 @@ threadblock_layer(
     uint32_t out_idx,                // offset to output ssbo, points to f16 ssbo_out
     uint32_t act_aux_idx)            // offset to activation aux ssbo, f16 ssbo_aux
 {
-  coopmat_t act_frag;               // row major
-  coopmat_t weights_frag[N_BLOCKS]; // weights layout
-  coopmat_t result_frag[N_ITERS];   // layout specified on store
+  coopmat_A_t act_frag;               // row major
+  coopmat_B_t weights_frag[N_BLOCKS]; // weights layout
+  coopmat_C_t result_frag[N_ITERS];   // layout specified on store
 
   const uint32_t li = gl_LocalInvocationID.x; // index in warp  ("lane index")
   const uint32_t wi = gl_LocalInvocationID.y; // index in block ("warp index")
@@ -81,27 +81,27 @@ threadblock_layer(
 #ifdef BACKWARD
       // If we're performing the backward pass, additional index swizzling is needed to
       // load the weights in transposed form.
-      coopmat_load(weights_frag[i], ssbo_weights.v, (weights_this_layer_idx + 16*i*WIDTH + weights_col)/EL_PER_UVEC4, WIDTH/EL_PER_UVEC4, false /*colmajor*/);
+      coopmat_load(weights_frag[i], ssbo_weights.v, (weights_this_layer_idx + 16*i*WIDTH + weights_col)/EL_PER_UVEC4, WIDTH/EL_PER_UVEC4, gl_CooperativeMatrixLayoutRowMajor);
 #else
       CHK_WGT((weights_this_layer_idx + 16*i+weights_col*WIDTH)/EL_PER_UVEC4, WIDTH/EL_PER_UVEC4)
-      coopmat_load(weights_frag[i], ssbo_weights.v, (weights_this_layer_idx + 16*i+weights_col*WIDTH)/EL_PER_UVEC4, WIDTH/EL_PER_UVEC4,  true /*colmajor*/);
+      coopmat_load(weights_frag[i], ssbo_weights.v, (weights_this_layer_idx + 16*i+weights_col*WIDTH)/EL_PER_UVEC4, WIDTH/EL_PER_UVEC4, gl_CooperativeMatrixLayoutColumnMajor);
 #endif
   }
   barrier();
 
   [[unroll]] for (int l = 0; l < N_ITERS; ++l)
   {
-    result_frag[l] = coopmat_new(0.0);
+    result_frag[l] = coopmat_C_new(0.0);
     [[unroll]] for (uint32_t i = 0; i < N_BLOCKS; ++i)
     { // load a chunk of intermediate activations from shared memory and multiply with chunk of weights
       CHK_SHM((act_shm_idx + 16*i+(16*l)*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4)
-      coopmat_load(act_frag, shm_act, (act_shm_idx + 16*i+(16*l)*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, false);
+      coopmat_load(act_frag, shm_act, (act_shm_idx + 16*i+(16*l)*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, gl_CooperativeMatrixLayoutRowMajor);
       result_frag[l] = coopmat_madd(act_frag, weights_frag[i], result_frag[l]);
     }
     // Activation
 #ifdef BACKWARD
     // Load the temporary forward matrix for the relu transfer
-    coopmat_load(act_frag, ssbo_aux.v, (act_aux_idx + weights_col + l * 16 * WIDTH)/EL_PER_UVEC4, WIDTH/EL_PER_UVEC4, false);
+    coopmat_load(act_frag, ssbo_aux.v, (act_aux_idx + weights_col + l * 16 * WIDTH)/EL_PER_UVEC4, WIDTH/EL_PER_UVEC4, gl_CooperativeMatrixLayoutRowMajor);
     warp_activation_backward(result_frag[l], act_frag, result_frag[l]);
 #else
     warp_activation(result_frag[l], result_frag[l]);
@@ -111,7 +111,7 @@ threadblock_layer(
   barrier();
   [[unroll]] for (int l = 0; l < N_ITERS; ++l)
     CHK_SHM((act_shm_idx + weights_col + l*16*(WIDTH+SKEW))/EL_PER_UVEC4, (WIDTH+SKEW)/EL_PER_UVEC4)
-    coopmat_store(result_frag[l], shm_act, (act_shm_idx + weights_col + l*16*(WIDTH+SKEW))/EL_PER_UVEC4, (WIDTH+SKEW)/EL_PER_UVEC4, false);
+    coopmat_store(result_frag[l], shm_act, (act_shm_idx + weights_col + l*16*(WIDTH+SKEW))/EL_PER_UVEC4, (WIDTH+SKEW)/EL_PER_UVEC4, gl_CooperativeMatrixLayoutRowMajor);
 
 #ifndef INFERENCE
   barrier();

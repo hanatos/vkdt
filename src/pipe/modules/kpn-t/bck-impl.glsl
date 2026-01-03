@@ -47,32 +47,32 @@ void main()
   const uint32_t layer_stride = WIDTH * push.batch_size;
 
   // Backprop through last layer
-  coopmat_t act_frag;     // output layout: row major?
-  coopmat_t weights_frag; // weights layout: row major
-  coopmat_t result_frag[N_ITERS];
+  coopmat_A_t act_frag;     // output layout: row major?
+  coopmat_B_t weights_frag; // weights layout: row major
+  coopmat_C_t result_frag[N_ITERS];
   // Load the relevant chunk of the last layer's weight matrix from global memory into registers
   const uint32_t weights_col = 16 * wi;
 
   // backpropagate the initial dEdK -> dEdA[hidden layers-1] 16x32 block. this reads the weights w[hidden layers]
-  coopmat_load(weights_frag, ssbo_weights.v, (weights_stride * (N_HIDDEN_LAYERS) + weights_col)/EL_PER_UVEC4, WIDTH/EL_PER_UVEC4, /*colmajor*/false);
+  coopmat_load(weights_frag, ssbo_weights.v, (weights_stride * (N_HIDDEN_LAYERS) + weights_col)/EL_PER_UVEC4, WIDTH/EL_PER_UVEC4, gl_CooperativeMatrixLayoutRowMajor);
 
   [[unroll]] for (int l = 0; l < N_ITERS; ++l)
   {
-    result_frag[l] = coopmat_new(0.0);
-    coopmat_load(act_frag, ssbo_dLdO.v, (elem_idx + 16 * l) * push.output_stride/EL_PER_UVEC4, push.output_stride/EL_PER_UVEC4, /*colmajor*/false);
+    result_frag[l] = coopmat_C_new(0.0);
+    coopmat_load(act_frag, ssbo_dLdO.v, (elem_idx + 16 * l) * push.output_stride/EL_PER_UVEC4, push.output_stride/EL_PER_UVEC4, gl_CooperativeMatrixLayoutRowMajor);
     // coopmat_load(act_frag, ssbo_dLdO.v, (elem_idx + 16 * l)/EL_PER_UVEC4, push.output_stride/EL_PER_UVEC4, /*colmajor*/true);
 
     result_frag[l] = coopmat_madd(act_frag, weights_frag, result_frag[l]);
 
     // load activation A[hidden layers-1] to reverse the activation function gradient
-    coopmat_t forward_frag;
-    coopmat_load(forward_frag, ssbo_aux.v, (layer_stride * (N_HIDDEN_LAYERS-1) + weights_col + (elem_idx + l * 16) * WIDTH)/EL_PER_UVEC4, WIDTH/EL_PER_UVEC4, /*colmajor*/false);
+    coopmat_A_t forward_frag;
+    coopmat_load(forward_frag, ssbo_aux.v, (layer_stride * (N_HIDDEN_LAYERS-1) + weights_col + (elem_idx + l * 16) * WIDTH)/EL_PER_UVEC4, WIDTH/EL_PER_UVEC4, gl_CooperativeMatrixLayoutRowMajor);
     warp_activation_backward(result_frag[l], forward_frag, result_frag[l]);
   }
   barrier();
 
   [[unroll]] for (int l = 0; l < N_ITERS; ++l)
-    coopmat_store(result_frag[l], shm_act, (weights_col + (16*l) * (WIDTH+SKEW))/EL_PER_UVEC4, (WIDTH+SKEW)/EL_PER_UVEC4, /*colmajor*/false);
+    coopmat_store(result_frag[l], shm_act, (weights_col + (16*l) * (WIDTH+SKEW))/EL_PER_UVEC4, (WIDTH+SKEW)/EL_PER_UVEC4, gl_CooperativeMatrixLayoutRowMajor);
   barrier();
 
   [[unroll]] for (int i = 0; i < N_ITERS; ++i)

@@ -252,7 +252,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
           qvk.raytracing_supported = 1;
         else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME))
           qvk.float_atomics_supported = 1;
-        else if (!strcmp(ext_properties[k].extensionName, VK_NV_COOPERATIVE_MATRIX_EXTENSION_NAME))
+        else if (!strcmp(ext_properties[k].extensionName, VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME))
           qvk.coopmat_supported = 1;
       }
       picked_device = i;
@@ -355,8 +355,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   //   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES,
   //   .pNext = &v11f,
   // };
-  VkPhysicalDeviceCooperativeMatrixFeaturesNV coopmat = {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV,
+  VkPhysicalDeviceCooperativeMatrixFeaturesKHR coopmat = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR,
     // .pNext = &maintenance4, // VK 1.3 only so it seems
     .pNext = &v11f,
   };
@@ -393,7 +393,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   int len = (qvk.raytracing_supported ? 7 : 1);
   if(qvk.float_atomics_supported) requested_device_extensions[len++] = VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME;
   if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME;
-  if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_NV_COOPERATIVE_MATRIX_EXTENSION_NAME;
+  if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME;
 #ifdef QVK_ENABLE_VALIDATION
   requested_device_extensions[len++] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
 #endif

@@ -135,13 +135,13 @@ shared float16_t current_column_I[(TILE_HEIGHT * TILE_WIDTH) * 16];
 shared float16_t current_line_W[16 * F_OUT_32/F_OUT_BATCHES];
 
 // XXX apparently the max number of registers per thread is 255 so this can't work:
-coopmat_t coop_mat_column_I[(TILE_WIDTH * TILE_HEIGHT) / 16];
-coopmat_t coop_mat_line_W[F_OUT_32/F_OUT_BATCHES / 16];
+coopmat_A_t coop_mat_column_I[(TILE_WIDTH * TILE_HEIGHT) / 16];
+coopmat_B_t coop_mat_line_W[F_OUT_32/F_OUT_BATCHES / 16];
 
 // XXX register file is 64K 32-bit floats, so maybe 256KB
 // XXX 8*8 / 16 * 128 / 16 * (mat)16*16 / 32 threads is exactly 256
 // output of the multiplication
-coopmat_t sums[(TILE_WIDTH * TILE_HEIGHT) / 16][F_OUT_32/F_OUT_BATCHES / 16];
+coopmat_C_t sums[(TILE_WIDTH * TILE_HEIGHT) / 16][F_OUT_32/F_OUT_BATCHES / 16];
 
 // used when exporting to the output buffer
 // shared float16_t exported_matrix[16*16];
@@ -157,7 +157,7 @@ void main()
   {
     [[unroll]] for (int x = 0; x < TILE_WIDTH * TILE_HEIGHT / 16; x++)
       [[unroll]] for (int y = 0; y < FF / 16; y++)
-        sums[x][y] = coopmat_new(0.);
+        sums[x][y] = coopmat_C_new(0.);
 
     for (int k = 0; k < I_WIDTH_32 / 16; k++)
     { // load to shared memory
@@ -170,10 +170,10 @@ void main()
 
       // load the cooperative matrices
       [[unroll]] for (int i = 0; i < (TILE_WIDTH * TILE_HEIGHT) / 16; i++)
-        coopmat_load_f16(coop_mat_column_I[i], current_column_I, 16*16*i, 16, false);
+        coopmat_load_f16(coop_mat_column_I[i], current_column_I, 16*16*i, 16, gl_CooperativeMatrixLayoutRowMajor);
 
       [[unroll]] for (int i = 0; i < FF / 16; i++)
-        coopmat_load_f16(coop_mat_line_W[i], current_line_W, 16*i, FF, false);
+        coopmat_load_f16(coop_mat_line_W[i], current_line_W, 16*i, FF, gl_CooperativeMatrixLayoutRowMajor);
 
       // do the products
       [[unroll]] for (int i = 0; i < (TILE_WIDTH * TILE_HEIGHT) / 16; i++)
@@ -186,7 +186,7 @@ void main()
     {
       [[unroll]] for (int j = 0; j < FF / 16; j++)
       {
-        coopmat_store_f16(sums[i][j], current_column_I, 0, 16, false);
+        coopmat_store_f16(sums[i][j], current_column_I, 0, 16, gl_CooperativeMatrixLayoutRowMajor);
         const uint feature = 16*(j+batch*FF/16) + (id_loc % 16);
 
         // now we hold in our hands all the data for the [8x8] rows x cols

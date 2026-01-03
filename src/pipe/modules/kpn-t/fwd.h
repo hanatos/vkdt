@@ -56,9 +56,9 @@ threadblock_last_layer_forward(
   // act_shmem contains the intermediate activations (shared memory) of the thread block's chunk of the batch
   // weights_this_layer points to the weight matrix of the current layer
   // out points to the location where the result produced by the thread block should be written to.
-  coopmat_t act_frag;               // input layout: row major
-  coopmat_t weights_frag[N_BLOCKS]; // weights layout: col major
-  coopmat_t result_frag;
+  coopmat_A_t act_frag;               // input layout: row major
+  coopmat_B_t weights_frag[N_BLOCKS]; // weights layout: col major
+  coopmat_C_t result_frag;
 
   const uint32_t li = gl_LocalInvocationID.x; // index in warp  ("lane index")
   const uint32_t wi = gl_LocalInvocationID.y; // index in block ("warp index")
@@ -79,17 +79,17 @@ threadblock_last_layer_forward(
   [[unroll]] for (uint32_t i = 0; i < N_BLOCKS; ++i)
   {
     CHK_SHM((weights_shmem_idx + 16*i)/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4)
-    coopmat_load(weights_frag[i], shm_act, (weights_shmem_idx + 16*i)/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, /*colmajor*/true);
+    coopmat_load(weights_frag[i], shm_act, (weights_shmem_idx + 16*i)/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, gl_CooperativeMatrixLayoutColumnMajor);
   }
   barrier();
 
   for (uint32_t idx = wi; idx < N_ITERS; idx += N_BLOCKS)
   { // perform last layer by parallelising over iters
-    result_frag = coopmat_new(0.0);
+    result_frag = coopmat_C_new(0.0);
     [[unroll]] for (uint32_t i = 0; i < N_BLOCKS; ++i)
     { // load a chunk of intermediate activations from shared memory and multiply with chunk of the weight matrix
       CHK_SHM((act_shm_idx + 16*i + (16*idx)*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4)
-      coopmat_load(act_frag, shm_act, (act_shm_idx + 16*i + (16*idx)*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, /*colmajor*/false);
+      coopmat_load(act_frag, shm_act, (act_shm_idx + 16*i + (16*idx)*(WIDTH + SKEW))/EL_PER_UVEC4, (WIDTH + SKEW)/EL_PER_UVEC4, gl_CooperativeMatrixLayoutRowMajor);
       result_frag = coopmat_madd(act_frag, weights_frag[i], result_frag);
     }
 
@@ -98,10 +98,10 @@ threadblock_last_layer_forward(
 
     if(output_colmajor) {
       CHK_OUT((out_idx + idx * 16)/EL_PER_UVEC4, output_stride/EL_PER_UVEC4)
-      coopmat_store(result_frag, ssbo_res.v, (out_idx + idx * 16)/EL_PER_UVEC4, output_stride/EL_PER_UVEC4, /*colmajor*/true);
+      coopmat_store(result_frag, ssbo_res.v, (out_idx + idx * 16)/EL_PER_UVEC4, output_stride/EL_PER_UVEC4, gl_CooperativeMatrixLayoutColumnMajor);
     } else {
       CHK_OUT((out_idx + idx * 16 * output_stride)/EL_PER_UVEC4, output_stride/EL_PER_UVEC4)
-      coopmat_store(result_frag, ssbo_res.v, (out_idx + idx * 16 * output_stride)/EL_PER_UVEC4, output_stride/EL_PER_UVEC4, /*colmajor*/false);
+      coopmat_store(result_frag, ssbo_res.v, (out_idx + idx * 16 * output_stride)/EL_PER_UVEC4, output_stride/EL_PER_UVEC4, gl_CooperativeMatrixLayoutColumnMajor);
     }
   }
 }
