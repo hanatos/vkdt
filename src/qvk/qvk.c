@@ -392,7 +392,6 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   };
   int len = (qvk.raytracing_supported ? 7 : 1);
   if(qvk.float_atomics_supported) requested_device_extensions[len++] = VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME;
-  if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_NV_SHADER_SUBGROUP_PARTITIONED_EXTENSION_NAME;
   if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME;
 #ifdef QVK_ENABLE_VALIDATION
   requested_device_extensions[len++] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
