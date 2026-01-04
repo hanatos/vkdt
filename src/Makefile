@@ -58,7 +58,8 @@ include fit/flat.mk
 include tools/flat.mk
 
 clean: Makefile
-	rm -f ../bin/vkdt ../bin/vkdt-cli ../bin/vkdt-fit
+	rm -f ../bin/vkdt ../bin/vkdt-cli ../bin/vkdt-fit ../bin/vkdt-read-icc ../bin/vkdt-eval-profile ../bin/vkdt-lutinfo
+	rm -f ../bin/vkdt-mkclut ../bin/vkdt-mkssf
 	rm -f $(GUI_O) $(CORE_O) $(PIPE_O) $(SND_O) $(CLI_O) $(FIT_O) $(QVK_O) $(DB_O)
 	rm -f gui/shd.h
 	rm -f gui/shd/*.spv
@@ -68,6 +69,13 @@ clean: Makefile
 	rm -f pipe/modules/*/lib*.so
 	rm -f pipe/modules/*/*.spv
 	rm -f pipe/modules/*/{ctooltips,ptooltips}
+
+distclean: clean
+	rm -f macadam mkabney mkspectra macadam.lut
+	rm -rf pipe/modules/i-raw/rawloader-c/target
+	rm -rf pipe/modules/i-mcraw/mcraw-*
+	rm -rf pipe/modules/i-raw/rawspeed-*
+	rm -f core/version.h
 
 # GNU_SOURCE for sched_affinity
 CFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c11

@@ -1,4 +1,4 @@
-.PHONY: all debug sanitize sanitize-thread cli reload-shaders clean
+.PHONY: all debug sanitize sanitize-thread cli reload-shaders clean distclean
 
 all:
 	$(MAKE) -C .. all
@@ -23,4 +23,6 @@ reload-shaders:
 
 clean:
 	$(MAKE) -C .. clean
-	rm -f vkdt vkdt-cli vkdt-fit vkdt-mkssf vkdt-mkclut vkdt-eval-profile vkdt-lutinfo libvkdt.so
+
+distclean:
+	$(MAKE) -C .. distclean

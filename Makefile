@@ -93,14 +93,14 @@ install-lib: install-mod Makefile src/core/version.h
 	cp -rfL src/gui/*.h $(VKDTINCDIR)/gui
 	cp -rfL src/core/*.h $(VKDTINCDIR)/core
 
-RELEASE_FILES=$(shell echo src/core/version.h; git ls-files --recurse-submodules)
+RELEASE_FILES=$(shell echo src/core/version.h; git ls-files --recurse-submodules 2>/dev/null)
 ifeq ($(VKDT_USE_RAWINPUT), 1)
-  RAWSPEED_DIR=$(shell ls -d src/pipe/modules/i-raw/rawspeed-*)
-  RELEASE_FILES+=$(shell cd $(RAWSPEED_DIR) && git ls-files | sed -e 's\#^\#$(RAWSPEED_DIR)/\#')
+  RAWSPEED_DIR=$(shell ls -d src/pipe/modules/i-raw/rawspeed-* 2>/dev/null)
+  RELEASE_FILES+=$(shell cd $(RAWSPEED_DIR) && git ls-files 2/dev/null | sed -e 's\#^\#$(RAWSPEED_DIR)/\#')
 endif
 ifeq ($(VKDT_USE_MCRAW), 1)
-  MCRAW_DIR=$(shell ls -d src/pipe/modules/i-mcraw/mcraw-*)
-  RELEASE_FILES+=$(shell cd $(MCRAW_DIR) && git ls-files | sed -e 's\#^\#$(MCRAW_DIR)/\#')
+  MCRAW_DIR=$(shell ls -d src/pipe/modules/i-mcraw/mcraw-* 2>/dev/null)
+  RELEASE_FILES+=$(shell cd $(MCRAW_DIR) && git ls-files 2>/dev/null | sed -e 's\#^\#$(MCRAW_DIR)/\#')
 endif
 ifeq ($(VKDT_USE_QUAKE), 1)
   RELEASE_FILES+=$(shell cd src/pipe/modules/quake/quakespasm; git ls-files | sed -e 's\#^\#src/pipe/modules/quake/quakespasm/\#')
@@ -147,18 +147,20 @@ distclean:
 	$(shell find . -name "*.o"   -exec rm {} \;)
 	$(shell find . -name "*.spv" -exec rm {} \;)
 	$(shell find . -name "*.so"  -exec rm {} \;)
-	rm -rf bin/vkdt bin/vkdt-fit bin/vkdt-cli bin/vkdt-mkssf bin/vkdt-mkclut bin/vkdt-lutinfo bin/vkdt-eval-profile bin/libvkdt.so
-	rm -rf src/macadam
-	rm -rf src/mkabney
-	rm -rf bin/data/*.lut
-	rm -rf bin/data/cameras.xml
+	rm -f bin/data/*.lut
+	rm -f bin/data/cameras.xml
 	rm -rf bin/modules
-	rm -rf src/macadam.lut
+	rm -f bin/config.mk
 	$(MAKE) -C src distclean
 
 uninstall-lib:
-	rm -rf $(VKDTLIBDIR)/libvkdt.so $(VKDTLIBDIR)/modules  $(VKDTLIBDIR)/data
-	rm -rf $(VKDTINCDIR)
+	rm -f $(VKDTLIBDIR)/libvkdt.so
+	rm -rf $(VKDTINCDIR)/ $(VKDTDIR)/
+
+uninstall-bin:
+	rm -f $(VKDTBIN)/vkdt $(VKDTBIN)/vkdt-cli
+
+uninstall: uninstall-lib uninstall-bin
 
 bin: Makefile
 	mkdir -p bin/data
@@ -167,6 +169,9 @@ ifeq ($(OS),Windows_NT)
 else
 	ln -sf ../src/pipe/modules bin/
 endif
+
+# Avoid failing on missing custom config
+bin/config.mk:
 
 info: Makefile bin/config.mk
 ifeq ($(VKDT_USE_RAWINPUT), 0)
