@@ -392,7 +392,7 @@ out:;
 
   // present mode selection: allow user to pick via config `gui/present_mode`:
   // 0 = FIFO (default, vsync), 1 = MAILBOX (low-latency vsync if available), 2 = IMMEDIATE (no vsync, tearing)
-  int pref = dt_rc_get_int(&vkdt.rc, "gui/present_mode", 0);
+  int pref = dt_rc_get_int(&vkdt.rc, "gui/vk_present_mode", 0);
   win->present_mode = VK_PRESENT_MODE_FIFO_KHR; // safe default
   if(pref == 1)
   {
