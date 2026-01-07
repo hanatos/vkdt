@@ -4,7 +4,7 @@ fills masked areas by smooth inpainting (pull/push).
 
 ## parameters
 
-none
+* `mode` drive the inpainting in all directions or along the horizon or along vertical features
 
 ## connectors
 

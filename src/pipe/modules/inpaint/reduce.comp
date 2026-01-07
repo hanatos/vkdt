@@ -6,8 +6,10 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// layout(std140, set = 0, binding = 1) uniform params_t
-// { } params;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  uint mode;
+} params;
 
 layout(push_constant, std140) uniform push_t
 {
@@ -36,12 +38,34 @@ main()
   const float w[5] = {1.0f/16.0f, 4.0f/16.0f, 6.0f/16.0f, 4.0f/16.0f, 1.0f/16.0f};
   vec3 col = vec3(0.0);
   float wgt = 0.0;
-  for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
+  if(params.mode == 0) for(int jj=-2;jj<=2;jj++) for(int ii=-2;ii<=2;ii++)
   {
     vec4 rgbm = texture(img_in, (2*opos+ivec2(ii,jj)+0.5)/textureSize(img_in, 0));
     if(push.scale == 0) rgbm.w = texture(img_mask, (2*opos+ivec2(ii,jj)+0.5)/textureSize(img_mask, 0)).r;
     float u = w[ii+2]*w[jj+2];
     // u *= clamp(1.0-rgbm.z, 0.0, 1.0); // if mask is 1.0 pixels count as invalid
+    if(rgbm.w < 0.5)
+    {
+      col += rgbm.rgb * u;
+      wgt += u;
+    }
+  }
+  else if(params.mode == 1) for(int ii=-2;ii<=2;ii++)
+  {
+    vec4 rgbm = texture(img_in, (2*opos+ivec2(ii,0)+0.5)/textureSize(img_in, 0));
+    if(push.scale == 0) rgbm.w = texture(img_mask, (2*opos+ivec2(ii,0)+0.5)/textureSize(img_mask, 0)).r;
+    float u = w[ii+2];
+    if(rgbm.w < 0.5)
+    {
+      col += rgbm.rgb * u;
+      wgt += u;
+    }
+  }
+  else if(params.mode == 2) for(int ii=-2;ii<=2;ii++)
+  {
+    vec4 rgbm = texture(img_in, (2*opos+ivec2(0,ii)+0.5)/textureSize(img_in, 0));
+    if(push.scale == 0) rgbm.w = texture(img_mask, (2*opos+ivec2(0,ii)+0.5)/textureSize(img_mask, 0)).r;
+    float u = w[ii+2];
     if(rgbm.w < 0.5)
     {
       col += rgbm.rgb * u;

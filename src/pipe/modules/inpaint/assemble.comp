@@ -6,8 +6,10 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
-//layout(std140, set = 0, binding = 1) uniform params_t
-// { } params;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  uint mode;
+} params;
 
 layout(push_constant, std140) uniform push_t
 {
@@ -37,7 +39,11 @@ main()
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
   // upsample img_coarse, by definition it has no undefined pixels any more
-  vec4 upsm = sample_flower(img_coarse, (opos+0.5)/imageSize(img_out));
+  vec4 upsm;
+  if(params.mode == 0)
+    upsm = sample_flower(img_coarse, (opos+0.5)/imageSize(img_out));
+  else
+    upsm = texture(img_coarse, (opos+0.5)/imageSize(img_out));
   vec4 fine = texelFetch(img_input, opos, 0);
   if(push.scale == 0) fine.w = clamp(texelFetch(img_mask, opos, 0).r, 0.0, 1.0);
   fine.rgb = mix(fine.rgb, upsm.rgb, fine.w);
