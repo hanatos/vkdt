@@ -342,8 +342,8 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
     w->look_at_x = w->old_look_x-img1[0]+img0[0];
     w->look_at_y = w->old_look_y-img1[1]+img0[1];
   }
-  w->look_at_x = CLAMP(w->look_at_x, -0.5f, 0.5f);
-  w->look_at_y = CLAMP(w->look_at_y, -0.5f, 0.5f);
+  w->look_at_x = CLAMP(w->look_at_x, -5.f, 5.f);
+  w->look_at_y = CLAMP(w->look_at_y, -5.f, 5.f);
 }
 
 static inline void

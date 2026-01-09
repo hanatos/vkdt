@@ -95,7 +95,7 @@ dt_image_zoom_at(
   dt_image_from_view(w, view, img);
 
   float scale_fit = MIN(w->win_w/w->wd, w->win_h/w->ht);
-  float min_scale = 1.0f; // zoom-to-fit
+  float min_scale = 0.1f; // zoom-to-fit
   float max_scale = 8.0f * (1.0f/scale_fit);
 
   w->scale = CLAMP(w->scale * factor, min_scale, max_scale);
