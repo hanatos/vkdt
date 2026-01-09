@@ -276,6 +276,32 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
 
   vkGetPhysicalDeviceMemoryProperties(qvk.physical_device, &qvk.mem_properties);
 
+  if(qvk.coopmat_supported)
+  { // check coopmat configuration required by us:
+    uint32_t cnt;
+    QVK_LOAD(vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR);
+    VkResult res = qvkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(qvk.physical_device, &cnt, 0);
+    qvk.coopmat_supported = 0;
+    if(res == VK_SUCCESS && cnt > 0)
+    {
+      VkCooperativeMatrixPropertiesKHR *p = alloca(sizeof(*p)*cnt);
+      VkResult res = qvkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(qvk.physical_device, &cnt, p);
+      if(res == VK_SUCCESS) for(int i=0;i<cnt&&qvk.coopmat_supported==0;i++)
+      {
+        dt_log(s_log_qvk, "found support for cooperative matrices %dx%dx%d", p[i].MSize, p[i].NSize, p[i].KSize);
+        if(p[i].MSize == 16 &&
+           p[i].NSize == 16 &&
+           p[i].KSize == 16 &&
+           p[i].AType == VK_COMPONENT_TYPE_FLOAT16_KHR &&
+           p[i].BType == VK_COMPONENT_TYPE_FLOAT16_KHR &&
+           p[i].CType == VK_COMPONENT_TYPE_FLOAT16_KHR)
+          qvk.coopmat_supported = 1;
+      }
+      if(!qvk.coopmat_supported)
+        dt_log(s_log_qvk, "disabling cooperative matrices because 16x16x16 is not supported");
+    }
+  }
+
   /* queue family and create physical device */
   uint32_t num_queue_families = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(qvk.physical_device, &num_queue_families, NULL);
