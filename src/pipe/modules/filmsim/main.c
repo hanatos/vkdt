@@ -161,7 +161,7 @@ create_nodes(
     const int   pid = dt_module_get_param(module->so, dt_token("radius"));
     const float par = dt_module_param_float(module, pid)[0];
     float blur = par*MAX(owd, oht);
-    const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_part1, 1, 0, 0, blur) : id_part1;
+    const int id_blur = blur > 0 ? dt_api_blur_sep(graph, module, id_part1, 1, 0, 0, blur) : id_part1;
     CONN(dt_node_connect_named(graph, id_blur,  "output", id_part2, "hal"));
     CONN(dt_node_connect_named(graph, id_part1, "output", id_part2, "exp"));
     dt_connector_copy(graph, module, 2, id_part2, 2);
@@ -178,7 +178,7 @@ create_nodes(
     id_part1 = id_part2 = id;
   }
   float blur = 0.015*MAX(owd, oht);
-  const int id_blur = blur > 0 ? dt_api_blur(graph, module, id_part0, 1, 0, 0, blur) : id_part0;
+  const int id_blur = blur > 0 ? dt_api_blur_sep(graph, module, id_part0, 1, 0, 0, blur) : id_part0;
   const int cn_blur = blur > 0 ? 1 : 1;
   CONN(dt_node_connect(graph, id_blur, cn_blur, id_part1, 4));
   dt_connector_copy(graph, module, 0, id_part0, 0);

@@ -15,7 +15,7 @@ main()
   int sp = int(floor(push.radius));
   for(int i=-sp;i<=sp;i++)
   {
-    float w = exp(-i*i/(2.0*(push.radius/2.0*push.radius/2.0)));
+    float w = exp(-i*i/(2.0*(push.radius/3.0*push.radius/3.0)));
     wgt += w;
     color += w * texture(img_in[idx], (ipos + 0.5 + vec2(0, i))/vec2(textureSize(img_in[idx], 0)));
   }

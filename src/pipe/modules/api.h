@@ -492,7 +492,7 @@ dt_api_blur_sep(
     int          connid_input,
     int         *id_blur_in,
     int         *id_blur_out,
-    float        radius)        // blur radius in pixels
+    float        radius)        // blur radius in pixels, = 3 sigma (will be rounded down to int)
 {
   // detect pixel format on input and blur the whole thing in separable kernels
   const dt_connector_t *conn_input = nodeid_input >= 0 ?
@@ -629,7 +629,7 @@ dt_api_blur(
   { // use both to get more precise correspondence
     int id_blur_small_in = -1, id_blur_small_out = -1;
     dt_api_blur_sep(graph, module, nodeid_input, connid_input,
-        &id_blur_small_in, &id_blur_small_out, 2.0f*sig_rem);
+        &id_blur_small_in, &id_blur_small_out, 3.0f*sig_rem);
     return dt_api_blur_sub(graph, module, id_blur_small_out, 1,
         id_blur_in, id_blur_out, it, mul, 1);
   }

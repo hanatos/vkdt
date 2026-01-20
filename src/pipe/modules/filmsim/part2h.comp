@@ -15,21 +15,10 @@ void main()
   // load halation + raw exposed film
   vec3 raw = texture(img_in,  (ipos+0.5)/vec2(imageSize(img_out))).rgb;
   vec3 hal = texture(img_hal, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
-  // magic numbers:
-  float strength = 12.0;
-  float softness = 10.0;
-  float contrast =  4.0;
-  hal = strength/(1.+pow(hal/vec3(softness),-vec3(contrast)));
-  vec3 hs = params.halation_strength.rgb;
+  // magic number to match agx-emulation strip:
+  vec3 hs = .35*params.halation_strength.rgb;
   const float one_log10 = 0.43429448190325176;
-  // the original python code normalised the raw exposure
-  // like this:
-  //  log_raw = log((raw+hs*hal)/(1.0+hs))*one_log10;
-  // but this pulls down the average and thus changes wb settings
-  // because it meets the film/paper curves in different regions.
-  // we sum it, maybe violating energy conservation but making the
-  // result more predictable:
-  vec3 log_raw = log((raw+hs*hal))*one_log10;
+  vec3 log_raw = log((raw+hs*hal)/(1.0+hs))*one_log10;
   vec3 density_cmy = develop_film(log_raw, params.film, ipos, push.scale);
   if(params.process == 0)
   {
