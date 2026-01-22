@@ -628,8 +628,9 @@ dt_node_editor(
     nedit->scroll.y -= in->mouse.delta.y/(nedit->zoom*nedit->dpi_scale);
   }
 
-  if(nk_input_is_key_pressed(&ctx->input, NK_KEY_DEL) ||
-     nk_input_is_key_pressed(&ctx->input, NK_KEY_BACKSPACE))
+  if(!dt_gui_input_blocked() &&
+     (nk_input_is_key_pressed(&ctx->input, NK_KEY_DEL) ||
+      nk_input_is_key_pressed(&ctx->input, NK_KEY_BACKSPACE)))
   { // delete selected modules
     int sel_node_cnt = dt_node_editor_selection(nedit, &vkdt.graph_dev, 0);
     int *sel_node_id  = (int *)alloca(sizeof(int)*sel_node_cnt);
