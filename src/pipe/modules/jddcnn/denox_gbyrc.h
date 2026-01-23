@@ -1,0 +1,811 @@
+#ifndef jddcnn_gbyrc_DENOX_MODULE_H
+#define jddcnn_gbyrc_DENOX_MODULE_H
+#include "modules/api.h"
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+static int denox_read_source_gbyrc(dt_module_t* mod, void* mapped, dt_read_source_params_t* p) {
+  if (p->node->kernel == dt_token("weights")) {
+    FILE* f = dt_graph_open_resource(mod->graph, 0, "data/jddcnn-gbyrc.dat", "rb");
+    if (!f) {
+      snprintf(mod->graph->gui_msg_buf, sizeof(mod->graph->gui_msg_buf),
+            "jddcnn: could not find \"data/jddcnn-gbyrc.dat\"");
+      return 1;
+    }
+    fseek(f, 0, SEEK_END);
+    const size_t size = ftell(f);
+    const size_t expected_size = 4311872;
+    if (size != expected_size) {
+      snprintf(mod->graph->gui_msg_buf, sizeof(mod->graph->gui_msg_buf),
+            "jddcnn: weight file \"data/jddcnn-gbyrc.dat\" has unexpected size!");
+      fclose(f);
+      return 1;
+    }
+    fseek(f, 0, SEEK_SET);
+    fread(mapped, size, 1, f);
+    fclose(f);
+  }
+  return 0;
+}
+
+static void denox_create_nodes_gbyrc(dt_graph_t* graph, dt_module_t* module,
+      uint64_t H, uint64_t W,
+      int input_id, const char* input_connector,
+      int output_id, const char* output_connector) {
+  const int64_t r2 = ((H % 16) + 16) % 16;
+  const int64_t r3 = r2 * -1;
+  const int64_t r4 = r3 + 16;
+  const int64_t r5 = ((r4 % 16) + 16) % 16;
+  const int64_t r6 = H + r5;
+  const int64_t r7 = r6 - 2;
+  const int64_t r8 = r7 / 2;
+  const int64_t r9 = r8 + 1;
+  const int64_t r10 = r9 - 2;
+  const int64_t r11 = r10 / 2;
+  const int64_t r12 = r11 + 1;
+  const int64_t r13 = r12 - 2;
+  const int64_t r14 = r13 / 2;
+  const int64_t r15 = r14 + 1;
+  const int64_t r16 = r15 - 2;
+  const int64_t r17 = r16 / 2;
+  const int64_t r18 = r17 + 1;
+  const int64_t r19 = ((W % 16) + 16) % 16;
+  const int64_t r20 = r19 * -1;
+  const int64_t r21 = r20 + 16;
+  const int64_t r22 = ((r21 % 16) + 16) % 16;
+  const int64_t r23 = W + r22;
+  const int64_t r24 = r23 - 2;
+  const int64_t r25 = r24 / 2;
+  const int64_t r26 = r25 + 1;
+  const int64_t r27 = r26 - 2;
+  const int64_t r28 = r27 / 2;
+  const int64_t r29 = r28 + 1;
+  const int64_t r30 = r29 - 2;
+  const int64_t r31 = r30 / 2;
+  const int64_t r32 = r31 + 1;
+  const int64_t r33 = r32 - 2;
+  const int64_t r34 = r33 / 2;
+  const int64_t r35 = r34 + 1;
+  const int64_t r36 = r35 * r18;
+  const int64_t r38 = r32 + 351;
+  const int64_t r39 = r38 / 352;
+  const int64_t r40 = r32 * r15;
+  const int64_t r42 = r29 + 351;
+  const int64_t r43 = r42 / 352;
+  const int64_t r44 = r29 * r12;
+  const int64_t r46 = r26 * r9;
+  const int64_t r48 = r23 * r6;
+  const int64_t r50 = r23 + 351;
+  const int64_t r51 = r50 / 352;
+  const int64_t r52 = r23 + 31;
+  const int64_t r53 = r52 / 32;
+  const int64_t r55 = W + 47;
+  const int64_t r56 = r55 / 48;
+  const int64_t r57 = r23 + 79;
+  const int64_t r58 = r57 / 80;
+  const int64_t r59 = r23 + 95;
+  const int64_t r60 = r59 / 96;
+  const int64_t r61 = r23 + 159;
+  const int64_t r62 = r61 / 160;
+  const int64_t r63 = r35 + 127;
+  const int64_t r64 = r63 / 128;
+  const int64_t r65 = r35 + 255;
+  const int64_t r66 = r65 / 256;
+  const int64_t r67 = r29 + 895;
+  const int64_t r68 = r67 / 896;
+  const int64_t r69 = r29 + 639;
+  const int64_t r70 = r69 / 640;
+  const int64_t r71 = r26 + 1535;
+  const int64_t r72 = r71 / 1536;
+  const int64_t r73 = r26 + 159;
+  const int64_t r74 = r73 / 160;
+  const int64_t r75 = r32 + 63;
+  const int64_t r76 = r75 / 64;
+  const int64_t r77 = r32 + 127;
+  const int64_t r78 = r77 / 128;
+  const int64_t r79 = r29 + 127;
+  const int64_t r80 = r79 / 128;
+  const int64_t r81 = r26 + 127;
+  const int64_t r82 = r81 / 128;
+  const int64_t r83 = r23 + 63;
+  const int64_t r84 = r83 / 64;
+  const int64_t r85 = r40 * 256;
+  const int64_t r88 = r36 * 512;
+  const int64_t r90 = r18 + 1;
+  const int64_t r91 = r90 / 2;
+  const int64_t r92 = r35 + 15;
+  const int64_t r93 = r92 / 16;
+  const int64_t r94 = r44 * 128;
+  const int64_t r97 = r40 * 512;
+  const int64_t r99 = r15 + 8;
+  const int64_t r100 = r99 / 9;
+  const int64_t r101 = r15 + 2;
+  const int64_t r102 = r101 / 3;
+  const int64_t r103 = r15 + 1;
+  const int64_t r104 = r103 / 2;
+  const int64_t r107 = r32 + 15;
+  const int64_t r108 = r107 / 16;
+  const int64_t r109 = r46 * 64;
+  const int64_t r112 = r44 * 256;
+  const int64_t r114 = r12 + 7;
+  const int64_t r115 = r114 / 8;
+  const int64_t r118 = r12 + 1;
+  const int64_t r119 = r118 / 2;
+  const int64_t r120 = r29 + 15;
+  const int64_t r121 = r120 / 16;
+  const int64_t r122 = r6 + 1;
+  const int64_t r123 = r122 / 2;
+  const int64_t r124 = r48 * 32;
+  const int64_t r127 = r46 * 128;
+  const int64_t r129 = r9 + 7;
+  const int64_t r130 = r129 / 8;
+  const int64_t r131 = r9 + 3;
+  const int64_t r132 = r131 / 4;
+  const int64_t r133 = r9 + 1;
+  const int64_t r134 = r133 / 2;
+  const int64_t r137 = r26 + 15;
+  const int64_t r138 = r137 / 16;
+  const int64_t r140 = r48 * 64;
+  const int64_t r143 = r48 * 8;
+  const int64_t r145 = r6 + 6;
+  const int64_t r146 = r145 / 7;
+  const int64_t r148 = r48 * 40;
+  const int64_t r150 = r6 + 4;
+  const int64_t r151 = r150 / 5;
+  const int64_t r154 = r6 + 3;
+  const int64_t r155 = r154 / 4;
+  const int64_t r156 = r23 + 15;
+  const int64_t r157 = r156 / 16;
+  const int64_t r158 = H * W;
+  const int64_t r159 = r158 * 8;
+  const int64_t r160 = r48 * 24;
+  const int64_t r161 = r158 * 24;
+  dt_roi_t roi0 = {.wd = 4311872, .ht = 1};
+  dt_roi_t roi1 = {.wd = (uint32_t)(r159 / 2), .ht = 1};
+  dt_roi_t roi2 = {.wd = (uint32_t)(r143), .ht = 1};
+  dt_roi_t roi3 = {.wd = (uint32_t)(r124), .ht = 1};
+  dt_roi_t roi4 = {.wd = (uint32_t)(r124), .ht = 1};
+  dt_roi_t roi5 = {.wd = (uint32_t)(r140), .ht = 1};
+  dt_roi_t roi6 = {.wd = (uint32_t)(r140), .ht = 1};
+  dt_roi_t roi7 = {.wd = (uint32_t)(r127), .ht = 1};
+  dt_roi_t roi8 = {.wd = (uint32_t)(r109), .ht = 1};
+  dt_roi_t roi9 = {.wd = (uint32_t)(r109), .ht = 1};
+  dt_roi_t roi10 = {.wd = (uint32_t)(r127), .ht = 1};
+  dt_roi_t roi11 = {.wd = (uint32_t)(r127), .ht = 1};
+  dt_roi_t roi12 = {.wd = (uint32_t)(r112), .ht = 1};
+  dt_roi_t roi13 = {.wd = (uint32_t)(r94), .ht = 1};
+  dt_roi_t roi14 = {.wd = (uint32_t)(r94), .ht = 1};
+  dt_roi_t roi15 = {.wd = (uint32_t)(r112), .ht = 1};
+  dt_roi_t roi16 = {.wd = (uint32_t)(r112), .ht = 1};
+  dt_roi_t roi17 = {.wd = (uint32_t)(r97), .ht = 1};
+  dt_roi_t roi18 = {.wd = (uint32_t)(r85), .ht = 1};
+  dt_roi_t roi19 = {.wd = (uint32_t)(r85), .ht = 1};
+  dt_roi_t roi20 = {.wd = (uint32_t)(r97), .ht = 1};
+  dt_roi_t roi21 = {.wd = (uint32_t)(r97), .ht = 1};
+  dt_roi_t roi22 = {.wd = (uint32_t)(r88), .ht = 1};
+  dt_roi_t roi23 = {.wd = (uint32_t)(r88), .ht = 1};
+  dt_roi_t roi24 = {.wd = (uint32_t)(r88), .ht = 1};
+  dt_roi_t roi25 = {.wd = (uint32_t)(r97), .ht = 1};
+  dt_roi_t roi26 = {.wd = (uint32_t)(r85), .ht = 1};
+  dt_roi_t roi27 = {.wd = 1, .ht = 1};
+  dt_roi_t roi28 = {.wd = (uint32_t)(r85), .ht = 1};
+  dt_roi_t roi29 = {.wd = (uint32_t)(r85), .ht = 1};
+  dt_roi_t roi30 = {.wd = (uint32_t)(r85), .ht = 1};
+  dt_roi_t roi31 = {.wd = (uint32_t)(r85), .ht = 1};
+  dt_roi_t roi32 = {.wd = (uint32_t)(r112), .ht = 1};
+  dt_roi_t roi33 = {.wd = (uint32_t)(r94), .ht = 1};
+  dt_roi_t roi34 = {.wd = (uint32_t)(r94), .ht = 1};
+  dt_roi_t roi35 = {.wd = (uint32_t)(r94), .ht = 1};
+  dt_roi_t roi36 = {.wd = (uint32_t)(r94), .ht = 1};
+  dt_roi_t roi37 = {.wd = (uint32_t)(r94), .ht = 1};
+  dt_roi_t roi38 = {.wd = (uint32_t)(r127), .ht = 1};
+  dt_roi_t roi39 = {.wd = (uint32_t)(r109), .ht = 1};
+  dt_roi_t roi40 = {.wd = (uint32_t)(r109), .ht = 1};
+  dt_roi_t roi41 = {.wd = (uint32_t)(r109), .ht = 1};
+  dt_roi_t roi42 = {.wd = (uint32_t)(r109), .ht = 1};
+  dt_roi_t roi43 = {.wd = (uint32_t)(r109), .ht = 1};
+  dt_roi_t roi44 = {.wd = (uint32_t)(r140), .ht = 1};
+  dt_roi_t roi45 = {.wd = (uint32_t)(r124), .ht = 1};
+  dt_roi_t roi46 = {.wd = (uint32_t)(r124), .ht = 1};
+  dt_roi_t roi47 = {.wd = (uint32_t)(r148), .ht = 1};
+  dt_roi_t roi48 = {.wd = (uint32_t)(r124), .ht = 1};
+  dt_roi_t roi49 = {.wd = (uint32_t)(r124), .ht = 1};
+  dt_roi_t roi50 = {.wd = (uint32_t)(r160), .ht = 1};
+  dt_roi_t roi51 = {.wd = (uint32_t)(r160), .ht = 1};
+  dt_roi_t roi52 = {.wd = (uint32_t)(r161 / 2), .ht = 1};
+  int weights_id = dt_node_add(graph, module, "jddcnn", "weights",
+      1, 1, 1, 0, NULL, 1, 
+      "w", "source", "ssbo", "u8", &roi0);
+  // memory_pad (memory_pad.comp)
+  const uint32_t memory_pad_pc[6] = {(uint32_t)(r23), (uint32_t)(r6), 0, (uint32_t)(r22), 0, (uint32_t)(r5)};
+  const int memory_pad_id = dt_node_add(graph, module, "jddcnn", "gbyrc25",
+      1 * DT_LOCAL_SIZE_X, r60 * DT_LOCAL_SIZE_Y, r146,
+      24, (const int*)memory_pad_pc, 2, //
+      "a", "read", "ssbo", "f16", &roi1, // HWC[4] : f16
+      "b", "write", "ssbo", "u8", &roi2); // HWC[4] : f16
+  // direct_conv (direct_conv.comp)
+  const uint32_t direct_conv_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int direct_conv_id = dt_node_add(graph, module, "jddcnn", "gbyrc24",
+      1 * DT_LOCAL_SIZE_X, r157 * DT_LOCAL_SIZE_Y, r155,
+      8, (const int*)direct_conv_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi2, // HWC[4] : f16
+      "d", "write", "ssbo", "u8", &roi3); // CHWC8[16] : f16
+  // basic_activation (basic_activation.comp)
+  const uint32_t basic_activation_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int basic_activation_id = dt_node_add(graph, module, "jddcnn", "gbyrc16",
+      2 * DT_LOCAL_SIZE_X, r51 * DT_LOCAL_SIZE_Y, r6,
+      8, (const int*)basic_activation_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi3, // CHWC8[16] : f16
+      "b", "write", "ssbo", "u8", &roi4); // CHWC8[16] : f16
+  // direct_conv_1 (direct_conv.comp)
+  const uint32_t direct_conv_1_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int direct_conv_1_id = dt_node_add(graph, module, "jddcnn", "gbyrc15",
+      1 * DT_LOCAL_SIZE_X, r157 * DT_LOCAL_SIZE_Y, r155,
+      8, (const int*)direct_conv_1_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi4, // CHWC8[16] : f16
+      "d", "write", "ssbo", "u8", &roi5); // CHWC8[32] : f16
+  // basic_activation_1 (basic_activation.comp)
+  const uint32_t basic_activation_1_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int basic_activation_1_id = dt_node_add(graph, module, "jddcnn", "gbyrc20",
+      4 * DT_LOCAL_SIZE_X, r51 * DT_LOCAL_SIZE_Y, r6,
+      8, (const int*)basic_activation_1_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi5, // CHWC8[32] : f16
+      "b", "write", "ssbo", "u8", &roi6); // CHWC8[32] : f16
+  // basic_pool (basic_pool.comp)
+  const uint32_t basic_pool_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int basic_pool_id = dt_node_add(graph, module, "jddcnn", "gbyrc17",
+      4 * DT_LOCAL_SIZE_X, r74 * DT_LOCAL_SIZE_Y, r9,
+      8, (const int*)basic_pool_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi6, // CHWC8[32] : f16
+      "b", "write", "ssbo", "u8", &roi7); // CHWC8[32] : f16
+  // direct_conv_2 (direct_conv.comp)
+  const uint32_t direct_conv_2_pc[2] = {(uint32_t)(r26), (uint32_t)(r9)};
+  const int direct_conv_2_id = dt_node_add(graph, module, "jddcnn", "gbyrc13",
+      1 * DT_LOCAL_SIZE_X, r138 * DT_LOCAL_SIZE_Y, r132,
+      8, (const int*)direct_conv_2_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi7, // CHWC8[32] : f16
+      "d", "write", "ssbo", "u8", &roi8); // CHWC8[32] : f16
+  // basic_activation_2 (basic_activation.comp)
+  const uint32_t basic_activation_2_pc[2] = {(uint32_t)(r26), (uint32_t)(r9)};
+  const int basic_activation_2_id = dt_node_add(graph, module, "jddcnn", "gbyrc8",
+      4 * DT_LOCAL_SIZE_X, r82 * DT_LOCAL_SIZE_Y, r9,
+      8, (const int*)basic_activation_2_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi8, // CHWC8[32] : f16
+      "b", "write", "ssbo", "u8", &roi9); // CHWC8[32] : f16
+  // direct_conv_3 (direct_conv.comp)
+  const uint32_t direct_conv_3_pc[2] = {(uint32_t)(r26), (uint32_t)(r9)};
+  const int direct_conv_3_id = dt_node_add(graph, module, "jddcnn", "gbyrc14",
+      1 * DT_LOCAL_SIZE_X, r138 * DT_LOCAL_SIZE_Y, r130,
+      8, (const int*)direct_conv_3_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi9, // CHWC8[32] : f16
+      "d", "write", "ssbo", "u8", &roi10); // CHWC8[64] : f16
+  // basic_activation_3 (basic_activation.comp)
+  const uint32_t basic_activation_3_pc[2] = {(uint32_t)(r26), (uint32_t)(r9)};
+  const int basic_activation_3_id = dt_node_add(graph, module, "jddcnn", "gbyrc33",
+      8 * DT_LOCAL_SIZE_X, r72 * DT_LOCAL_SIZE_Y, r134,
+      8, (const int*)basic_activation_3_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi10, // CHWC8[64] : f16
+      "b", "write", "ssbo", "u8", &roi11); // CHWC8[64] : f16
+  // basic_pool_1 (basic_pool.comp)
+  const uint32_t basic_pool_1_pc[2] = {(uint32_t)(r26), (uint32_t)(r9)};
+  const int basic_pool_1_id = dt_node_add(graph, module, "jddcnn", "gbyrc21",
+      8 * DT_LOCAL_SIZE_X, r68 * DT_LOCAL_SIZE_Y, r119,
+      8, (const int*)basic_pool_1_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi11, // CHWC8[64] : f16
+      "b", "write", "ssbo", "u8", &roi12); // CHWC8[64] : f16
+  // direct_conv_4 (direct_conv.comp)
+  const uint32_t direct_conv_4_pc[2] = {(uint32_t)(r29), (uint32_t)(r12)};
+  const int direct_conv_4_id = dt_node_add(graph, module, "jddcnn", "gbyrc6",
+      1 * DT_LOCAL_SIZE_X, r121 * DT_LOCAL_SIZE_Y, r115,
+      8, (const int*)direct_conv_4_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi12, // CHWC8[64] : f16
+      "d", "write", "ssbo", "u8", &roi13); // CHWC8[64] : f16
+  // basic_activation_4 (basic_activation.comp)
+  const uint32_t basic_activation_4_pc[2] = {(uint32_t)(r29), (uint32_t)(r12)};
+  const int basic_activation_4_id = dt_node_add(graph, module, "jddcnn", "gbyrc11",
+      8 * DT_LOCAL_SIZE_X, r80 * DT_LOCAL_SIZE_Y, r12,
+      8, (const int*)basic_activation_4_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi13, // CHWC8[64] : f16
+      "b", "write", "ssbo", "u8", &roi14); // CHWC8[64] : f16
+  // direct_conv_5 (direct_conv.comp)
+  const uint32_t direct_conv_5_pc[2] = {(uint32_t)(r29), (uint32_t)(r12)};
+  const int direct_conv_5_id = dt_node_add(graph, module, "jddcnn", "gbyrc22",
+      1 * DT_LOCAL_SIZE_X, r121 * DT_LOCAL_SIZE_Y, r115,
+      8, (const int*)direct_conv_5_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi14, // CHWC8[64] : f16
+      "d", "write", "ssbo", "u8", &roi15); // CHWC8[128] : f16
+  // basic_activation_5 (basic_activation.comp)
+  const uint32_t basic_activation_5_pc[2] = {(uint32_t)(r29), (uint32_t)(r12)};
+  const int basic_activation_5_id = dt_node_add(graph, module, "jddcnn", "gbyrc26",
+      16 * DT_LOCAL_SIZE_X, r43 * DT_LOCAL_SIZE_Y, r12,
+      8, (const int*)basic_activation_5_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi15, // CHWC8[128] : f16
+      "b", "write", "ssbo", "u8", &roi16); // CHWC8[128] : f16
+  // basic_pool_2 (basic_pool.comp)
+  const uint32_t basic_pool_2_pc[2] = {(uint32_t)(r29), (uint32_t)(r12)};
+  const int basic_pool_2_id = dt_node_add(graph, module, "jddcnn", "gbyrc27",
+      16 * DT_LOCAL_SIZE_X, r78 * DT_LOCAL_SIZE_Y, r15,
+      8, (const int*)basic_pool_2_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi16, // CHWC8[128] : f16
+      "b", "write", "ssbo", "u8", &roi17); // CHWC8[128] : f16
+  // direct_conv_6 (direct_conv.comp)
+  const uint32_t direct_conv_6_pc[2] = {(uint32_t)(r32), (uint32_t)(r15)};
+  const int direct_conv_6_id = dt_node_add(graph, module, "jddcnn", "gbyrc10",
+      1 * DT_LOCAL_SIZE_X, r108 * DT_LOCAL_SIZE_Y, r100,
+      8, (const int*)direct_conv_6_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi17, // CHWC8[128] : f16
+      "d", "write", "ssbo", "u8", &roi18); // CHWC8[128] : f16
+  // basic_activation_6 (basic_activation.comp)
+  const uint32_t basic_activation_6_pc[2] = {(uint32_t)(r32), (uint32_t)(r15)};
+  const int basic_activation_6_id = dt_node_add(graph, module, "jddcnn", "gbyrc18",
+      16 * DT_LOCAL_SIZE_X, r78 * DT_LOCAL_SIZE_Y, r15,
+      8, (const int*)basic_activation_6_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi18, // CHWC8[128] : f16
+      "b", "write", "ssbo", "u8", &roi19); // CHWC8[128] : f16
+  // direct_conv_7 (direct_conv.comp)
+  const uint32_t direct_conv_7_pc[2] = {(uint32_t)(r32), (uint32_t)(r15)};
+  const int direct_conv_7_id = dt_node_add(graph, module, "jddcnn", "gbyrc29",
+      1 * DT_LOCAL_SIZE_X, r108 * DT_LOCAL_SIZE_Y, r102,
+      8, (const int*)direct_conv_7_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi19, // CHWC8[128] : f16
+      "d", "write", "ssbo", "u8", &roi20); // CHWC8[256] : f16
+  // basic_activation_7 (basic_activation.comp)
+  const uint32_t basic_activation_7_pc[2] = {(uint32_t)(r32), (uint32_t)(r15)};
+  const int basic_activation_7_id = dt_node_add(graph, module, "jddcnn", "gbyrc31",
+      32 * DT_LOCAL_SIZE_X, r39 * DT_LOCAL_SIZE_Y, r15,
+      8, (const int*)basic_activation_7_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi20, // CHWC8[256] : f16
+      "b", "write", "ssbo", "u8", &roi21); // CHWC8[256] : f16
+  // basic_pool_3 (basic_pool.comp)
+  const uint32_t basic_pool_3_pc[2] = {(uint32_t)(r32), (uint32_t)(r15)};
+  const int basic_pool_3_id = dt_node_add(graph, module, "jddcnn", "gbyrc12",
+      32 * DT_LOCAL_SIZE_X, r66 * DT_LOCAL_SIZE_Y, r18,
+      8, (const int*)basic_pool_3_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi21, // CHWC8[256] : f16
+      "b", "write", "ssbo", "u8", &roi22); // CHWC8[256] : f16
+  // direct_conv_8 (direct_conv.comp)
+  const uint32_t direct_conv_8_pc[2] = {(uint32_t)(r35), (uint32_t)(r18)};
+  const int direct_conv_8_id = dt_node_add(graph, module, "jddcnn", "gbyrc19",
+      1 * DT_LOCAL_SIZE_X, r93 * DT_LOCAL_SIZE_Y, r91,
+      8, (const int*)direct_conv_8_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi22, // CHWC8[256] : f16
+      "d", "write", "ssbo", "u8", &roi23); // CHWC8[256] : f16
+  // basic_activation_8 (basic_activation.comp)
+  const uint32_t basic_activation_8_pc[2] = {(uint32_t)(r35), (uint32_t)(r18)};
+  const int basic_activation_8_id = dt_node_add(graph, module, "jddcnn", "gbyrc32",
+      32 * DT_LOCAL_SIZE_X, r64 * DT_LOCAL_SIZE_Y, r18,
+      8, (const int*)basic_activation_8_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi23, // CHWC8[256] : f16
+      "b", "write", "ssbo", "u8", &roi24); // CHWC8[256] : f16
+  // basic_upsample (basic_upsample.comp)
+  const uint32_t basic_upsample_pc[2] = {(uint32_t)(r35), (uint32_t)(r18)};
+  const int basic_upsample_id = dt_node_add(graph, module, "jddcnn", "gbyrc7",
+      32 * DT_LOCAL_SIZE_X, r76 * DT_LOCAL_SIZE_Y, r104,
+      8, (const int*)basic_upsample_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi24, // CHWC8[256] : f16
+      "b", "write", "ssbo", "u8", &roi25); // CHWC8[256] : f16
+  // direct_conv_9 (direct_conv.comp)
+  const uint32_t direct_conv_9_pc[2] = {(uint32_t)(r32), (uint32_t)(r15)};
+  const int direct_conv_9_id = dt_node_add(graph, module, "jddcnn", "gbyrc34",
+      1 * DT_LOCAL_SIZE_X, r108 * DT_LOCAL_SIZE_Y, r100,
+      8, (const int*)direct_conv_9_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi25, // CHWC8[256] : f16
+      "d", "write", "ssbo", "u8", &roi26); // CHWC8[128] : f16
+  // basic_activation_9 (basic_activation.comp)
+  const uint32_t basic_activation_9_pc[2] = {(uint32_t)(r32), (uint32_t)(r15)};
+  const int basic_activation_9_id = dt_node_add(graph, module, "jddcnn", "gbyrc18",
+      16 * DT_LOCAL_SIZE_X, r78 * DT_LOCAL_SIZE_Y, r15,
+      8, (const int*)basic_activation_9_pc, 3, //
+      "a", "read", "ssbo", "u8", &roi26, // CHWC8[128] : f16
+      "b", "read", "ssbo", "u8", &roi17, // CHWC8[128] : f16
+      "dummy", "write", "ssbo", "u8", &roi27);//
+  // direct_conv_10 (direct_conv.comp)
+  const uint32_t direct_conv_10_pc[2] = {(uint32_t)(r32), (uint32_t)(r15)};
+  const int direct_conv_10_id = dt_node_add(graph, module, "jddcnn", "gbyrc34",
+      1 * DT_LOCAL_SIZE_X, r108 * DT_LOCAL_SIZE_Y, r100,
+      8, (const int*)direct_conv_10_pc, 5, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi17, // CHWC8[256] : f16
+      "d", "write", "ssbo", "u8", &roi28, // CHWC8[128] : f16
+      "z0", "read", "ssbo", "u8", &roi27);//
+  // basic_activation_10 (basic_activation.comp)
+  const uint32_t basic_activation_10_pc[2] = {(uint32_t)(r32), (uint32_t)(r15)};
+  const int basic_activation_10_id = dt_node_add(graph, module, "jddcnn", "gbyrc18",
+      16 * DT_LOCAL_SIZE_X, r78 * DT_LOCAL_SIZE_Y, r15,
+      8, (const int*)basic_activation_10_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi28, // CHWC8[128] : f16
+      "b", "write", "ssbo", "u8", &roi29); // CHWC8[128] : f16
+  // direct_conv_11 (direct_conv.comp)
+  const uint32_t direct_conv_11_pc[2] = {(uint32_t)(r32), (uint32_t)(r15)};
+  const int direct_conv_11_id = dt_node_add(graph, module, "jddcnn", "gbyrc10",
+      1 * DT_LOCAL_SIZE_X, r108 * DT_LOCAL_SIZE_Y, r100,
+      8, (const int*)direct_conv_11_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi29, // CHWC8[128] : f16
+      "d", "write", "ssbo", "u8", &roi30); // CHWC8[128] : f16
+  // basic_activation_11 (basic_activation.comp)
+  const uint32_t basic_activation_11_pc[2] = {(uint32_t)(r32), (uint32_t)(r15)};
+  const int basic_activation_11_id = dt_node_add(graph, module, "jddcnn", "gbyrc18",
+      16 * DT_LOCAL_SIZE_X, r78 * DT_LOCAL_SIZE_Y, r15,
+      8, (const int*)basic_activation_11_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi30, // CHWC8[128] : f16
+      "b", "write", "ssbo", "u8", &roi31); // CHWC8[128] : f16
+  // basic_upsample_1 (basic_upsample.comp)
+  const uint32_t basic_upsample_1_pc[2] = {(uint32_t)(r32), (uint32_t)(r15)};
+  const int basic_upsample_1_id = dt_node_add(graph, module, "jddcnn", "gbyrc23",
+      16 * DT_LOCAL_SIZE_X, r70 * DT_LOCAL_SIZE_Y, r12,
+      8, (const int*)basic_upsample_1_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi31, // CHWC8[128] : f16
+      "b", "write", "ssbo", "u8", &roi32); // CHWC8[128] : f16
+  // direct_conv_12 (direct_conv.comp)
+  const uint32_t direct_conv_12_pc[2] = {(uint32_t)(r29), (uint32_t)(r12)};
+  const int direct_conv_12_id = dt_node_add(graph, module, "jddcnn", "gbyrc35",
+      1 * DT_LOCAL_SIZE_X, r121 * DT_LOCAL_SIZE_Y, r115,
+      8, (const int*)direct_conv_12_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi32, // CHWC8[128] : f16
+      "d", "write", "ssbo", "u8", &roi33); // CHWC8[64] : f16
+  // basic_activation_12 (basic_activation.comp)
+  const uint32_t basic_activation_12_pc[2] = {(uint32_t)(r29), (uint32_t)(r12)};
+  const int basic_activation_12_id = dt_node_add(graph, module, "jddcnn", "gbyrc11",
+      8 * DT_LOCAL_SIZE_X, r80 * DT_LOCAL_SIZE_Y, r12,
+      8, (const int*)basic_activation_12_pc, 3, //
+      "a", "read", "ssbo", "u8", &roi33, // CHWC8[64] : f16
+      "b", "read", "ssbo", "u8", &roi12, // CHWC8[64] : f16
+      "dummy", "write", "ssbo", "u8", &roi27);//
+  // direct_conv_13 (direct_conv.comp)
+  const uint32_t direct_conv_13_pc[2] = {(uint32_t)(r29), (uint32_t)(r12)};
+  const int direct_conv_13_id = dt_node_add(graph, module, "jddcnn", "gbyrc35",
+      1 * DT_LOCAL_SIZE_X, r121 * DT_LOCAL_SIZE_Y, r115,
+      8, (const int*)direct_conv_13_pc, 5, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi12, // CHWC8[128] : f16
+      "d", "write", "ssbo", "u8", &roi34, // CHWC8[64] : f16
+      "z0", "read", "ssbo", "u8", &roi27);//
+  // basic_activation_13 (basic_activation.comp)
+  const uint32_t basic_activation_13_pc[2] = {(uint32_t)(r29), (uint32_t)(r12)};
+  const int basic_activation_13_id = dt_node_add(graph, module, "jddcnn", "gbyrc11",
+      8 * DT_LOCAL_SIZE_X, r80 * DT_LOCAL_SIZE_Y, r12,
+      8, (const int*)basic_activation_13_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi34, // CHWC8[64] : f16
+      "b", "write", "ssbo", "u8", &roi35); // CHWC8[64] : f16
+  // direct_conv_14 (direct_conv.comp)
+  const uint32_t direct_conv_14_pc[2] = {(uint32_t)(r29), (uint32_t)(r12)};
+  const int direct_conv_14_id = dt_node_add(graph, module, "jddcnn", "gbyrc6",
+      1 * DT_LOCAL_SIZE_X, r121 * DT_LOCAL_SIZE_Y, r115,
+      8, (const int*)direct_conv_14_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi35, // CHWC8[64] : f16
+      "d", "write", "ssbo", "u8", &roi36); // CHWC8[64] : f16
+  // basic_activation_14 (basic_activation.comp)
+  const uint32_t basic_activation_14_pc[2] = {(uint32_t)(r29), (uint32_t)(r12)};
+  const int basic_activation_14_id = dt_node_add(graph, module, "jddcnn", "gbyrc11",
+      8 * DT_LOCAL_SIZE_X, r80 * DT_LOCAL_SIZE_Y, r12,
+      8, (const int*)basic_activation_14_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi36, // CHWC8[64] : f16
+      "b", "write", "ssbo", "u8", &roi37); // CHWC8[64] : f16
+  // basic_upsample_2 (basic_upsample.comp)
+  const uint32_t basic_upsample_2_pc[2] = {(uint32_t)(r29), (uint32_t)(r12)};
+  const int basic_upsample_2_id = dt_node_add(graph, module, "jddcnn", "gbyrc36",
+      8 * DT_LOCAL_SIZE_X, r82 * DT_LOCAL_SIZE_Y, r134,
+      8, (const int*)basic_upsample_2_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi37, // CHWC8[64] : f16
+      "b", "write", "ssbo", "u8", &roi38); // CHWC8[64] : f16
+  // direct_conv_15 (direct_conv.comp)
+  const uint32_t direct_conv_15_pc[2] = {(uint32_t)(r26), (uint32_t)(r9)};
+  const int direct_conv_15_id = dt_node_add(graph, module, "jddcnn", "gbyrc37",
+      1 * DT_LOCAL_SIZE_X, r138 * DT_LOCAL_SIZE_Y, r132,
+      8, (const int*)direct_conv_15_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi38, // CHWC8[64] : f16
+      "d", "write", "ssbo", "u8", &roi39); // CHWC8[32] : f16
+  // basic_activation_15 (basic_activation.comp)
+  const uint32_t basic_activation_15_pc[2] = {(uint32_t)(r26), (uint32_t)(r9)};
+  const int basic_activation_15_id = dt_node_add(graph, module, "jddcnn", "gbyrc8",
+      4 * DT_LOCAL_SIZE_X, r82 * DT_LOCAL_SIZE_Y, r9,
+      8, (const int*)basic_activation_15_pc, 3, //
+      "a", "read", "ssbo", "u8", &roi39, // CHWC8[32] : f16
+      "b", "read", "ssbo", "u8", &roi7, // CHWC8[32] : f16
+      "dummy", "write", "ssbo", "u8", &roi27);//
+  // direct_conv_16 (direct_conv.comp)
+  const uint32_t direct_conv_16_pc[2] = {(uint32_t)(r26), (uint32_t)(r9)};
+  const int direct_conv_16_id = dt_node_add(graph, module, "jddcnn", "gbyrc37",
+      1 * DT_LOCAL_SIZE_X, r138 * DT_LOCAL_SIZE_Y, r132,
+      8, (const int*)direct_conv_16_pc, 5, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi7, // CHWC8[64] : f16
+      "d", "write", "ssbo", "u8", &roi40, // CHWC8[32] : f16
+      "z0", "read", "ssbo", "u8", &roi27);//
+  // basic_activation_16 (basic_activation.comp)
+  const uint32_t basic_activation_16_pc[2] = {(uint32_t)(r26), (uint32_t)(r9)};
+  const int basic_activation_16_id = dt_node_add(graph, module, "jddcnn", "gbyrc8",
+      4 * DT_LOCAL_SIZE_X, r82 * DT_LOCAL_SIZE_Y, r9,
+      8, (const int*)basic_activation_16_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi40, // CHWC8[32] : f16
+      "b", "write", "ssbo", "u8", &roi41); // CHWC8[32] : f16
+  // direct_conv_17 (direct_conv.comp)
+  const uint32_t direct_conv_17_pc[2] = {(uint32_t)(r26), (uint32_t)(r9)};
+  const int direct_conv_17_id = dt_node_add(graph, module, "jddcnn", "gbyrc13",
+      1 * DT_LOCAL_SIZE_X, r138 * DT_LOCAL_SIZE_Y, r132,
+      8, (const int*)direct_conv_17_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi41, // CHWC8[32] : f16
+      "d", "write", "ssbo", "u8", &roi42); // CHWC8[32] : f16
+  // basic_activation_17 (basic_activation.comp)
+  const uint32_t basic_activation_17_pc[2] = {(uint32_t)(r26), (uint32_t)(r9)};
+  const int basic_activation_17_id = dt_node_add(graph, module, "jddcnn", "gbyrc8",
+      4 * DT_LOCAL_SIZE_X, r82 * DT_LOCAL_SIZE_Y, r9,
+      8, (const int*)basic_activation_17_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi42, // CHWC8[32] : f16
+      "b", "write", "ssbo", "u8", &roi43); // CHWC8[32] : f16
+  // basic_upsample_3 (basic_upsample.comp)
+  const uint32_t basic_upsample_3_pc[2] = {(uint32_t)(r26), (uint32_t)(r9)};
+  const int basic_upsample_3_id = dt_node_add(graph, module, "jddcnn", "gbyrc5",
+      4 * DT_LOCAL_SIZE_X, r62 * DT_LOCAL_SIZE_Y, r123,
+      8, (const int*)basic_upsample_3_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi43, // CHWC8[32] : f16
+      "b", "write", "ssbo", "u8", &roi44); // CHWC8[32] : f16
+  // direct_conv_18 (direct_conv.comp)
+  const uint32_t direct_conv_18_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int direct_conv_18_id = dt_node_add(graph, module, "jddcnn", "gbyrc4",
+      1 * DT_LOCAL_SIZE_X, r157 * DT_LOCAL_SIZE_Y, r155,
+      8, (const int*)direct_conv_18_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi44, // CHWC8[32] : f16
+      "d", "write", "ssbo", "u8", &roi45); // HWC[16] : f16
+  // basic_activation_18 (basic_activation.comp)
+  const uint32_t basic_activation_18_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int basic_activation_18_id = dt_node_add(graph, module, "jddcnn", "gbyrc28",
+      1 * DT_LOCAL_SIZE_X, r58 * DT_LOCAL_SIZE_Y, r123,
+      8, (const int*)basic_activation_18_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi45, // HWC[16] : f16
+      "b", "write", "ssbo", "u8", &roi46); // HWC[16] : f16
+  // copy_transform (copy_transform.comp)
+  const uint32_t copy_transform_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int copy_transform_id = dt_node_add(graph, module, "jddcnn", "gbyrc3",
+      1 * DT_LOCAL_SIZE_X, r84 * DT_LOCAL_SIZE_Y, r6,
+      8, (const int*)copy_transform_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi46, // HWC[16] : f16
+      "b", "write", "ssbo", "u8", &roi47); // HWC[20] : f16
+  // copy_transform_1 (copy_transform.comp)
+  const uint32_t copy_transform_1_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int copy_transform_1_id = dt_node_add(graph, module, "jddcnn", "gbyrc9",
+      1 * DT_LOCAL_SIZE_X, r84 * DT_LOCAL_SIZE_Y, r6,
+      8, (const int*)copy_transform_1_pc, 3, //
+      "a", "read", "ssbo", "u8", &roi2, // HWC[4] : f16
+      "b", "read", "ssbo", "u8", &roi47, // HWC[20] : f16
+      "dummy", "write", "ssbo", "u8", &roi27);//
+  // direct_conv_19 (direct_conv.comp)
+  const uint32_t direct_conv_19_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int direct_conv_19_id = dt_node_add(graph, module, "jddcnn", "gbyrc30",
+      1 * DT_LOCAL_SIZE_X, r157 * DT_LOCAL_SIZE_Y, r155,
+      8, (const int*)direct_conv_19_pc, 5, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi47, // HWC[20] : f16
+      "d", "write", "ssbo", "u8", &roi48, // HWC[16] : f16
+      "z0", "read", "ssbo", "u8", &roi27);//
+  // basic_activation_19 (basic_activation.comp)
+  const uint32_t basic_activation_19_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int basic_activation_19_id = dt_node_add(graph, module, "jddcnn", "gbyrc28",
+      1 * DT_LOCAL_SIZE_X, r58 * DT_LOCAL_SIZE_Y, r123,
+      8, (const int*)basic_activation_19_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi48, // HWC[16] : f16
+      "b", "write", "ssbo", "u8", &roi49); // HWC[16] : f16
+  // direct_conv_20 (direct_conv.comp)
+  const uint32_t direct_conv_20_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int direct_conv_20_id = dt_node_add(graph, module, "jddcnn", "gbyrc2",
+      1 * DT_LOCAL_SIZE_X, r157 * DT_LOCAL_SIZE_Y, r151,
+      8, (const int*)direct_conv_20_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi49, // HWC[16] : f16
+      "d", "write", "ssbo", "u8", &roi50); // HWC[12] : f16
+  // basic_activation_20 (basic_activation.comp)
+  const uint32_t basic_activation_20_pc[2] = {(uint32_t)(r23), (uint32_t)(r6)};
+  const int basic_activation_20_id = dt_node_add(graph, module, "jddcnn", "gbyrc1",
+      1 * DT_LOCAL_SIZE_X, r53 * DT_LOCAL_SIZE_Y, r6,
+      8, (const int*)basic_activation_20_pc, 2, //
+      "a", "read", "ssbo", "u8", &roi50, // HWC[12] : f16
+      "b", "write", "ssbo", "u8", &roi51); // HWC[12] : f16
+  // memory_slice (memory_slice.comp)
+  const uint32_t memory_slice_pc[6] = {0, 0, (uint32_t)(r23), (uint32_t)(r6), (uint32_t)(W), (uint32_t)(H)};
+  const int memory_slice_id = dt_node_add(graph, module, "jddcnn", "gbyrc0",
+      1 * DT_LOCAL_SIZE_X, r56 * DT_LOCAL_SIZE_Y, H,
+      24, (const int*)memory_slice_pc, 2, //
+      "a", "write", "ssbo", "f16", &roi52, // HWC[12] : f16
+      "b", "read", "ssbo", "u8", &roi51); // HWC[12] : f16
+  if (input_connector == NULL) {
+    dt_connector_copy(graph, module, input_id, memory_pad_id, 0);
+  } else {
+    dt_node_connect_named(graph, input_id, input_connector, memory_pad_id, "a");
+  }
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_id, "b");
+  dt_node_connect_named(graph, memory_pad_id, "b", direct_conv_id, "c");
+  dt_node_connect_named(graph, direct_conv_id, "d", basic_activation_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_1_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_1_id, "b");
+  dt_node_connect_named(graph, basic_activation_id, "b", direct_conv_1_id, "c");
+  dt_node_connect_named(graph, direct_conv_1_id, "d", basic_activation_1_id, "a");
+  dt_node_connect_named(graph, basic_activation_1_id, "b", basic_pool_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_2_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_2_id, "b");
+  dt_node_connect_named(graph, basic_pool_id, "b", direct_conv_2_id, "c");
+  dt_node_connect_named(graph, direct_conv_2_id, "d", basic_activation_2_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_3_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_3_id, "b");
+  dt_node_connect_named(graph, basic_activation_2_id, "b", direct_conv_3_id, "c");
+  dt_node_connect_named(graph, direct_conv_3_id, "d", basic_activation_3_id, "a");
+  dt_node_connect_named(graph, basic_activation_3_id, "b", basic_pool_1_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_4_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_4_id, "b");
+  dt_node_connect_named(graph, basic_pool_1_id, "b", direct_conv_4_id, "c");
+  dt_node_connect_named(graph, direct_conv_4_id, "d", basic_activation_4_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_5_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_5_id, "b");
+  dt_node_connect_named(graph, basic_activation_4_id, "b", direct_conv_5_id, "c");
+  dt_node_connect_named(graph, direct_conv_5_id, "d", basic_activation_5_id, "a");
+  dt_node_connect_named(graph, basic_activation_5_id, "b", basic_pool_2_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_6_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_6_id, "b");
+  dt_node_connect_named(graph, basic_pool_2_id, "b", direct_conv_6_id, "c");
+  dt_node_connect_named(graph, direct_conv_6_id, "d", basic_activation_6_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_7_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_7_id, "b");
+  dt_node_connect_named(graph, basic_activation_6_id, "b", direct_conv_7_id, "c");
+  dt_node_connect_named(graph, direct_conv_7_id, "d", basic_activation_7_id, "a");
+  dt_node_connect_named(graph, basic_activation_7_id, "b", basic_pool_3_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_8_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_8_id, "b");
+  dt_node_connect_named(graph, basic_pool_3_id, "b", direct_conv_8_id, "c");
+  dt_node_connect_named(graph, direct_conv_8_id, "d", basic_activation_8_id, "a");
+  dt_node_connect_named(graph, basic_activation_8_id, "b", basic_upsample_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_9_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_9_id, "b");
+  dt_node_connect_named(graph, basic_upsample_id, "b", direct_conv_9_id, "c");
+  dt_node_connect_named(graph, direct_conv_9_id, "d", basic_activation_9_id, "a");
+  dt_node_connect_named(graph, basic_pool_2_id, "b", basic_activation_9_id, "b");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_10_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_10_id, "b");
+  dt_node_connect_named(graph, basic_pool_2_id, "b", direct_conv_10_id, "c");
+  dt_node_connect_named(graph, basic_activation_9_id, "dummy", direct_conv_10_id, "z0");
+  dt_node_connect_named(graph, direct_conv_10_id, "d", basic_activation_10_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_11_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_11_id, "b");
+  dt_node_connect_named(graph, basic_activation_10_id, "b", direct_conv_11_id, "c");
+  dt_node_connect_named(graph, direct_conv_11_id, "d", basic_activation_11_id, "a");
+  dt_node_connect_named(graph, basic_activation_11_id, "b", basic_upsample_1_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_12_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_12_id, "b");
+  dt_node_connect_named(graph, basic_upsample_1_id, "b", direct_conv_12_id, "c");
+  dt_node_connect_named(graph, direct_conv_12_id, "d", basic_activation_12_id, "a");
+  dt_node_connect_named(graph, basic_pool_1_id, "b", basic_activation_12_id, "b");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_13_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_13_id, "b");
+  dt_node_connect_named(graph, basic_pool_1_id, "b", direct_conv_13_id, "c");
+  dt_node_connect_named(graph, basic_activation_12_id, "dummy", direct_conv_13_id, "z0");
+  dt_node_connect_named(graph, direct_conv_13_id, "d", basic_activation_13_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_14_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_14_id, "b");
+  dt_node_connect_named(graph, basic_activation_13_id, "b", direct_conv_14_id, "c");
+  dt_node_connect_named(graph, direct_conv_14_id, "d", basic_activation_14_id, "a");
+  dt_node_connect_named(graph, basic_activation_14_id, "b", basic_upsample_2_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_15_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_15_id, "b");
+  dt_node_connect_named(graph, basic_upsample_2_id, "b", direct_conv_15_id, "c");
+  dt_node_connect_named(graph, direct_conv_15_id, "d", basic_activation_15_id, "a");
+  dt_node_connect_named(graph, basic_pool_id, "b", basic_activation_15_id, "b");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_16_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_16_id, "b");
+  dt_node_connect_named(graph, basic_pool_id, "b", direct_conv_16_id, "c");
+  dt_node_connect_named(graph, basic_activation_15_id, "dummy", direct_conv_16_id, "z0");
+  dt_node_connect_named(graph, direct_conv_16_id, "d", basic_activation_16_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_17_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_17_id, "b");
+  dt_node_connect_named(graph, basic_activation_16_id, "b", direct_conv_17_id, "c");
+  dt_node_connect_named(graph, direct_conv_17_id, "d", basic_activation_17_id, "a");
+  dt_node_connect_named(graph, basic_activation_17_id, "b", basic_upsample_3_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_18_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_18_id, "b");
+  dt_node_connect_named(graph, basic_upsample_3_id, "b", direct_conv_18_id, "c");
+  dt_node_connect_named(graph, direct_conv_18_id, "d", basic_activation_18_id, "a");
+  dt_node_connect_named(graph, basic_activation_18_id, "b", copy_transform_id, "a");
+  dt_node_connect_named(graph, memory_pad_id, "b", copy_transform_1_id, "a");
+  dt_node_connect_named(graph, copy_transform_id, "b", copy_transform_1_id, "b");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_19_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_19_id, "b");
+  dt_node_connect_named(graph, copy_transform_id, "b", direct_conv_19_id, "c");
+  dt_node_connect_named(graph, copy_transform_1_id, "dummy", direct_conv_19_id, "z0");
+  dt_node_connect_named(graph, direct_conv_19_id, "d", basic_activation_19_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_20_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_20_id, "b");
+  dt_node_connect_named(graph, basic_activation_19_id, "b", direct_conv_20_id, "c");
+  dt_node_connect_named(graph, direct_conv_20_id, "d", basic_activation_20_id, "a");
+  dt_node_connect_named(graph, basic_activation_20_id, "b", memory_slice_id, "b");
+  if (output_connector == NULL) {
+    dt_connector_copy(graph, module, output_id, memory_slice_id, 0);
+  } else {
+    dt_node_connect_named(graph, memory_slice_id, "a", output_id, output_connector);
+  }
+  graph->node[direct_conv_id].connector[1].ssbo_offset = 2304;
+  graph->node[direct_conv_1_id].connector[0].ssbo_offset = 2336;
+  graph->node[direct_conv_1_id].connector[1].ssbo_offset = 11552;
+  graph->node[basic_pool_id].connector[1].ssbo_offset = r109;
+  graph->node[direct_conv_2_id].connector[0].ssbo_offset = 11616;
+  graph->node[direct_conv_2_id].connector[1].ssbo_offset = 30048;
+  graph->node[direct_conv_2_id].connector[2].ssbo_offset = r109;
+  graph->node[direct_conv_3_id].connector[0].ssbo_offset = 30112;
+  graph->node[direct_conv_3_id].connector[1].ssbo_offset = 66976;
+  graph->node[basic_pool_1_id].connector[1].ssbo_offset = r94;
+  graph->node[direct_conv_4_id].connector[0].ssbo_offset = 67104;
+  graph->node[direct_conv_4_id].connector[1].ssbo_offset = 140832;
+  graph->node[direct_conv_4_id].connector[2].ssbo_offset = r94;
+  graph->node[direct_conv_5_id].connector[0].ssbo_offset = 140960;
+  graph->node[direct_conv_5_id].connector[1].ssbo_offset = 288416;
+  graph->node[basic_pool_2_id].connector[1].ssbo_offset = r85;
+  graph->node[direct_conv_6_id].connector[0].ssbo_offset = 288672;
+  graph->node[direct_conv_6_id].connector[1].ssbo_offset = 583584;
+  graph->node[direct_conv_6_id].connector[2].ssbo_offset = r85;
+  graph->node[direct_conv_7_id].connector[0].ssbo_offset = 583840;
+  graph->node[direct_conv_7_id].connector[1].ssbo_offset = 1173664;
+  graph->node[direct_conv_8_id].connector[0].ssbo_offset = 1174176;
+  graph->node[direct_conv_8_id].connector[1].ssbo_offset = 2353824;
+  graph->node[direct_conv_9_id].connector[0].ssbo_offset = 2354336;
+  graph->node[direct_conv_9_id].connector[1].ssbo_offset = 2944160;
+  graph->node[direct_conv_10_id].connector[0].ssbo_offset = 2944416;
+  graph->node[direct_conv_10_id].connector[1].ssbo_offset = 3534240;
+  graph->node[direct_conv_11_id].connector[0].ssbo_offset = 3534496;
+  graph->node[direct_conv_11_id].connector[1].ssbo_offset = 3829408;
+  graph->node[direct_conv_12_id].connector[0].ssbo_offset = 3829664;
+  graph->node[direct_conv_12_id].connector[1].ssbo_offset = 3977120;
+  graph->node[direct_conv_13_id].connector[0].ssbo_offset = 3977248;
+  graph->node[direct_conv_13_id].connector[1].ssbo_offset = 4124704;
+  graph->node[direct_conv_14_id].connector[0].ssbo_offset = 4124832;
+  graph->node[direct_conv_14_id].connector[1].ssbo_offset = 4198560;
+  graph->node[direct_conv_15_id].connector[0].ssbo_offset = 4198688;
+  graph->node[direct_conv_15_id].connector[1].ssbo_offset = 4235552;
+  graph->node[direct_conv_16_id].connector[0].ssbo_offset = 4235616;
+  graph->node[direct_conv_16_id].connector[1].ssbo_offset = 4272480;
+  graph->node[direct_conv_17_id].connector[0].ssbo_offset = 4272544;
+  graph->node[direct_conv_17_id].connector[1].ssbo_offset = 4290976;
+  graph->node[direct_conv_18_id].connector[0].ssbo_offset = 4291040;
+  graph->node[direct_conv_18_id].connector[1].ssbo_offset = 4300256;
+  graph->node[direct_conv_19_id].connector[0].ssbo_offset = 4300288;
+  graph->node[direct_conv_19_id].connector[1].ssbo_offset = 4307200;
+  graph->node[direct_conv_20_id].connector[0].ssbo_offset = 4307232;
+  graph->node[direct_conv_20_id].connector[1].ssbo_offset = 4311840;
+}
+
+#endif

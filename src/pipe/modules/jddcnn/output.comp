@@ -8,44 +8,24 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 // layout(std140, set = 0, binding = 1) uniform params_t { } params;
 layout(std430, set = 1, binding = 0) readonly buffer buf_t { float16_t v[]; } buf;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+layout(push_constant, std140) uniform push_t
+{
+  int filters;
+} push;
 
-// TODO: replace this memory bandwidth hog by something integrated into the convolution layer
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-#if 0 // version with one full-res convolution at the end
-  const int ht = (imageSize(img_out).y/2)*2;
-  const int wd = (imageSize(img_out).x/2)*2;
-  const int cn = 3;
-  const int idx = cn*(wd * ipos.y + ipos.x);
-  vec4 col = vec4(buf.v[idx+0], buf.v[idx+1], buf.v[idx+2], 1.0);
-#else // version where the low res layer outputs 4 rgb pixels directly:
-  const int ht = (imageSize(img_out).y+1)/2;
-  const int wd = (imageSize(img_out).x+1)/2;
-  const int cn = 12;
-  const int si = (ipos.y & 1)*2 + (ipos.x & 1);
-  // const int idx = cn*(wd * (ipos.y/2) + (ipos.x/2)) + 3*si;
-  const int idx = cn*(wd * (ipos.y/2) + (ipos.x/2)) + si;
+  const int b = 2;
+  const int wd = (imageSize(img_out).x+b-1)/b;
+  const int cn = b*b*3;
+  const int si = (ipos.y % b)*b + (ipos.x % b);
+  const int idx = cn*(wd * (ipos.y/b) + (ipos.x/b)) + si;
   vec4 col = vec4(
-      pu_transfer_function_inv(buf.v[idx+0]),
-      pu_transfer_function_inv(buf.v[idx+4]),
-      pu_transfer_function_inv(buf.v[idx+8]), 1.0);
-#if 0
-  const int sz = 64;
-  const int wd = (imageSize(img_out).x+sz-1)/sz;
-  const int cn = 112;
-  // const int si = (ipos.y & 1) + 2-(ipos.x & 1)*2;
-  // const int si = 1-(ipos.y & 1) + (ipos.x & 1)*2;
-  // const int si = 0;//(ipos.y & 1)*2 + (ipos.x & 1);
-  // const int idx = cn*(wd * (ipos.y/2) + (ipos.x/2)) + 3*si;
-  const int idx = cn*(wd * (ipos.y/sz) + (ipos.x/sz));
-  // vec4 col = vec4(buf.v[idx+0], buf.v[idx+4], buf.v[idx+8], 1.0);
-  // vec4 col = vec4(buf.v[idx+0], buf.v[idx+1], buf.v[idx+2], 1.0);
-  // vec4 col = vec4(buf.v[idx], buf.v[idx], buf.v[idx], 1.0);
-#endif
-#endif
-  // vec4 col = vec4(buf.v[idx+0], buf.v[idx+1], buf.v[idx+2], 1.0);
+      pu_transfer_function_inv(buf.v[idx+    0]),
+      pu_transfer_function_inv(buf.v[idx+  b*b]),
+      pu_transfer_function_inv(buf.v[idx+2*b*b]), 1.0);
   imageStore(img_out, ipos, col);
 }

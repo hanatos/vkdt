@@ -1,1 +1,2 @@
-model:int:1:0
+arch:int:1:0
+variant:int:1:1

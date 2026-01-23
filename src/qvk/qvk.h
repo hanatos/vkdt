@@ -126,6 +126,9 @@ typedef struct qvk_t
   uint64_t                    raytracing_acc_min_align;
   uint64_t                    max_allocation_size;
 
+  uint32_t                    vendorID;
+  char                        device_name[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
+
   int                         raytracing_supported;
   int                         float_atomics_supported;
   int                         coopmat_supported;

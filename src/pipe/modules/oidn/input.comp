@@ -1,0 +1,33 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: enable
+
+#include "shared.glsl"
+#include "jddcnn/pu.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(std430, set = 1, binding = 1) buffer buf_t { float16_t v[]; } buf;
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
+
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  const int wd = textureSize(img_in, 0).x;
+  const int idx = 3*(wd*ipos.y + ipos.x);
+#if 0
+  buf.v[idx+0] = float16_t(pu_transfer_function(rgb.r));
+  buf.v[idx+1] = float16_t(pu_transfer_function(rgb.g));
+  buf.v[idx+2] = float16_t(pu_transfer_function(rgb.b));
+#elif 0
+  buf.v[idx+0] = float16_t(sqrt(clamp(rgb.r,0,1)));
+  buf.v[idx+1] = float16_t(sqrt(clamp(rgb.g,0,1)));
+  buf.v[idx+2] = float16_t(sqrt(clamp(rgb.b,0,1)));
+#else
+  buf.v[idx+0] = float16_t(clamp(rgb.r, 0.0, 65535.0));
+  buf.v[idx+1] = float16_t(clamp(rgb.g, 0.0, 65535.0));
+  buf.v[idx+2] = float16_t(clamp(rgb.b, 0.0, 65535.0));
+#endif
+}

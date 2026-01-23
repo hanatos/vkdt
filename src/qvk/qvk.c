@@ -246,6 +246,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     { // vendor ids are: nvidia 0x10de, intel 0x8086
       qvk.ticks_to_nanoseconds = dev_properties.limits.timestampPeriod;
       qvk.uniform_alignment    = dev_properties.limits.minUniformBufferOffsetAlignment;
+      qvk.vendorID = dev_properties.vendorID;
+      snprintf(qvk.device_name, sizeof(qvk.device_name), "%s", dev_properties.deviceName);
       for(int k=0;k<num_ext;k++)
       {
         if (!strcmp(ext_properties[k].extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME))

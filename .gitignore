@@ -20,7 +20,6 @@ bin/vkdt-mkssf
 bin/vkdt-read-icc
 bin/data/cameras.xml
 bin/modules
-bin/imgui.ini
 bin/display.*
 bin/data/*.lut
 bin/data/nprof/

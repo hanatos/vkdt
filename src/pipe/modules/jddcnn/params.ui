@@ -1,1 +1,2 @@
-model:combo:heavy:light
+arch:combo:auto:generic:nvidia:intel:amd
+variant:combo:clean:noisy
