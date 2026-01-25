@@ -379,10 +379,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
 
         // nk_style_push_color(ctx, &ctx->style.knob.knob_normal, nk_rgba_cf(hsv2rgb(hsv.r, hsv.g, hsv.b)));
         bounds = nk_widget_bounds(ctx);
-        nk_knob_float(ctx, 0.0, &hsv.b, 2.0, 1.0/100.0, NK_DOWN, dead_angle); // V
+        nk_knob_float(ctx, 0.0, &hsv.b, 1.0, 1.0/100.0, NK_DOWN, dead_angle); // V
         // nk_style_pop_color(ctx);
-        DECORATE(hsv.b/2.0, hsv2rgb(hsv.r, hsv.g, 2.0*(k+0.5)/N), 1.0f, 2);
-        ROTARY_KNOB(hsv.b, 2.0);
+        DECORATE(hsv.b, hsv2rgb(hsv.r, hsv.g, (k+0.5)/N), 1.0f, 2);
+        ROTARY_KNOB(hsv.b, 1.0);
 
         struct nk_colorf hsv_old = rgb2hsv_prior(oldval.r, oldval.g, oldval.b, cc_hsv[hash]);
         if(memcmp(&hsv_old, &hsv, sizeof(float)*3)) change = 1;
