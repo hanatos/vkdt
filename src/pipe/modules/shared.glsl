@@ -445,7 +445,7 @@ adjust_colour_dng(
   if(col0.g > col0.r) { col0.rg = col0.gr; col1.rg = col1.gr; flip.y = true; }
   if(col0.b > col0.g) { col0.bg = col0.gb; col1.bg = col1.gb; flip.z = true; }
 
-  col1.g = mix(col1.b, col1.r, (col0.g-col0.b+1e-8)/(col0.r-col0.b+1e-8));
+  col1.g = mix(col1.b, col1.r, (col0.g-col0.b+1e-6)/(col0.r-col0.b+1e-6));
 
   if(flip.z) col1.bg = col1.gb;
   if(flip.y) col1.rg = col1.gr;
