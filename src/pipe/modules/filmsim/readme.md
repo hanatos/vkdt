@@ -186,3 +186,4 @@ block) and print paper options (second block).
 * `halation` switch halation on or off, causing a slight colourful blur around high contrast edges
 * `radius` change the radius of the halation effect
 * `strength` the strength of the halation effect per colour channel / layer in the film
+* `scale` scale the rgb strength of the halation effect in lockstep

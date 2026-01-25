@@ -17,5 +17,5 @@ tune m:float:1:0.0
 tune y:float:1:0.0
 halation:int:1:0
 radius:float:1:0.0015
-pad:float:1:0
+scale:float:1:0.35
 strength:float:4:0.8:0.05:0.01:0

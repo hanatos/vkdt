@@ -28,7 +28,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float tune_y;
   int   halation;
   float halation_radius;
-  float pad;
+  float halation_scale;
   vec4  halation_strength;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;

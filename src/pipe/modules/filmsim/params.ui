@@ -29,5 +29,6 @@ group:process:102
 halation:combo:off:on
 group:halation:1
 strength:rgbknobs
-pad:hidden
+scale:slider:0:10.0
 radius:slider:0:0.003
+

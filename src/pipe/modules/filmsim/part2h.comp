@@ -16,7 +16,7 @@ void main()
   vec3 raw = texture(img_in,  (ipos+0.5)/vec2(imageSize(img_out))).rgb;
   vec3 hal = texture(img_hal, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
   // magic number to match agx-emulation strip:
-  vec3 hs = .35*params.halation_strength.rgb;
+  vec3 hs = params.halation_scale*params.halation_strength.rgb;
   const float one_log10 = 0.43429448190325176;
   vec3 log_raw = log((raw+hs*hal)/(1.0+hs))*one_log10;
   vec3 density_cmy = develop_film(log_raw, params.film, ipos, push.scale);
