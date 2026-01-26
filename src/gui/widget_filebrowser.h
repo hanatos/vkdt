@@ -49,9 +49,9 @@ static int dt_filebrowser_sort_dir_first(const void *aa, const void *bb, void *c
   const struct dirent *a = (const struct dirent *)aa;
   const struct dirent *b = (const struct dirent *)bb;
   const char *cwd = (const char *)cw;
-  if( fs_isdir(cwd, a) && !fs_isdir(cwd, b)) return 0;
+  if( fs_isdir(cwd, a) && !fs_isdir(cwd, b)) return -1;
   if(!fs_isdir(cwd, a) &&  fs_isdir(cwd, b)) return 1;
-  return strcmp(a->d_name, b->d_name);
+  return strcoll(a->d_name, b->d_name);
 }
 
 static int dt_filebrowser_filter_dir(const struct dirent *d, const char *cwd, const char *filter)

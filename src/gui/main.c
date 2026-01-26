@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <math.h>
+#include <locale.h>
 
 dt_gui_t vkdt = {0};
 
@@ -194,6 +195,7 @@ int main(int argc, char *argv[])
   dt_pipe_global_init();
   threads_global_init();
   dt_set_signal_handlers();
+  setlocale(LC_COLLATE, "");
 
   if(dt_gui_init())
   {
