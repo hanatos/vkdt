@@ -336,7 +336,7 @@ main()
       else sl.x = m;
       if(sl.x > bound) sl.x = bound; // clip to gamut
     }
-    sl.x = clamp(m, 0.0, (size.x-3.0)/size.x); // make sure we don't hit the last column (gamut limits stored there)
+    sl.x = clamp(sl.x, 0.0, (size.x-3.0)/size.x); // make sure we don't hit the last column (gamut limits stored there)
     xyY.xy = texture(img_abney, sl).rg; // use lambda/sat lut to get new xy chroma values
     rgb = xyY_to_rec2020(xyY);
   }
