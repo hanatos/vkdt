@@ -179,7 +179,10 @@ dt_node_add(
     graph->node[id].connector[c].type   = dt_token(tmp1);
     graph->node[id].connector[c].chan   = dt_token(tmp2);
     graph->node[id].connector[c].format = dt_token(tmp3);
-    if((uint64_t)roi != dt_no_roi) // not required for input connectors, they will take on that of the output. va_arg doesn't do null pointers though :(
+    if(!dt_connector_input(graph->node[id].connector+c) ||
+       (uint64_t)roi != dt_no_roi)
+      // not required for input connectors, they will take of that of via connected output.
+      // va_arg doesn't do null pointers though :(
       graph->node[id].connector[c].roi  = *roi;
     if(dt_connector_input(graph->node[id].connector+c))
       graph->node[id].connector[c].connected_mi = -1; // mark input as disconnected
