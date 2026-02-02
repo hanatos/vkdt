@@ -285,6 +285,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     if(res == VK_SUCCESS && cnt > 0)
     {
       VkCooperativeMatrixPropertiesKHR *p = alloca(sizeof(*p)*cnt);
+      memset(p, 0, sizeof(*p)*cnt);
+      for(int k=0;k<cnt;k++) p[k].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR;
       VkResult res = qvkGetPhysicalDeviceCooperativeMatrixPropertiesKHR(qvk.physical_device, &cnt, p);
       if(res == VK_SUCCESS) for(int i=0;i<cnt&&qvk.coopmat_supported==0;i++)
       {
