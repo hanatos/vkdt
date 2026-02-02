@@ -1,6 +1,25 @@
 #include "modules/api.h"
+#include "core/core.h"
 #include <math.h>
 #include <stdlib.h>
+
+void modify_roi_out(
+    dt_graph_t *graph,
+    dt_module_t *module)
+{
+  module->connector[1].roi = module->connector[0].roi;
+  const int wd = dt_module_param_int(module, 0)[0];
+  const int ht = dt_module_param_int(module, 1)[0];
+  if(!wd || !ht) return;
+  double scale = MIN(1.0, MIN(
+      wd / (double)module->connector[1].roi.full_wd,
+      ht / (double)module->connector[1].roi.full_ht));
+  if(scale < 1.0)
+  {
+    module->connector[1].roi.full_wd = (int)(module->connector[0].roi.full_wd * scale + 0.5);
+    module->connector[1].roi.full_ht = (int)(module->connector[0].roi.full_ht * scale + 0.5);
+  }
+}
 
 void modify_roi_in(
     dt_graph_t *graph,
@@ -14,6 +33,22 @@ void modify_roi_in(
   // here, we suggest a new resolution but if any other chain is more opinionated
   // than us, we let them override our numbers.
   // module->connector[0].roi.scale = 1.0f;
+}
+
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    uint32_t     num,
+    void        *oldval)
+{
+  if(parid == 0 || parid == 1)
+  { // wd or ht
+    int oldv = *(int*)oldval;
+    int newv = dt_module_param_int(module, parid)[0];
+    if(oldv != newv) return s_graph_run_all; // re-run buffer allocations
+  }
+  return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
 
 void create_nodes(
