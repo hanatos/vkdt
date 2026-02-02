@@ -809,7 +809,6 @@ void render_darkroom_cleanup()
 {
   hk_serialise("darkroom", hk_darkroom, hk_darkroom_cnt);
   dt_keyaccel_cleanup(&keyaccel);
-  widget_end(); // commit params if still ongoing
 }
 
 void
@@ -1210,6 +1209,7 @@ darkroom_enter()
 int
 darkroom_leave()
 {
+  widget_end(); // commit params if still ongoing
   dt_rc_set_int(&vkdt.rc, "gui/lod",          vkdt.wstate.lod_fine);
   dt_rc_set_int(&vkdt.rc, "gui/lod_interact", vkdt.wstate.lod_interact);
   dt_gui_dr_anim_stop();
