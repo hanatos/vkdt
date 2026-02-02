@@ -1,2 +1,2 @@
 colour:combo:sharp:smooth
-method:combo:gaussian splats:RCD (bayer only)
+method:combo:gaussian splats:RCD (bayer only):half size

@@ -18,11 +18,18 @@ void modify_roi_in(
 void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *module)
-{ // always give full size and negotiate half or not in modify_roi_in
+{
   dt_roi_t *ri = &module->connector[0].roi;
   dt_roi_t *ro = &module->connector[1].roi;
   ro->full_wd = ri->full_wd;
   ro->full_ht = ri->full_ht;
+  const int method = dt_module_param_int(module, 1)[0];
+  const int halfsize = (method == 2);
+  if(halfsize)
+  {
+    ro->full_wd = (ro->full_wd+1)/2;
+    ro->full_ht = (ro->full_ht+1)/2;
+  }
   module->img_param.filters = 0u; // after we're done there won't be any more mosaic
 }
 
@@ -35,11 +42,9 @@ check_params(
 {
   if(parid == 1)
   { // method
-    float oldstr = *(float*)oldval;
-    float newstr = dt_module_param_int(module, 1)[0];
-    if((oldstr <= 0.0f && newstr >  0.0f) ||
-       (oldstr >  0.0f && newstr <= 0.0f))
-    return s_graph_run_all;// we need to update the graph topology
+    int oldv = *(int*)oldval;
+    int newv = dt_module_param_int(module, 1)[0];
+    if(oldv != newv) return s_graph_run_all;// we need to update the graph topology
   }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms
 }
@@ -76,7 +81,9 @@ create_nodes(
   roi_half.ht /= block;
   int *wbi = (int *)img_param->whitebalance;
   const int pc[] = { wbi[0], wbi[1], wbi[2], wbi[3], img_param->filters };
-  if(module->connector[1].roi.scale >= block)
+  const int method = dt_module_param_int(module, 1)[0];
+  const int halfsize = (module->connector[1].roi.scale >= block) || (method == 2);
+  if(halfsize)
   { // half size
     const int id_half = dt_node_add(graph, module, "demosaic", "halfsize",
         roi_half.wd, roi_half.ht, 1, sizeof(pc), pc, 2,
@@ -98,7 +105,6 @@ create_nodes(
 
   // else: full size
 
-  const int method = dt_module_param_int(module, 1)[0];
   if(method == 1)
   { // bayer with RCD
     dt_roi_t hr = module->connector[0].roi;
