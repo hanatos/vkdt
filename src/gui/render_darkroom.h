@@ -727,7 +727,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         memcpy(v, def, sizeof(float)*8);
         vkdt.graph_dev.runflags = s_graph_run_all;
         dt_image_widget_t *w = &vkdt.wstate.img_widget;
-        w->scale = 0.9 * MIN(w->win_w/w->wd, w->win_h/w->ht);
+        w->scale = 0.9;
       }
       RESETBLOCK
       if(change)
@@ -870,7 +870,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         memcpy(v, def, sizeof(float)*4);
         vkdt.graph_dev.runflags = s_graph_run_all;
         dt_image_widget_t *w = &vkdt.wstate.img_widget;
-        w->scale = 0.9 * MIN(w->win_w/w->wd, w->win_h/w->ht);
+        w->scale = 0.9;
       }
     }
     nk_tab_property(float, ctx, "#aspect", 0.0, &vkdt.wstate.aspect, 10.0, 0.1, .001);
