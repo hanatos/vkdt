@@ -6,8 +6,15 @@
     utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, utils, ... }:
-    utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      utils,
+      ...
+    }:
+    utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs { inherit system; };
       in
@@ -23,7 +30,7 @@
 
             cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
               inherit pname src cargoRoot;
-              hash = "sha256-8+gJVe9A1w9VlQpKjVnO/ZX44GKvh4yXKlGf4HqyW2M=";
+              hash = "sha256-l2mOX5sVXE8nm86EP0jwXOxyu+jQqgpZrYsyXj1nsqo=";
             };
 
             strictDeps = true;
