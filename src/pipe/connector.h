@@ -16,6 +16,15 @@ typedef struct dt_roi_t
 }
 dt_roi_t;
 
+// identifying a connector
+typedef struct dt_cid_t
+{
+  int16_t i; // module or node index on graph
+  int16_t c; // connector index on node or module
+}
+dt_cid_t;
+static const dt_cid_t dt_cid_unset = {-1, -1};
+
 typedef enum dt_connector_flags_t
 {
   s_conn_none          = 0,
@@ -63,7 +72,7 @@ dt_connector_format_t;
 typedef struct dt_connector_t
 {
   dt_token_t name;   // connector name
-  dt_token_t type;   // read write source sink
+  dt_token_t type;   // read write source sink modify
   dt_token_t chan;   // rgb yuv.. or ssbo for storage buffers instead of images
   dt_token_t format; // f32 ui16
 
@@ -73,14 +82,11 @@ typedef struct dt_connector_t
   // inputs (read buffers) can only be connected to exactly one output
   // we only keep track of where inputs come from. this is also
   // how we'll access it in the DAG during DFS from sinks.
-  int connected_mi;  // pointing to connected module or node (or -1). is a reference count for write buffers.
-  int connected_mc;  // index of the connector on the module
-
-  int associated_i; // for nodes, points back to module if repointing is needed
-  int associated_c; 
-
-  int bypass_mi;    // if set on an output, point to module input connector
-  int bypass_mc;    // which should be used as a bypass directly.
+  // XXX is a reference count for "write"|"source" buffers (these allocate/own a buffer)
+  // XXX yet it should not. put ref count on conn_image?
+  dt_cid_t connected;  // for inputs ("read"|"sink"|"modify"): pointing to allocator/owner/beginning of "modify" chain
+  dt_cid_t associated; // for *nodes*, points back to module layer if repointing is needed (dt_connector_copy interface)
+  dt_cid_t bypass;     // set on input and output which form a tunnel, bypassing *modules*
 
   // information about buffer dimensions transported here:
   dt_roi_t roi;

@@ -132,10 +132,8 @@ dt_connector_bypass(
   dt_connector_t *c_in  = module->connector + mc_in;
   dt_connector_t *c_out = module->connector + mc_out;
 
-  c_out->bypass_mi = module - graph->module;
-  c_out->bypass_mc = mc_in;
-  c_in->bypass_mi  = module - graph->module;
-  c_in->bypass_mc  = mc_out;
+  c_out->bypass = (dt_cid_t){module - graph->module, mc_in};
+  c_in->bypass  = (dt_cid_t){module - graph->module, mc_out};
 }
 
 // convenience function to add a new node to the graph.

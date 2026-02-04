@@ -36,8 +36,7 @@ static inline void
 create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
 {
   for(int i=0;i<module->num_connectors;i++)
-    module->connector[i].bypass_mi =
-      module->connector[i].bypass_mc = -1;
+    module->connector[i].bypass = dt_cid_unset;
   const uint64_t u_offset = *uniform_offset;
   uint64_t u_size = module->committed_param_size ?
     module->committed_param_size :
@@ -605,19 +604,17 @@ dt_graph_run_modules(
       dt_node_t *n = graph->node + ni;
       for(int i=0;i<n->num_connectors;i++)
       {
-        if(n->connector[i].associated_i >= 0) // needs repointing
+        if(n->connector[i].associated != dt_cid_unset) // needs repointing
         {
-          int n0, c0;
-          int mi0 = n->connector[i].associated_i;
-          int mc0 = n->connector[i].associated_c;
+          dt_cid_t id;
+          dt_cid_t m0 = n->connector[i].associated;
           if(dt_connector_input(n->connector+i))
           { // walk node->module->module->node
-            int mi1 = graph->module[mi0].connector[mc0].connected_mi;
-            int mc1 = graph->module[mi0].connector[mc0].connected_mc;
-            if(mi1 == -1u) continue;
+            dt_cid_t m1 = graph->module[m0.i].connector[m0.c].connected;
+            if(m1 == dt_cid_unset) continue;
             // check for a bypass chain
             // m3(out) -> m2(in) -> bypass m1(out) -> m0(in)
-            if(graph->module[mi1].connector[mc1].bypass_mi >= 0)
+            if(graph->module[m1.i].connector[m1.c].bypass != dt_cid_unset)
             { // now go from mi1/mc1(out) -> m2 = bypass(in) -> m3 = conn(out)
               // mi0:mc0 is the module connector (input) corresponding to our node
               // mi1:mc1 is an output connector on a different module connected to us
@@ -626,38 +623,26 @@ dt_graph_run_modules(
               // and then find the module connected to this input connector, i.e.
               // mi3:mc3 will be an output connector on a different module
               // if mi3:mc3 has bypass, do the same again
-              int mi3, mc3;
+              dt_cid_t m3;
               while(1)
               { // find input connector mc2, probably mi1==mi2 bypassing the module
-                int mi2 = graph->module[mi1].connector[mc1].bypass_mi;
-                int mc2 = graph->module[mi1].connector[mc1].bypass_mc;
-                if(mi2 == -1u) continue;
+                dt_cid_t m2 = graph->module[m1.i].connector[m1.c].bypass;
+                if(mi2 == dt_cid_unset) continue;
                 // now find previous module mi3 with output connector mc3
-                mi3 = graph->module[mi2].connector[mc2].connected_mi;
-                mc3 = graph->module[mi2].connector[mc2].connected_mc;
-                if(mi3 == -1u) continue;
+                m3 = graph->module[m2.i].connector[m2.c].connected;
+                if(m3 == dt_cid_unset) continue;
                 // now if this module is again a bypass thing, continue the dance!
-                if(graph->module[mi3].connector[mc3].bypass_mi < 0) break;
-                if(mi1 == mi3 && mc1 == mc3) break; // emergency exit
-                mi1 = mi3;
-                mc1 = mc3;
+                if(graph->module[m3.i].connector[m3.c].bypass == dt_cid_unset) break;
+                if(m1 == m3) break; // emergency exit
+                m1 = m3;
               }
-              n0 = graph->module[mi3].connector[mc3].associated_i;
-              c0 = graph->module[mi3].connector[mc3].associated_c;
+              id = graph->module[m3.i].connector[m3.c].associated;
             }
-            else
-            {
-              n0 = graph->module[mi1].connector[mc1].associated_i;
-              c0 = graph->module[mi1].connector[mc1].associated_c;
-            }
+            else id = graph->module[m1.i].connector[m1.c].associated;
           }
           else // if(dt_connector_output(n->connector+i))
-          { // walk node->module->node
-            n0 = graph->module[mi0].connector[mc0].associated_i;
-            c0 = graph->module[mi0].connector[mc0].associated_c;
-          }
-          n->connector[i].connected_mi = n0;
-          n->connector[i].connected_mc = c0;
+            id = graph->module[m0.i].connector[m0.c].associated; // walk node->module->node
+          n->connector[i].connected = id;
         }
       }
     }

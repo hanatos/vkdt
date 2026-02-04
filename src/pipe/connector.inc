@@ -1,5 +1,5 @@
 {
-  // connect source|write (m0,c0) -> sink|read (m1,c1)
+  // connect source|write|modify (m0,c0) -> sink|read|modify (m1,c1)
   // reads are unique, writes can be connected to multiple others
   // we only support disconnecting via (-1,-1,module,connector), i.e. the
   // reading side always needs to be known to us, because it allows us to
@@ -14,21 +14,24 @@
 
   // find node that m1 is currently connected to via c1 (where is the data currently coming from?)
   dt_connector_t *cn1 = graph->element[m1].connector+c1;
-  if(cn1->connected_mi == m0 && cn1->connected_mc == c0) return 0; // already connected
-  if(cn1->type != dt_token("read") && cn1->type != dt_token("sink")) return 3;
+  if(cn1->connected.i == m0 && cn1->connected.c == c0) return 0; // already connected
+  if(cn1->type != dt_token("read") &&
+     cn1->type != dt_token("sink") &&
+     cn1->type != dt_token("modify")) return 3;
 
-  int old_mod = cn1->connected_mi;
+  int old_mod = cn1->connected.i;
   if(old_mod >= 0)
   {
-    int old_con = cn1->connected_mc;
+    int old_con = cn1->connected.c;
     if(old_mod >= graph->num_elements) { assert(0 && "sink inconsistent!"); return 4; }
     if(graph->element[old_mod].name && // skip deleted modules
        graph->element[old_mod].connector[old_con].type != dt_token("write") &&
-       graph->element[old_mod].connector[old_con].type != dt_token("source"))
+       graph->element[old_mod].connector[old_con].type != dt_token("source") &&
+       graph->element[old_mod].connector[old_con].type != dt_token("modify"))
     { assert(0 && "sink inconsistent!"); return 5; }
 
     // disconnect cn1
-    cn1->connected_mi = cn1->connected_mc = -1;
+    cn1->connected.i = cn1->connected.c = -1;
 #ifdef connect_module
     // this is the sink. the connector has a format that has been previously negotiated with the
     // previous source. reset to the generic module->so version:
@@ -38,13 +41,13 @@
 #endif
 
     // decrement previous source's reference counter
-    if(graph->element[old_mod].connector[old_con].connected_mi > 0)
+    if(graph->element[old_mod].connector[old_con].connected.i > 0)
     {
-      graph->element[old_mod].connector[old_con].connected_mi--;
-      if(graph->element[old_mod].connector[old_con].connected_mi < 0)
+      graph->element[old_mod].connector[old_con].connected.i--;
+      if(graph->element[old_mod].connector[old_con].connected.i < 0)
       { assert(0 && "sink inconsistent!"); return 6; }
 #ifdef connect_module
-      else if(graph->element[old_mod].connector[old_con].connected_mi == 0)
+      else if(graph->element[old_mod].connector[old_con].connected.i == 0)
       { // this is the old source, now disconnected.
         // replace the format of this connector by the (potentially generic) module->so version
         graph->element[old_mod].connector[old_con].format = graph->element[old_mod].so->connector[old_con].format;
@@ -67,14 +70,12 @@
 
   // to be in a consistent state need to point out that we are an explicit
   // connection, not created by copying a module connection to a node:
-  graph->element[m1].connector[c1].associated_i = -1;
-  graph->element[m1].connector[c1].associated_c = -1;
+  graph->element[m1].connector[c1].associated = dt_cid_unset;
 
   // actually just disconnect requested? we're done now, then:
   if(c0 < 0 || m0 < 0) return 0;
 
-  graph->element[m0].connector[c0].associated_i = -1;
-  graph->element[m0].connector[c0].associated_c = -1;
+  graph->element[m0].connector[c0].associated = dt_cid_unset;
 
   // we're now in a consistent state to fail, leaving everything
   // disconnected but intact.
@@ -84,7 +85,7 @@
 
   // connect the two in the graph
   dt_connector_t *cn0 = graph->element[m0].connector+c0;
-  if(cn0->type != dt_token("write") && cn0->type != dt_token("source")) return 9;
+  if(cn0->type != dt_token("write") && cn0->type != dt_token("source") && cn0->type != dt_token("modify")) return 9;
 
   // check buffer config for compatibility
   // if output is already connected to another input, use this format as mandatory (can't be "*" any more)
@@ -107,8 +108,7 @@
   // the connection in one go, leaving us with a consintent state after.
 
   // connect input id
-  cn1->connected_mi = m0;
-  cn1->connected_mc = c0;
+  cn1->connected = (dt_cid_t){m0, c0};
   cn1->array_length = cn0->array_length; // copy from what is written to output
   cn1->flags = cn0->flags;
   cn1->flags &= ~s_conn_feedback; // not a feedback connector by default
@@ -116,10 +116,10 @@
   cn1->roi = cn0->roi; // copy the buffer extents
 
   // back connections are not unique, so we're just using this
-  // as a reference counter, so we know there is /some/ connection.
-  // we know which is which because cn0->type == "write"|"source".
-  cn0->connected_mi++;
-  cn0->connected_mc = 0;
+  // as a reference counter, so we know there is *some* connection.
+  // cn0->type == "write"|"source"|"modify" at this point, but "modify" types don't allocate/own a buffer
+  if(cn0->type == dt_token("write") || cn0->type == dt_token("source"))
+    cn0->connected.i++;
 
   // reset to common default. this is rather an esoteric use case that usually requires
   // custom create_nodes code to do the right thing (useful for concatenations of buffers as in unets).
