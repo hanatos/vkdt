@@ -106,7 +106,7 @@ write_descriptor_sets(
   VkWriteDescriptorSet    img_dset[DT_GRAPH_MAX_FRAMES] = {{0}};
   int cur_img = 0, cur_dset = 0, cur_buf = 0;
 
-  if(dt_connector_output(c))
+  if(dt_connector_owner(c))
   { // allocate our output buffers
     if(!dyn_array && dt_connector_ssbo(c))
     { // storage buffer
@@ -173,8 +173,9 @@ write_descriptor_sets(
   }
   else if(dt_connector_input(c))
   { // point our inputs to their counterparts:
-    const int c_dyn_array = (c->connected_mi >= 0 && c->connected_mc >= 0) ? graph->node[c->connected_mi].connector[c->connected_mc].flags & s_conn_dynamic_array : 0;
-    if(c->connected_mi >= 0 &&
+    dt_cid_t owner = dt_connector_find_owner(graph, (dt_cid_t){node-graph->node, c-graph->connector});
+    const int c_dyn_array = (owner != dt_cid_unset) ? graph->node[owner.i].connector[owner.c].flags & s_conn_dynamic_array : 0;
+    if(owner != dt_cid_unset &&
       ((!dyn_array && !c_dyn_array) || (dyn_array && c_dyn_array)))
     {
       int fm = c_dyn_array ? graph->double_buffer     : 0;
@@ -185,13 +186,13 @@ write_descriptor_sets(
         for(int k=0;k<MAX(1,c->array_length);k++)
         {
           int frame = MIN(f, 
-            graph->node[c->connected_mi].connector[c->connected_mc].frames-1);
+            graph->node[owner.i].connector[owner.c].frames-1);
           if(c->flags & s_conn_feedback)
           { // feedback connections cross the frame wires:
             frame = 1-f;
             // this should be ensured during connection:
             assert(c->frames == 2); 
-            assert(graph->node[c->connected_mi].connector[c->connected_mc].frames == 2);
+            assert(graph->node[owner.i].connector[owner.c].frames == 2);
           }
           dt_connector_image_t *img = dt_graph_connector_image(graph,
               node - graph->node, c - node->connector, k, frame);
@@ -249,7 +250,7 @@ write_descriptor_sets(
         }
       }
     }
-    else if(c->connected_mi < 0)
+    else if(c->connected == dt_cid_unset)
     { // sorry not connected, buffer will not be bound.
       // unconnected inputs are a problem however:
       snprintf(graph->gui_msg_buf, sizeof(graph->gui_msg_buf), "kernel %"PRItkn"_%"PRItkn"_%"PRItkn":%"PRItkn" is not connected!",
@@ -273,7 +274,7 @@ bind_buffers_to_memory(
     int             f,     // frame index
     int             k)     // array index
 {
-  if(!dt_connector_output(c)) return VK_SUCCESS;
+  if(!dt_connector_owner(c)) return VK_SUCCESS;
   if(f > 0 && c->frames < 2) return VK_SUCCESS; // this is just a copy, not a real double buffer
   dt_connector_image_t *img = dt_graph_connector_image(graph, node - graph->node, c - node->connector, k, f);
   if(dt_connector_ssbo(c))
@@ -457,7 +458,7 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
   { // create framebuffer for draw connectors
     VkImageView attachment[DT_MAX_CONNECTORS];
     int cnt = 0, first = -1;
-    for(int i=0;i<node->num_connectors;i++) if(dt_connector_output(node->connector+i))
+    for(int i=0;i<node->num_connectors;i++) if(dt_connector_owner(node->connector+i))
     { // make sure there is no array and make sure they are same res!
       if(first == -1) first = i;
       assert(node->connector[i].array_length <= 1);
@@ -495,10 +496,12 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
-    if(c->type == dt_token("read") && c->connected_mi >= 0 &&
-     !(c->flags & s_conn_feedback) &&
-     !(graph->node[c->connected_mi].connector[c->connected_mc].flags & s_conn_dynamic_array))
-    { // only free "read", not "sink" which we keep around for display
+    if((c->type == dt_token("read") ||
+        c->type == dt_token("modify")) &&
+        c->connected != dt_cid_unset &&
+      !(c->flags & s_conn_feedback) &&
+      !(graph->node[c->connected.i].connector[c->connected.c].flags & s_conn_dynamic_array))
+    { // only free "read"|"modify", not "sink" which we keep around for display
       // dt_log(s_log_pipe, "freeing input %"PRItkn"_%"PRItkn" %"PRItkn,
       //     dt_token_str(node->name),
       //     dt_token_str(node->kernel),
@@ -516,7 +519,7 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
       // the very end. we just instruct our allocator that we're done with
       // this portion of the memory.
     }
-    else if(dt_connector_output(c) && !(c->flags & s_conn_dynamic_array))
+    else if(dt_connector_owner(c) && !(c->flags & s_conn_dynamic_array))
     {
       // dt_log(s_log_pipe, "freeing output ref count %"PRItkn"_%"PRItkn" %"PRItkn" %d %d",
       //     dt_token_str(node->name),
@@ -638,7 +641,7 @@ allocate_buffer_array_element(
   // free directly after and wouldn't know which node later on still relies
   // on this buffer. hence we ran a reference counting pass before this, and
   // init the reference counter now accordingly:
-  img->mem->ref = c->connected_mi;
+  img->mem->ref = c->connected.i;
 
   if(c->type == dt_token("source") || (c->flags & s_conn_protected))
     img->mem->ref++; // add one more so we can run the pipeline starting from after upload easily
@@ -780,7 +783,7 @@ allocate_image_array_element(
   // on this buffer. hence we ran a reference counting pass before this, and
   // init the reference counter now accordingly:
   if(heap_offset == 0)
-    img->mem->ref = c->connected_mi;
+    img->mem->ref = c->connected.i;
 
   // TODO: better and more general caching:
   if(heap_offset == 0 && (c->type == dt_token("source") || (c->flags & s_conn_protected)))
@@ -803,16 +806,16 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   {
     bindings[i].binding = i;
     if(dt_connector_ssbo(node->connector+i))
-    {
+    { // might be "read"|"write"|"sink"|"source"|"modify" we don't care
       graph->dset_cnt_buffer += MAX(1, node->connector[i].array_length);
       bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     }
-    else if(dt_connector_input(node->connector+i))
+    else if(node->connector[i].type == dt_token("read") || node->connector[i].type == dt_token("sink"))
     {
       graph->dset_cnt_image_read += MAX(1, node->connector[i].array_length);
       bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     }
-    else
+    else // image "write"|"source"|"modify"
     {
       graph->dset_cnt_image_write += MAX(1, node->connector[i].array_length);
       bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -1082,7 +1085,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
-    if(dt_connector_ssbo(c) && dt_connector_output(c))
+    if(dt_connector_ssbo(c) && dt_connector_owner(c))
     {
       // prepare allocation for storage buffer. this is easy, we do not
       // need to create an image, and computing the size is easy, too.
@@ -1111,7 +1114,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         dt_vkalloc_init(c->array_alloc, c->array_length * 2, c->array_alloc_size);
       }
     }
-    else if(!dt_connector_ssbo(c) && dt_connector_output(c))
+    else if(!dt_connector_ssbo(c) && dt_connector_owner(c))
     { // allocate our output buffers
       const int dynalloc = c->flags & s_conn_dynamic_array; // connector asks for their own memory pool
       if(c->array_alloc)
@@ -1178,10 +1181,10 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     }
     else if(dt_connector_input(c))
     { // point our inputs to their counterparts and allocate staging memory for sinks
-      if(c->connected_mi >= 0)
-      {
-        // point to conn_image of connected output directly:
-        node->conn_image[i] = graph->node[c->connected_mi].conn_image[c->connected_mc];
+      dt_cid_t owner = dt_connector_find_owner(graph, c->connected);
+      if(owner != dt_cid_unset)
+      { // point to conn_image of connected output directly:
+        node->conn_image[i] = graph->node[owner.i].conn_image[owner.c];
         if(c->type == dt_token("sink"))
         {
           // allocate staging buffer for downloading from connected input
@@ -1236,11 +1239,12 @@ count_references(dt_graph_t *graph, dt_node_t *node)
   for(int c=0;c<node->num_connectors;c++)
   {
     if(dt_connector_input(node->connector+c))
-    {
-      // up reference counter of the connector that owns the output
-      int mi = node->connector[c].connected_mi;
-      int mc = node->connector[c].connected_mc;
-      if(mi != -1) graph->node[mi].connector[mc].connected_mi++;
+    { // up reference counter of the connector that owns the output
+      dt_cid_t m = dt_connector_find_owner(graph, node->connector[c].connected);
+      if(m != dt_cid_unset)
+      {
+        graph->node[m.i].connector[m.c].connected.i++; // owners have ref count
+      }
       else
       {
         snprintf(graph->gui_msg_buf, sizeof(graph->gui_msg_buf), "kernel %"PRItkn"_%"PRItkn"_%"PRItkn":%"PRItkn" is not connected!",
@@ -1255,12 +1259,12 @@ count_references(dt_graph_t *graph, dt_node_t *node)
       //     dt_token_str(graph->node[mi].kernel),
       //     dt_token_str(graph->node[mi].connector[mc].name));
     }
-    else
+    else // if(dt_connector_owner(node->connector+c))
     {
       // output cannot know all modules connected to it, so
       // it stores the reference counter instead.
       // we increase it here because every node needs its own outputs for processing.
-      node->connector[c].connected_mi++;
+      node->connector[c].connected.i++;
       // dt_log(s_log_pipe, "references %d on output %"PRItkn"_%"PRItkn":%"PRItkn,
       //     node->connector[c].connected_mi,
       //     dt_token_str(node->name),
@@ -1299,8 +1303,8 @@ dt_graph_run_nodes_allocate(
     // nuke reference counters:
     for(int n=0;n<graph->num_nodes;n++)
       for(int c=0;c<graph->node[n].num_connectors;c++)
-        if(dt_connector_output(graph->node[n].connector+c))
-          graph->node[n].connector[c].connected_mi = 0;
+        if(dt_connector_owner(graph->node[n].connector+c))
+          graph->node[n].connector[c].connected.i = 0;
     // perform reference counting on the final connected node graph.
     // this is needed for memory allocation later:
     for(int i=0;i<cnt;i++)
@@ -1538,7 +1542,7 @@ dt_graph_run_nodes_allocate(
         }
         c->array_resync = 0; // done with this request
       }
-      if(dt_connector_output(c) && (c->flags & s_conn_dynamic_array) && c->array_req)
+      if(dt_connector_owner(c) && (c->flags & s_conn_dynamic_array) && c->array_req)
       for(int k=0;k<MAX(1,c->array_length);k++)
       {
         if(k == 0 && !c->array_req[0])

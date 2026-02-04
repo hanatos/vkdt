@@ -168,8 +168,8 @@ init_connector_images(dt_graph_t *graph)
         else
           graph->node[n].connector[i].frames = 1;
       }
-      if(dt_connector_output(graph->node[n].connector+i))
-      { // only allocate memory for output connectors
+      if(dt_connector_owner(graph->node[n].connector+i))
+      { // only allocate memory for output connectors that own their buffer
         graph->node[n].conn_image[i] = graph->conn_image_end;
         graph->conn_image_end += MAX(1,graph->node[n].connector[i].array_length)
           * graph->node[n].connector[i].frames;
@@ -245,12 +245,12 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     module->so->modify_roi_out(graph, module);
     // mark roi in of all outputs as uninitialised:
     for(int i=0;i<module->num_connectors;i++)
-      if(dt_connector_output(module->connector+i))
+      if(dt_connector_owner(module->connector+i))
         module->connector[i].roi.scale = -1.0f;
 
     // if this is the main input of the graph, remember the img_param
     // globally, so others can pick up maker/model:
-    if(module->inst == dt_token("main") && dt_connector_output(module->connector))
+    if(module->inst == dt_token("main") && dt_connector_owner(module->connector))
     {
       graph->main_img_param = module->img_param;
       const char *str = dt_module_param_string(module, dt_module_get_param(module->so, dt_token("filename")));
@@ -264,7 +264,7 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   { // default implementation:
     // mark roi in of all outputs as uninitialised:
     for(int i=0;i<module->num_connectors;i++)
-      if(dt_connector_output(module->connector+i))
+      if(dt_connector_owner(module->connector+i))
         module->connector[i].roi.scale = -1.0f;
     // remember instance name if [0] is a source connector
     if(module->connector[0].type == dt_token("source"))
@@ -640,7 +640,7 @@ dt_graph_run_modules(
             }
             else id = graph->module[m1.i].connector[m1.c].associated;
           }
-          else // if(dt_connector_output(n->connector+i))
+          else // if(dt_connector_owner(n->connector+i))
             id = graph->module[m0.i].connector[m0.c].associated; // walk node->module->node
           n->connector[i].connected = id;
         }

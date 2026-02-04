@@ -38,14 +38,29 @@ typedef enum
 
 // convenience function to detect inputs
 static inline int
+dt_connector_owner(const dt_connector_t *c)
+{ // this means the connector owns and allocated the buffer and others can read it
+  return c->type == dt_token("write") || c->type == dt_token("source");
+}
+static inline int
 dt_connector_input(const dt_connector_t *c)
-{
-  return c->type == dt_token("read") || c->type == dt_token("sink");
+{ // this means the connector depends on another node/module to provide an allocation
+  return c->type == dt_token("read") || c->type == dt_token("sink") || c->type == dt_token("modify");
 }
 static inline int
 dt_connector_output(const dt_connector_t *c)
-{
-  return c->type == dt_token("write") || c->type == dt_token("source");
+{ // this means another node/module can connect to this in a reading fashion
+  return c->type == dt_token("write") || c->type == dt_token("source") || c->type == dt_token("modify");
+}
+static inline dt_cid_t
+dt_connector_find_owner(const graph_t *g, dt_cid_t c)
+{ // returns the id of the connector which allocated the buffer associated with connector c
+  while(c != dt_cid_unset)
+  {
+    if(dt_connector_owner(graph->node[c.i].connector+c.c)) return c;
+    if(dt_connector_input(graph->node[c.i].connector+c.c)) c = graph->node[c.i].connector[c.c].connected;
+  }
+  return dt_cid_unset; // disconnected chain
 }
 static inline int
 dt_connector_ssbo(const dt_connector_t *c)
@@ -73,8 +88,7 @@ dt_connector_copy(
 {
   // connect the node layer on the module. these are only meaningful
   // for output connectors (others might be ambiguous):
-  module->connector[mc].associated_i = nid;
-  module->connector[mc].associated_c = nc;
+  module->connector[mc].associated = (dt_cid_t){nid, nc};
   // connect the node:
   dt_connector_t *c0 = module->connector + mc;
   dt_connector_t *c1 = graph->node[nid].connector + nc;
@@ -88,8 +102,7 @@ dt_connector_copy(
     c1->format = c0->format; // modules may be rigged from the outside, for export etc
     if(!(c1->type == dt_token("write") && c1->roi.scale > 0 && c0->roi.scale == -1))
       c1->roi = c0->roi; // don't overwrite node roi if writing node is inited and module is not
-    c1->connected_mi = c0->connected_mi;
-    c1->connected_mc = c0->connected_mc;
+    c1->connected = c0->connected;
     c1->array_length = c0->array_length;
     c1->array_dim    = c0->array_dim;
   }
@@ -97,8 +110,7 @@ dt_connector_copy(
   // node connectors need to know their counterparts.
   // unfortunately at this point not all nodes are inited.
   // thus, every node needs to remember the module id and connector
-  c1->associated_i = module - graph->module;
-  c1->associated_c = mc;
+  c1->associated = (dt_cid_t){module - graph->module, mc};
 }
 
 #ifndef __cplusplus

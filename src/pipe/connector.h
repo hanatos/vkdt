@@ -82,9 +82,9 @@ typedef struct dt_connector_t
   // inputs (read buffers) can only be connected to exactly one output
   // we only keep track of where inputs come from. this is also
   // how we'll access it in the DAG during DFS from sinks.
-  // XXX is a reference count for "write"|"source" buffers (these allocate/own a buffer)
-  // XXX yet it should not. put ref count on conn_image?
-  dt_cid_t connected;  // for inputs ("read"|"sink"|"modify"): pointing to allocator/owner/beginning of "modify" chain
+  // XXX is a reference count for "write"|"source" on *nodes* (these allocate/own a buffer)
+  // XXX put ref count on conn_image instead?
+  dt_cid_t connected;  // for inputs ("read"|"sink"|"modify"): pointing to connected output (owner or not)
   dt_cid_t associated; // for *nodes*, points back to module layer if repointing is needed (dt_connector_copy interface)
   dt_cid_t bypass;     // set on input and output which form a tunnel, bypassing *modules*
 

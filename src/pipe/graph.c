@@ -549,20 +549,15 @@ dt_graph_connector_image(
     int         array,  // array index
     int         dbuf)   // double buffer index
 {
-  if(graph->node[nid].conn_image[cid] == -1)
+  dt_cid_t owner = dt_connector_find_owner(graph, (dt_cid_t){nid, cid});
+  if(graph->node[nid].conn_image[cid] == -1 || owner == dt_cid_unset)
   {
     dt_log(s_log_err, "requesting disconnected link %" PRItkn ":%" PRItkn ":%" PRItkn,
         dt_token_str(graph->node[nid].name), dt_token_str(graph->node[nid].kernel), dt_token_str(graph->node[nid].connector[cid].name));
     return 0;
   }
-  int nid2 = nid, cid2 = cid;
-  if(dt_connector_input(graph->node[nid].connector+cid))
-  {
-    cid2 = graph->node[nid].connector[cid].connected_mc;
-    nid2 = graph->node[nid].connector[cid].connected_mi;
-  }
   int frame = dbuf;
-  frame %= MAX(1, graph->node[nid2].connector[cid2].frames);
+  frame %= MAX(1, graph->node[owner.i].connector[owner.c].frames);
   return graph->conn_image_pool +
     graph->node[nid].conn_image[cid] + MAX(1,graph->node[nid].connector[cid].array_length) * frame + array;
 }

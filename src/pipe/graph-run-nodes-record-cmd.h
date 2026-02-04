@@ -188,7 +188,6 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   // increased efficiency in this case.
   for(int i=0;i<node->num_connectors;i++)
   {
-    // ssbo are not depending on image layouts
     if(dt_connector_ssbo(node->connector+i))
     { // input buffers have a barrier
       if(dt_connector_input(node->connector+i))
@@ -210,9 +209,12 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
           vkCmdFillBuffer(cmd_buf, buf, 0, VK_WHOLE_SIZE, 0);
           BARRIER_COMPUTE_BUFFER(buf);
         }
+      // ssbo are not depending on image layouts
       continue;
     }
-    if(dt_connector_input(node->connector+i))
+    // image layouts:
+    if(node->connector[i].type == dt_token("read") ||
+       node->connector[i].type == dt_token("sink"))
     {
       // this needs to prepare the frame we're actually reading.
       // for feedback connections, this is crossed over.
@@ -252,11 +254,10 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
             TRANSFER_SRC_OPTIMAL);
     }
     else if(dt_connector_output(node->connector+i))
-    {
-      // wait for layout transition on the output back to general:
+    { // layout transition on the output to general
       if((node->connector[i].flags & s_conn_clear) ||
         ((node->connector[i].flags & s_conn_clear_once) && (graph->frame == 0)))
-      {
+      { // clear buffer?
         for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
         {
           IMG_LAYOUT(
@@ -296,13 +297,27 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         if(node->type == s_node_graphics)
           IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, 0, graph->double_buffer),
-              UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
+              UNDEFINED,
               COLOR_ATTACHMENT_OPTIMAL);
         else if(!(node->connector[i].flags & s_conn_dynamic_array)) for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
-          IMG_LAYOUT(
-              dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer),
-              UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
+          // IMG_LAYOUT does not implement a barrier in case the dst layout is already
+          // GENERAL. this is a problem for "modify" image connectors.
+          // "modify" connectors also potentially transition from GENERAL to GENERAL
+          // so we'd need a "CURRENT" instead of "UNDEFINED"
+          // this only works here because "write" connectors write from scratch
+        {
+          dt_connector_image_t *img = dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer);
+          if(node->connector[i].type == dt_token("modify"))
+          {
+            BARRIER_IMG_LAYOUT(img->image, img->layout, VK_IMAGE_LAYOUT_GENERAL, img->mip_levels);
+            img->layout = VK_IMAGE_LAYOUT_GENERAL;
+          }
+          else
+            IMG_LAYOUT(
+              img,
+              UNDEFINED,
               GENERAL);
+        }
       }
     }
   }
