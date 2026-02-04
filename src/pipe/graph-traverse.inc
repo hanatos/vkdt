@@ -90,13 +90,14 @@
       done[sp] = 1; // once we'll come back to this stack entry, deps will be done
       for(int i=0;i<arr[curr].num_connectors;i++)
       {
-        const int el = arr[curr].connector[i].connected_mi;
+        const int el = arr[curr].connector[i].connected.i;
         if(el < 0)
         {
           // not connected
         }
         else if(arr[curr].connector[i].type == dt_token("read") ||
-                arr[curr].connector[i].type == dt_token("sink"))
+                arr[curr].connector[i].type == dt_token("sink") ||
+                arr[curr].connector[i].type == dt_token("modify"))
         { // need to recurse all inputs
           if((mark[el] != 3) && // only if not completely finished (ran post callback)
             // feedback connectors only push their deps if not pushed before:
