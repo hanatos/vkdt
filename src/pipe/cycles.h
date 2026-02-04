@@ -26,10 +26,12 @@ dt_connection_is_cyclic_rec(
     for(int c=0;c<g->module[mid].num_connectors;c++)
     {
       dt_connector_t *cn = g->module[mid].connector+c;
-      if((cn->type == dt_token("read") || cn->type == dt_token("sink")) &&
+      if((cn->type == dt_token("read") ||
+          cn->type == dt_token("sink") ||
+          cn->type == dt_token("modify")) &&
         !(cn->flags & s_conn_feedback))
       { // don't visit feedback connectors, these don't constitute cycles
-        int m0 = cn->connected_mi;
+        int m0 = cn->connected.i;
         if(m0 < 0) continue; // disconnected, may be fine
         if(!visited[m0] && dt_connection_is_cyclic_rec(g, m0, visited, stack, -1))
           return 1;
@@ -86,10 +88,12 @@ dt_graph_nodes_are_cyclic_rec(
     for(int c=0;c<g->node[nid].num_connectors;c++)
     {
       dt_connector_t *cn = g->node[nid].connector+c;
-      if((cn->type == dt_token("read") || cn->type == dt_token("sink")) &&
+      if((cn->type == dt_token("read") ||
+          cn->type == dt_token("sink") ||
+          cn->type == dt_token("modify")) &&
         !(cn->flags & s_conn_feedback))
       { // don't visit feedback connectors, these don't constitute cycles
-        int n0 = cn->connected_mi;
+        int n0 = cn->connected.i;
         if(n0 < 0) continue; // disconnected, may be fine
         if(!visited[n0] && dt_graph_nodes_are_cyclic_rec(g, n0, visited, stack, -1))
           return 1;
