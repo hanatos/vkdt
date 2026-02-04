@@ -26,67 +26,16 @@ create_nodes(
   for(int l=1;l<nl;l++)
   { // for all coarseness levels
     // add a reduce and an assemble node:
-    assert(graph->num_nodes < graph->max_nodes);
-    int id_reduce = graph->num_nodes++;
-    graph->node[id_reduce] = (dt_node_t) {
-      .name   = dt_token("ca"),
-      .kernel = dt_token("reduce"),
-      .module = module,
-      .wd     = rc.wd,
-      .ht     = rc.ht,
-      .dp     = 1,
-      .num_connectors = 2,
-      .connector = {{
-        .name   = dt_token("input"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgb"),
-        .format = dt_token("f16"),
-        .roi    = rf,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("output"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rgb"),
-        .format = dt_token("f16"),
-        .roi    = rc,
-      }},
-      .push_constant_size = 1*sizeof(int32_t),
-      .push_constant = { l },
-    };
-    assert(graph->num_nodes < graph->max_nodes);
-    int id_assemble = graph->num_nodes++;
-    graph->node[id_assemble] = (dt_node_t) {
-      .name   = dt_token("ca"),
-      .kernel = dt_token("assemble"),
-      .module = module,
-      .wd     = rf.wd,
-      .ht     = rf.ht,
-      .dp     = 1,
-      .num_connectors = 3,
-      .connector = {{
-        .name   = dt_token("fine"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgb"),
-        .format = dt_token("f16"),
-        .roi    = rf,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("coarse"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgb"),
-        .format = dt_token("f16"),
-        .roi    = rc,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("output"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rgb"),
-        .format = dt_token("f16"),
-        .roi    = rf,
-      }},
-      .push_constant_size = 1*sizeof(int32_t),
-      .push_constant = { l },
-    };
+    int32_t pc[] = { l };
+    const int id_reduce = dt_node_add(graph, module, "ca", "reduce", rc.wd, rc.ht, 1,
+        sizeof(pc), pc, 2,
+        "input",  "read",  "rgba", "f16", dt_no_roi,
+        "output", "write", "rgba", "f16", &rc);
+    const int id_assemble = dt_node_add(graph, module, "ca", "assemble", rf.wd, rf.ht, 1,
+        sizeof(pc), pc, 3,
+        "fine",   "read",  "rgba", "f16", dt_no_roi,
+        "coarse", "read",  "rgba", "f16", dt_no_roi,
+        "output", "write", "rgba", "f16", &rf);
 
     // wire node connections:
     if(node_in == -1)

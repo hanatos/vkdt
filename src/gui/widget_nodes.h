@@ -143,7 +143,7 @@ dt_node_editor_context_menu(
             dt_connector_t *cn = vkdt.graph_dev.module[m].connector + c;
             if(dt_connected(cn) && dt_connector_input(cn))
             { // for all input connectors, see where we are going
-              int m0 = cn->connected_mi, c0 = cn->connected_mc;
+              int m0 = cn->connected.i, c0 = cn->connected.c;
               dt_module_connect_with_history(&vkdt.graph_dev, m0, c0, modid, c);
               for(int j=0;j<sel_node_cnt;j++) if(sel_node_id[j] == m0)
               { // if the module id is in the selection, connect to the copy instead
@@ -450,8 +450,8 @@ dt_node_editor(
           if(err) dt_gui_notification(dt_connector_error_str(err));
           else vkdt.graph_dev.runflags = s_graph_run_all;
         }
-        int mido = module->connector[c].connected_mi;
-        int cido = module->connector[c].connected_mc;
+        int mido = module->connector[c].connected.i;
+        int cido = module->connector[c].connected.c;
         if(mido >= 0)
         { // draw link to output if we are connected
           dt_module_t *mo = graph->module + mido;
@@ -550,8 +550,8 @@ dt_node_editor(
             dt_connector_output(module->connector+c) ? "": "\nright click on circle to delete link",
             module->connector[c].roi.wd,
             module->connector[c].roi.ht,
-            module->connector[c].associated_i >= 0 &&
-            graph->node[module->connector[c].associated_i].connector[module->connector[c].associated_c].frames > 1 ?
+            !dt_cid_unset(module->connector[c].associated) &&
+            graph->node[module->connector[c].associated.i].connector[module->connector[c].associated.c].frames > 1 ?
             "double buffered" : "");
         snprintf(str, sizeof(str), "%"PRItkn, dt_token_str(module->connector[c].name));
         STYLE_LARGE;

@@ -70,12 +70,12 @@
 
   // to be in a consistent state need to point out that we are an explicit
   // connection, not created by copying a module connection to a node:
-  graph->element[m1].connector[c1].associated = dt_cid_unset;
+  graph->element[m1].connector[c1].associated = s_cid_unset;
 
   // actually just disconnect requested? we're done now, then:
   if(c0 < 0 || m0 < 0) return 0;
 
-  graph->element[m0].connector[c0].associated = dt_cid_unset;
+  graph->element[m0].connector[c0].associated = s_cid_unset;
 
   // we're now in a consistent state to fail, leaving everything
   // disconnected but intact.

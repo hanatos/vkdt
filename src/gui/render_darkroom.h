@@ -1338,8 +1338,8 @@ static inline void render_darkroom_widgets(
         else
         {
           int mid = dt_module_add(graph, dt_token("display"), dt_token("dspy"));
-          if(graph->module[mid].connector[0].connected_mi != curr ||
-             graph->module[mid].connector[0].connected_mc != cid)
+          if(graph->module[mid].connector[0].connected.i != curr ||
+             graph->module[mid].connector[0].connected.c != cid)
           { // only if not connected yet, don't record in history
             CONN(dt_module_connect(graph, curr, cid, mid, 0));
             vkdt.graph_dev.runflags = s_graph_run_all;

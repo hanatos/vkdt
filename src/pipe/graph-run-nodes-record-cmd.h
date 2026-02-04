@@ -104,7 +104,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   // sanity check: are all input connectors bound?
   for(int i=0;i<node->num_connectors;i++)
     if(dt_connector_input(node->connector+i))
-      if(node->connector[i].connected_mi == -1)
+      if(dt_cid_unset(node->connector[i].connected))
       {
         dt_log(s_log_err, "input %"PRItkn":%"PRItkn" not connected!",
             dt_token_str(node->name), dt_token_str(node->connector[i].name));

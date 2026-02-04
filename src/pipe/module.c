@@ -69,15 +69,14 @@ int dt_module_add(
         dt_connector_t *cn = mod->connector+c;
         cn->array_length = 1; // modules don't support arrays for now
         // set connector's ref id's to -1 or ref count to 0 if a write|source node
-        if(cn->type == dt_token("read") || cn->type == dt_token("sink"))
+        if(cn->type == dt_token("read") || cn->type == dt_token("sink") || cn->type == dt_token("modify"))
         {
-          cn->connected_mi = -1;
-          cn->connected_mc = -1;
+          cn->connected = s_cid_unset;
         }
         else if(cn->type == dt_token("write") || cn->type == dt_token("source"))
         {
-          cn->connected_mi = 0;
-          cn->connected_mc = 0;
+          cn->connected.i = 0;
+          cn->connected.c = 0;
         }
       }
       mod->num_connectors = mod->so->num_connectors;
@@ -159,8 +158,8 @@ int dt_module_get_module_after(
     for(int c=0;c<graph->module[m].num_connectors;c++)
     {
       if(dt_connector_input(graph->module[m].connector+c) &&
-         graph->module[m].connector[c].connected_mi == modi &&
-         graph->module[m].connector[c].connected_mc == conn)
+         graph->module[m].connector[c].connected.i == modi &&
+         graph->module[m].connector[c].connected.c == conn)
       {
         m_out[cnt] = m;
         c_out[cnt] = c;
@@ -175,8 +174,8 @@ int dt_module_get_module_before(const dt_graph_t *graph, const dt_module_t *us, 
 {
   int conn = dt_module_get_connector(us, dt_token("input"));
   if(conn == -1) return -1;
-  if(cout) *cout = us->connector[conn].connected_mc;
-  return us->connector[conn].connected_mi;
+  if(cout) *cout = us->connector[conn].connected.c;
+  return us->connector[conn].connected.i;
 }
 
 void dt_module_reset_params(dt_module_t *mod)

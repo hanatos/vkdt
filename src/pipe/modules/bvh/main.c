@@ -16,8 +16,8 @@ void commit_params(
       // all modules are responsible in their commit_params () callback to
       // update their full_wd on the node output.
       const dt_connector_t *c = graph->node[n].connector;
-      const int tri_cnt = (c->connected_mi >= 0 && c->connected_mc >= 0) ?
-        graph->node[c->connected_mi].connector[c->connected_mc].roi.full_wd : 0;
+      const int tri_cnt = !dt_cid_unset(c->connected) ?
+        graph->node[c->connected.i].connector[c->connected.c].roi.full_wd : 0;
       graph->node[n].rt.tri_cnt = tri_cnt;
       if(p_ani[0]) // static bvh doesn't need to set the build flag, it's reset in core
         graph->node[n].flags |= s_module_request_build_bvh;

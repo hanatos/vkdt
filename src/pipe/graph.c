@@ -382,7 +382,7 @@ VkResult dt_graph_run(
       {
         if(dt_connector_input(node->connector+c))
         {
-          if(node->connector[c].connected_mi == -1)
+          if(dt_cid_unset(node->connector[c].connected))
           {
             snprintf(graph->gui_msg_buf, sizeof(graph->gui_msg_buf), "kernel %"PRItkn"_%"PRItkn"_%"PRItkn":%"PRItkn" is not connected!",
                 dt_token_str(node->name), dt_token_str(node->module->inst),
@@ -550,7 +550,7 @@ dt_graph_connector_image(
     int         dbuf)   // double buffer index
 {
   dt_cid_t owner = dt_connector_find_owner(graph, (dt_cid_t){nid, cid});
-  if(graph->node[nid].conn_image[cid] == -1 || owner == dt_cid_unset)
+  if(graph->node[nid].conn_image[cid] == -1 || dt_cid_unset(owner))
   {
     dt_log(s_log_err, "requesting disconnected link %" PRItkn ":%" PRItkn ":%" PRItkn,
         dt_token_str(graph->node[nid].name), dt_token_str(graph->node[nid].kernel), dt_token_str(graph->node[nid].connector[cid].name));

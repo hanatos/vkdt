@@ -53,14 +53,14 @@ dt_connector_output(const dt_connector_t *c)
   return c->type == dt_token("write") || c->type == dt_token("source") || c->type == dt_token("modify");
 }
 static inline dt_cid_t
-dt_connector_find_owner(const graph_t *g, dt_cid_t c)
+dt_connector_find_owner(const dt_graph_t *g, dt_cid_t c)
 { // returns the id of the connector which allocated the buffer associated with connector c
-  while(c != dt_cid_unset)
+  while(!dt_cid_unset(c))
   {
-    if(dt_connector_owner(graph->node[c.i].connector+c.c)) return c;
-    if(dt_connector_input(graph->node[c.i].connector+c.c)) c = graph->node[c.i].connector[c.c].connected;
+    if(dt_connector_owner(g->node[c.i].connector+c.c)) return c;
+    if(dt_connector_input(g->node[c.i].connector+c.c)) c = g->node[c.i].connector[c.c].connected;
   }
-  return dt_cid_unset; // disconnected chain
+  return s_cid_unset; // disconnected chain
 }
 static inline int
 dt_connector_ssbo(const dt_connector_t *c)
@@ -88,7 +88,7 @@ dt_connector_copy(
 {
   // connect the node layer on the module. these are only meaningful
   // for output connectors (others might be ambiguous):
-  module->connector[mc].associated = (dt_cid_t){nid, nc};
+  module->connector[mc].associated = dt_cid(nid, nc);
   // connect the node:
   dt_connector_t *c0 = module->connector + mc;
   dt_connector_t *c1 = graph->node[nid].connector + nc;
@@ -110,7 +110,7 @@ dt_connector_copy(
   // node connectors need to know their counterparts.
   // unfortunately at this point not all nodes are inited.
   // thus, every node needs to remember the module id and connector
-  c1->associated = (dt_cid_t){module - graph->module, mc};
+  c1->associated = dt_cid(module - graph->module, mc);
 }
 
 #ifndef __cplusplus
@@ -144,8 +144,8 @@ dt_connector_bypass(
   dt_connector_t *c_in  = module->connector + mc_in;
   dt_connector_t *c_out = module->connector + mc_out;
 
-  c_out->bypass = (dt_cid_t){module - graph->module, mc_in};
-  c_in->bypass  = (dt_cid_t){module - graph->module, mc_out};
+  c_out->bypass = dt_cid(module - graph->module, mc_in);
+  c_in->bypass  = dt_cid(module - graph->module, mc_out);
 }
 
 // convenience function to add a new node to the graph.
@@ -195,7 +195,7 @@ dt_node_add(
       // va_arg doesn't do null pointers though :(
       graph->node[id].connector[c].roi  = *roi;
     if(dt_connector_input(graph->node[id].connector+c))
-      graph->node[id].connector[c].connected_mi = -1; // mark input as disconnected
+      graph->node[id].connector[c].connected = s_cid_unset; // mark input as disconnected
   }
   va_end(args);
   return id;
@@ -280,7 +280,7 @@ dt_api_blur_3x3(
       .chan   = conn_input->chan,
       .format = conn_input->format,
       .flags  = s_conn_smooth,
-      .connected_mi = -1,
+      .connected = s_cid_unset,
       .roi    = conn_input->roi,
       .array_length = conn_input->array_length,
     },{
@@ -336,7 +336,7 @@ dt_api_blur_5x5(
       .chan   = conn_input->chan,
       .format = conn_input->format,
       .flags  = s_conn_smooth,
-      .connected_mi = -1,
+      .connected = s_cid_unset,
       .roi    = conn_input->roi,
       .array_length = conn_input->array_length,
     },{
@@ -387,7 +387,7 @@ dt_api_blur_sub(
     .chan   = conn_input->chan,
     .format = conn_input->format,
     .flags  = s_conn_smooth,
-    .connected_mi = -1,
+    .connected = s_cid_unset,
     .roi    = conn_input->roi,
     .array_length = conn_input->array_length,
   };
@@ -522,7 +522,7 @@ dt_api_blur_sep(
     .type   = dt_token("read"),
     .chan   = conn_input->chan,
     .format = conn_input->format,
-    .connected_mi = -1,
+    .connected = s_cid_unset,
     .roi    = conn_input->roi,
     .array_length = conn_input->array_length,
   };
@@ -927,7 +927,7 @@ dt_module_get_input_img_param(
   {
     if(module->connector[c].name == input)
     {
-      int mid = module->connector[c].connected_mi;
+      int mid = module->connector[c].connected.i;
       if(mid < 0) return 0;
       return &graph->module[mid].img_param;
     }
@@ -973,7 +973,7 @@ dt_api_radix_sort(
         .chan   = dt_token("ssbo"),
         .format = dt_token("ui32"),
         .roi    = { .wd = count, .ht = stride, .full_wd = count, .full_ht = stride},
-        .connected_mi = -1,
+        .connected = s_cid_unset,
       },{
         .name   = dt_token("off0"),
         .type   = dt_token("write"),
@@ -1019,7 +1019,7 @@ dt_api_radix_sort(
           .chan   = dt_token("ssbo"),
           .format = dt_token("ui32"),
           .roi    = { .wd = cnt, .ht = 16, .full_wd = cnt, .full_ht = 16},
-          .connected_mi = -1,
+          .connected = s_cid_unset,
         },{
           .name   = dt_token("output"),
           .type   = dt_token("write"),
@@ -1046,7 +1046,7 @@ dt_api_radix_sort(
           .chan   = dt_token("ssbo"),
           .format = dt_token("ui32"),
           .roi    = { .wd = ncnt, .ht = 16, .full_wd = ncnt, .full_ht = 16},
-          .connected_mi = -1,
+          .connected = s_cid_unset,
         },{
           .name   = dt_token("output"),
           .type   = dt_token("write"),
@@ -1088,21 +1088,21 @@ dt_api_radix_sort(
         .chan   = dt_token("ssbo"),
         .format = dt_token("ui32"),
         .roi    = { .wd = count, .ht = 1, .full_wd = count, .full_ht = 1},
-        .connected_mi = -1,
+        .connected = s_cid_unset,
       },{
         .name   = dt_token("off0"),  // coarse offsets per radix
         .type   = dt_token("read"),
         .chan   = dt_token("ssbo"),
         .format = dt_token("ui32"),
         .roi    = { .wd = ncnt, .ht = 16, .full_wd = ncnt, .full_ht = 16},
-        .connected_mi = -1,
+        .connected = s_cid_unset,
       },{
         .name   = dt_token("off1"),  // fine offsets for each element
         .type   = dt_token("read"),
         .chan   = dt_token("ssbo"),
         .format = dt_token("ui32"),
         .roi    = { .wd = count, .ht = 1, .full_wd = count, .full_ht = 1},
-        .connected_mi = -1,
+        .connected = s_cid_unset,
       },{
         .name   = dt_token("output"), // sorted output will be written here
         .type   = dt_token("write"),

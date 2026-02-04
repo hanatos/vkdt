@@ -17,8 +17,8 @@ void commit_params(
        graph->node[n].module->inst == module->inst)
     {
       const dt_connector_t *c = graph->node[n].connector;
-      const int tri_cnt = (c->connected_mi >= 0 && c->connected_mc >= 0) ?
-        graph->node[c->connected_mi].connector[c->connected_mc].roi.full_wd : 0;
+      const int tri_cnt = !dt_cid_unset(c->connected) ?
+        graph->node[c->connected.i].connector[c->connected.c].roi.full_wd : 0;
       graph->node[n].connector[0].roi.full_wd = tri_cnt;
       graph->node[n].connector[1].roi.full_wd = tri_cnt;
       graph->node[n].wd = (tri_cnt + 31)/32*DT_LOCAL_SIZE_X;

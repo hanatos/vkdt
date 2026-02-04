@@ -173,9 +173,9 @@ write_descriptor_sets(
   }
   else if(dt_connector_input(c))
   { // point our inputs to their counterparts:
-    dt_cid_t owner = dt_connector_find_owner(graph, (dt_cid_t){node-graph->node, c-graph->connector});
-    const int c_dyn_array = (owner != dt_cid_unset) ? graph->node[owner.i].connector[owner.c].flags & s_conn_dynamic_array : 0;
-    if(owner != dt_cid_unset &&
+    dt_cid_t owner = dt_connector_find_owner(graph, (dt_cid_t){node-graph->node, c-node->connector});
+    const int c_dyn_array = !dt_cid_unset(owner) ? graph->node[owner.i].connector[owner.c].flags & s_conn_dynamic_array : 0;
+    if(!dt_cid_unset(owner) &&
       ((!dyn_array && !c_dyn_array) || (dyn_array && c_dyn_array)))
     {
       int fm = c_dyn_array ? graph->double_buffer     : 0;
@@ -250,7 +250,7 @@ write_descriptor_sets(
         }
       }
     }
-    else if(c->connected == dt_cid_unset)
+    else if(dt_cid_unset(c->connected))
     { // sorry not connected, buffer will not be bound.
       // unconnected inputs are a problem however:
       snprintf(graph->gui_msg_buf, sizeof(graph->gui_msg_buf), "kernel %"PRItkn"_%"PRItkn"_%"PRItkn":%"PRItkn" is not connected!",
@@ -498,9 +498,9 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
     dt_connector_t *c = node->connector+i;
     if((c->type == dt_token("read") ||
         c->type == dt_token("modify")) &&
-        c->connected != dt_cid_unset &&
-      !(c->flags & s_conn_feedback) &&
-      !(graph->node[c->connected.i].connector[c->connected.c].flags & s_conn_dynamic_array))
+       !dt_cid_unset(c->connected) &&
+       !(c->flags & s_conn_feedback) &&
+       !(graph->node[c->connected.i].connector[c->connected.c].flags & s_conn_dynamic_array))
     { // only free "read"|"modify", not "sink" which we keep around for display
       // dt_log(s_log_pipe, "freeing input %"PRItkn"_%"PRItkn" %"PRItkn,
       //     dt_token_str(node->name),
@@ -1182,7 +1182,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     else if(dt_connector_input(c))
     { // point our inputs to their counterparts and allocate staging memory for sinks
       dt_cid_t owner = dt_connector_find_owner(graph, c->connected);
-      if(owner != dt_cid_unset)
+      if(!dt_cid_unset(owner))
       { // point to conn_image of connected output directly:
         node->conn_image[i] = graph->node[owner.i].conn_image[owner.c];
         if(c->type == dt_token("sink"))
@@ -1241,7 +1241,7 @@ count_references(dt_graph_t *graph, dt_node_t *node)
     if(dt_connector_input(node->connector+c))
     { // up reference counter of the connector that owns the output
       dt_cid_t m = dt_connector_find_owner(graph, node->connector[c].connected);
-      if(m != dt_cid_unset)
+      if(!dt_cid_unset(m))
       {
         graph->node[m.i].connector[m.c].connected.i++; // owners have ref count
       }

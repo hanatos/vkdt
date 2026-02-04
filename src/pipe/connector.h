@@ -23,7 +23,15 @@ typedef struct dt_cid_t
   int16_t c; // connector index on node or module
 }
 dt_cid_t;
-static const dt_cid_t dt_cid_unset = {-1, -1};
+static const dt_cid_t s_cid_unset = {-1, -1};
+static inline int dt_cid_unset(dt_cid_t id)
+{
+  return id.i == s_cid_unset.i && id.c == s_cid_unset.c;
+}
+static inline dt_cid_t dt_cid(int i, int c)
+{
+  return (dt_cid_t){(int16_t)i, (int16_t)c};
+}
 
 typedef enum dt_connector_flags_t
 {
@@ -141,9 +149,9 @@ static inline int
 dt_connected(const dt_connector_t *c)
 {
   if(c->type == dt_token("read") || c->type == dt_token("sink"))
-    return c->connected_mi >= 0 && c->connected_mc >= 0; // input have specific id
+    return c->connected.i >= 0 && c->connected.c >= 0; // input have specific id
   else
-    return c->connected_mi > 0; // outputs hold reference counts
+    return c->connected.i > 0; // outputs hold reference counts
 }
 
 static inline const char*

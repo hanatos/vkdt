@@ -12,11 +12,11 @@ void commit_params(
     {
       const dt_connector_t *c = graph->node[n].connector;
       // max vertex count, i.e. buffer size:
-      int vtx_cnt = (c->connected_mi >= 0 && c->connected_mc >= 0) ?
-        graph->node[c->connected_mi].connector[c->connected_mc].roi.wd-2 : 0;
+      int vtx_cnt = !dt_cid_unset(c->connected) ?
+        graph->node[c->connected.i].connector[c->connected.c].roi.wd-2 : 0;
       // number of actually initialised vertices:
-      int vtx_end = (c->connected_mi >= 0 && c->connected_mc >= 0) ?
-        graph->node[c->connected_mi].connector[c->connected_mc].roi.full_wd-2 : 0;
+      int vtx_end = !dt_cid_unset(c->connected) ?
+        graph->node[c->connected.i].connector[c->connected.c].roi.full_wd-2 : 0;
       if(vtx_cnt <= 0) vtx_cnt = 2;
       if(vtx_end <= 0) vtx_end = 2;
       graph->node[n].connector[1].roi.full_wd = 6*vtx_cnt;

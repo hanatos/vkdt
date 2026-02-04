@@ -23,77 +23,21 @@ create_nodes(
   roic.wd /= block;
   roic.ht /= block;
 
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_half = graph->num_nodes++;
-  graph->node[id_half] = (dt_node_t) {
-    .name   = dt_token("hilite"),
-    .kernel = dt_token("half"),
-    .module = module,
-    .wd     = wd/block,
-    .ht     = ht/block,
-    .dp     = 1,
-    .num_connectors = 2,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rggb"),
-      .format = dt_token("ui16"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgb"),
-      .format = dt_token("f16"),
-      .roi    = roic,
-    }},
-    .push_constant_size = 5*sizeof(float),
-    .push_constant = { wb[0], wb[1], wb[2], wb[3], filters },
-  };
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_doub = graph->num_nodes++;
-  graph->node[id_doub] = (dt_node_t) {
-    .name   = dt_token("hilite"),
-    .kernel = dt_token("doub"),
-    .module = module,
-    .wd     = wd/block,
-    .ht     = ht/block,
-    .dp     = 1,
-    .num_connectors = 3,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rggb"),
-      .format = dt_token("ui16"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("coarse"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("rgb"),
-      .format = dt_token("f16"),
-      .roi    = roic,
-      .connected_mi = -1,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rggb"),
-      .format = dt_token("ui16"),
-      .roi    = module->connector[0].roi,
-    }},
-    .push_constant_size = 5*sizeof(float),
-    .push_constant = { wb[0], wb[1], wb[2], wb[3], filters },
-  };
+  int pc[] = { wb[0], wb[1], wb[2], wb[3], filters };
+  const int id_half = dt_node_add(graph, module, "hilite", "half", wd/block, ht/block, 1,
+      sizeof(pc), pc, 2,
+      "input",  "read",  "rggb", "ui16", dt_no_roi,
+      "output", "write", "rgba", "f16",  &roic);
+  const int id_doub = dt_node_add(graph, module, "hilite", "doub", wd/block, ht/block, 1,
+      sizeof(pc), pc, 3,
+      "input",  "read",  "rggb", "ui16", dt_no_roi,
+      "coarse", "read",  "rgba", "f16",  dt_no_roi,
+      "output", "write", "rggb", "ui16", &module->connector[0].roi);
 
   // wire module i/o connectors to nodes:
   dt_connector_copy(graph, module, 0, id_half, 0);
   dt_connector_copy(graph, module, 0, id_doub, 0);
   dt_connector_copy(graph, module, 1, id_doub, 2);
-
-#if 0 // XXX DEBUG
-  CONN(dt_node_connect(graph, id_half, 1, id_doub, 1));
-  return;
-#endif
 
   dt_roi_t rf = roic;
   dt_roi_t rc = roic;
@@ -112,67 +56,15 @@ create_nodes(
   for(int l=1;l<nl;l++)
   { // for all coarseness levels
     // add a reduce and an assemble node:
-    assert(graph->num_nodes < graph->max_nodes);
-    int id_reduce = graph->num_nodes++;
-    graph->node[id_reduce] = (dt_node_t) {
-      .name   = dt_token("hilite"),
-      .kernel = dt_token("reduce"),
-      .module = module,
-      .wd     = rc.wd,
-      .ht     = rc.ht,
-      .dp     = 1,
-      .num_connectors = 2,
-      .connector = {{
-        .name   = dt_token("input"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgb"),
-        .format = dt_token("f16"),
-        .roi    = rf,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("output"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rgb"),
-        .format = dt_token("f16"),
-        .roi    = rc,
-      }},
-      .push_constant_size = 5*sizeof(float),
-      .push_constant = { wb[0], wb[1], wb[2], wb[3], filters },
-    };
-    assert(graph->num_nodes < graph->max_nodes);
-    int id_assemble = graph->num_nodes++;
-    graph->node[id_assemble] = (dt_node_t) {
-      .name   = dt_token("hilite"),
-      .kernel = dt_token("assemble"),
-      .module = module,
-      .wd     = rf.wd,
-      .ht     = rf.ht,
-      .dp     = 1,
-      .num_connectors = 3,
-      .connector = {{
-        .name   = dt_token("fine"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgb"),
-        .format = dt_token("f16"),
-        .roi    = rf,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("coarse"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgb"),
-        .format = dt_token("f16"),
-        .roi    = rc,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("output"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rgb"),
-        .format = dt_token("f16"),
-        .roi    = rf,
-      }},
-      .push_constant_size = 6*sizeof(float),
-      .push_constant = { wb[0], wb[1], wb[2], wb[3], filters, l },
-    };
+    const int id_reduce = dt_node_add(graph, module, "hilite", "reduce", rc.wd, rc.ht, 1,
+        sizeof(pc), pc, 2,
+        "input",  "read",  "rgba", "f16", dt_no_roi,
+        "output", "write", "rgba", "f16", &rc);
+    const int id_assemble = dt_node_add(graph, module, "hilite", "assemble", rf.wd, rf.ht, 1,
+        sizeof(pc), pc, 3,
+        "fine",   "read", "rgba", "f16", dt_no_roi,
+        "coarse", "read", "rgba", "f16", dt_no_roi,
+        "output", "wrie", "rgba", "f16", &rf);
 
     // wire node connections:
     CONN(dt_node_connect(graph, node_in, conn_in, id_reduce, 0));
@@ -196,4 +88,3 @@ create_nodes(
     }
   }
 }
-

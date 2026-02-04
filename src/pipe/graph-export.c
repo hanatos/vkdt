@@ -39,8 +39,8 @@ dt_graph_replace_display(
 
   // get module the display is connected to:
   int cid = dt_module_get_connector(graph->module+mid, dt_token("input"));
-  int m0 = graph->module[mid].connector[cid].connected_mi;
-  int o0 = graph->module[mid].connector[cid].connected_mc;
+  int m0 = graph->module[mid].connector[cid].connected.i;
+  int o0 = graph->module[mid].connector[cid].connected.c;
 
   if(m0 < 0) return -2; // display input not connected
 

@@ -279,186 +279,58 @@ create_nodes(
     dt_roi_t roi2 = module->connector[0].roi;
     roi2.full_wd /= 2;
     roi2.wd /= 2;
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_in = graph->num_nodes++;
-    graph->node[id_in] = (dt_node_t) {
-      .name   = dt_token("i-v4l2"),
-      .kernel = dt_token("source"),
-      .module = module,
-      .wd     = module->connector[0].roi.wd,
-      .ht     = module->connector[0].roi.ht,
-      .dp     = 1,
-      .flags  = s_module_request_read_source,
-      .num_connectors = 1,
-      .connector = {{
-        .name   = dt_token("source"),
-        .type   = dt_token("source"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("ui8"),
-        .roi    = roi2,
-      }},
-    };
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_conv = graph->num_nodes++;
-    graph->node[id_conv] = (dt_node_t) {
-      .name   = dt_token("i-v4l2"),
-      .kernel = dt_token("conv"),
-      .module = module,
-      .wd     = module->connector[0].roi.wd,
-      .ht     = module->connector[0].roi.ht,
-      .dp     = 1,
-      .num_connectors = 2,
-      .connector = {{
-        .name   = dt_token("input"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("ui8"),
-        .roi    = roi2,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("output"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
-        .roi    = module->connector[0].roi,
-      }},
-      .push_constant_size = sizeof(uint32_t),
-      .push_constant = { 0 },
-    };
-
-    // interconnect nodes:
+    const int id_in = dt_node_add(graph, module, "i-v4l2", "source", 
+        module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 1,
+        "source", "source", "rgba", "ui8", &roi2);
+    graph->node[id_in].flags = s_module_request_read_source;
+    int pc[] = {0};
+    const int id_conv = dt_node_add(graph, module, "i-v4l2", "conv",
+        module->connector[0].roi.wd, module->connector[0].roi.ht, 1,
+        sizeof(pc), pc, 2,
+        "input",  "read",  "rgba", "ui8", dt_no_roi,
+        "output", "write", "rgba", "f16", &module->connector[0].roi);
     dt_connector_copy(graph, module, 0, id_conv, 1);
-    dt_node_connect  (graph, id_in, 0, id_conv, 0);
+    dt_node_connect  (graph, id_in,  0, id_conv, 0);
   }
   else if(dat->format.fmt.pix.pixelformat == V4L2_PIX_FMT_YUV420)
   {
     dt_roi_t roi2 = module->connector[0].roi;
     roi2.full_ht = roi2.full_ht * 3 / 2;
     roi2.ht      = roi2.ht * 3 / 2;
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_in = graph->num_nodes++;
-    graph->node[id_in] = (dt_node_t) {
-      .name   = dt_token("i-v4l2"),
-      .kernel = dt_token("source"),
-      .module = module,
-      .wd     = module->connector[0].roi.wd,
-      .ht     = module->connector[0].roi.ht,
-      .dp     = 1,
-      .flags  = s_module_request_read_source,
-      .num_connectors = 1,
-      .connector = {{
-        .name   = dt_token("source"),
-        .type   = dt_token("source"),
-        .chan   = dt_token("r"),
-        .format = dt_token("ui8"),
-        .roi    = roi2,
-      }},
-    };
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_conv = graph->num_nodes++;
-    graph->node[id_conv] = (dt_node_t) {
-      .name   = dt_token("i-v4l2"),
-      .kernel = dt_token("conv"),
-      .module = module,
-      .wd     = module->connector[0].roi.wd,
-      .ht     = module->connector[0].roi.ht,
-      .dp     = 1,
-      .num_connectors = 2,
-      .connector = {{
-        .name   = dt_token("input"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("r"),
-        .format = dt_token("ui8"),
-        .roi    = roi2,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("output"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
-        .roi    = module->connector[0].roi,
-      }},
-      .push_constant_size = sizeof(uint32_t),
-      .push_constant = { 1 },
-    };
-    // interconnect nodes:
+    const int id_in = dt_node_add(graph, module, "i-v4l2", "source", 
+        module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 1,
+        "source", "source", "r", "ui8", &roi2);
+    graph->node[id_in].flags = s_module_request_read_source;
+    int pc[] = {1};
+    const int id_conv = dt_node_add(graph, module, "i-v4l2", "conv",
+        module->connector[0].roi.wd, module->connector[0].roi.ht, 1,
+        sizeof(pc), pc, 2,
+        "input",  "read",  "r",    "ui8", dt_no_roi,
+        "output", "write", "rgba", "f16", &module->connector[0].roi);
     dt_connector_copy(graph, module, 0, id_conv, 1);
     dt_node_connect  (graph, id_in, 0, id_conv, 0);
   }
   else if(dat->format.fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)
   {
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_in = graph->num_nodes++;
-    graph->node[id_in] = (dt_node_t) {
-      .name   = dt_token("i-v4l2"),
-      .kernel = dt_token("source"),
-      .module = module,
-      .wd     = module->connector[0].roi.wd,
-      .ht     = module->connector[0].roi.ht,
-      .dp     = 1,
-      .flags  = s_module_request_read_source,
-      .num_connectors = 1,
-      .connector = {{
-        .name   = dt_token("source"),
-        .type   = dt_token("source"),
-        .chan   = dt_token("yuv"),
-        .format = dt_token("yuv"),
-        .roi    = module->connector[0].roi,
-      }},
-    };
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_conv = graph->num_nodes++;
-    graph->node[id_conv] = (dt_node_t) {
-      .name   = dt_token("i-v4l2"),
-      .kernel = dt_token("conv"),
-      .module = module,
-      .wd     = module->connector[0].roi.wd,
-      .ht     = module->connector[0].roi.ht,
-      .dp     = 1,
-      .num_connectors = 2,
-      .connector = {{
-        .name   = dt_token("input"),
-        .type   = dt_token("read"),
-        .chan   = dt_token("yuv"),
-        .format = dt_token("yuv"),
-        .roi    = module->connector[0].roi,
-        .connected_mi = -1,
-      },{
-        .name   = dt_token("output"),
-        .type   = dt_token("write"),
-        .chan   = dt_token("rgba"),
-        .format = dt_token("f16"),
-        .roi    = module->connector[0].roi,
-      }},
-      .push_constant_size = sizeof(uint32_t),
-      .push_constant = { 2 },
-    };
-
-    // interconnect nodes:
+    const int id_in = dt_node_add(graph, module, "i-v4l2", "source", 
+        module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 1,
+        "source", "source", "yuv", "yuv", &module->connector[0].roi);
+    graph->node[id_in].flags = s_module_request_read_source;
+    int pc[] = {2};
+    const int id_conv = dt_node_add(graph, module, "i-v4l2", "conv",
+        module->connector[0].roi.wd, module->connector[0].roi.ht, 1,
+        sizeof(pc), pc, 2,
+        "input",  "read",  "yuv",  "yuv", dt_no_roi,
+        "output", "write", "rgba", "f16", &module->connector[0].roi);
     dt_connector_copy(graph, module, 0, id_conv, 1);
     dt_node_connect  (graph, id_in, 0, id_conv, 0);
   }
   else if(dat->format.fmt.pix.pixelformat == V4L2_PIX_FMT_GREY)
   {
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_in = graph->num_nodes++;
-    graph->node[id_in] = (dt_node_t) {
-      .name   = dt_token("i-v4l2"),
-      .kernel = dt_token("source"),
-      .module = module,
-      .wd     = module->connector[0].roi.wd,
-      .ht     = module->connector[0].roi.ht,
-      .dp     = 1,
-      .flags  = s_module_request_read_source,
-      .num_connectors = 1,
-      .connector = {{
-        .name   = dt_token("output"),
-        .type   = dt_token("source"),
-        .chan   = dt_token("r"),
-        .format = dt_token("ui8"),
-        .roi    = module->connector[0].roi,
-      }},
-    };
+    const int id_in = dt_node_add(graph, module, "i-v4l2", "source", 
+        module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 1,
+        "source", "source", "r", "ui8", &module->connector[0].roi);
+    graph->node[id_in].flags = s_module_request_read_source;
     dt_connector_copy(graph, module, 0, id_in, 0);
   }
 }

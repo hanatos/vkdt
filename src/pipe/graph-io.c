@@ -343,16 +343,16 @@ dt_graph_write_connection_ascii(
   dt_connector_t *c = graph->module[m].connector+i;
   if(!dt_connector_input(c)) return line; // refuse to serialise outgoing connections
   dt_token_t name, inst, conn;
-  if(c->connected_mi == -1)
+  if(dt_cid_unset(c->connected))
   { // explicitly record disconnect event (important for history)
     if(!allow_empty) return line; // don't write disconnect events explicitly
     name = inst = conn = dt_token("-1");
   }
   else
   {
-    name = graph->module[c->connected_mi].name;
-    inst = graph->module[c->connected_mi].inst;
-    conn = graph->module[c->connected_mi].connector[c->connected_mc].name;
+    name = graph->module[c->connected.i].name;
+    inst = graph->module[c->connected.i].inst;
+    conn = graph->module[c->connected.i].connector[c->connected.c].name;
   }
   WRITE("%s:"
       "%"PRItkn":%"PRItkn":%"PRItkn":"

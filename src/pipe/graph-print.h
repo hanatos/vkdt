@@ -52,14 +52,14 @@ dt_graph_print_modules(
     {
       if((graph->module[m].connector[c].type == dt_token("read") ||
           graph->module[m].connector[c].type == dt_token("sink")) &&
-          graph->module[m].connector[c].connected_mi >= 0)
+          graph->module[m].connector[c].connected.i >= 0)
       {
         fprintf(stdout, "n%d_%s:%d -> n%d_%s:%d",
-            graph->module[m].connector[c].connected_mi,
+            graph->module[m].connector[c].connected.i,
             _pr(graph->module[
-              graph->module[m].connector[c].connected_mi
+              graph->module[m].connector[c].connected.i
             ].name),
-            graph->module[m].connector[c].connected_mc,
+            graph->module[m].connector[c].connected.c,
             m,
             _pr(graph->module[m].name),
             c);
@@ -104,17 +104,17 @@ dt_graph_print_nodes(
     {
       if((graph->node[m].connector[c].type == dt_token("read") ||
           graph->node[m].connector[c].type == dt_token("sink")) &&
-          graph->node[m].connector[c].connected_mi >= 0)
+          graph->node[m].connector[c].connected.i >= 0)
       {
         fprintf(stdout, "n%d_%s_%s:%d -> n%d_%s_%s:%d",
-            graph->node[m].connector[c].connected_mi,
+            graph->node[m].connector[c].connected.i,
             _pr(graph->node[
-              graph->node[m].connector[c].connected_mi
+              graph->node[m].connector[c].connected.i
             ].name),
             _pr(graph->node[
-              graph->node[m].connector[c].connected_mi
+              graph->node[m].connector[c].connected.i
             ].kernel),
-            graph->node[m].connector[c].connected_mc,
+            graph->node[m].connector[c].connected.c,
             m,
             _pr(graph->node[m].name),
             _pr(graph->node[m].kernel),

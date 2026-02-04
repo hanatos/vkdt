@@ -36,7 +36,7 @@ static inline void
 create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
 {
   for(int i=0;i<module->num_connectors;i++)
-    module->connector[i].bypass = dt_cid_unset;
+    module->connector[i].bypass = s_cid_unset;
   const uint64_t u_offset = *uniform_offset;
   uint64_t u_size = module->committed_param_size ?
     module->committed_param_size :
@@ -115,7 +115,7 @@ init_display_flags(dt_graph_t *graph, dt_module_t *module)
   if(module->name == dt_token("display"))
   { // if this is a display module, walk our input connector and make the connection double buffered
     dt_connector_t *c = module->connector; // display has connector 0 as the input
-    if(c->connected_mi >= 0 && c->connected_mc >= 0)
+    if(!dt_cid_unset(c->connected))
     {
       int extra_flag = s_conn_double_buffer;
       if(qvk.blit_supported && module->inst == dt_token("main"))
@@ -123,11 +123,11 @@ init_display_flags(dt_graph_t *graph, dt_module_t *module)
       c->flags |= extra_flag;
 
       // find node corresponding to our display module
-      int ni = c->associated_i;
-      int nc = c->associated_c;
+      int ni = c->associated.i;
+      int nc = c->associated.c;
       c = graph->node[ni].connector + nc;
-      int ni1 = c->connected_mi;
-      int nc1 = c->connected_mc;
+      int ni1 = c->connected.i;
+      int nc1 = c->connected.c;
       graph->node[ni1].connector[nc1].flags |= extra_flag;
       c->frames = graph->node[ni1].connector[nc1].frames = 2;
       // also every input connected to the output we're referring to here needs to be updated!
@@ -139,8 +139,8 @@ init_display_flags(dt_graph_t *graph, dt_module_t *module)
         for(int i=0;i<graph->node[n].num_connectors;i++)
         {
           if(dt_connector_input(graph->node[n].connector+i) &&
-              graph->node[n].connector[i].connected_mi == ni1 &&
-              graph->node[n].connector[i].connected_mc == nc1)
+              graph->node[n].connector[i].connected.i == ni1 &&
+              graph->node[n].connector[i].connected.c == nc1)
           {
             graph->node[n].connector[i].flags |= extra_flag;
             graph->node[n].connector[i].frames = 2;
@@ -189,12 +189,12 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   int input = dt_module_get_connector(module, dt_token("input"));
   dt_connector_t *c = 0;
   if(input >= 0 &&
-     graph->module[module->connector[input].connected_mi].img_param.input_name != dt_token("main"))
+     graph->module[module->connector[input].connected.i].img_param.input_name != dt_token("main"))
   for(int i=0;i<module->num_connectors;i++)
   { // the default main input is wherever "main" came in,
     // but preferrably named "input"
     if(!dt_connector_input(module->connector+i)) continue;
-    int mid = module->connector[i].connected_mi;
+    int mid = module->connector[i].connected.i;
     if(mid < 0) continue;
     if(graph->module[mid].img_param.input_name == dt_token("main"))
       input = i;
@@ -207,8 +207,8 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   if(input >= 0)
   { // first copy image metadata if we have a unique "input" connector
     c = module->connector + input;
-    if(c->connected_mi != -1u)
-      module->img_param = graph->module[c->connected_mi].img_param;
+    if(c->connected.i != -1)
+      module->img_param = graph->module[c->connected.i].img_param;
   }
   // =========================================================
   // now handle &input style channel and format references
@@ -235,8 +235,8 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   for(int i=0;i<module->num_connectors;i++)
   { // keep incoming roi in sync:
     dt_connector_t *c = module->connector+i;
-    if(dt_connector_input(c) && c->connected_mi >= 0 && c->connected_mc >= 0)
-      c->roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
+    if(dt_connector_input(c) && c->connected.i >= 0 && c->connected.c >= 0)
+      c->roi = graph->module[c->connected.i].connector[c->connected.c].roi;
   }
   // =========================================================
   // execute callback if present, or run default
@@ -280,9 +280,9 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     }
     else
     {
-      if(c->connected_mi != -1u)
+      if(c->connected.i != -1)
       {
-        roi = graph->module[c->connected_mi].connector[c->connected_mc].roi;
+        roi = graph->module[c->connected.i].connector[c->connected.c].roi;
         c->roi = roi; // also keep incoming roi in sync
       }
     }
@@ -355,10 +355,10 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
     if(dt_connector_input(c))
     {
       // make sure roi is good on the outgoing connector
-      if(c->connected_mi >= 0 && c->connected_mc >= 0)
+      if(!dt_cid_unset(c->connected))
       {
-        dt_roi_t *roi = &graph->module[c->connected_mi].connector[c->connected_mc].roi;
-        if(graph->module[c->connected_mi].connector[c->connected_mc].type == dt_token("source"))
+        dt_roi_t *roi = &graph->module[c->connected.i].connector[c->connected.c].roi;
+        if(graph->module[c->connected.i].connector[c->connected.c].type == dt_token("source"))
         { // sources don't negotiate their size, they just give what they have
           roi->wd = roi->full_wd;
           roi->ht = roi->full_ht;
@@ -374,13 +374,13 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
         else
           *roi = c->roi;
         // propagate flags:
-        graph->module[c->connected_mi].connector[c->connected_mc].flags |= c->flags;
+        graph->module[c->connected.i].connector[c->connected.c].flags |= c->flags;
         // make sure we use the same array size as the data source. this is when the array_length depends on roi_out
-        c->array_length = graph->module[c->connected_mi].connector[c->connected_mc].array_length;
+        c->array_length = graph->module[c->connected.i].connector[c->connected.c].array_length;
         // now the output is sure about the exact type of data it wants to allocate. so we
         // propagate that the other direction output->our input
-        c->format = graph->module[c->connected_mi].connector[c->connected_mc].format;
-        c->chan   = graph->module[c->connected_mi].connector[c->connected_mc].chan;
+        c->format = graph->module[c->connected.i].connector[c->connected.c].format;
+        c->chan   = graph->module[c->connected.i].connector[c->connected.c].chan;
       }
     }
   }
@@ -552,14 +552,13 @@ dt_graph_run_modules(
     graph->conn_image_end = 0;
     for(int i=0;i<cnt;i++)
       for(int j=0;j<graph->module[modid[i]].num_connectors;j++)
-        graph->module[modid[i]].connector[j].associated_i =
-          graph->module[modid[i]].connector[j].associated_c = -1;
+        graph->module[modid[i]].connector[j].associated = s_cid_unset;
     for(int i=0;i<graph->num_nodes;i++)
     {
       for(int j=0;j<graph->node[i].num_connectors;j++)
       {
         dt_connector_t *c = graph->node[i].connector+j;
-        c->associated_i = c->associated_c = -1;
+        c->associated = s_cid_unset;
         if(c->staging[0]) vkDestroyBuffer(qvk.device, c->staging[0], VK_NULL_HANDLE);
         if(c->staging[1]) vkDestroyBuffer(qvk.device, c->staging[1], VK_NULL_HANDLE);
         c->staging[0] = c->staging[1] = 0;
@@ -604,17 +603,17 @@ dt_graph_run_modules(
       dt_node_t *n = graph->node + ni;
       for(int i=0;i<n->num_connectors;i++)
       {
-        if(n->connector[i].associated != dt_cid_unset)
+        if(!dt_cid_unset(n->connector[i].associated))
         { // needs repointing
           dt_cid_t id;
           dt_cid_t m0 = n->connector[i].associated;
           if(dt_connector_input(n->connector+i))
           { // walk node->module->module->node
             dt_cid_t m1 = graph->module[m0.i].connector[m0.c].connected;
-            if(m1 == dt_cid_unset) continue;
+            if(dt_cid_unset(m1)) continue;
             // check for a bypass chain
             // m3(out) -> m2(in) -> bypass m1(out) -> m0(in)
-            if(graph->module[m1.i].connector[m1.c].bypass != dt_cid_unset)
+            if(!dt_cid_unset(graph->module[m1.i].connector[m1.c].bypass))
             { // now go from mi1/mc1(out) -> m2 = bypass(in) -> m3 = conn(out)
               // mi0:mc0 is the module connector (input) corresponding to our node
               // mi1:mc1 is an output connector on a different module connected to us
@@ -627,13 +626,13 @@ dt_graph_run_modules(
               while(1)
               { // find input connector mc2, probably mi1==mi2 bypassing the module
                 dt_cid_t m2 = graph->module[m1.i].connector[m1.c].bypass;
-                if(mi2 == dt_cid_unset) continue;
+                if(dt_cid_unset(m2)) continue;
                 // now find previous module mi3 with output connector mc3
                 m3 = graph->module[m2.i].connector[m2.c].connected;
-                if(m3 == dt_cid_unset) continue;
+                if(dt_cid_unset(m3)) continue;
                 // now if this module is again a bypass thing, continue the dance!
-                if(graph->module[m3.i].connector[m3.c].bypass == dt_cid_unset) break;
-                if(m1 == m3) break; // emergency exit
+                if(dt_cid_unset(graph->module[m3.i].connector[m3.c].bypass)) break;
+                if(m1.i == m3.i && m1.c == m3.c) break; // emergency exit
                 m1 = m3;
               }
               id = graph->module[m3.i].connector[m3.c].associated;
