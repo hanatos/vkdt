@@ -604,8 +604,8 @@ dt_graph_run_modules(
       dt_node_t *n = graph->node + ni;
       for(int i=0;i<n->num_connectors;i++)
       {
-        if(n->connector[i].associated != dt_cid_unset) // needs repointing
-        {
+        if(n->connector[i].associated != dt_cid_unset)
+        { // needs repointing
           dt_cid_t id;
           dt_cid_t m0 = n->connector[i].associated;
           if(dt_connector_input(n->connector+i))
