@@ -11,6 +11,15 @@ void modify_roi_out(
   module->connector[1].roi.full_ht =  600;//300;
 }
 
+void modify_roi_in(
+    dt_graph_t *graph,
+    dt_module_t *module)
+{ // request the full thing
+  module->connector[0].roi.wd = module->connector[0].roi.full_wd;
+  module->connector[0].roi.ht = module->connector[0].roi.full_ht;
+  // don't set scale, we'll abide by what others say
+}
+
 void
 create_nodes(
     dt_graph_t  *graph,
