@@ -632,54 +632,19 @@ create_nodes(
 {
   vid_data_t *d = module->data;
   // put compute shader to convert three plane yuv to rgba f16
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_in = graph->num_nodes++;
-  graph->node[id_in] = (dt_node_t) {
-    .name   = dt_token("i-vid"),
-    .kernel = dt_token("source"),
-    .module = module,
-    .wd     = module->connector[0].roi.wd,
-    .ht     = module->connector[0].roi.ht,
-    .dp     = 1,
-    .flags  = s_module_request_read_source,
-    .num_connectors = 1,
-    .connector = {{
-      .name   = dt_token("source"),
-      .type   = dt_token("source"),
-      .chan   = dt_token("y"),
-      .format = d->p_bits ? dt_token("ui16") : dt_token("ui8"),
-      .roi    = module->connector[0].roi,
-      .array_length = 3,
-      .array_dim    = d->dim,
-    }},
-  };
-  assert(graph->num_nodes < graph->max_nodes);
-  const int id_conv = graph->num_nodes++;
-  graph->node[id_conv] = (dt_node_t) {
-    .name   = dt_token("i-vid"),
-    .kernel = dt_token("conv"),
-    .module = module,
-    .wd     = module->connector[0].roi.wd,
-    .ht     = module->connector[0].roi.ht,
-    .dp     = 1,
-    .num_connectors = 2,
-    .connector = {{
-      .name   = dt_token("input"),
-      .type   = dt_token("read"),
-      .chan   = dt_token("y"),
-      .format = d->p_bits ? dt_token("ui16") : dt_token("ui8"),
-      .roi    = module->connector[0].roi,
-      .connected_mi = -1,
-      .array_length = 3,
-      .array_dim    = d->dim,
-    },{
-      .name   = dt_token("output"),
-      .type   = dt_token("write"),
-      .chan   = dt_token("rgba"),
-      .format = dt_token("f16"),
-      .roi    = module->connector[0].roi,
-    }},
-  };
+  const int id_in = dt_node_add(graph, module, "i-vid", "source",
+      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 1,
+      "source", "source", "y", d->p_bits ? "ui16" : "ui8", &module->connector[0].roi);
+  graph->node[id_in].flags = s_module_request_read_source;
+  graph->node[id_in].connector[0].array_length = 3;
+  graph->node[id_in].connector[0].array_dim = d->dim;
+
+  const int id_conv = dt_node_add(graph, module, "i-vid", "conv",
+      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 2,
+      "input",  "read",  "y", d->p_bits ? "ui16" : "ui8", dt_no_roi,
+      "output", "write", "rgba", "f16", &module->connector[0].roi);
+  graph->node[id_conv].connector[0].array_length = 3;
+  graph->node[id_conv].connector[0].array_dim = d->dim,
   // interconnect nodes:
   dt_connector_copy(graph, module, 0, id_conv, 1);
   dt_node_connect  (graph, id_in,  0, id_conv, 0);

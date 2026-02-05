@@ -14,8 +14,8 @@ void write_sink(
   fprintf(stderr, "[o-lut] writing '%s'\n", basename);
 
   // if this varies based on parameters, we might not pick it up unless we ask directly:
-  int mid = module->connector[0].connected_mi;
-  int cid = module->connector[0].connected_mc;
+  int mid = module->connector[0].connected.i;
+  int cid = module->connector[0].connected.c;
   if(mid < 0) return;
   if(cid < 0) return;
   dt_token_t format = module->graph->module[mid].connector[cid].format;
