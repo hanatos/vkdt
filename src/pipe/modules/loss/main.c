@@ -10,6 +10,7 @@ modify_roi_out(
   module->connector[2].roi.full_ht = 256;
   module->connector[3].roi.full_wd =
   module->connector[3].roi.full_ht = 1;
+  module->connector[4].roi = module->connector[0].roi;
 }
 
 void
@@ -31,17 +32,19 @@ create_nodes(
     dt_module_t *module)
 {
   // one node to collect, and one to read back the sink
-  dt_roi_t rbuf = (dt_roi_t){
+  dt_roi_t rbuf = {
     .wd = ((module->connector[0].roi.wd + DT_LOCAL_SIZE_X - 1)/DT_LOCAL_SIZE_X) * ((module->connector[0].roi.ht + DT_LOCAL_SIZE_Y - 1)/DT_LOCAL_SIZE_Y),
     .ht = 2,
   };
   const int id_mse = dt_node_add(graph, module, "loss", "main",
-      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 3,
+      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 4,
       "input", "read", "*", "*", dt_no_roi,
       "orig",  "read", "*", "*", dt_no_roi,
-      "loss",  "write", "ssbo", "f32", &rbuf);
+      "loss",  "write", "ssbo", "f32", &rbuf,
+      "err",   "write", "rgba", "f16", &module->connector[0].roi);
   dt_connector_copy(graph, module, 0, id_mse, 0);
   dt_connector_copy(graph, module, 1, id_mse, 1);
+  dt_connector_copy(graph, module, 4, id_mse, 3);
 
   // remember mse as entry point
   int node = id_mse;

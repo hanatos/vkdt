@@ -11,6 +11,7 @@ after computing the loss, it will be stored (cpu side) in a parameter `loss`.
 * `orig` the reference image
 * `dspy` a display channel to output the masked pixels that are considered during loss computation
 * `loss` pass the loss on as a gpu buffer for optimisers or csv output modules
+* `vis` a buffer visualising the per-pixel loss
 
 ## parameters
 
