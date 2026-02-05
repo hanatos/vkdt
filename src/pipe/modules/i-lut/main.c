@@ -217,6 +217,9 @@ void modify_roi_out(
     mod->img_param.white[k]        = 1.0f;
     mod->img_param.whitebalance[k] = 1.0f;
   }
+  // we don't know any better:
+  mod->img_param.colour_primaries = s_colour_primaries_2020;
+  mod->img_param.colour_trc       = s_colour_trc_linear;
   mod->img_param.filters = 0;
 }
 
