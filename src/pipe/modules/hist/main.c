@@ -27,8 +27,8 @@ create_nodes(
 {
   const int id_collect = dt_node_add(graph, module, "hist", "collect",
     module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 2,
-    "input", "read",  "rgba", "f16",  dt_no_roi,
-    "output" "write", "r",    "ui32", &module->connector[1].roi);
+    "input",  "read",  "rgba", "f16",  dt_no_roi,
+    "output", "write", "r",    "ui32", &module->connector[1].roi);
   graph->node[id_collect].connector[1].flags = s_conn_clear;
   const int id_map = dt_node_add(graph, module, "hist", "map", 
     module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,

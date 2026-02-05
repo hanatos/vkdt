@@ -62,9 +62,9 @@ create_nodes(
         "output", "write", "rgba", "f16", &rc);
     const int id_assemble = dt_node_add(graph, module, "hilite", "assemble", rf.wd, rf.ht, 1,
         sizeof(pc), pc, 3,
-        "fine",   "read", "rgba", "f16", dt_no_roi,
-        "coarse", "read", "rgba", "f16", dt_no_roi,
-        "output", "wrie", "rgba", "f16", &rf);
+        "fine",   "read",  "rgba", "f16", dt_no_roi,
+        "coarse", "read",  "rgba", "f16", dt_no_roi,
+        "output", "write", "rgba", "f16", &rf);
 
     // wire node connections:
     CONN(dt_node_connect(graph, node_in, conn_in, id_reduce, 0));
