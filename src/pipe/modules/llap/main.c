@@ -52,7 +52,6 @@ create_nodes(
         0, 0, 2,
         "inhi",  "read",  "y", "f16", dt_no_roi,
         "outlo", "write", "y", "f16", &rc);
-    graph->node[id_reduce[l]].connector[0].array_length = num_gamma + 1;
     graph->node[id_reduce[l]].connector[1].array_length = num_gamma + 1;
     // wire input:
     CONN(dt_node_connect(graph, id_reduce[l-1], 1, id_reduce[l], 0));

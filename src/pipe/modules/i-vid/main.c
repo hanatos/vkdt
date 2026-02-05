@@ -643,8 +643,6 @@ create_nodes(
       module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 2,
       "input",  "read",  "y", d->p_bits ? "ui16" : "ui8", dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[0].roi);
-  graph->node[id_conv].connector[0].array_length = 3;
-  graph->node[id_conv].connector[0].array_dim = d->dim,
   // interconnect nodes:
   dt_connector_copy(graph, module, 0, id_conv, 1);
   dt_node_connect  (graph, id_in,  0, id_conv, 0);
