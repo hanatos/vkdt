@@ -44,7 +44,8 @@ int main(int argc, char *argv[])
   // init global things, log and pipeline:
   dt_log_init(s_log_cli);
   dt_log_init_arg(argc, argv);
-  dt_log(s_log_cli, "vkdt "VKDT_VERSION" (c) 2020--2026 johannes hanika");
+  // this prints the version for -d all but remains silent in the default operation
+  dt_log(s_log_gui, "vkdt "VKDT_VERSION" (c) 2020--2026 johannes hanika");
   dt_pipe_global_init();
   threads_global_init();
 
