@@ -43,7 +43,7 @@ void main()
     if(w > 0.0) err /= w;
     else err = 0.0;
     shm_loss[gl_SubgroupID] = err;
-    shm_w[gl_SubgroupID] = w/gl_SubgroupSize;
+    shm_w[gl_SubgroupID] = w;
   }
   barrier();
   if(gl_SubgroupID == 0)
@@ -54,14 +54,14 @@ void main()
       err = shm_loss[gl_SubgroupInvocationID];
       w = shm_w[gl_SubgroupInvocationID];
     }
-    err = subgroupAdd(err);
+    err = subgroupAdd(err*w);
     w = subgroupAdd(w);
     if(gl_SubgroupInvocationID == 0)
     {
       uint wid = gl_WorkGroupID.x + gl_NumWorkGroups.x * gl_WorkGroupID.y;
       if(w > 0.0) err /= w;
       vout[2*wid  ] = err;
-      vout[2*wid+1] = w/(gl_WorkGroupSize.x * gl_WorkGroupSize.y);
+      vout[2*wid+1] = w;
     }
   }
 }

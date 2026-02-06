@@ -33,16 +33,16 @@ void main()
   if(ipos < push.size)
   {
     w = vin[2*ipos+1];
-    err = w * vin[2*ipos];
+    err = vin[2*ipos];
   }
+  err = subgroupAdd(err*w);
   w = subgroupAdd(w);
-  err = subgroupAdd(err);
   if(gl_SubgroupInvocationID == 0)
   {
     if(w > 0.0) err /= w;
     else err = 0.0;
     shm_loss[gl_SubgroupID] = err;
-    shm_w[gl_SubgroupID] = w/gl_SubgroupSize;
+    shm_w[gl_SubgroupID] = w;
   }
 
   barrier();
@@ -55,13 +55,13 @@ void main()
       err = shm_loss[gl_SubgroupInvocationID];
       w = shm_w[gl_SubgroupInvocationID];
     }
-    err = subgroupAdd(err);
+    err = subgroupAdd(err*w);
     w = subgroupAdd(w);
     if(gl_SubgroupInvocationID == 0)
     {
       if(w > 0.0) err /= w;
       vout[2*gl_WorkGroupID.x  ] = err;
-      vout[2*gl_WorkGroupID.x+1] = w/gl_WorkGroupSize.x;
+      vout[2*gl_WorkGroupID.x+1] = w;
     }
   }
 }
