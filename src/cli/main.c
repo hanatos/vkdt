@@ -38,12 +38,13 @@ int main(int argc, char *argv[])
 {
   for(int i=0;i<argc;i++) if(!strcmp(argv[i], "--version"))
   {
-    printf("vkdt "VKDT_VERSION" (c) 2020--2025 johannes hanika\n");
+    printf("vkdt "VKDT_VERSION" (c) 2020--2026 johannes hanika\n");
     exit(0);
   }
   // init global things, log and pipeline:
   dt_log_init(s_log_cli);
   dt_log_init_arg(argc, argv);
+  dt_log(s_log_cli, "vkdt "VKDT_VERSION" (c) 2020--2026 johannes hanika");
   dt_pipe_global_init();
   threads_global_init();
 
