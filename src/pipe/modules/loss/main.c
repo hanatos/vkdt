@@ -68,7 +68,8 @@ create_nodes(
   dt_roi_t rtime = (dt_roi_t){.wd = 256, .ht = 1};
   dt_roi_t tiny  = (dt_roi_t){.wd = 1,   .ht = 1};
   const int pc[] = { 256 };
-  const int id_dspy = dt_node_add(graph, module, "loss", "map", module->connector[2].roi.wd, module->connector[2].roi.ht, 1, sizeof(pc), pc, 4,
+  const int id_dspy = dt_node_add(graph, module, "loss", "map",
+      MAX(1,module->connector[2].roi.wd), MAX(1,module->connector[2].roi.ht), 1, sizeof(pc), pc, 4,
       "time", "write", "ssbo", "f32", &rtime,
       "loss", "read",  "ssbo", "f32", dt_no_roi,
       "tiny", "write", "y",    "f32", &tiny,
