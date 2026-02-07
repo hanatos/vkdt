@@ -299,6 +299,97 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   // this does not work if the *node* has a bvh name. in this case create_nodes has to take care of the correct flags manually.
 }
 
+static inline void
+propagate_roi_in(dt_graph_t *graph, dt_module_t *module)
+{
+  // after running modify_roi_out, all owners/allocators know their full_wd/full_ht
+  // after running modify_roi_in, the size request of the displays has been propagated back through
+  // all modules who actually care for it. some modules, however, have inputs such as luts, colour pickers etc
+  // that are not really connected to the output size of the module. these are marked as "don't care" during
+  // modify_roi_in and we will init them now, simply copying whatever the connector says.
+  // we can't do that inline in modify_roi_in, since the whole chain might go uninitialised.
+  // we only propagate *forward* here.
+  for(int i=0;i<module->num_connectors;i++)
+  {
+    dt_connector_t *c = module->connector+i;
+    if(dt_connector_input(c))
+    { // make sure roi is good on the outgoing connector
+      if(!dt_cid_unset(c->connected))
+      {
+        dt_roi_t *roi = &graph->module[c->connected.i].connector[c->connected.c].roi;
+        if(roi->wd == 0)
+        { // uninited, set to something:
+          if(roi->full_wd == 0) roi->full_wd = 2;
+          if(roi->full_ht == 0) roi->full_ht = 2;
+          roi->wd = roi->full_wd;
+          roi->ht = roi->full_ht;
+          roi->scale = 1.0f;
+        }
+
+        if(graph->module[c->connected.i].connector[c->connected.c].type == dt_token("source"))
+        { // sources don't negotiate their size, they just give what they have
+          roi->wd = roi->full_wd;
+          roi->ht = roi->full_ht;
+          if(roi->scale <= 0) roi->scale = 1.0;
+          c->roi = *roi;
+        }
+        else if(c->roi.scale < 0.0f && roi->scale > 0.0f)
+          c->roi = *roi;
+        // make sure we use the same array size as the data source. this is when the array_length depends on roi_out
+        c->array_length = graph->module[c->connected.i].connector[c->connected.c].array_length;
+        // now the output is sure about the exact type of data it wants to allocate. so we
+        // propagate that the other direction output->our input
+        c->format = graph->module[c->connected.i].connector[c->connected.c].format;
+        c->chan   = graph->module[c->connected.i].connector[c->connected.c].chan;
+      }
+    }
+  }
+  for(int i=0;i<module->num_connectors;i++)
+  { // grab from inputs
+    dt_connector_t *c = module->connector+i;
+    if(dt_connector_input(c) && !dt_cid_unset(c->connected))
+      if(c->roi.scale < 0.0f) // copy over only if not inited?
+        c->roi = graph->module[c->connected.i].connector[c->connected.c].roi;
+  }
+
+  if(!module->disabled && module->so->modify_roi_out)
+  { // have custom callback
+    dt_module_t tmp = *module;
+    for(int i=0;i<module->num_connectors;i++)
+    {
+      tmp.connector[i].roi.full_wd = tmp.connector[i].roi.wd;
+      tmp.connector[i].roi.full_ht = tmp.connector[i].roi.ht;
+    }
+    module->so->modify_roi_out(graph, &tmp);
+    for(int i=0;i<module->num_connectors;i++)
+    {
+      if(dt_connector_owner(module->connector+i))
+      {
+        module->connector[i].roi.wd = tmp.connector[i].roi.full_wd;
+        module->connector[i].roi.ht = tmp.connector[i].roi.full_ht;
+      }
+    }
+  }
+  else
+  { // copy over roi from connector named "input" to all outputs ("write")
+    int input = dt_module_get_connector(module, dt_token("input"));
+    dt_roi_t roi = {0};
+    if(input < 0)
+    {
+      roi.wd = roi.full_wd;
+      roi.ht = roi.full_ht;
+    }
+    else roi = module->connector[input].roi;
+    for(int i=0;i<module->num_connectors;i++)
+    {
+      if(module->connector[i].type == dt_token("write"))
+      {
+        module->connector[i].roi.wd = roi.wd;
+        module->connector[i].roi.ht = roi.ht;
+      }
+    }
+  }
+}
 
 // request input region of interest from sink to source
 static inline void
@@ -334,12 +425,6 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
     }
     dt_roi_t *roi = &module->connector[output].roi;
 
-    if(roi->wd == 0)
-    { // uninited, set to something:
-      roi->wd = roi->ht = 2;
-      roi->scale = 1.0f;
-    }
-
     // all input connectors get the same roi as our output.
     for(int i=0;i<module->num_connectors;i++)
     {
@@ -363,14 +448,13 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
           roi->wd = roi->full_wd;
           roi->ht = roi->full_ht;
           if(roi->scale <= 0) roi->scale = 1.0; // mark as initialised, we force the resolution now
-          c->roi = *roi; // TODO: this may mean that we need a resample node if the module can't handle it!
-          // TODO: insert manually here
+          c->roi = *roi;
         }
+        else if(c->roi.scale < 0.0f) {} // this says it doesn't want to propagate
         // if roi->scale > 0 it has been inited before and we're late to the party!
         // in this case, reverse the process:
         else if(roi->scale > 0.0f)
-          c->roi = *roi; // TODO: this may mean that we need a resample node if the module can't handle it!
-          // TODO: insert manually here
+          c->roi = *roi;
         else
           *roi = c->roi;
         // propagate flags:
@@ -585,6 +669,8 @@ dt_graph_run_modules(
     for(int i=cnt-1;i>=0;i--)
       if(graph->module[modid[i]].connector[0].roi.full_wd > 0)
         modify_roi_in(graph, graph->module+modid[i]);
+    for(int i=0;i<cnt;i++) // initialise the input chains that don't actually care about scaling buffers:
+      propagate_roi_in(graph, graph->module+modid[i]);
     for(int i=0;i<cnt;i++)
       if(graph->module[modid[i]].connector[0].roi.full_wd > 0)
         create_nodes(graph, graph->module+modid[i], &uniform_offset);

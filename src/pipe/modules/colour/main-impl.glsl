@@ -210,7 +210,7 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb; // read camera rgb
+  vec3 rgb = texture(img_in, (ipos+0.5)/vec2(imageSize(img_out))).rgb; // read camera rgb
   float cam_lum = 1.5;
   vec3 picked_rgb = vec3(0.5);
   if(push.have_pick == 1 && params.pick_mode > 0)

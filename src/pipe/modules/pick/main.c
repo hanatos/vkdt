@@ -44,13 +44,8 @@ void modify_roi_in(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  module->connector[0].roi.wd = module->connector[0].roi.full_wd;
-  module->connector[0].roi.ht = module->connector[0].roi.full_ht;
-  // don't alter the acutal input roi, we'll go with whatever comes
-  module->connector[3].roi.wd = module->connector[3].roi.full_wd;
-  module->connector[3].roi.ht = module->connector[3].roi.full_ht;
-  module->connector[2].roi.wd = module->connector[2].roi.full_wd;
-  module->connector[2].roi.ht = module->connector[2].roi.full_ht;
+  // we're not in a place to ask for full buffers, we just want to use whatever the others say!
+  module->connector[0].roi.scale = -1;
 }
 
 void modify_roi_out(

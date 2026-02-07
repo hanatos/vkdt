@@ -158,6 +158,15 @@ compute_coefficients(
   }
   }
 }
+void modify_roi_in(dt_graph_t *graph, dt_module_t *module)
+{
+  module->connector[0].roi = module->connector[1].roi;
+  // signal that we don't actually know what roi these are:
+  module->connector[2].roi.scale = -1;
+  module->connector[3].roi.scale = -1;
+  module->connector[4].roi.scale = -1;
+  module->connector[5].roi.scale = -1;
+}
 
 void modify_roi_out(dt_graph_t *graph, dt_module_t *module)
 {
