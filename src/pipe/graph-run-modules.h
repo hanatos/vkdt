@@ -335,6 +335,8 @@ propagate_roi_in(dt_graph_t *graph, dt_module_t *module)
         }
         else if(c->roi.scale < 0.0f && roi->scale > 0.0f)
           c->roi = *roi;
+        else if(c->roi.scale > 0.0f && roi->scale < 0.0f)
+          *roi = c->roi;
         // make sure we use the same array size as the data source. this is when the array_length depends on roi_out
         c->array_length = graph->module[c->connected.i].connector[c->connected.c].array_length;
         // now the output is sure about the exact type of data it wants to allocate. so we
@@ -367,6 +369,7 @@ propagate_roi_in(dt_graph_t *graph, dt_module_t *module)
       {
         module->connector[i].roi.wd = tmp.connector[i].roi.full_wd;
         module->connector[i].roi.ht = tmp.connector[i].roi.full_ht;
+        module->connector[i].roi.scale = tmp.connector[i].roi.scale;
       }
     }
   }

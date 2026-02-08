@@ -29,6 +29,7 @@ void modify_roi_out(
   {
     ro->full_wd = (ri->full_wd+1)/2;
     ro->full_ht = (ri->full_ht+1)/2;
+    if(scale >= block) ro->scale = -1.0f; // this might be overwritten
   }
   else
   {
@@ -87,10 +88,8 @@ create_nodes(
   int *wbi = (int *)img_param->whitebalance;
   const int pc[] = { wbi[0], wbi[1], wbi[2], wbi[3], img_param->filters };
   const int method = dt_module_param_int(module, 1)[0];
-  const int halfsize = 
-    ((float)module->connector[0].roi.full_wd/(float)module->connector[1].roi.full_wd >= block)
-    // (module->connector[1].roi.scale >= block)
-    || (method == 2);
+  const float scale = (float)module->connector[0].roi.wd/(float)module->connector[1].roi.wd;
+  const int halfsize = (scale >= block) || (method == 2);
   if(halfsize)
   { // half size
     const int id_half = dt_node_add(graph, module, "demosaic", "halfsize",
@@ -98,7 +97,7 @@ create_nodes(
         "input",  "read",  "rggb", "*",   dt_no_roi,
         "output", "write", "rgba", "f16", &roi_half);
     dt_connector_copy(graph, module, 0, id_half, 0);
-    if(block != module->connector[1].roi.scale)
+    if(block != scale)
     { // resample to get to the rest of the resolution, only if block != scale!
       const int id_resample = dt_node_add(graph, module, "shared", "resample",
           module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,
