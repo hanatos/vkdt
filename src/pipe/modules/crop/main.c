@@ -237,10 +237,14 @@ void modify_roi_in(
   uint32_t or = module->img_param.orientation;
   get_crop_rot(or, w, h, p_crop, p_rot, crop, &rot);
 
+  float wd = crop[1] - crop[0];
+  float ht = crop[3] - crop[2];
+
   // copy to input
-  const float scale = module->connector[0].roi.scale = MAX(1.0f, module->connector[1].roi.scale); // never zoom in/create more pixels
-  module->connector[0].roi.wd = module->connector[0].roi.full_wd / scale + 0.5f;
-  module->connector[0].roi.ht = module->connector[0].roi.full_ht / scale + 0.5f;
+  // const float scale = MAX(1.0f, module->connector[1].roi.wd / (float)module->connector[1].roi.full_wd); // never zoom in/create more pixels
+  module->connector[0].roi.wd = module->connector[1].roi.wd / wd;
+  module->connector[0].roi.ht = module->connector[1].roi.ht / ht;
+  module->connector[0].roi.scale = module->connector[1].roi.scale;
 }
 
 void modify_roi_out(

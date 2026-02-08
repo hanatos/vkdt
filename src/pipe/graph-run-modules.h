@@ -309,6 +309,8 @@ propagate_roi_in(dt_graph_t *graph, dt_module_t *module)
   // modify_roi_in and we will init them now, simply copying whatever the connector says.
   // we can't do that inline in modify_roi_in, since the whole chain might go uninitialised.
   // we only propagate *forward* here.
+
+  // initialise our input connectors from their counterparts:
   for(int i=0;i<module->num_connectors;i++)
   {
     dt_connector_t *c = module->connector+i;
@@ -337,6 +339,8 @@ propagate_roi_in(dt_graph_t *graph, dt_module_t *module)
           c->roi = *roi;
         else if(c->roi.scale > 0.0f && roi->scale < 0.0f)
           *roi = c->roi;
+        else
+          c->roi = *roi;
         // make sure we use the same array size as the data source. this is when the array_length depends on roi_out
         c->array_length = graph->module[c->connected.i].connector[c->connected.c].array_length;
         // now the output is sure about the exact type of data it wants to allocate. so we
@@ -346,14 +350,8 @@ propagate_roi_in(dt_graph_t *graph, dt_module_t *module)
       }
     }
   }
-  for(int i=0;i<module->num_connectors;i++)
-  { // grab from inputs
-    dt_connector_t *c = module->connector+i;
-    if(dt_connector_input(c) && !dt_cid_unset(c->connected))
-      if(c->roi.scale < 0.0f) // copy over only if not inited?
-        c->roi = graph->module[c->connected.i].connector[c->connected.c].roi;
-  }
 
+  // propagate to our output/allocated connectors:
   if(!module->disabled && module->so->modify_roi_out)
   { // have custom callback
     dt_module_t tmp = *module;
@@ -558,6 +556,9 @@ dt_graph_run_modules(
   // walk all inputs and determine roi on all outputs
   if(*run & s_graph_run_roi)
   {
+    for(int i=0;i<cnt;i++)
+      for(int c=0;c<graph->module[modid[i]].num_connectors;c++)
+        graph->module[modid[i]].connector[c].roi = (dt_roi_t){0};
     if(main_input_module >= 0) // may set metadata required by others (such as find the right lut)
       modify_roi_out(graph, graph->module + main_input_module);
     for(int i=0;i<cnt;i++)

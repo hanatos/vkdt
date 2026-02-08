@@ -3,25 +3,6 @@
 #include "modules/localsize.h"
 
 // this is an initial implementation of some simplistic iterative, non-blind R/L deconvolution.
-// it has a lot of problems because i didn't spend time on it:
-// - hardcoded iteration count
-// - the division kernel has an epsilon safeguard num/max(den, eps) which i'm not sure about.
-
-dt_graph_run_t
-check_params(
-    dt_module_t *module,
-    uint32_t     parid,
-    uint32_t     num,
-    void        *oldval)
-{
-  // yea sorry we're stupid and need push constants which we diligently don't update
-  // until we recreate the nodes. should change that i suppose.
-  // options:
-  // - secretly pick up parameter in the api blur call
-  // - make blurs a custom node without api wrapping and access params
-  // - implement commit_params() to alter the push constant
-  return s_graph_run_all;
-}
 
 void
 create_nodes(

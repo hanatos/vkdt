@@ -20,7 +20,6 @@ void modify_roi_out(
   const float *p_border = dt_module_param_float(module, 2);
   const float bx = CLAMP(p_border[0], 0.0, 1.0);
   const float by = CLAMP(p_border[1], 0.0, 1.0);
-  module->connector[1].roi = module->connector[0].roi;
   module->connector[1].roi.full_wd = module->connector[0].roi.full_wd * (1.0 + bx);
   module->connector[1].roi.full_ht = module->connector[0].roi.full_ht + module->connector[0].roi.full_wd * by;
 }
