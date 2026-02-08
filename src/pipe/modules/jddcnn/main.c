@@ -7,8 +7,20 @@ void modify_roi_out(
 {
   dt_roi_t *ri = &module->connector[0].roi;
   dt_roi_t *ro = &module->connector[1].roi;
-  ro->full_wd = ri->full_wd;
-  ro->full_ht = ri->full_ht;
+  const int block  = module->img_param.filters == 9u ? 3 : 2;
+  const float scale = ro->full_wd > 0 ? (float)ri->full_wd/(float)ro->full_wd : 1.0f;
+  const int halfsize = scale >= block;
+  if(halfsize)
+  {
+    ro->full_wd = (ri->full_wd+1)/2;
+    ro->full_ht = (ri->full_ht+1)/2;
+    if(scale >= block) ro->scale = -1.0f; // this might be overwritten
+  }
+  else
+  {
+    ro->full_wd = ri->full_wd;
+    ro->full_ht = ri->full_ht;
+  }
   module->img_param.filters = 0u; // after we're done there won't be any more mosaic
 }
 
@@ -83,7 +95,9 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   if(!img_param) return; // must have disconnected input somewhere
   module->img_param.filters = 0u; // after we're done there won't be any more mosaic
   const int block = 2; // bayer only
-  if(module->connector[1].roi.scale >= block)
+  const float scale = (float)module->connector[0].roi.wd/(float)module->connector[1].roi.wd;
+  const int halfsize = scale >= block;
+  if(halfsize)
   { // half size
     dt_roi_t roi_half = module->connector[0].roi;
     roi_half.full_wd /= block;
@@ -96,7 +110,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
         "input",  "read",  "rggb", "*",   dt_no_roi,
         "output", "write", "rgba", "f16", &roi_half);
     dt_connector_copy(graph, module, 0, id_half, 0);
-    if(block != module->connector[1].roi.scale)
+    if(block != scale)
     { // resample to get to the rest of the resolution, only if block != scale!
       const int id_resample = dt_node_add(graph, module, "shared", "resample",
           module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,
