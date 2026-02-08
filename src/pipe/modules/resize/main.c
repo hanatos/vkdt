@@ -10,7 +10,11 @@ void modify_roi_out(
   module->connector[1].roi = module->connector[0].roi;
   const int wd = dt_module_param_int(module, 0)[0];
   const int ht = dt_module_param_int(module, 1)[0];
-  if(!wd || !ht) return;
+  if(!wd || !ht)
+  { // if not explicitly set, be soft about roi:
+    module->connector[1].roi.scale = -1.0f;
+    return;
+  }
   double scale = MIN(1.0, MIN(
       wd / (double)module->connector[1].roi.full_wd,
       ht / (double)module->connector[1].roi.full_ht));
