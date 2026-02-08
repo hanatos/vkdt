@@ -240,10 +240,16 @@ void modify_roi_in(
   float wd = crop[1] - crop[0];
   float ht = crop[3] - crop[2];
 
-  // copy to input
-  // const float scale = MAX(1.0f, module->connector[1].roi.wd / (float)module->connector[1].roi.full_wd); // never zoom in/create more pixels
-  module->connector[0].roi.wd = module->connector[1].roi.wd / wd;
-  module->connector[0].roi.ht = module->connector[1].roi.ht / ht;
+  if(module->connector[1].roi.full_wd == module->connector[1].roi.wd)
+  { // keep pixel accuracy
+    module->connector[0].roi.wd = module->connector[0].roi.full_wd;
+    module->connector[0].roi.ht = module->connector[0].roi.full_ht;
+  }
+  else
+  {
+    module->connector[0].roi.wd = module->connector[1].roi.wd / wd;
+    module->connector[0].roi.ht = module->connector[1].roi.ht / ht;
+  }
   module->connector[0].roi.scale = module->connector[1].roi.scale;
 }
 
