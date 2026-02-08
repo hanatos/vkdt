@@ -275,9 +275,10 @@ int dt_gui_init()
     fseek(f, SEEK_END, 0);
     size_t sz = ftell(f);
     fseek(f, SEEK_SET, 0);
-    char *buf = malloc(sz);
+    char *buf = malloc(sz+1);
     fread(buf, 1, sz, f);
     fclose(f);
+    buf[sz] = 0;
     dt_log(s_log_gui, "loading additional gamepad maps from gamecontrollerdb");
     glfwUpdateGamepadMappings(buf);
     free(buf);
