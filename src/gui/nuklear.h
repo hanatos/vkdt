@@ -15625,6 +15625,7 @@ nk_tree_state_base(struct nk_context *ctx, enum nk_tree_type type,
                     style->tab.rounding, nk_rgb_factor(background->data.color, style->tab.color_factor));
                 break;
         }
+        text.background = (struct nk_color){0}; // init memory
     } else text.background = style->window.background;
 
     /* update node state */
