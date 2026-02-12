@@ -51,10 +51,8 @@ main()
     // in a bit more acuity:
     rgba = sample_catmull_rom(img_in, rd);
   else
-    // rounding texture access:
-    // rgba = texelFetch(img_in, ivec2(rd*ts_in), 0);
-    // bilinear or pixel center for identity transform (identical to texelFetch above):
-    rgba = texture(img_in, rd);
+    // keep sharp:
+    rgba = texelFetch(img_in, ivec2(rd*ts_in), 0);
   imageStore(img_out, ipos, vec4(rgba.rgb, 1));
 }
 
