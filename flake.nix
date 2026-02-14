@@ -49,6 +49,7 @@
             ];
 
             buildInputs = with pkgs; [
+              exiftool
               alsa-lib
               ffmpeg
               glfw
@@ -77,6 +78,8 @@
 
         devShells.default = pkgs.mkShell {
           inputsFrom = [ self.packages.${system}.vkdt-git ];
+          buildInputs = with pkgs; [ gdb ];
+          VK_LAYER_PATH = "${pkgs.vulkan-validation-layers}/share/vulkan/explicit_layer.d";
         };
       }
     );
