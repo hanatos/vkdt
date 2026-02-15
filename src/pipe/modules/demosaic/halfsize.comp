@@ -12,14 +12,8 @@ layout(push_constant, std140) uniform push_t
   uint filters;
 } push;
 
-
-layout( // input uint16 buffer rggb
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output f16 buffer rgb
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 // demosaic reduced size. run on output dimensions, gather all colours from
 // input buffer (this might be 3x3 for xtrans).

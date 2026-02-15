@@ -24,7 +24,7 @@ void modify_roi_out(
   const int method = dt_module_param_int(module, 1)[0];
   const int block  = module->img_param.filters == 9u ? 3 : 2;
   const float scale = ro->full_wd > 0 ? (float)ri->full_wd/(float)ro->full_wd : 1.0f;
-  const int halfsize = (method == 2) || (scale >= block);
+  const int halfsize = (method == 2) || (scale >= 1.5*block);
   if(halfsize)
   {
     ro->full_wd = (ri->full_wd+1)/2;
@@ -89,7 +89,7 @@ create_nodes(
   const int pc[] = { wbi[0], wbi[1], wbi[2], wbi[3], img_param->filters };
   const int method = dt_module_param_int(module, 1)[0];
   const float scale = (float)module->connector[0].roi.wd/(float)module->connector[1].roi.wd;
-  const int halfsize = (scale >= block) || (method == 2);
+  const int halfsize = (scale >= 1.5*block) || (method == 2);
   if(halfsize)
   { // half size
     const int id_half = dt_node_add(graph, module, "demosaic", "halfsize",
