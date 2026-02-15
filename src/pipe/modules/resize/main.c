@@ -62,10 +62,25 @@ void create_nodes(
   if(module->connector[0].roi.wd == module->connector[1].roi.wd &&
      module->connector[0].roi.ht == module->connector[1].roi.ht)
   return dt_connector_bypass(graph, module, 0, 1);
-  const int nodeid = dt_node_add(graph, module, "resize", "main",
-      module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,
+
+  // downscaling factor:
+  const float scale = module->connector[0].roi.wd/(float)module->connector[1].roi.wd;
+  int mode = scale < 0.99f ? 0 : scale > 1.01f ? 2 : 1; // magnify / 1:1 / minify
+  if(scale > 3) mode = 1; // slice after blur
+  int pc[] = { mode };
+  const int id_resize = dt_node_add(graph, module, "resize", "main",
+      module->connector[1].roi.wd, module->connector[1].roi.ht, 1, sizeof(pc), pc, 2,
       "input",  "read",  "rgba", "*",    dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[1].roi);
-  dt_connector_copy(graph, module, 0, nodeid, 0);
-  dt_connector_copy(graph, module, 1, nodeid, 1);
+
+  if(scale > 3)
+  { // 3x3 is the natural support of our catmul rom spline anyways, so start above this only:
+    float blur = scale+0.5f; // this is radius in px = 3*sigma
+    int id_blur_in = -1;
+    const int id_blur = dt_api_blur_sep(graph, module, -1, 0, &id_blur_in, 0, blur);
+    CONN(dt_node_connect_named(graph, id_blur,  "output", id_resize, "input"));
+    dt_connector_copy(graph, module, 0, id_blur_in, 0);
+  }
+  else dt_connector_copy(graph, module, 0, id_resize, 0);
+  dt_connector_copy(graph, module, 1, id_resize, 1);
 }

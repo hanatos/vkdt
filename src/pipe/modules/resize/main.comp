@@ -9,6 +9,10 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+layout(push_constant, std140) uniform push_t
+{
+  int scale;
+} push;
 
 void
 main()
@@ -17,9 +21,9 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   vec4 rgb;
-  if(imageSize(img_out).x == textureSize(img_in, 0).x) // 1:1
-    rgb = texelFetch(img_in, ipos, 0);
-  else if(imageSize(img_out).x > textureSize(img_in, 0).x) // magnify
+  if(push.scale == 1)
+    rgb = texelFetch(img_in, ivec2(textureSize(img_in, 0)*(ipos+0.5)/vec2(imageSize(img_out))), 0);
+  else if(push.scale < 1) // magnify
     rgb = sample_flower(img_in, (ipos+0.5)/vec2(imageSize(img_out)));
   else // minify
     rgb = sample_catmull_rom(img_in, (ipos+0.5)/vec2(imageSize(img_out)));
