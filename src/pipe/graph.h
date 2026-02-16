@@ -69,14 +69,11 @@ typedef struct dt_graph_t
   uint32_t              conn_image_end, conn_image_max;
 
   dt_vkalloc_t          heap;           // allocator for device images
-  dt_vkalloc_t          heap_ssbo;      // allocated for device buffers
   dt_vkalloc_t          heap_staging;   // used for staging memory, which has different flags
 
   uint32_t              memory_type_bits;
-  uint32_t              memory_type_bits_ssbo;
   uint32_t              memory_type_bits_staging;
   VkDeviceMemory        vkmem;
-  VkDeviceMemory        vkmem_ssbo;
   VkDeviceMemory        vkmem_staging;
   VkDescriptorPool      dset_pool;
   VkCommandBuffer       command_buffer[2];   // two per graph, to interleave cpu load, uploads and gpu compute
@@ -96,7 +93,6 @@ typedef struct dt_graph_t
   dt_raytrace_graph_t   rt;
 
   size_t                vkmem_size;          // allocation sizes to tell whether we need to re-alloc
-  size_t                vkmem_ssbo_size;
   size_t                vkmem_staging_size;
   size_t                vkmem_uniform_size;
 

@@ -45,7 +45,6 @@ dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
   g->max_nodes = 4000;
   g->node = calloc(sizeof(dt_node_t), g->max_nodes);
   dt_vkalloc_init(&g->heap, 16000, ((uint64_t)1)<<40); // bytesize doesn't matter
-  dt_vkalloc_init(&g->heap_ssbo, 8000, ((uint64_t)1)<<40);
   dt_vkalloc_init(&g->heap_staging, 100, ((uint64_t)1)<<40);
   g->params_max = 16u<<20;
   g->params_end = 0;
@@ -144,7 +143,6 @@ dt_graph_cleanup(dt_graph_t *g)
     g->module[i].keyframe = 0;
   }
   dt_vkalloc_cleanup(&g->heap);
-  dt_vkalloc_cleanup(&g->heap_ssbo);
   dt_vkalloc_cleanup(&g->heap_staging);
   for(int i=0;i<g->num_nodes;i++)
   {
@@ -213,11 +211,10 @@ dt_graph_cleanup(dt_graph_t *g)
   g->uniform_dset_layout = 0;
   g->uniform_buffer = 0;
   vkFreeMemory(qvk.device, g->vkmem, 0);
-  vkFreeMemory(qvk.device, g->vkmem_ssbo, 0);
   vkFreeMemory(qvk.device, g->vkmem_staging, 0);
   vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
-  g->vkmem = g->vkmem_ssbo = g->vkmem_staging = g->vkmem_uniform = 0;
-  g->vkmem_size = g->vkmem_ssbo_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
+  g->vkmem = g->vkmem_staging = g->vkmem_uniform = 0;
+  g->vkmem_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
   vkDestroySemaphore(qvk.device, g->semaphore_display, 0);
   vkDestroySemaphore(qvk.device, g->semaphore_process, 0);
   g->semaphore_display = 0;
@@ -417,9 +414,6 @@ VkResult dt_graph_run(
     dt_log(s_log_mem, "images : peak rss %g MB vmsize %g MB",
         graph->heap.peak_rss/(1024.0*1024.0),
         graph->heap.vmsize  /(1024.0*1024.0));
-    dt_log(s_log_mem, "buffers: peak rss %g MB vmsize %g MB",
-        graph->heap_ssbo.peak_rss/(1024.0*1024.0),
-        graph->heap_ssbo.vmsize  /(1024.0*1024.0));
     dt_log(s_log_mem, "staging: peak rss %g MB vmsize %g MB",
         graph->heap_staging.peak_rss/(1024.0*1024.0),
         graph->heap_staging.vmsize  /(1024.0*1024.0));
