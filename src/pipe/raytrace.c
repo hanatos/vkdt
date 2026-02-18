@@ -399,7 +399,7 @@ dt_raytrace_record_command_buffer_accel_build(
   { // check all nodes for ray tracing geometry
     dt_node_t *node = graph->node + graph->rt.nid[i];
     int build_accel = 1;
-    // fprintf(stderr, "tracing flag instance %d/%d %d\n", i, f, node->flags & s_module_request_build_bvh);
+    // fprintf(stderr, "tracing flag instance %d %d\n", i, node->flags & s_module_request_build_bvh);
     if(!(node->flags & s_module_request_build_bvh)) build_accel = 0;
     if(node->rt.tri_cnt == 0) build_accel = 0;
 

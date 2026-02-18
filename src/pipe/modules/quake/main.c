@@ -818,7 +818,7 @@ void animate(
     key_dest = key_game;
     m_state = m_none;
     IN_Activate();
-    for(int i=0;i<5;i++) Host_Frame(1.0/60.0); // unfortunately needed or else quake crashes on us
+    // for(int i=0;i<5;i++) Host_Frame(1.0/60.0); // unfortunately needed or else quake crashes on us
     dat->worldspawn = 0;
   }
   else module->flags = 0;
