@@ -818,7 +818,6 @@ void animate(
     key_dest = key_game;
     m_state = m_none;
     IN_Activate();
-    // for(int i=0;i<5;i++) Host_Frame(1.0/60.0); // unfortunately needed or else quake crashes on us
     dat->worldspawn = 0;
   }
   else module->flags = 0;
@@ -831,7 +830,7 @@ void animate(
   {
     double newtime = Sys_DoubleTime();
     double time = ((dat->oldtime == 0) || p_pause) ? 1.0/60.0 : newtime - dat->oldtime;
-    Host_Frame(time);
+    Host_Frame(CLAMP(time, 0.0001, 1.0)); // clamp to avoid frame skips upon init
     R_SetupView(); // init some left/right vectors also used for sound
     dat->oldtime = newtime;
     // sv_player_set = 1; // we'll always set ourselves, Host_Frame is unreliable it seems.
@@ -930,15 +929,16 @@ int read_source(
 
   if(p->node->kernel == dt_token("tex") && p->a < d->tex_cnt)
   { // upload texture array
+    // fprintf(stderr, "quake read source tex connector length %d\n", p->node->connector[0].array_length);
     memcpy(mapped, d->tex[p->a], sizeof(uint32_t)*d->tex_dim[2*p->a]*d->tex_dim[2*p->a+1]);
     p->node->flags &= ~s_module_request_read_source; // done uploading textures
     d->tex_req[p->a] = 0;
-    // fprintf(stderr, "quake read source tex connector length %d\n", p->node->connector[0].array_length);
   }
   uint32_t tri_cnt = 0;
   geo_tri_t *tri = mapped;
   if(p->node->kernel == dt_token("dyngeo"))
   {
+    // fprintf(stderr, "%d quake uploading dyn geo node %"PRItkn" with %d tris f %d|%d worldspawn %d\n", mod->graph->frame, dt_token_str(p->node->name), tri_cnt, mod->graph->double_buffer, p->node->connector[0].frames, qs_data.worldspawn);
     // add_geo(cl_entities+cl.viewentity, m16 + 8*3*vtx_cnt, &vtx_cnt); // player model
     add_geo(&cl.viewent, tri + tri_cnt, &tri_cnt); // weapon
     for(int i=0;i<cl_numvisedicts;i++)
@@ -947,7 +947,6 @@ int read_source(
       add_geo(cl_static_entities+i, tri + tri_cnt, &tri_cnt);
     add_particles(tri + tri_cnt, &tri_cnt);
     mod->connector[1].roi.full_wd = tri_cnt;
-    // fprintf(stderr, "%d quake uploading dyn geo node %"PRItkn" with %d tris f %d|%d worldspawn %d\n", mod->graph->frame, dt_token_str(p->node->name), tri_cnt, mod->graph->double_buffer, p->node->connector[0].frames, qs_data.worldspawn);
   }
   else if(p->node->kernel == dt_token("stcgeo"))
   {
