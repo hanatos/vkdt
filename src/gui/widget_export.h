@@ -23,11 +23,6 @@ export_render_widget(
       return;
   }
 
-  // TODO: bring back somehow
-  // static int gamepad_reset = 0;
-  // if(ImGui::IsKeyPressed(ImGuiKey_GamepadR3)) gamepad_reset = 1;
-  // XXX in fact, ctx->delta_time_seconds needs to be set by us from the outside!
-
   const float ratio[] = {0.7f, 0.3f};
   const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
   nk_layout_row(&vkdt.ctx, NK_DYNAMIC, row_height, 2, ratio);
