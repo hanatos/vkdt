@@ -129,7 +129,7 @@ dt_thumbnails_init(
   VkMemoryAllocateInfo mem_alloc_info = {
     .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
     .allocationSize  = heap_size,
-    .memoryTypeIndex = qvk_get_memory_type(tn->memory_type_bits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+    .memoryTypeIndex = qvk_memory_get_device(),
   };
   QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &tn->vkmem));
 

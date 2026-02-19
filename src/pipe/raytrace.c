@@ -86,7 +86,7 @@ dt_raytrace_graph_cleanup(
 #define CREATE_ACCEL_BUF_R(SZ, BUF) CREATE_BUF_R(accel, SZ, BUF,\
     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR)
 
-#define ALLOC_MEM_R(TYPE, BITS, memory_allocate_flags) do { \
+#define ALLOC_MEM_R(TYPE, MEMV, memory_allocate_flags) do { \
   if(graph->rt.TYPE##_end > graph->rt.TYPE##_max) { \
     if(graph->rt.vkmem_##TYPE ) {\
       vkFreeMemory(qvk.device, graph->rt.vkmem_##TYPE, 0);\
@@ -99,7 +99,7 @@ dt_raytrace_graph_cleanup(
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,\
       .pNext           = &allocation_flags,\
       .allocationSize  = graph->rt.TYPE##_end,\
-      .memoryTypeIndex = qvk_get_memory_type(graph->rt.TYPE##_memory_type_bits, BITS )\
+      .memoryTypeIndex = qvk_memory_get_##MEMV()\
     };\
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->rt.vkmem_##TYPE));\
     graph->rt.TYPE##_max = graph->rt.TYPE##_end;\
@@ -255,7 +255,7 @@ dt_raytrace_graph_alloc(
       &graph->rt.build_info, &graph->rt.nid_cnt, &accel_size);
 
   CREATE_SCRATCH_BUF_R(accel_size.buildScratchSize, graph->rt.buf_scratch);
-  ALLOC_MEM_R(scratch, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR); // HEAP ?? // VK_MEMORY_HEAP_DEVICE_LOCAL_BIT
+  ALLOC_MEM_R(scratch, device, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR);
 
   // bind scratch buffers to the allocation
   QVKR(vkBindBufferMemory(qvk.device, graph->rt.buf_scratch, graph->rt.vkmem_scratch, graph->rt.buf_scratch_offset));
@@ -264,7 +264,7 @@ dt_raytrace_graph_alloc(
 
   // create acceleration structure buffer
   CREATE_ACCEL_BUF_R(accel_size.accelerationStructureSize, graph->rt.buf_accel);
-  ALLOC_MEM_R(accel, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+  ALLOC_MEM_R(accel, device, 0);
 
   // bind accel buffers to the allocation
   QVKR(vkBindBufferMemory(qvk.device, graph->rt.buf_accel, graph->rt.vkmem_accel, graph->rt.buf_accel_offset));
@@ -286,7 +286,7 @@ dt_raytrace_graph_alloc(
 
   // create staging buffer for graph, allocate staging memory, bind graph + node staging:
   CREATE_STAGING_BUF_R(graph->rt.nid_cnt * sizeof(VkAccelerationStructureInstanceKHR), graph->rt.buf_staging);
-  ALLOC_MEM_R(staging, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT|VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR);
+  ALLOC_MEM_R(staging, staging, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR);
   // bind staging buffers to the allocation
   QVKR(vkBindBufferMemory(qvk.device, graph->rt.buf_staging, graph->rt.vkmem_staging, graph->rt.buf_staging_offset));
 

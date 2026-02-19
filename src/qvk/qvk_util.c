@@ -22,14 +22,46 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <assert.h>
 
 uint32_t
-qvk_get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_prop)
+qvk_memory_get_staging()
 {
-	for(uint32_t i = 0; i < qvk.mem_properties.memoryTypeCount; i++) {
-		if(mem_req_type_bits & (1 << i)) {
-			if((qvk.mem_properties.memoryTypes[i].propertyFlags & mem_prop) == mem_prop)
-				return i;
-		}
-	}
+  for(uint32_t i = 0; i < qvk.mem_properties.memoryTypeCount; i++)
+  {
+    VkMemoryPropertyFlagBits f = qvk.mem_properties.memoryTypes[i].propertyFlags;
+    int test =
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|
+      VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    if((f & test) == test) return i;
+  }
+	return 0;
+}
+uint32_t
+qvk_memory_get_uniform()
+{
+	for(uint32_t i = 0; i < qvk.mem_properties.memoryTypeCount; i++)
+  {
+    VkMemoryPropertyFlagBits f = qvk.mem_properties.memoryTypes[i].propertyFlags;
+    int test =
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|
+      VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    if((f & test) == test) return i;
+  }
+	return 0;
+}
+uint32_t
+qvk_memory_get_device()
+{
+	for(uint32_t i = 0; i < qvk.mem_properties.memoryTypeCount; i++)
+  {
+    VkMemoryPropertyFlagBits f = qvk.mem_properties.memoryTypes[i].propertyFlags;
+    int test  = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;// | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT)
+    int testn =
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|
+      VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    if(((f & test) == test) && ((f & testn) == 0)) return i;
+  }
 	return 0;
 }
 

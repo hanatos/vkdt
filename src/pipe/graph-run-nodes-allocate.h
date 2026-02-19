@@ -1321,8 +1321,7 @@ dt_graph_run_nodes_allocate(
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
       .pNext           = &allocation_flags,
       .allocationSize  = graph->heap.vmsize,
-      .memoryTypeIndex = qvk_get_memory_type(~0,//graph->memory_type_bits,
-          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT)
+      .memoryTypeIndex = qvk_memory_get_device(),
     };
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem));
     graph->vkmem_size = graph->heap.vmsize;
@@ -1347,9 +1346,7 @@ dt_graph_run_nodes_allocate(
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
       .pNext           = &allocation_flags,
       .allocationSize  = graph->heap_staging.vmsize,
-      .memoryTypeIndex = qvk_get_memory_type(~0,//graph->memory_type_bits_staging,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-          VK_MEMORY_PROPERTY_HOST_CACHED_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT)
+      .memoryTypeIndex = qvk_memory_get_staging(),
     };
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_staging, 0, &graph->vkmem_staging));
     graph->vkmem_staging_size = graph->heap_staging.vmsize;
@@ -1395,9 +1392,7 @@ dt_graph_run_nodes_allocate(
     VkMemoryAllocateInfo mem_alloc_info_uniform = {
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
       .allocationSize  = mem_req.size,
-      .memoryTypeIndex = qvk_get_memory_type(~0,//mem_req.memoryTypeBits,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-          VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
+      .memoryTypeIndex = qvk_memory_get_uniform(),
     };
     QVKR(dt_check_device_allocation(mem_req.size));
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_uniform, 0, &graph->vkmem_uniform));
