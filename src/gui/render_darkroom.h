@@ -182,10 +182,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   char string[256];
   // const float halfw = (0.66*vkdt.state.panel_wd - ctx.style.tab.padding.x)/2;
   char nkid[30];
-  snprintf(nkid, sizeof(nkid), "%"PRItkn":%"PRItkn":%"PRItkn,
+  snprintf(nkid, sizeof(nkid), "%"PRItkn":%"PRItkn":%"PRItkn":%d",
       dt_token_str(vkdt.graph_dev.module[modid].name),
       dt_token_str(vkdt.graph_dev.module[modid].inst),
-      dt_token_str(param->name));
+      dt_token_str(param->name), num);
   char str[10] = { 0 };
   memcpy(str, &param->name, 8);
   // distinguish by type:
