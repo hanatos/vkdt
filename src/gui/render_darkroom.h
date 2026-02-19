@@ -181,6 +181,11 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   {
   char string[256];
   // const float halfw = (0.66*vkdt.state.panel_wd - ctx.style.tab.padding.x)/2;
+  char nkid[30];
+  snprintf(nkid, sizeof(nkid), "%"PRItkn":%"PRItkn":%"PRItkn,
+      dt_token_str(vkdt.graph_dev.module[modid].name),
+      dt_token_str(vkdt.graph_dev.module[modid].inst),
+      dt_token_str(param->name));
   char str[10] = { 0 };
   memcpy(str, &param->name, 8);
   // distinguish by type:
@@ -193,7 +198,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       float oldval = *val;
       RESETBLOCK
       struct nk_rect bounds = nk_widget_bounds(ctx);
-      nk_tab_property(float, ctx, "#", param->widget.min, val, param->widget.max,
+      nk_tab_property(float, ctx, nkid, param->widget.min, val, param->widget.max,
           (param->widget.max - param->widget.min)/100.0,
           (param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd));
       // draw fill level
@@ -235,7 +240,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       int32_t oldval = *val;
       RESETBLOCK
-      nk_tab_property(int, ctx, "#", param->widget.min, val, param->widget.max,
+      nk_tab_property(int, ctx, nkid, param->widget.min, val, param->widget.max,
           (int)(1.0+(param->widget.max - param->widget.min)/100.0),
           ((param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd)));
       if(*val != oldval) change = 1;

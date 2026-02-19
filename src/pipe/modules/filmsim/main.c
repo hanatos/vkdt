@@ -1,6 +1,28 @@
 #include "modules/api.h"
 #include "wb.h"
 
+typedef struct moddata_t
+{
+  int id_blur_cp;
+  int id_blur_hl;
+}
+moddata_t;
+
+int init(dt_module_t *mod)
+{
+  moddata_t *dat = malloc(sizeof(*dat));
+  mod->data = dat;
+  memset(dat, 0, sizeof(*dat));
+  return 0;
+}
+
+void cleanup(dt_module_t *mod)
+{
+  if(!mod->data) return;
+  free(mod->data);
+  mod->data = 0;
+}
+
 void modify_roi_in(
     dt_graph_t  *graph,
     dt_module_t *module)
@@ -49,6 +71,18 @@ void commit_params(
     ((float*)dt_module_param_float(module, pid_filter_m))[0] = wb[film][paper][2];
     ((float*)dt_module_param_float(module, pid_filter_y))[0] = wb[film][paper][3];
   }
+  // update blur radii for separable blur
+  moddata_t *dat = module->data;
+  const int pid_rad_cp = dt_module_get_param(module->so, dt_token("cp rad"));
+  const int pid_rad_hl = dt_module_get_param(module->so, dt_token("radius"));
+  int owd = module->connector[1].roi.wd;
+  int oht = module->connector[1].roi.ht;
+  float rad = MAX(owd,oht)*dt_module_param_float(module, pid_rad_cp)[0];
+  memcpy(graph->node[dat->id_blur_cp-1].push_constant, &rad, sizeof(float));
+  memcpy(graph->node[dat->id_blur_cp  ].push_constant, &rad, sizeof(float));
+  rad = MAX(owd,oht)*dt_module_param_float(module, pid_rad_hl)[0];
+  memcpy(graph->node[dat->id_blur_hl-1].push_constant, &rad, sizeof(float));
+  memcpy(graph->node[dat->id_blur_hl  ].push_constant, &rad, sizeof(float));
 }
 
 dt_graph_run_t
@@ -90,13 +124,6 @@ check_params(
     int newstr = dt_module_param_int(module, parid)[0];
     if(oldstr != newstr) return s_graph_run_all;
   }
-  const int pid_rad = dt_module_get_param(module->so, dt_token("radius"));
-  if(parid == pid_rad)
-  { // halation radius
-    float oldrad = *(float*)oldval;
-    float newrad = dt_module_param_float(module, parid)[0];
-    return dt_api_blur_check_params(oldrad, newrad);
-  }
   return s_graph_run_record_cmd_buf; // minimal parameter upload to uniforms is fine
 }
 
@@ -105,6 +132,7 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
+  moddata_t *dat = module->data;
   int iwd = module->connector[0].roi.wd;
   int iht = module->connector[0].roi.ht;
   int pid_process = dt_module_get_param(module->so, dt_token("process"));
@@ -161,7 +189,8 @@ create_nodes(
     const int   pid = dt_module_get_param(module->so, dt_token("radius"));
     const float par = dt_module_param_float(module, pid)[0];
     float blur = par*MAX(owd, oht);
-    const int id_blur = blur > 0 ? dt_api_blur_sep(graph, module, id_part1, 1, 0, 0, blur) : id_part1;
+    const int id_blur = dt_api_blur_sep(graph, module, id_part1, 1, 0, 0, blur);
+    dat->id_blur_hl = id_blur;
     CONN(dt_node_connect_named(graph, id_blur,  "output", id_part2, "hal"));
     CONN(dt_node_connect_named(graph, id_part1, "output", id_part2, "exp"));
     dt_connector_copy(graph, module, 2, id_part2, 2);
@@ -177,8 +206,11 @@ create_nodes(
         "coupler", "read",  "*",    "*",    dt_no_roi);
     id_part1 = id_part2 = id;
   }
-  float blur = 0.015*MAX(owd, oht);
-  const int id_blur = blur > 0 ? dt_api_blur_sep(graph, module, id_part0, 1, 0, 0, blur) : id_part0;
+  const int   pid = dt_module_get_param(module->so, dt_token("cp rad"));
+  const float par = dt_module_param_float(module, pid)[0];
+  float blur = par*MAX(owd, oht);
+  const int id_blur = dt_api_blur_sep(graph, module, id_part0, 1, 0, 0, blur);
+  dat->id_blur_cp = id_blur;
   const int cn_blur = blur > 0 ? 1 : 1;
   CONN(dt_node_connect(graph, id_blur, cn_blur, id_part1, 4));
   dt_connector_copy(graph, module, 0, id_part0, 0);

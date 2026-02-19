@@ -5,6 +5,8 @@ film:combo:kodak ektar 100:kodak portra 160:kodak portra 400:kodak portra 800:ko
 ev film:slider:-5:5
 g film:slider:0:2
 couplers:slider:0.0:1.0
+group:couplers:100
+cp rad:slider:0.001:0.05
 group:process:101
 ---
 paper:combo:kodak endura premier:kodak ektacolor edge:kodak supra endura:kodak portra endura:fujifilm crystal archive type ii:kodak 2383:kodak 2393
@@ -30,5 +32,5 @@ halation:combo:off:on
 group:halation:1
 strength:rgbknobs
 scale:slider:0:10.0
-radius:slider:0:0.003
+radius:slider:0.00001:0.003
 

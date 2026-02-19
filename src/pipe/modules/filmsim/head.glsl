@@ -14,6 +14,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float ev_film;
   float gamma_film;
   float couplers;
+  float couplers_radius;
   int   grain;
   float grain_size;
   float grain_uniformity;

@@ -3,6 +3,7 @@ film:int:1:2
 ev film:float:1:0
 g film:float:1:1.0
 couplers:float:1:0.25
+cp rad:float:1:0.0015
 grain:int:1:0
 size:float:1:1.0
 uniform:float:1:0.7

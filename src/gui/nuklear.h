@@ -21629,9 +21629,9 @@ nk_do_property(nk_flags *ws,
     left.y = property.y + style->border + property.h/2.0f - left.h/2;
 
     /* text label */
-    if (name && name[0] != '#') {
-        name_len = nk_strlen(name);
-    }
+    // if (name && name[0] != '#') { // [jo] disabled printing of label
+    //     name_len = nk_strlen(name);
+    // }
     size = font->width(font->userdata, font->height, name, name_len);
     label.x = left.x + left.w + style->padding.x;
     label.w = (float)size + 2 * style->padding.x;

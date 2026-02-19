@@ -183,6 +183,7 @@ block) and print paper options (second block).
 * `tune m` fine tune the magenta filter. think of this as a red/green tint
 * `tune y` fine tune the yellow filter. think of this as a warm/cold white balance temperature
 * `couplers` amount of developer inhibitor release couplers (affects colourfulness and local contrast)
+* `cp rad` radius of influence of the couplers, as a fraction of the longer side (width or height)
 * `halation` switch halation on or off, causing a slight colourful blur around high contrast edges
 * `radius` change the radius of the halation effect
 * `strength` the strength of the halation effect per colour channel / layer in the film
