@@ -830,7 +830,7 @@ void animate(
   {
     double newtime = Sys_DoubleTime();
     double time = ((dat->oldtime == 0) || p_pause) ? 1.0/60.0 : newtime - dat->oldtime;
-    Host_Frame(CLAMP(time, 0.0001, 1.0)); // clamp to avoid frame skips upon init
+    Host_Frame(CLAMP(0.0001, time, 1.0)); // clamp to avoid frame skips upon init
     R_SetupView(); // init some left/right vectors also used for sound
     dat->oldtime = newtime;
     // sv_player_set = 1; // we'll always set ourselves, Host_Frame is unreliable it seems.
