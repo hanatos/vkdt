@@ -3,3 +3,4 @@
 module:OpenDRT:01
 connect:colour:01:output:OpenDRT:01:input
 connect:OpenDRT:01:output:llap:01:input
+connect:-1:-1:-1:filmcurv:01:input
