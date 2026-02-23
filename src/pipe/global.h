@@ -6,7 +6,7 @@
 #include "graph-fwd.h"
 #include <limits.h>
 
-#define DT_MAX_PARAMS_PER_MODULE 50
+#define DT_MAX_PARAMS_PER_MODULE 100
 
 // static global structs to keep around for all instances of pipelines.
 // this queries the modules on startup, does the dlopen and expensive
