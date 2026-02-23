@@ -1,6 +1,6 @@
 # OpenDRT: Jed Smith's open display transform
 
-this module is licenced GPLv3.
+this module is licenced GPLv3. it is based on [the original code to be found here](https://github.com/jedypod/open-display-transform). there is also [a wiki with some technical information available here](https://github.com/jedypod/open-display-transform/wiki).
 
 ## connectors
 
