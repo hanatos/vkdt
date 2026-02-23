@@ -1,0 +1,821 @@
+/* OpenDRT v1.1.0 -------------------------------------------------
+
+   Written by Jed Smith
+https://github.com/jedypod/open-display-transform
+License: GPLv3
+-------------------------------------------------*/
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+#include "matrices.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  int i_gamut;
+  int i_oetf;
+  float tn_Lp;
+  float tn_gb;
+  float pt_hdr;
+  float tn_Lg;
+
+  int crv_en;
+  float tn_con;
+  float tn_sh;
+  float tn_toe;
+  float tn_off;
+
+  int tn_hc_en;
+  float tn_hc;
+  float tn_hc_pv;
+  float tn_hc_st;
+
+  int tn_lc_en;
+  float tn_lc;
+  float tn_lc_w;
+
+  int cwp;
+  float cwp_lm;
+  float rs_sa;
+  float rs_rw;
+  float rs_bw;
+
+  int pt_en;
+  float pt_lml;
+  float pt_lml_r;
+  float pt_lml_g;
+  float pt_lml_b;
+  float pt_lmh;
+  float pt_lmh_r;
+  float pt_lmh_b;
+
+  int ptl_en;
+  float ptl_c;
+  float ptl_m;
+  float ptl_y;
+
+  int ptm_en;
+  float ptm_lo;
+  float ptm_lo_r;
+  float ptm_lo_s;
+  float ptm_hi;
+  float ptm_hi_r;
+  float ptm_hi_s;
+
+  int brl_en;
+  float brl;
+  float brl_r;
+  float brl_g;
+  float brl_b;
+  float brl_rng;
+  float brl_st;
+
+  int brlp_en;
+  float brlp;
+  float brlp_r;
+  float brlp_g;
+  float brlp_b;
+
+  int hc_en;
+  float hc_r;
+  float hc_r_r;
+
+  int hsrgb_en;
+  float hs_r;
+  float hs_r_r;
+  float hs_g;
+  float hs_g_r;
+  float hs_b;
+  float hs_b_r;
+
+  int hscmy_en;
+  float hs_c;
+  float hs_c_r;
+  float hs_m;
+  float hs_m_r;
+  float hs_y;
+  float hs_y_r;
+  int clmp;
+  int tn_su;
+  int o_gamut;
+  int eotf;
+} params;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+
+/* Math helper functions ----------------------------*/
+
+#define SQRT3 1.73205080756887729353f
+
+// Safe power function raising float a to power float b
+float spowf(float a, float b) {
+  return mix(pow(a, b), a, a <= 0.0);
+}
+
+// Safe power function raising vec3 a to power float b
+vec3 spowf3(vec3 a, float b) {
+  return mix(pow(a, vec3(b)), a, lessThanEqual(a, vec3(0.0)));
+}
+// Return the hypot or vector length of vec2 v
+float hypotf2(vec2 v) { return sqrt(max(0.0, v.x*v.x + v.y*v.y)); }
+
+// Return the hypot or vector length of vec3 v
+float hypotf3(vec3 v) { return sqrt(max(0.0, v.x*v.x + v.y*v.y + v.z*v.z)); }
+
+// Return the min of vec3 a
+float fmaxf3(vec3 a) { return max(a.x, max(a.y, a.z)); }
+
+// Return the max of vec3 a
+float fminf3(vec3 a) { return min(a.x, min(a.y, a.z)); }
+
+float exp10(float v) { return pow(10.0, v); }
+
+/* OETF Linearization Transfer Functions ---------------------------------------- */
+
+float oetf_davinci_intermediate(float x) {
+    return x <= 0.02740668f ? x/10.44426855f : exp2(x/0.07329248f - 7.0f) - 0.0075f;
+}
+float oetf_filmlight_tlog(float x) {
+  return x < 0.075f ? (x-0.075f)/16.184376489665897f : exp((x - 0.5520126568606655f)/0.09232902596577353f) - 0.0057048244042473785f;
+}
+float oetf_acescct(float x) {
+  return x <= 0.155251141552511f ? (x - 0.0729055341958355f)/10.5402377416545f : exp2(x*17.52f - 9.72f);
+}
+float oetf_arri_logc3(float x) {
+  return x < 5.367655f*0.010591f + 0.092809f ? (x - 0.092809f)/5.367655f : (exp10((x - 0.385537f)/0.247190f) - 0.052272f)/5.555556f;
+}
+float oetf_arri_logc4(float x) {
+  return x < -0.7774983977293537f ? x*0.3033266726886969f - 0.7774983977293537f : (exp2(14.0f*(x - 0.09286412512218964f)/0.9071358748778103f + 6.0f) - 64.0f)/2231.8263090676883f;
+}
+float oetf_red_log3g10(float x) {
+  return x < 0.0f ? (x/15.1927f) - 0.01f : (exp10(x/0.224282f) - 1.0f)/155.975327f - 0.01f;
+}
+float oetf_panasonic_vlog(float x) {
+  return x < 0.181f ? (x - 0.125f)/5.6f : exp10((x - 0.598206f)/0.241514f) - 0.00873f;
+}
+float oetf_sony_slog3(float x) {
+  return x < 171.2102946929f/1023.0f ? (x*1023.0f - 95.0f)*0.01125f/(171.2102946929f - 95.0f) : (exp10(((x*1023.0f - 420.0f)/261.5f))*(0.18f + 0.01f) - 0.01f);
+}
+float oetf_fujifilm_flog2(float x) {
+  return x < 0.100686685370811f ? (x - 0.092864f)/8.799461f : (exp10(((x - 0.384316f)/0.245281f))/5.555556f - 0.064829f/5.555556f);
+}
+
+
+vec3 linearize(vec3 rgb, int tf) {
+  if (tf==0) { // Linear
+    return rgb;
+  } else if (tf==1) { // Davinci Intermediate
+    rgb.x = oetf_davinci_intermediate(rgb.x);
+    rgb.y = oetf_davinci_intermediate(rgb.y);
+    rgb.z = oetf_davinci_intermediate(rgb.z);
+  } else if (tf==2) { // Filmlight T-Log
+    rgb.x = oetf_filmlight_tlog(rgb.x);
+    rgb.y = oetf_filmlight_tlog(rgb.y);
+    rgb.z = oetf_filmlight_tlog(rgb.z);
+  } else if (tf==3) { // ACEScct
+    rgb.x = oetf_acescct(rgb.x);
+    rgb.y = oetf_acescct(rgb.y);
+    rgb.z = oetf_acescct(rgb.z);
+  } else if (tf==4) { // Arri LogC3
+    rgb.x = oetf_arri_logc3(rgb.x);
+    rgb.y = oetf_arri_logc3(rgb.y);
+    rgb.z = oetf_arri_logc3(rgb.z);
+  } else if (tf==5) { // Arri LogC4
+    rgb.x = oetf_arri_logc4(rgb.x);
+    rgb.y = oetf_arri_logc4(rgb.y);
+    rgb.z = oetf_arri_logc4(rgb.z);
+  } else if (tf==6) { // RedLog3G10
+    rgb.x = oetf_red_log3g10(rgb.x);
+    rgb.y = oetf_red_log3g10(rgb.y);
+    rgb.z = oetf_red_log3g10(rgb.z);
+  } else if (tf==7) { // Panasonic V-Log
+    rgb.x = oetf_panasonic_vlog(rgb.x);
+    rgb.y = oetf_panasonic_vlog(rgb.y);
+    rgb.z = oetf_panasonic_vlog(rgb.z);
+  } else if (tf==8) { // Sony S-Log3
+    rgb.x = oetf_sony_slog3(rgb.x);
+    rgb.y = oetf_sony_slog3(rgb.y);
+    rgb.z = oetf_sony_slog3(rgb.z);
+  } else if (tf==9) { // Fuji F-Log2
+    rgb.x = oetf_fujifilm_flog2(rgb.x);
+    rgb.y = oetf_fujifilm_flog2(rgb.y);
+    rgb.z = oetf_fujifilm_flog2(rgb.z);
+  }  return rgb;
+}
+
+
+
+/* EOTF Transfer Functions ---------------------------------------- */
+
+vec3 eotf_hlg(vec3 rgb, int inverse) {
+  /* Apply the HLG Forward or Inverse EOTF for 1000 nits.
+      ITU-R Rec BT.2100-2 https://www.itu.int/rec/R-REC-BT.2100
+      ITU-R Rep BT.2390-8: https://www.itu.int/pub/R-REP-BT.2390
+  */
+
+  if (inverse == 1) {
+    float Yd = 0.2627f*rgb.x + 0.6780f*rgb.y + 0.0593f*rgb.z;
+    rgb = rgb*spowf(Yd, (1.0f - 1.2f)/1.2f);
+    rgb.x = rgb.x <= 1.0f/12.0f ? sqrt(3.0f*rgb.x) : 0.17883277f*log(12.0f*rgb.x - 0.28466892f) + 0.55991073f;
+    rgb.y = rgb.y <= 1.0f/12.0f ? sqrt(3.0f*rgb.y) : 0.17883277f*log(12.0f*rgb.y - 0.28466892f) + 0.55991073f;
+    rgb.z = rgb.z <= 1.0f/12.0f ? sqrt(3.0f*rgb.z) : 0.17883277f*log(12.0f*rgb.z - 0.28466892f) + 0.55991073f;
+  } else {
+    rgb.x = rgb.x <= 0.5f ? rgb.x*rgb.x/3.0f : (exp((rgb.x - 0.55991073f)/0.17883277f) + 0.28466892f)/12.0f;
+    rgb.y = rgb.y <= 0.5f ? rgb.y*rgb.y/3.0f : (exp((rgb.y - 0.55991073f)/0.17883277f) + 0.28466892f)/12.0f;
+    rgb.z = rgb.z <= 0.5f ? rgb.z*rgb.z/3.0f : (exp((rgb.z - 0.55991073f)/0.17883277f) + 0.28466892f)/12.0f;
+    float Ys = 0.2627f*rgb.x + 0.6780f*rgb.y + 0.0593f*rgb.z;
+    rgb = rgb*spowf(Ys, 1.2f - 1.0f);
+  }
+  return rgb;
+}
+
+
+vec3 eotf_pq(vec3 rgb, int inverse) {
+  /* Apply the ST-2084 PQ Forward or Inverse EOTF
+      ITU-R Rec BT.2100-2 https://www.itu.int/rec/R-REC-BT.2100
+      ITU-R Rep BT.2390-9 https://www.itu.int/pub/R-REP-BT.2390
+      Note: in the spec there is a normalization for peak display luminance.
+      For this function we assume the input is already normalized such that 1.0 = 10,000 nits
+  */
+
+  const float m1 = 2610.0f/16384.0f;
+  const float m2 = 2523.0f/32.0f;
+  const float c1 = 107.0f/128.0f;
+  const float c2 = 2413.0f/128.0f;
+  const float c3 = 2392.0f/128.0f;
+
+  if (inverse == 1) {
+    rgb = spowf3(rgb, m1);
+    rgb = spowf3((c1 + c2*rgb)/(1.0f + c3*rgb), m2);
+  } else {
+    rgb = spowf3(rgb, 1.0f/m2);
+    rgb = spowf3((rgb - c1)/(c2 - c3*rgb), 1.0f/m1);
+  }
+  return rgb;
+}
+
+
+/* Functions for OpenDRT ---------------------------------------- */
+
+float compress_hyperbolic_power(float x, float s, float p) {
+  // Simple hyperbolic compression function https://www.desmos.com/calculator/ofwtcmzc3w
+  return spowf(x/(x + s), p);
+}
+
+float compress_toe_quadratic(float x, float toe, int inv) {
+  // Quadratic toe compress function https://www.desmos.com/calculator/skk8ahmnws
+  if (toe == 0.0f) return x;
+  if (inv == 0) {
+    return spowf(x, 2.0f)/(x + toe);
+  } else {
+    return (x + sqrt(x*(4.0f*toe + x)))/2.0f;
+  }
+}
+
+float compress_toe_cubic(float x, float m, float w, int inv) {
+  // https://www.desmos.com/calculator/ubgteikoke
+  if (m==1.0f) return x;
+  float x2 = x*x;
+  if (inv == 0) {
+    return x*(x2 + m*w)/(x2 + w);
+  } else {
+    float p0 = x2 - 3.0f*m*w;
+    float p1 = 2.0f*x2 + 27.0f*w - 9.0f*m*w;
+    float p2 = pow(sqrt(x2*p1*p1 - 4*p0*p0*p0)/2.0f + x*p1/2.0f, 1.0f/3.0f);
+    return p0/(3.0f*p2) + p2/3.0f + x/3.0f;
+  }
+}
+
+float complement_power(float x, float p) {
+  return 1.0f - spowf(1.0f - x, 1.0f/p);
+}
+
+float sigmoid_cubic(float x, float s) {
+  // Simple cubic sigmoid: https://www.desmos.com/calculator/hzgib42en6
+  if (x < 0.0f || x > 1.0f) return 1.0f;
+  return 1.0f + s*(1.0f - 3.0f*x*x + 2.0f*x*x*x);
+}
+
+float contrast_high(float x, float p, float pv, float pv_lx, int inv) {
+  // High exposure adjustment with linear extension
+  // https://www.desmos.com/calculator/etjgwyrgad
+  const float x0 = 0.18f*pow(2.0f, pv);
+  if (x < x0 || p == 1.0f) return x;
+
+  const float o = x0 - x0/p;
+  const float s0 = pow(x0, 1.0f - p)/p;
+  const float x1 = x0*pow(2.0f, pv_lx);
+  const float k1 = p*s0*pow(x1, p)/x1;
+  const float y1 = s0*pow(x1, p) + o;
+  if (inv==1)
+    return x > y1 ? (x - y1)/k1 + x1 : pow((x - o)/s0, 1.0f/p);
+  else
+    return x > x1 ? k1*(x - x1) + y1 : s0*pow(x, p) + o;
+}
+
+float softplus_constraint(float x, float s, float x0, float y0) {
+  // Softplus with (x0, y0) intersection constraint
+  // https://www.desmos.com/calculator/doipi4u0ce
+  if (x > 10.0f*s + y0 || s < 1e-3f) return x;
+  float m = 1.0f;
+  if (abs(y0) > 1e-6f) m = exp(y0/s);
+  m -= exp(x0/s);
+  return s*log(max(0.0f, m + exp(x/s)));
+}
+
+float softplus(float x, float s) {
+  // Softplus unconstrained
+  // https://www.desmos.com/calculator/mr9rmujsmn
+  if (x > 10.0f*s || s < 1e-4f) return x;
+  return s*log(max(0.0f, 1.0f + exp(x/s)));
+}
+
+float gauss_window(float x, float w) {
+  // Simple gaussian window https://www.desmos.com/calculator/vhr9hstlyk
+  return exp(-x*x/w);
+}
+
+vec2 opponent(vec3 rgb) {
+  // Simple Cyan-Yellow / Green-Magenta opponent space for calculating smooth achromatic distance and hue angles
+  return vec2(rgb.x - rgb.z, rgb.y - (rgb.x + rgb.z)/2.0f);
+}
+
+float hue_offset(float h, float o) {
+  // Offset hue maintaining 0-2*pi range with modulo
+  return mod(h - o + M_PI, 2.0*M_PI) - M_PI;
+}
+
+
+
+vec3 display_gamut_whitepoint(vec3 rgb, float tsn, float cwp_lm, int display_gamut, int cwp) {
+  // Do final display gamut and creative whitepoint conversion. 
+  // Must be done twice for the tonescale overlay, thus a separate function.
+  
+  // First, convert from P3D65 to XYZ D65
+  rgb = matrix_p3d65_to_xyz * rgb;
+
+  // Store "neutral" axis for mixing with Creative White Range control
+  vec3 cwp_neutral = rgb;
+  
+  float cwp_f = pow(tsn, 2.0f*cwp_lm);
+  
+  if (display_gamut < 3) { // D65 aligned P3 or Rec.709 display gamuts
+    if (cwp==0) rgb = matrix_cat_d65_to_d93 * rgb; // D93
+    else if (cwp==1) rgb = matrix_cat_d65_to_d75 * rgb; // D75
+    // else if (cwp==2) rgb = matrix_cat_d65_to_d60, rgb; // D65
+    else if (cwp==3) rgb = matrix_cat_d65_to_d60 * rgb; // D60
+    else if (cwp==4) rgb = matrix_cat_d65_to_d55 * rgb; // D55
+    else if (cwp==5) rgb = matrix_cat_d65_to_d50 * rgb; // D50
+  } 
+  else if (display_gamut == 3) { // P3-D60
+    if (cwp==0) rgb = matrix_cat_d60_to_d93 * rgb; // D93
+    else if (cwp==1) rgb = matrix_cat_d60_to_d75 * rgb; // D75
+    else if (cwp==2) rgb = matrix_cat_d60_to_d65 * rgb; // D65
+    // D60
+    else if (cwp==4) rgb = matrix_cat_d60_to_d55 * rgb; // D55
+    else if (cwp==5) rgb = matrix_cat_d60_to_d50 * rgb; // D50
+  } 
+  else { // DCI P3 or DCI X'Y'Z'
+    // Keep "Neutral" axis as D65, don't want green midtones in P3-DCI container.
+    cwp_neutral = matrix_cat_dci_to_d65 * rgb;
+    if (cwp==0) rgb = matrix_cat_dci_to_d93 * rgb; // D93
+    else if (cwp==1) rgb = matrix_cat_dci_to_d75 * rgb; // D75
+    else if (cwp==2) rgb = cwp_neutral;
+    else if (cwp==3) rgb = matrix_cat_dci_to_d60 * rgb; // D60
+    else if (cwp==4) rgb = matrix_cat_dci_to_d55 * rgb; // D55
+    else if (cwp==5) rgb = matrix_cat_dci_to_d50 * rgb; // D50
+  }
+  
+  // Mix between Creative Whitepoint and "neutral" axis with Creative White Range control.
+  rgb = rgb*cwp_f + cwp_neutral*(1.0f - cwp_f);
+
+
+  // RGB is now aligned to the selected creative white
+  // and we can convert back to the final target display gamut
+  if (display_gamut == 0) { // Rec.709
+    rgb = matrix_xyz_to_rec709 * rgb;
+  } 
+  else if (display_gamut == 5) { // DCDM X'Y'Z'
+    // Convert whitepoint from D65 to DCI
+    rgb = matrix_cat_d65_to_dci * rgb;
+  }
+  else { // For all others, convert to P3D65
+    rgb = matrix_xyz_to_p3d65 * rgb;
+  }
+
+  // Post creative whitepoint normalization so that peak luminance does not exceed display maximum.
+  // We could calculate this by storing a 1,1,1 value in p3d65 and then normalize by the result through the cat and xyz to rgb matrix. 
+  // Instead we use pre-calculated constants to avoid the extra calculations.
+    
+  /* Pre-calculated normalization factors are inline below
+  */
+
+  float cwp_norm = 1.0f;
+  /* Display Gamut - Rec.709
+    rec709 d93: 0.744192699063f
+    rec709 d75: 0.873470832146f
+    rec709 d60: 0.955936992163f
+    rec709 d55: 0.905671332781f
+    rec709 d50: 0.850004385027f
+  */
+  if (display_gamut == 0) { // Rec.709
+    if (cwp == 0) cwp_norm = 0.744192699063f; // D93
+    else if (cwp == 1) cwp_norm = 0.873470832146f; // D75
+    // else if (cwp == 2) cwp_norm = 1.0f; // D65
+    else if (cwp == 3) cwp_norm = 0.955936992163f; // D60
+    else if (cwp == 4) cwp_norm = 0.905671332781f; // D55
+    else if (cwp == 5) cwp_norm = 0.850004385027f; // D50
+  }
+  /* Display Gamut - P3D65
+    p3d65 d93: 0.762687057298f
+    p3d65 d75: 0.884054083328f
+    p3d65 d60: 0.964320186739f
+    p3d65 d55: 0.923076518860f
+    p3d65 d50: 0.876572837784f
+  */
+  else if (display_gamut == 1 || display_gamut == 2) { // P3D65 or P3 Limited Rec.2020
+    if (cwp == 0) cwp_norm = 0.762687057298f; // D93
+    else if (cwp == 1) cwp_norm = 0.884054083328f; // D75
+    // else if (cwp == 2) cwp_norm = 1.0f; // D65
+    else if (cwp == 3) cwp_norm = 0.964320186739f; // D60
+    else if (cwp == 4) cwp_norm = 0.923076518860f; // D55
+    else if (cwp == 5) cwp_norm = 0.876572837784f; // D50
+  }
+  /* Display Gamut - P3D60
+    p3d60 d93: 0.704956321013f
+    p3d60 d75: 0.816715709816f
+    p3d60 d65: 0.923382193663f
+    p3d60 d55: 0.956138500287f
+    p3d60 d50: 0.906801453023f
+  */
+  else if (display_gamut == 3) { // P3D60
+    if (cwp == 0) cwp_norm = 0.704956321013f; // D93
+    else if (cwp == 1) cwp_norm = 0.816715709816f; // D75
+    else if (cwp == 2) cwp_norm = 0.923382193663f; // D65
+    // else if (cwp == 3) cwp_norm = 1.0f; // D60
+    else if (cwp == 4) cwp_norm = 0.956138500287f; // D55
+    else if (cwp == 5) cwp_norm = 0.906801453023f; // D50
+  }
+  /* Display Gamut - P3-DCI
+    p3dci d93: 0.665336141225f
+    p3dci d75: 0.770397131382f
+    p3dci d65: 0.870572343302f
+    p3dci d60: 0.891354547503f
+    p3dci d55: 0.855327825187f
+    p3dci d50: 0.814566436117f
+*/
+  else if (display_gamut == 4) { // P3DCI
+    if (cwp == 0) cwp_norm = 0.665336141225f; // D93
+    else if (cwp == 1) cwp_norm = 0.770397131382f; // D75
+    else if (cwp == 2) cwp_norm = 0.870572343302f; // D65
+    else if (cwp == 3) cwp_norm = 0.891354547503f; // D60
+    else if (cwp == 4) cwp_norm = 0.855327825187f; // D55
+    else if (cwp == 5) cwp_norm = 0.814566436117f; // D50
+  }
+  /* Display Gamut - DCDM XYZ
+    p3dci d93: 0.707142784007f
+    p3dci d75: 0.815561082617f
+    */
+  else if (display_gamut == 5) { // DCDM X'Y'Z'
+    if (cwp == 0) cwp_norm =0.707142784007f; // D93
+    else if (cwp == 1) cwp_norm = 0.815561082617f; // D75
+    else if (cwp >= 2) cwp_norm = 0.916555279740f; // 48/52.37 for D65 and warmer (see DCI spec)
+  }
+  
+  // only normalize values affected by range control
+  rgb *= cwp_norm*cwp_f + 1.0f - cwp_f;
+  
+  return rgb;
+}
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+
+  /*****************************************************
+    Parameter Setup
+    --------------------------------------------------*/
+
+#if 0
+  // Init look preset variables
+  int tn_hcon_enable, tn_lcon_enable, pt_enable, ptl_enable, ptm_enable, brl_enable, brlp_enable, hc_enable, hs_rgb_enable, hs_cmy_enable, cwp, tn_su, clamp, display_gamut, eotf;
+  
+  float tn_con, tn_sh, tn_toe, tn_off, tn_hcon, tn_hcon_pv, tn_hcon_st, tn_lcon, tn_lcon_w, cwp_lm, rs_sa, rs_rw, rs_bw, pt_lml, pt_lml_r, pt_lml_g, pt_lml_b, pt_lmh, pt_lmh_r, pt_lmh_b, ptl_c, ptl_m, ptl_y, ptm_low, ptm_low_rng, ptm_low_st, ptm_high, ptm_high_rng, ptm_high_st, brl, brl_r, brl_g, brl_b, brl_rng, brl_st, brlp, brlp_r, brlp_g, brlp_b, hc_r, hc_r_rng, hs_r, hs_r_rng, hs_g, hs_g_rng, hs_b, hs_b_rng, hs_c, hs_c_rng, hs_m, hs_m_rng, hs_y, hs_y_rng;
+#endif
+
+  mat3 in_to_xyz;
+  if (params.i_gamut==0) in_to_xyz = mat3(1);
+  else if (params.i_gamut==1) in_to_xyz = matrix_ap0_to_xyz;
+  else if (params.i_gamut==2) in_to_xyz = matrix_ap1_to_xyz;
+  else if (params.i_gamut==3) in_to_xyz = matrix_p3d65_to_xyz;
+  else if (params.i_gamut==4) in_to_xyz = matrix_rec2020_to_xyz;
+  else if (params.i_gamut==5) in_to_xyz = matrix_rec709_to_xyz;
+  else if (params.i_gamut==6) in_to_xyz = matrix_arriwg3_to_xyz;
+  else if (params.i_gamut==7) in_to_xyz = matrix_arriwg4_to_xyz;
+  else if (params.i_gamut==8) in_to_xyz = matrix_redwg_to_xyz;
+  else if (params.i_gamut==9) in_to_xyz = matrix_sonysgamut3_to_xyz;
+  else if (params.i_gamut==10) in_to_xyz = matrix_sonysgamut3cine_to_xyz;
+  else if (params.i_gamut==11) in_to_xyz = matrix_vgamut_to_xyz;
+  else if (params.i_gamut==12) in_to_xyz = matrix_egamut_to_xyz;
+  else if (params.i_gamut==13) in_to_xyz = matrix_egamut2_to_xyz;
+  else if (params.i_gamut==14) in_to_xyz = matrix_davinciwg_to_xyz;
+
+  float crv_tsn = 0.0;
+  vec2 pos = ipos;
+  vec2 res = imageSize(img_out);
+
+  // x-position based input value for tonescale overlay
+  if (params.crv_en == 1) crv_tsn = oetf_filmlight_tlog(pos.x/res.x);
+
+  // Linearize if a non-linear input oetf / transfer function is selected
+  rgb = linearize(rgb, params.i_oetf);
+
+
+  /***************************************************
+    Tonescale Constraint Calculations
+    https://www.desmos.com/calculator/1c4fhzy3bw
+
+    These should be pre-calculated but there is no way to do this in DCTL.
+    Anything that is const should be precalculated and not run per-pixel
+    --------------------------------------------------*/
+  const float ts_x1 = pow(2.0f, 6.0f*params.tn_sh + 4.0f);
+  const float ts_y1 = params.tn_Lp/100.0f;
+  const float ts_x0 = 0.18f + params.tn_off;
+  const float ts_y0 = params.tn_Lg/100.0f*(1.0f + params.tn_gb*log2(ts_y1));
+  const float ts_s0 = compress_toe_quadratic(ts_y0, params.tn_toe, 1);
+  const float ts_p = params.tn_con/(1.0f + params.tn_su*0.05f); // unconstrained surround compensation
+  const float ts_s10 = ts_x0*(pow(ts_s0, -1.0f/params.tn_con) - 1.0f);
+  const float ts_m1 = ts_y1/pow(ts_x1/(ts_x1 + ts_s10), params.tn_con);
+  const float ts_m2 = compress_toe_quadratic(ts_m1, params.tn_toe, 1);
+  const float ts_s = ts_x0*(pow(ts_s0/ts_m2, -1.0f/params.tn_con) - 1.0f);
+  const float ts_dsc = params.eotf==4 ? 0.01 : params.eotf==5 ? 0.1 : 100.0f/params.tn_Lp;
+
+  // Lerp from pt_cmp at 100 nits to pt_cmp_hdr at 1000 nits
+  const float pt_cmp_Lf = params.pt_hdr*min(1.0f, (params.tn_Lp - 100.0f)/900.0f);
+  // Approximate scene-linear scale at Lp=100 nits
+  const float s_Lp100 = ts_x0*(pow((params.tn_Lg/100.0f), -1.0f/params.tn_con) - 1.0f);
+  const float ts_s1 = ts_s*pt_cmp_Lf + s_Lp100*(1.0f - pt_cmp_Lf);
+
+
+  // Convert from input gamut into P3-D65
+  rgb = in_to_xyz * rgb;
+  rgb = matrix_xyz_to_p3d65 * rgb;
+
+
+  // Rendering Space: "Desaturate" to control scale of the color volume in the rgb ratios.
+  // Controlled by rs_sa (saturation) and red and blue weights (rs_rw and rs_bw)
+  vec3 rs_w = vec3(params.rs_rw, 1.0f - params.rs_rw - params.rs_bw, params.rs_bw);
+  float sat_L = dot(rgb, rs_w);
+  rgb = sat_L*params.rs_sa + rgb*(1.0f - params.rs_sa);
+
+
+  // Offset
+  rgb += params.tn_off;
+  if (params.crv_en == 1) crv_tsn += params.tn_off;
+
+
+  // Tonescale Norm
+  float tsn = hypotf3(rgb)/SQRT3;
+
+  // RGB Ratios
+  rgb = mix(rgb/tsn, vec3(0.0f), bvec3(tsn==0.0));
+  
+  vec2 opp = opponent(rgb);
+  float ach_d = hypotf2(opp)/2.0f;
+  
+  // Smooth ach_d, normalized so 1.0 doesn't change https://www.desmos.com/calculator/ozjg09hzef
+  ach_d = (1.25f)*compress_toe_quadratic(ach_d, 0.25f, 0);
+
+  // Hue angle, rotated so that red = 0.0
+  float hue = mod(atan(opp.x, opp.y) + M_PI + 1.10714931f, 2.0f*M_PI);
+
+  // RGB Hue Angles
+  // Wider than CMY by default. R towards M, G towards Y, B towards C
+  vec3 ha_rgb = vec3(
+    gauss_window(hue_offset(hue, 0.1f), 0.66f),
+    gauss_window(hue_offset(hue, 4.3f), 0.66f),
+    gauss_window(hue_offset(hue, 2.3f), 0.66f));
+    
+  // RGB Hue Angles for hue shift: red shifted more orange
+  vec3 ha_rgb_hs = vec3(
+    gauss_window(hue_offset(hue, -0.4f), 0.66f),
+    ha_rgb.y,
+    gauss_window(hue_offset(hue, 2.5f), 0.66f));
+  
+  // CMY Hue Angles
+  // Exact alignment to Cyan/Magenta/Yellow secondaries would be M_PI, M_PI/3 and -M_PI/3, but
+  // we customize these a bit for creative purposes: M towards B, Y towards G, C towards G
+  vec3 ha_cmy = vec3(
+    gauss_window(hue_offset(hue, 3.3f), 0.5f),
+    gauss_window(hue_offset(hue, 1.3f), 0.5f),
+    gauss_window(hue_offset(hue, -1.15f), 0.5f));
+
+
+  // Brilliance
+  if(params.brl_en == 1)
+  {
+    float brl_tsf = pow(tsn/(tsn + 1.0f), 1.0f - params.brl_rng);
+    float brl_exf = (params.brl + params.brl_r*ha_rgb.x + params.brl_g*ha_rgb.y + params.brl_b*ha_rgb.z)*pow(ach_d, 1.0f/params.brl_st);
+    float brl_ex = pow(2.0f, brl_exf*(brl_exf < 0.0f ? brl_tsf : 1.0f - brl_tsf));
+    tsn *= brl_ex;
+  }
+
+  // Contrast Low 
+  if(params.tn_lc_en == 1)
+  {
+    float lcon_m = pow(2.0f, -params.tn_lc);
+    float lcon_w = params.tn_lc_w/4.0f;
+    lcon_w *= lcon_w;
+    
+    // Normalize for ts_x0 intersection constraint: https://www.desmos.com/calculator/blyvi8t2b2
+    const float lcon_cnst_sc = compress_toe_cubic(ts_x0, lcon_m, lcon_w, 1)/ts_x0;
+    tsn *= lcon_cnst_sc;
+    tsn = compress_toe_cubic(tsn, lcon_m, lcon_w, 0);
+    
+    if (params.crv_en == 1) crv_tsn = compress_toe_cubic(crv_tsn*lcon_cnst_sc, lcon_m, lcon_w, 0);
+  }
+
+  // Contrast High
+  if (params.tn_hc_en == 1)
+  {
+    float hcon_p = pow(2.0f, params.tn_hc);
+    tsn = contrast_high(tsn, hcon_p, params.tn_hc_pv, params.tn_hc_st, 0);
+    
+    if (params.crv_en == 1) crv_tsn = contrast_high(crv_tsn, hcon_p, params.tn_hc_pv, params.tn_hc_st, 0);
+  }
+
+  // Hyperbolic Compression
+  float tsn_pt = compress_hyperbolic_power(tsn, ts_s1, ts_p);
+  float tsn_const = compress_hyperbolic_power(tsn, s_Lp100, ts_p);
+  tsn = compress_hyperbolic_power(tsn, ts_s, ts_p);
+  
+  float crv_tsn_const = 0.0f;
+  if (params.crv_en == 1) {
+    crv_tsn_const = compress_hyperbolic_power(crv_tsn, s_Lp100, ts_p);
+    crv_tsn = compress_hyperbolic_power(crv_tsn, ts_s, ts_p);
+  }
+
+
+
+  /***************************************************
+    Hue Contrast R
+  --------------------------------------------------*/
+  if (params.hc_en == 1)
+  {
+    float hc_ts = 1.0f - tsn_const;
+    // Limit high purity on bottom end and low purity on top end by ach_d.
+    // This helps reduce artifacts and over-saturation.
+    float hc_c = hc_ts*(1.0f - ach_d) + ach_d*(1.0f - hc_ts);
+    hc_c *= ach_d*ha_rgb.x;
+    hc_ts = pow(hc_ts, 1.0f/params.hc_r_r);
+    // Bias contrast based on tonescale using Lift/Mult: https://www.desmos.com/calculator/gzbgov62hl
+    float hc_f = params.hc_r*(hc_c - 2.0f*hc_c*hc_ts) + 1.0f;
+    rgb = vec3(rgb.x, rgb.y*hc_f, rgb.z*hc_f);
+  }
+
+
+
+  /***************************************************
+    Hue Shift
+  --------------------------------------------------*/
+  // Hue Shift RGB by purity compress tonescale, shifting more as intensity increases
+  if (params.hsrgb_en == 1)
+  {
+    vec3 hs_rgb = vec3(
+      ha_rgb_hs.x*ach_d*pow(tsn_pt, 1.0f/params.hs_r_r),
+      ha_rgb_hs.y*ach_d*pow(tsn_pt, 1.0f/params.hs_g_r),
+      ha_rgb_hs.z*ach_d*pow(tsn_pt, 1.0f/params.hs_b_r));
+    vec3 hsf = vec3(hs_rgb.x*params.hs_r, hs_rgb.y*-params.hs_g, hs_rgb.z*-params.hs_b);
+    hsf = vec3(hsf.z - hsf.y, hsf.x - hsf.z, hsf.y - hsf.x);
+    rgb += hsf;
+  }
+
+  // Hue Shift CMY by tonescale, shifting less as intensity increases
+  if (params.hscmy_en == 1)
+  {
+    float tsn_pt_compl = 1.0f - tsn_pt;
+    vec3 hs_cmy = vec3(
+      ha_cmy.x*ach_d*pow(tsn_pt_compl, 1.0f/params.hs_c_r),
+      ha_cmy.y*ach_d*pow(tsn_pt_compl, 1.0f/params.hs_m_r),
+      ha_cmy.z*ach_d*pow(tsn_pt_compl, 1.0f/params.hs_y_r));
+    vec3 hsf = vec3(hs_cmy.x*-params.hs_c, hs_cmy.y*params.hs_m, hs_cmy.z*params.hs_y);
+    hsf = vec3(hsf.z - hsf.y, hsf.x - hsf.z, hsf.y - hsf.x);
+    rgb += hsf;
+  }
+
+
+  /***************************************************
+    Purity Compression
+      https://www.desmos.com/calculator/adtzkjofgn
+  --------------------------------------------------*/
+  // Purity Limit Low
+  float pt_lml_p = 1.0f + 4.0f*(1.0f - tsn_pt)*(params.pt_lml + params.pt_lml_r*ha_rgb_hs.x + params.pt_lml_g*ha_rgb_hs.y + params.pt_lml_b*ha_rgb_hs.z);
+  float ptf = 1.0f - pow(tsn_pt, pt_lml_p);
+  
+  // Purity Limit High
+  float pt_lmh_p = (1.0f - ach_d*(params.pt_lmh_r*ha_rgb_hs.x + params.pt_lmh_b*ha_rgb_hs.z))*(1.0f - params.pt_lmh*ach_d);
+  ptf = pow(ptf, pt_lmh_p);
+
+  
+  /***************************************************
+    Mid-Range Purity
+      This boosts mid-range purity on the low end
+      and reduces mid-range purity on the high end
+  --------------------------------------------------*/
+  if (params.ptm_en == 1)
+  {
+    float ptm_low_f;
+    if (params.ptm_lo_s == 0.0f || params.ptm_lo_r == 0.0f) ptm_low_f = 1.0f;
+    else ptm_low_f = 1.0f + params.ptm_lo*exp(-2.0f*ach_d*ach_d/params.ptm_lo_s)*pow(1.0f - tsn_const, 1.0f/params.ptm_lo_r);
+    float ptm_high_f;
+    if (params.ptm_hi_s == 0.0f || params.ptm_hi_r == 0.0f) ptm_high_f = 1.0f;
+    else ptm_high_f = 1.0f + params.ptm_hi*exp(-2.0f*ach_d*ach_d/params.ptm_hi_s)*pow(tsn_pt, 1.0f/(4.0f*params.ptm_hi_r));
+    ptf *= ptm_low_f*ptm_high_f;
+  }
+
+  // Lerp to peak achromatic by ptf in rgb ratios
+  rgb = rgb*ptf + 1.0f - ptf;
+
+  // Inverse Rendering Space
+  sat_L = rgb.x*rs_w.x + rgb.y*rs_w.y + rgb.z*rs_w.z;
+  rgb = (sat_L*params.rs_sa - rgb)/(params.rs_sa - 1.0f);
+
+  // Convert to final display gamut and set whitepoint
+  rgb = display_gamut_whitepoint(rgb, tsn_const, params.cwp_lm, params.o_gamut, params.cwp);
+
+  
+  // Post Brilliance
+  if (params.brlp_en == 1)
+  {
+    vec2 brlp_opp = opponent(rgb);
+    float brlp_ach_d = hypotf2(brlp_opp)/4.0f;
+    // brlp_ach_d = 1.0f - gauss_window(brlp_ach_d, 8.0f);
+    brlp_ach_d = 1.1f*(brlp_ach_d*brlp_ach_d/(brlp_ach_d + 0.1f));
+    vec3 brlp_ha_rgb = ach_d*ha_rgb;
+    float brlp_m = params.brlp + params.brlp_r*brlp_ha_rgb.x + params.brlp_g*brlp_ha_rgb.y + params.brlp_b*brlp_ha_rgb.z;
+    float brlp_ex = pow(2.0f, brlp_m*brlp_ach_d*tsn);
+    rgb *= brlp_ex;
+  }
+
+  // Purity Compress Low
+  if (params.ptl_en == 1) rgb = vec3(softplus(rgb.x, params.ptl_c), softplus(rgb.y, params.ptl_m), softplus(rgb.z, params.ptl_y));
+ 
+  // Final tonescale adjustments
+  tsn *= ts_m2; // scale for inverse toe
+  tsn = compress_toe_quadratic(tsn, params.tn_toe, 0);
+  tsn *= ts_dsc; // scale for display encoding
+  
+  if (params.crv_en == 1) {
+    crv_tsn *= ts_m2;
+    crv_tsn = compress_toe_quadratic(crv_tsn, params.tn_toe, 0);
+    crv_tsn *= ts_dsc;
+    // scale to 1.0 = 1000 nits for st2084 PQ
+    if (params.eotf == 4) crv_tsn *= 10.0f;
+  }
+
+  vec3 crv_rgb = vec3(crv_tsn);
+  if (params.crv_en == 1) crv_rgb = display_gamut_whitepoint(crv_rgb, crv_tsn_const, params.cwp_lm, params.o_gamut, params.cwp);
+
+
+  // Return from RGB ratios
+  rgb *= tsn;
+
+  // Rec.2020 (P3 Limited)
+  if (params.o_gamut==2) {
+    rgb = max(rgb, vec3(0.0)); // Limit to P3 gamut
+    rgb = matrix_p3_to_rec2020 * rgb;
+  }
+  
+  // Clamp
+  if (params.clmp == 1) rgb = clamp(rgb, vec3(0.0), vec3(1.0));
+
+  // Apply inverse Display EOTF
+  float eotf_p = 2.0f + params.eotf * 0.2f;
+  if ((params.eotf > 0) && (params.eotf < 4)) rgb = pow(rgb, vec3(1.0/eotf_p));
+  else if (params.eotf == 4) rgb = eotf_pq(rgb, 1);
+  else if (params.eotf == 5) rgb = eotf_hlg(rgb, 1);
+  
+  if (params.crv_en == 1) {
+    if ((params.eotf > 0) && (params.eotf < 4)) crv_rgb = pow(crv_rgb, vec3(1.0f/eotf_p));
+    else if (params.eotf == 4) crv_rgb = eotf_pq(crv_rgb, 1);
+    else if (params.eotf == 5) crv_rgb = eotf_hlg(crv_rgb, 1);
+  }
+  
+  
+  // Draw tonescale overlay
+  if (params.crv_en == 1)
+  {
+    vec3 crv_rgb_dst = vec3(res.y-pos.y-crv_rgb.x*res.y, res.y-pos.y-crv_rgb.y*res.y, res.y-pos.y-crv_rgb.z*res.y);
+    float crv_w0 = 0.35f; // width of tonescale overlay
+    crv_rgb_dst.x = exp(-crv_rgb_dst.x*crv_rgb_dst.x*crv_w0);
+    crv_rgb_dst.y = exp(-crv_rgb_dst.y*crv_rgb_dst.y*crv_w0);
+    crv_rgb_dst.z = exp(-crv_rgb_dst.z*crv_rgb_dst.z*crv_w0);
+    float crv_lm = params.eotf < 4 ? 1.0f : 1.0f; // reduced luminance in hdr
+    crv_rgb_dst = clamp(crv_rgb_dst, vec3(0.0), vec3(1.0));
+    rgb = rgb * (1.0f - crv_rgb_dst) + vec3(crv_lm, crv_lm, crv_lm)*crv_rgb_dst;
+  }
+  
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}
