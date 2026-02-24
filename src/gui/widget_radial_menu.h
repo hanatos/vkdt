@@ -91,17 +91,6 @@ dt_radial_menu(
       c = vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER];
     }
     nk_fill_polygon(cmd, x, 2*NSEG, c);
-    // approximate bounding box of wedge:
-    // float aa[4] = {
-    //   MIN(MIN(x[0], x[2*NSEG+0]), MIN(x[2*NSEG-2], x[4*NSEG-2])),
-    //   MIN(MIN(x[1], x[2*NSEG+1]), MIN(x[2*NSEG-1], x[4*NSEG-1])),
-    //   MAX(MAX(x[0], x[2*NSEG+0]), MAX(x[2*NSEG-2], x[4*NSEG-2])),
-    //   MAX(MAX(x[1], x[2*NSEG+1]), MAX(x[2*NSEG-1], x[4*NSEG-1]))};
-    // struct nk_rect bb = {aa[0], aa[1], aa[2]-aa[0], aa[3]-aa[1]};
-    // box in two lists where height comes from center of outer wedge arc
-    // struct nk_rect bb = {
-    //   cx+(dx>0?1:-1)*radius/2 - (dx>0?0:radius/2),
-    //   x[2*(NSEG/2)+1], radius/2, 30};
     // center of mass of wedge
     const float row_height = nk_glfw3_font(0)->height * 1.1f;
     float w = radius/4.0f;
