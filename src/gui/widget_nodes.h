@@ -346,6 +346,19 @@ dt_node_editor(
   int mouse_over_something = 0;
   const int disabled = context_menu_clicked | dt_gui_input_blocked(); // io is going to popup window or something
 
+  for(int mid=0;mid<=(int)graph->num_modules;mid++)
+  { // move selected modules. to reduce lag do it before draw.
+    dt_module_t *module = graph->module + mid;
+    // update module position if group has been dragged
+    if(!disabled && move_nodes && !drag_selection && !nedit->connection.active &&
+        nk_input_is_mouse_down(in, NK_BUTTON_LEFT) &&
+        (mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid])
+    {
+      module->gui_x += in->mouse.delta.x/(nedit->zoom*nedit->dpi_scale);
+      module->gui_y += in->mouse.delta.y/(nedit->zoom*nedit->dpi_scale);
+    }
+  }
+
   for(int mid2=0;mid2<=(int)graph->num_modules;mid2++)
   { // draw all modules, connected or not
     dt_module_t *module = mid2 == graph->num_modules ? nedit->selected : graph->module + mid2;
@@ -558,15 +571,6 @@ dt_node_editor(
         nk_label(ctx, str, dt_connector_output(module->connector+c) ? NK_TEXT_RIGHT : NK_TEXT_LEFT);
       }
       nk_group_end(ctx);
-      // update module position if group has been dragged
-      // TODO: do this before draw to minimise lag
-      if(!disabled && move_nodes && !drag_selection && !nedit->connection.active &&
-          nk_input_is_mouse_down(in, NK_BUTTON_LEFT) &&
-          (mid < NK_LEN(nedit->selected_mid)) && nedit->selected_mid[mid])
-      {
-        module->gui_x += in->mouse.delta.x/(nedit->zoom*nedit->dpi_scale);
-        module->gui_y += in->mouse.delta.y/(nedit->zoom*nedit->dpi_scale);
-      }
     }
     nk_style_pop_style_item(ctx);
     nk_style_pop_style_item(ctx);
