@@ -78,11 +78,17 @@ void commit_params(
   int owd = module->connector[1].roi.wd;
   int oht = module->connector[1].roi.ht;
   float rad = MAX(owd,oht)*dt_module_param_float(module, pid_rad_cp)[0];
-  memcpy(graph->node[dat->id_blur_cp-1].push_constant, &rad, sizeof(float));
-  memcpy(graph->node[dat->id_blur_cp  ].push_constant, &rad, sizeof(float));
+  if(dat->id_blur_cp > 0)
+  {
+    memcpy(graph->node[dat->id_blur_cp-1].push_constant, &rad, sizeof(float));
+    memcpy(graph->node[dat->id_blur_cp  ].push_constant, &rad, sizeof(float));
+  }
   rad = MAX(owd,oht)*dt_module_param_float(module, pid_rad_hl)[0];
-  memcpy(graph->node[dat->id_blur_hl-1].push_constant, &rad, sizeof(float));
-  memcpy(graph->node[dat->id_blur_hl  ].push_constant, &rad, sizeof(float));
+  if(dat->id_blur_hl > 0)
+  {
+    memcpy(graph->node[dat->id_blur_hl-1].push_constant, &rad, sizeof(float));
+    memcpy(graph->node[dat->id_blur_hl  ].push_constant, &rad, sizeof(float));
+  }
 }
 
 dt_graph_run_t
@@ -133,6 +139,8 @@ create_nodes(
     dt_module_t *module)
 {
   moddata_t *dat = module->data;
+  dat->id_blur_hl = -1;
+  dat->id_blur_cp = -1;
   int iwd = module->connector[0].roi.wd;
   int iht = module->connector[0].roi.ht;
   int pid_process = dt_module_get_param(module->so, dt_token("process"));
