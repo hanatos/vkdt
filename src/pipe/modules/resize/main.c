@@ -70,7 +70,7 @@ void create_nodes(
   int pc[] = { mode };
   const int id_resize = dt_node_add(graph, module, "resize", "main",
       module->connector[1].roi.wd, module->connector[1].roi.ht, 1, sizeof(pc), pc, 2,
-      "input",  "read",  "rgba", "*",    dt_no_roi,
+      "input",  "read",  "*",    "*",   dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[1].roi);
 
   if(scale > 3)
