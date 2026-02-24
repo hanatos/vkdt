@@ -1,0 +1,71 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+#include "params.glsl"
+#include "opendrt.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(set = 1, binding = 0) uniform writeonly image2D img_out;
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  vec2 pos = ipos;
+  vec2 res = imageSize(img_out);
+  float crv_tsn = 0.0;
+  const float ts_x1 = pow(2.0f, 6.0f*params.tn_sh + 4.0f);
+  const float ts_y1 = params.tn_Lp/100.0f;
+  const float ts_x0 = 0.18f + params.tn_off;
+  const float ts_y0 = params.tn_Lg/100.0f*(1.0f + params.tn_gb*log2(ts_y1));
+  const float ts_s0 = compress_toe_quadratic(ts_y0, params.tn_toe, 1);
+  const float ts_p = params.tn_con/(1.0f + params.tn_su*0.05f); // unconstrained surround compensation
+  const float ts_s10 = ts_x0*(pow(ts_s0, -1.0f/params.tn_con) - 1.0f);
+  const float ts_m1 = ts_y1/pow(ts_x1/(ts_x1 + ts_s10), params.tn_con);
+  const float ts_m2 = compress_toe_quadratic(ts_m1, params.tn_toe, 1);
+  const float ts_s = ts_x0*(pow(ts_s0/ts_m2, -1.0f/params.tn_con) - 1.0f);
+  const float ts_dsc = params.eotf==4 ? 0.01 : params.eotf==5 ? 0.1 : 100.0f/params.tn_Lp;
+  const float s_Lp100 = ts_x0*(pow((params.tn_Lg/100.0f), -1.0f/params.tn_con) - 1.0f);
+  crv_tsn = oetf_filmlight_tlog(pos.x/res.x);
+  crv_tsn += params.tn_off;
+  if(params.tn_lc_en == 1)
+  {
+    float lcon_m = pow(2.0f, -params.tn_lc);
+    float lcon_w = params.tn_lc_w/4.0f;
+    lcon_w *= lcon_w;
+    
+    // Normalize for ts_x0 intersection constraint: https://www.desmos.com/calculator/blyvi8t2b2
+    const float lcon_cnst_sc = compress_toe_cubic(ts_x0, lcon_m, lcon_w, 1)/ts_x0;
+    crv_tsn = compress_toe_cubic(crv_tsn*lcon_cnst_sc, lcon_m, lcon_w, 0);
+  }
+  if (params.tn_hc_en == 1)
+  {
+    float hcon_p = pow(2.0f, params.tn_hc);
+    crv_tsn = contrast_high(crv_tsn, hcon_p, params.tn_hc_pv, params.tn_hc_st, 0);
+  }
+  float crv_tsn_const = 0.0f;
+  crv_tsn_const = compress_hyperbolic_power(crv_tsn, s_Lp100, ts_p);
+  crv_tsn = compress_hyperbolic_power(crv_tsn, ts_s, ts_p);
+  crv_tsn *= ts_m2;
+  crv_tsn = compress_toe_quadratic(crv_tsn, params.tn_toe, 0);
+  crv_tsn *= ts_dsc;
+  // scale to 1.0 = 1000 nits for st2084 PQ
+  if (params.eotf == 4) crv_tsn *= 10.0f;
+  vec3 crv_rgb = vec3(crv_tsn);
+  crv_rgb = display_gamut_whitepoint(crv_rgb, crv_tsn_const, params.cwp_lm, params.o_gamut, params.cwp);
+
+  vec3 rgb = vec3(0.0);
+
+  vec3 crv_rgb_dst = vec3(
+      res.y-pos.y-crv_rgb.x*res.y,
+      res.y-pos.y-crv_rgb.y*res.y,
+      res.y-pos.y-crv_rgb.z*res.y);
+  float crv_w0 = 0.15f; // width of tonescale overlay
+  crv_rgb_dst.x = exp(-crv_rgb_dst.x*crv_rgb_dst.x*crv_w0);
+  crv_rgb_dst.y = exp(-crv_rgb_dst.y*crv_rgb_dst.y*crv_w0);
+  crv_rgb_dst.z = exp(-crv_rgb_dst.z*crv_rgb_dst.z*crv_w0);
+  float crv_lm = params.eotf < 4 ? 1.0f : 1.0f; // reduced luminance in hdr
+  crv_rgb_dst = clamp(crv_rgb_dst, vec3(0.0), vec3(1.0));
+  rgb = rgb * (1.0f - crv_rgb_dst) + vec3(crv_lm, crv_lm, crv_lm)*crv_rgb_dst;
+
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}
