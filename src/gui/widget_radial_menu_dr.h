@@ -67,7 +67,7 @@ dt_radial_menu_dr(
         bounds.y + bounds.h/2,
         MIN(bounds.w, bounds.h)/3,
         pos.x, pos.y,
-        m->mcnt, m->mtxtptr);
+        m->mcnt, &m->selected, &m->left, m->mtxtptr);
     if(( m->mouse && !vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].down) ||
        (!m->mouse && !gamepad.buttons[GLFW_GAMEPAD_BUTTON_LEFT_BUMPER]))
     {
@@ -92,7 +92,6 @@ dt_radial_menu_dr(
           dt_gamepadhelp_push();
           dt_gamepadhelp_clear();
           dt_gamepadhelp_set(dt_gamepadhelp_ps, "toggle this help");
-          dt_gamepadhelp_set(dt_gamepadhelp_L1, "hold to activate right stick");
           dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "x: modify value, y: fast");
           dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "reset value");
           dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept value");
@@ -105,8 +104,8 @@ dt_radial_menu_dr(
   if(m->state == s_radial_menu_dr_widget)
   { // radial menu widget active:
     if(dt_radial_widget(&vkdt.ctx, m->modid, m->parid,
-        gamepad.buttons[GLFW_GAMEPAD_BUTTON_LEFT_BUMPER] ? (m->mouse ? 0 : gamepad.axes+GLFW_GAMEPAD_AXIS_RIGHT_X) : 0,
-        gamepad.buttons[GLFW_GAMEPAD_BUTTON_LEFT_BUMPER] ? (m->mouse ? 0 : gamepad.axes+GLFW_GAMEPAD_AXIS_RIGHT_Y) : 0))
+        m->mouse ? 0 : gamepad.axes+GLFW_GAMEPAD_AXIS_RIGHT_X,
+        m->mouse ? 0 : gamepad.axes+GLFW_GAMEPAD_AXIS_RIGHT_Y))
       dt_radial_menu_dr_close(m);
   }
 }
@@ -115,6 +114,7 @@ dt_radial_menu_dr(
 static inline void
 dt_radial_menu_dr_reset(dt_radial_menu_dr_t *m)
 {
+  m->selected = m->left = -1;
   if(m->state == s_radial_menu_dr_widget)
   { // reset parameters
     const double throttle = 2.0; // min delay for same param in history, in seconds

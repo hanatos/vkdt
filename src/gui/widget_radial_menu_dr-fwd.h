@@ -23,7 +23,9 @@ typedef struct dt_radial_menu_dr_t
   int  mmodid[20];
   int  mparid[20];
   
-  int mouse; // activated by mouse, not gamepad
+  int mouse;    // activated by mouse, not gamepad
+  int selected; // item that was last selected via gamepad
+  int left;     // whether `selected` was left or right of the circle
 }
 dt_radial_menu_dr_t;
 

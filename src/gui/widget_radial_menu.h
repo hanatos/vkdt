@@ -58,14 +58,15 @@ dt_radial_menu(
     float  mx,     // cursor position
     float  my,
     int    N,
+    int   *sel,    // last selected
+    int   *left,   // that was left or right
     const char *text[])
 {
   struct nk_command_buffer *cmd = &vkdt.global_cmd;
   float phi =  -M_PI, delta_phi = (2.0f*M_PI)/N,
-        r0 = 0.3*radius, r1 = radius;
+        r0 = 0.4*radius, r1 = radius;
   float dx = mx-cx, dy = my-cy;
   const float mphi = (dx*dx+dy*dy>r0*r0) ? atan2f(my-cy, mx-cx) : -666;
-  int ret = -1, left = 1;
   struct nk_rect selbox;
   for(int k=0;k<N;k++)
   {
@@ -86,10 +87,11 @@ dt_radial_menu(
     struct nk_color c = vkdt.style.colour[NK_COLOR_BUTTON];
     if(mphi > phi && mphi < phi+delta_phi)
     {
-      if(dx > 0) left = 0;
-      ret = k;
-      c = vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER];
+      if(dx > 0) *left = 0;
+      else *left = 1;
+      *sel = k;
     }
+    if(*sel == k) c = vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER];
     nk_fill_polygon(cmd, x, 2*NSEG, c);
     // center of mass of wedge
     const float row_height = nk_glfw3_font(0)->height * 1.1f;
@@ -98,14 +100,14 @@ dt_radial_menu(
       (2*x[0] + x[2*NSEG+0] + 2*x[2*NSEG-2] + x[4*NSEG-2])/6.0f - w/2,
       (2*x[1] + x[2*NSEG+1] + 2*x[2*NSEG-1] + x[4*NSEG-1])/6.0f - row_height,
       w, row_height};
-    if(ret == k) selbox = bb;
+    if(*sel == k) selbox = bb;
     else dt_radial_menu_text(cmd, text[k], bb, 0, 0);
     phi += delta_phi;
 #undef NSEG
   }
-  if(ret >= 0)
-    dt_radial_menu_text(cmd, text[ret], selbox, 1, left);
-  return ret;
+  if(*sel >= 0)
+    dt_radial_menu_text(cmd, text[*sel], selbox, 1, *left);
+  return *sel;
 }
 
 static inline int // return non-zero if done and the state should be cleared
