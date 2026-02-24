@@ -1144,14 +1144,8 @@ void render_lighttable_right_panel()
         if(nk_button_label(&vkdt.ctx, vkdt.fav_preset_desc[pst]))
         {
           char filename[PATH_MAX];
-          snprintf(filename, sizeof(filename), "%s/presets/%s.pst", dt_pipe.homedir, preset);
-          uint32_t err = dt_gui_lt_append_preset(filename);
-          if(err)
-          {
-            snprintf(filename, sizeof(filename), "%s/data/presets/%s.pst", dt_pipe.basedir, preset);
-            err = dt_gui_lt_append_preset(filename);
-          }
-          if(err)
+          snprintf(filename, sizeof(filename), "%s.pst", preset);
+          if(dt_gui_lt_append_preset(filename))
             dt_gui_notification("failed to read preset %s", filename);
         }
       }
@@ -1495,7 +1489,8 @@ void render_lighttable()
     {
       char filename[1024] = {0};
       static char filter[256];
-      int ok = filteredlist("presets", "presets", filter, filename, sizeof(filename), s_filteredlist_default);
+      int ok = filteredlist("presets", "presets", filter, filename, sizeof(filename),
+          s_filteredlist_return_short);
       if(ok) vkdt.wstate.popup = 0;
       if(ok == 1) dt_gui_lt_append_preset(filename);
     }

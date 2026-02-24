@@ -434,13 +434,16 @@ dt_gui_lt_duplicate()
   dt_gui_switch_collection(dir);
 }
 
-// applies the preset refered to by `filename' to all
+// applies the preset refered to by `preset' to all
 // currently selected images. will append instead of overwriting history.
+// will reconstruct %s/presets/<preset> for various search directories.
 static inline int // returns 0 on success
 dt_gui_lt_append_preset(const char *preset)
 {
   if(!vkdt.db.selection_cnt) return 1; // no images selected
-  FILE *fin = fopen(preset, "rb");
+  char filename[PATH_MAX];
+  snprintf(filename, sizeof(filename), "presets/%s", preset);
+  FILE *fin = dt_graph_open_resource(0, 0, filename, "rb");
   if(!fin)
   {
     dt_gui_notification("could not open preset %s!", preset);
@@ -453,7 +456,6 @@ dt_gui_lt_append_preset(const char *preset)
   fread(buf, fsize, 1, fin);
   fclose(fin);
   const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-  char filename[PATH_MAX];
   for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
   {
     dt_db_image_path(&vkdt.db, sel[i], filename, sizeof(filename));
