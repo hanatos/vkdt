@@ -965,7 +965,9 @@ darkroom_process()
   }
 
   const int grabbed = vkdt.wstate.grabbed;
-  if(!grabbed)
+  // the grabbed mode is *much* faster (schedules next frame directly and doesn't spin down clocks)
+  // XXX FIXME: when resetting animations, keeps garbage in the double buffer (need to reset the result)
+  if(!grabbed && !(advance && (vkdt.graph_dev.frame_rate == 0.0)))
   { // async graph compute vs. sync cpu + gui rendering
     // graph->double_buffer points to the buffer currently locked for render/display
     // set graph_res = -1 initially (when entering dr mode) so we won't draw before it finished processing
@@ -1001,7 +1003,7 @@ darkroom_process()
   }
   else // if grabbed
   { // swap double buffers and run for grabbed animations
-    if(vkdt.graph_dev.runflags) // stills and stopped animations
+    if(vkdt.graph_dev.runflags) // stills and stopped animations have 0 runflag
     { // double buffered compute
       // this will wait for other run
       // process double_buffer, wait for double_buffer^1
