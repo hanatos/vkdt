@@ -2,6 +2,7 @@
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
 #include "shared.glsl"
+#include "matrices.h"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
@@ -56,16 +57,12 @@ main()
       //           |  0.2627          0.6780          0.0593        |  |E'R|
       // E'YCbCr = | -0.2627/1.8814  -0.6780/1.8814   0.5           |  |E'G|
       //           |  0.5            -0.6780/1.4746  -0.0593/1.4746 |  |E'B|
-      mat3 M3I = mat3(1, 1, 1,
-          0.0, -0.164553127, 1.8814,
-          1.4746, -0.571353127, 0.0);
+      mat3 M3I = matrix_ycbcr_to_rec2020;
       rgb = M3I * YCbCr;
     }
     else if(params.color == 0)
     { // E'YCbCr -> E'RGB   : apply the matrix M1
-      mat3 M1 = mat3(1.0, 1.0, 1.0,
-        0.0, -0.0722 * 1.8556 / 0.7152, 1.8556,
-        1.5748, -0.2126 * 1.5748 / 0.7152, 0.0);
+      mat3 M1 = matrix_ycbcr_to_rec709;
       rgb = M1 * YCbCr;
     }
   }
@@ -108,12 +105,8 @@ main()
 
   if(params.color == 0)
   { // go to pipeline internal bt.2020 representation
-    mat3 rec709_to_rec2020 = mat3(
-        0.62750375, 0.32927542, 0.04330267,
-        0.06910828, 0.91951917, 0.0113596 ,
-        0.01639406, 0.08801128, 0.89538036);
+    mat3 rec709_to_rec2020 = matrix_rec709_to_rec2020;
     rgb *= rec709_to_rec2020;
   }
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
-

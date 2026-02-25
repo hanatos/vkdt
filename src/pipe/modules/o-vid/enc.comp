@@ -4,6 +4,7 @@
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 #extension GL_KHR_shader_subgroup_clustered  : enable
 #include "shared.glsl"
+#include "matrices.h"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(push_constant, std140) uniform push_t
 { // this is the same as we have in `i-vid`
@@ -28,12 +29,8 @@ void main()
   if(any(greaterThanEqual(ipos, imageSize(img_Y)))) return;
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
-  // TODO: if color 0 or 1 apply different YCbCr matrix (??)
   // M3 in ITU-R BT.2087-0 goes from rec2020 to YCbCr (both normalised)
-  mat3 M3 = mat3(
-      0.2627, -0.2627/1.8814,  0.5,
-      0.6780, -0.6780/1.8814, -0.6780/1.4746,
-      0.0593,  0.5,           -0.0593/1.4746);
+  mat3 M3 = matrix_rec2020_to_ycbcr;
   vec3 YCbCr = M3 * rgb;
 
   // TODO: if full range: quantise to number of bits, rescale to max within data type (>8 is 16 bits)

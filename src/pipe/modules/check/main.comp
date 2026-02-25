@@ -2,6 +2,7 @@
 #extension GL_GOOGLE_include_directive    : enable
 
 #include "shared.glsl"
+#include "colourspaces.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -27,10 +28,7 @@ main()
   vec3 rgbc = rgb;
   if(params.gamut == 3)
   { // if rec709 mode: convert via matrix
-    const mat3 M = mat3(
-         1.66022677, -0.12455334, -0.01815514,
-        -0.58754761,  1.13292605, -0.10060303,
-        -0.07283825, -0.00834963,  1.11899817);
+    const mat3 M = matrix_rec2020_to_rec709;
     rgbc = M * rgb;
   }
 

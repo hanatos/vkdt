@@ -222,6 +222,8 @@ void modify_roi_out(
     mod->img_param.filters = 0;
   }
 
+  // XXX TODO CAT from img.illuminant if it's not D65
+  // uint32_t illuminant; // D65 D50 D55 D75 A or we don't know
   float xyz_to_cam[12], mat[9] = {0};
   // get d65 camera matrix from rawloader
   for(int j=0;j<3;j++) for(int i=0;i<3;i++)

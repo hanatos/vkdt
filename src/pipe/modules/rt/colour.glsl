@@ -1,3 +1,4 @@
+#include "matrices.h"
 // Simple Analytic Approximations to the CIE XYZ Color Matching Functions
 // Chris Wyman, Peter-Pike Sloan, Peter Shirley
 // thanks guys :)
@@ -33,10 +34,7 @@ vec3 colour_to_linear_srgb(
 {                 // that is, for a path x it is p(x, lambda_i) divided by the common parts shared by all lambda_i
   float sumhp = herop.x+herop.y+herop.z+herop.w;
   X *= herop / sumhp; // balance heuristic
-  const mat3 xyz_to_srgb = mat3(
-       3.240479,-0.969256, 0.055648,
-      -1.537150, 1.875991,-0.204043,
-      -0.498535, 0.041556, 1.057311);
+  const mat3 xyz_to_srgb = matrix_xyz_to_rec709;
   vec3 xyz = vec3(0.0);
   xyz += vec3(xFit_1931(lambda.x), yFit_1931(lambda.x), zFit_1931(lambda.x)) * X.x;
   xyz += vec3(xFit_1931(lambda.y), yFit_1931(lambda.y), zFit_1931(lambda.y)) * X.y;
@@ -52,10 +50,7 @@ vec3 colour_to_rgb(
 {                 // that is, for a path x it is p(x, lambda_i) divided by the common parts shared by all lambda_i
   float sumhp = herop.x+herop.y+herop.z+herop.w;
   X *= herop / sumhp; // balance heuristic
-  const mat3 xyz_to_rec2020 = mat3(
-      1.7166511880, -0.6666843518, 0.0176398574,
-     -0.3556707838, 1.6164812366, -0.0427706133,
-     -0.2533662814, 0.0157685458, 0.9421031212);
+  const mat3 xyz_to_rec2020 = matrix_xyz_to_rec2020;
 
   vec3 xyz = vec3(0.0);
   xyz += vec3(xFit_1931(lambda.x), yFit_1931(lambda.x), zFit_1931(lambda.x)) * X.x;

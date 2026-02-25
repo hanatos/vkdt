@@ -14,6 +14,7 @@ typedef struct rawimage_t
   float    whitelevels[4];
   float    blacklevels[4];
   float    xyz_to_cam[4][3];
+  uint32_t illuminant; // D65 D50 D55 D75 A or we don't know
   uint32_t filters;
   uint64_t crop_aabb[4];
   uint32_t orientation;

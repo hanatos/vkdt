@@ -3,6 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
+#include "matrices.h"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -64,10 +65,7 @@ main()
   // rgb.b = rgb.b <= 0.04045 ? rgb.b/12.92 : pow((rgb.b+0.055)/(1+0.055), 2.4);
   // undo tone curve that we'd be applying in the end for srgb (straight gamma 2.2)
   rgb = pow(clamp(rgb, 0, 1), vec3(2.2));
-  mat3 rec709_to_rec2020 = mat3(
-      0.62750375, 0.32927542, 0.04330267,
-      0.06910828, 0.91951917, 0.0113596 ,
-      0.01639406, 0.08801128, 0.89538036);
+  mat3 rec709_to_rec2020 = matrix_rec709_to_rec2020;
   rgb *= rec709_to_rec2020;
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

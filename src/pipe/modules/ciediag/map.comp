@@ -3,6 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
+#include "matrices.h"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -40,14 +41,8 @@ main()
     rgb.r = max(rgb.r, 0.9 * smoothstep(t, 0.0, d));
   }
 
-  const mat3 xyz_to_rec2020 = mat3(
-      1.7166511880, -0.6666843518, 0.0176398574, 
-      -0.3556707838, 1.6164812366, -0.0427706133, 
-      -0.2533662814, 0.0157685458, 0.9421031212);
-  const mat3 xyz_to_rec709 = mat3(
-      3.2404542, -0.9692660, 0.0556434, 
-      -1.5371385, 1.8760108, -0.2040259,
-      -0.4985314, 0.0415560, 1.0572252);
+  const mat3 xyz_to_rec2020 = matrix_xyz_to_rec2020;
+  const mat3 xyz_to_rec709  = matrix_xyz_to_rec709;
 
   // draw approximate spectral locus bounds:
   if(outside_spectral_locus(xy))
@@ -81,4 +76,3 @@ main()
 
   imageStore(img_out, ipos, vec4(rgb, 1.0));
 }
-

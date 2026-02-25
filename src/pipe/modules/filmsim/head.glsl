@@ -1,4 +1,5 @@
 #include "shared.glsl"
+#include "colourspaces.glsl"
 #include "../rt/colour.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 0) uniform global_t

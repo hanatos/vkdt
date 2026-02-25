@@ -3,6 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
+#include "matrices.h"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -46,10 +47,7 @@ main()
   // on the go as done in down.comp. then pick up the scales accordingly.
   vec3 down4;
   // this is for srgb not rec2020, but whatever
-  const mat3 rgb_to_yuv = mat3(
-      0.299, -0.147, 0.615,
-      0.587, -0.289, -0.515,
-      0.114, 0.436, -0.100);
+  const mat3 rgb_to_yuv = matrix_rec709_to_yuv;
   vec3 orig = texelFetch(img_s0, ipos+push.crop.xy, 0).rgb;
   float test = 1.0;
   { // scope for registers

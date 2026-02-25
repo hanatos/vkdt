@@ -1,4 +1,5 @@
 #include "shared.glsl"
+#include "colourspaces.glsl"
 #include "shared/dtucs.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
@@ -66,26 +67,17 @@ cat16(vec3 rec2020_d65, vec3 rec2020_src, vec3 rec2020_dst)
   // Smet and Ma, "Some concerns regarding the CAT16 chromatic adaptation transform",
   // Color Res Appl. 2020;45:172–177.
   // these are XYZ to cone-like
-  const mat3 M16i = transpose(mat3(
-       1.86206786, -1.01125463,  0.14918677,
-       0.38752654,  0.62144744, -0.00897398,
-      -0.01584150, -0.03412294,  1.04996444));
-  const mat3 M16 = transpose(mat3(
-       0.401288, 0.650173, -0.051461,
-      -0.250268, 1.204414,  0.045854,
-      -0.002079, 0.048952,  0.953127));
-  const mat3 rec2020_to_xyz = mat3(
-    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
-    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
-    1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+  const mat3 M16i = matrix_cat16_Mi;
+  const mat3 M16  = matrix_cat16_M;
+  const mat3 rec2020_to_xyz = matrix_rec2020_to_xyz;
+  const mat3 xyz_to_rec2020 = matrix_xyz_to_rec2020;
 
   const vec3 cl_src = M16 * rec2020_to_xyz * rec2020_src;
   const vec3 cl_dst = M16 * rec2020_to_xyz * rec2020_dst;
   vec3 cl = M16 * rec2020_to_xyz * rec2020_d65;
   cl *= cl_dst / cl_src;
-  return inverse(rec2020_to_xyz) * M16i * cl;
+  return xyz_to_rec2020 * M16i * cl;
 }
-
 
 float
 rbfk(vec3 ci, vec3 p)
@@ -168,10 +160,7 @@ vec3 decode_colour(vec3 rgb)
   }
   else if(params.primaries == 1) // srgb
   { // convert linear rec709 to linear rec2020
-    const mat3 M = mat3(
-      0.62750375, 0.06910828, 0.01639406,
-      0.32927542, 0.91951916, 0.08801125,
-      0.04330266, 0.0113596 , 0.89538035);
+    const mat3 M = matrix_rec709_to_rec2020;
     rgb = M * rgb;
   }
   // else if(params.primaries == 2) // 2020 and 2100
@@ -179,26 +168,17 @@ vec3 decode_colour(vec3 rgb)
   // }
   else if(params.primaries == 3) // adobeRGB
   {
-    const mat3 rec2020_to_adobeRGB = mat3(
-        0.87736306, 0.0966218 , 0.02291617,
-        0.07751751, 0.89152263, 0.04301452,
-        0.04516292, 0.01186405, 0.93367996);
-    rgb = rec2020_to_adobeRGB * rgb;
+    const mat3 adobeRGB_to_rec2020 = matrix_adobergb_to_rec2020;
+    rgb = adobeRGB_to_rec2020 * rgb;
   }
   else if(params.primaries == 4) // P3
   {
-    const mat3 rec2020_to_display_P3 = mat3(
-        0.75386031,  0.04575344, -0.00121501,
-        0.19861268,  0.94178472,  0.01760596,
-        0.04757049,  0.01247032,  0.98321971);
-    rgb = rec2020_to_display_P3 * rgb;
+    const mat3 display_P3_to_rec2020 = matrix_p3d65_to_rec2020;
+    rgb = display_P3_to_rec2020 * rgb;
   }
   else if(params.primaries == 5) // XYZ
   {
-    const mat3 xyz_to_rec2020 = mat3(
-      1.71665119, -0.66668435,  0.01763986,
-     -0.35567078,  1.61648124, -0.04277061,
-     -0.25336628,  0.01576855,  0.94210312);
+    const mat3 xyz_to_rec2020 = matrix_xyz_to_rec2020;
     rgb = xyz_to_rec2020 * rgb;
   }
   return rgb;

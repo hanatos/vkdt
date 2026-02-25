@@ -3,6 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
+#include "matrices.h"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -24,10 +25,7 @@ main()
   if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  const mat3 rec2020_to_xyz = mat3(
-    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
-    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
-    1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
+  const mat3 rec2020_to_xyz = matrix_rec2020_to_xyz;
   vec3 xyz = rec2020_to_xyz * rgb;
   float b = dot(vec3(1.0), xyz);
   if(b < 0.05) return; // overly dark pixels give us unreliable colour estimates, mostly clamped to some boundary

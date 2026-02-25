@@ -6,6 +6,7 @@ use std::cmp;
 use std::convert::TryInto;
 use rawler::Result;
 use rawler::imgop::xyz::Illuminant;
+use rawler::imgop::xyz::FlatColorMatrix;
 use rawler::decoders::RawDecodeParams;
 use rawler::decoders::FormatHint;
 use rawler::decoders::WellKnownIFD;
@@ -27,6 +28,7 @@ pub struct c_rawimage {
   pub whitelevels : [f32;4],
   pub blacklevels : [f32;4],
   pub xyz_to_cam  : [[f32;3];4],
+  pub illuminant  : u32,
   pub filters     : u32,
   pub crop_aabb   : [u64;4],
   pub orientation : u32,
@@ -91,6 +93,11 @@ unsafe fn copy_metadata(path : &str, rawimg : *mut c_rawimage) -> Result<()>
   Ok(())
 }
 
+unsafe fn copy_matrix(rawimg : *mut c_rawimage, m : &FlatColorMatrix)
+{
+  for j in 0..3 { for i in 0..3 { (*rawimg).xyz_to_cam[i][j] = m[3*i+j]; } }
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn rl_decode_file(
     filename: *mut c_char,
@@ -136,9 +143,23 @@ pub unsafe extern "C" fn rl_decode_file(
   (*rawimg).blacklevels  = image.blacklevel.as_bayer_array();
   // (*rawimg).orientation = image.orientation.to_u16() as u32;
 
-  match image.color_matrix.get(&Illuminant::D65) {
-    Some(m) => for j in 0..3 { for i in 0..3 { (*rawimg).xyz_to_cam[i][j] = m[3*i+j]; } }
-    None    => for j in 0..3 { for i in 0..4 { (*rawimg).xyz_to_cam[i][j] = image.xyz_to_cam[i][j]; } }
+  let ills: [Illuminant; 5] = [Illuminant::D65, Illuminant::D50, Illuminant::D55, Illuminant::D75, Illuminant::A];
+  let mut found_ill: bool = false;
+  let mut illidx: u32 = 0;
+  for ill in &ills {
+    match image.color_matrix.get(&ill) {
+      Some(m) => {
+        copy_matrix(rawimg, m);
+        (*rawimg).illuminant = illidx;
+        found_ill = true;
+        break;
+      },
+      _ => { illidx = illidx + 1; }
+    }
+  }
+  if !found_ill { // fallback probably does nothing, xyz_to_cam is deprecated
+    for j in 0..3 { for i in 0..4 { (*rawimg).xyz_to_cam[i][j] = image.xyz_to_cam[i][j]; } }
+    (*rawimg).illuminant = 666;
   }
 
   copy_metadata(strn, rawimg).unwrap();
