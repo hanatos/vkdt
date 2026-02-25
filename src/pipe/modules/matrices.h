@@ -9,11 +9,13 @@
 { A, B, C, \
   D, E, F, \
   G, H, I }
+#define makevec(A,B,C) {A,B,C}
 #else // glsl gives matrices as three column vectors:
 #define makemat(A,B,C,D,E,F,G,H,I) mat3(\
   A, D, G, \
   B, E, H, \
   C, F, I )
+#define makevec(A,B,C) vec3(A,B,C)
 #endif
 
 // chromatic adaptation transform matrices, CAT16 M and inverse
@@ -22,6 +24,23 @@
 // M: XYZ to cone-like
 #define matrix_cat16_Mi makemat(1.86206786, -1.01125463,  0.14918677, 0.38752654,  0.62144744, -0.00897398, -0.01584150, -0.03412294,  1.04996444)
 #define matrix_cat16_M  makemat(0.401288, 0.650173, -0.051461, -0.250268, 1.204414,  0.045854, -0.002079, 0.048952,  0.953127)
+// the reference white points converted from XYZ to cat16 cone-like via M
+#define white_cat16_a   makevec(1.07267804, 0.94580946, 0.38579081)
+#define white_cat16_d50 makevec(0.99463442, 1.00093973, 0.83337252)
+#define white_cat16_d55 makevec(0.98670919, 1.00720745, 0.92517403)
+#define white_cat16_d60 makevec(0.98054329, 1.01225584, 1.00850997)
+#define white_cat16_d65 makevec(0.97552638, 1.01648513, 1.0847408)
+#define white_cat16_d75 makevec(0.9681735,  1.0229639,  1.21587342)
+#define white_cat16_d93 makevec(0.95990494, 1.03068499, 1.39349395)
+
+// these adapt XYZ from/to the given white points:
+#define matrix_cat16_a_to_d65 makemat(9.50674182e-01, -1.87430902e-01,  2.62831155e-01, -2.56724729e-02, 1.03231456e+00, -1.15608371e-02, -2.74089665e-03,  9.09809774e-02, 2.81290019e+00)
+#define matrix_cat16_d50_to_d65 makemat(9.89482020e-01, -3.99715078e-02,  4.40103520e-02, -5.39737108e-03, 1.00665157e+00, -1.75423920e-03, -4.03659609e-04,  1.50625995e-02, 1.30181385e+00)
+#define matrix_cat16_d55_to_d65 makemat(9.93809109e-01, -2.36805157e-02,  2.51833773e-02, -3.19186083e-03, 1.00396313e+00, -9.86707812e-04, -2.25775304e-04,  8.60286147e-03, 1.17257778e+00)
+#define matrix_cat16_d60_to_d65 makemat(9.97210818e-01, -1.07310837e-02,  1.10446315e-02, -1.44406069e-03, 1.00180486e+00, -4.25428414e-04, -9.67926098e-05,  3.76602349e-03, 1.07563353e+00)
+#define matrix_cat16_d75_to_d65 makemat(1.00410545e+00,  1.61206883e-02, -1.57697661e-02,  2.16403273e-03, 9.97220529e-01,  5.90558927e-04,  1.33059688e-04, -5.36122439e-03, 8.92084722e-01)
+#define matrix_cat16_d93_to_d65 makemat(1.00874225e+00,  3.48643084e-02, -3.24261661e-02,  4.66935441e-03, 9.93885810e-01,  1.17801519e-03,  2.62546309e-04, -1.09895081e-02, 7.78301142e-01)
+
 
 // the most braindead of all adaptation matrices:
 #define matrix_e_to_d50 makemat(0.9977545, -0.0041632, -0.0293713, -0.0097677,  1.0183168, -0.0085490, -0.0074169,  0.0134416,  0.8191853)

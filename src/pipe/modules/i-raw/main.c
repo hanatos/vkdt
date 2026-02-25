@@ -3,6 +3,7 @@
 #include "rawloader-c/rawloader.h"
 // #include "core/log.h"
 #include "dng_opcode.h"
+#include "modules/matrices.h"
 
 #include <stdio.h>
 #include <time.h>
@@ -222,29 +223,35 @@ void modify_roi_out(
     mod->img_param.filters = 0;
   }
 
-  // XXX TODO CAT from img.illuminant if it's not D65
-  // uint32_t illuminant; // D65 D50 D55 D75 A or we don't know
   float xyz_to_cam[12], mat[9] = {0};
   // get d65 camera matrix from rawloader
   for(int j=0;j<3;j++) for(int i=0;i<3;i++)
     xyz_to_cam[3*j+i] = mod_data->img.xyz_to_cam[j][i];
-  mat3inv(mat, xyz_to_cam);
+
+  // now do a CAT16 chromatic adaptation transform if the illuminant
+  // specified for the given matrix wasn't D65.
+#define ADJ(i, w) case i: {\
+  float M[] = w;\
+  memcpy(mat, xyz_to_cam, sizeof(float)*9);\
+  mat3mul(xyz_to_cam, mat, M);\
+  break; }
+  switch(mod_data->img.illuminant)
+  {
+    ADJ(0, matrix_cat16_a_to_d65)
+    ADJ(1, matrix_cat16_d50_to_d65)
+    ADJ(2, matrix_cat16_d55_to_d65)
+    ADJ(3, matrix_cat16_d60_to_d65)
+    ADJ(5, matrix_cat16_d75_to_d65)
+    ADJ(6, matrix_cat16_d93_to_d65)
+  }
+#undef ADJ
 
   // compute matrix camrgb -> rec2020 d65
-  double cam_to_xyz[] = {
-    mat[0], mat[1], mat[2],
-    mat[3], mat[4], mat[5],
-    mat[6], mat[7], mat[8]};
-
-  const float xyz_to_rec2020[] = {
-    1.7166511880, -0.3556707838, -0.2533662814,
-    -0.6666843518,  1.6164812366,  0.0157685458,
-    0.0176398574, -0.0427706133,  0.9421031212
-  };
+  float cam_to_xyz[9];
+  mat3inv(cam_to_xyz, xyz_to_cam);
+  const float xyz_to_rec2020[] = matrix_xyz_to_rec2020;
   float cam_to_rec2020[9] = {0.0f};
-  for(int j=0;j<3;j++) for(int i=0;i<3;i++) for(int k=0;k<3;k++)
-    cam_to_rec2020[3*j+i] +=
-      xyz_to_rec2020[3*j+k] * cam_to_xyz[3*k+i];
+  mat3mul(cam_to_rec2020, xyz_to_rec2020, cam_to_xyz);
   for(int k=0;k<9;k++)
     mod->img_param.cam_to_rec2020[k] = cam_to_rec2020[k];
 }

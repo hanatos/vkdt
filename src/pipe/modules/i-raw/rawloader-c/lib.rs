@@ -143,18 +143,27 @@ pub unsafe extern "C" fn rl_decode_file(
   (*rawimg).blacklevels  = image.blacklevel.as_bayer_array();
   // (*rawimg).orientation = image.orientation.to_u16() as u32;
 
-  let ills: [Illuminant; 5] = [Illuminant::D65, Illuminant::D50, Illuminant::D55, Illuminant::D75, Illuminant::A];
+  // really A D50 D55 D60 D65 D75 D93 (but rawler doesn't support all these)
+  // and we want to iterate over them with some priority.
+  let idcs: [u32;5] = [4, 2, 1, 5, 0];
+  let ills: [Illuminant;5] = [
+    Illuminant::D65,
+    Illuminant::D55,
+    Illuminant::D50,
+    Illuminant::D75,
+    Illuminant::A];
+
   let mut found_ill: bool = false;
-  let mut illidx: u32 = 0;
-  for ill in &ills {
+  for it in idcs.iter().zip(ills.iter()) {
+    let (idx, ill) = it;
     match image.color_matrix.get(&ill) {
       Some(m) => {
         copy_matrix(rawimg, m);
-        (*rawimg).illuminant = illidx;
+        (*rawimg).illuminant = *idx;
         found_ill = true;
         break;
       },
-      _ => { illidx = illidx + 1; }
+      _ => { }
     }
   }
   if !found_ill { // fallback probably does nothing, xyz_to_cam is deprecated
