@@ -20,17 +20,6 @@ void main()
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
-  /*****************************************************
-    Parameter Setup
-    --------------------------------------------------*/
-
-#if 0
-  // Init look preset variables
-  int tn_hcon_enable, tn_lcon_enable, pt_enable, ptl_enable, ptm_enable, brl_enable, brlp_enable, hc_enable, hs_rgb_enable, hs_cmy_enable, cwp, tn_su, clamp, display_gamut, eotf;
-  
-  float tn_con, tn_sh, tn_toe, tn_off, tn_hcon, tn_hcon_pv, tn_hcon_st, tn_lcon, tn_lcon_w, cwp_lm, rs_sa, rs_rw, rs_bw, pt_lml, pt_lml_r, pt_lml_g, pt_lml_b, pt_lmh, pt_lmh_r, pt_lmh_b, ptl_c, ptl_m, ptl_y, ptm_low, ptm_low_rng, ptm_low_st, ptm_high, ptm_high_rng, ptm_high_st, brl, brl_r, brl_g, brl_b, brl_rng, brl_st, brlp, brlp_r, brlp_g, brlp_b, hc_r, hc_r_rng, hs_r, hs_r_rng, hs_g, hs_g_rng, hs_b, hs_b_rng, hs_c, hs_c_rng, hs_m, hs_m_rng, hs_y, hs_y_rng;
-#endif
-
   mat3 in_to_xyz;
   if (params.i_gamut==0) in_to_xyz = mat3(1);
   else if (params.i_gamut==1) in_to_xyz = matrix_ap0_to_xyz;
@@ -63,8 +52,8 @@ void main()
     Tonescale Constraint Calculations
     https://www.desmos.com/calculator/1c4fhzy3bw
 
-    These should be pre-calculated but there is no way to do this in DCTL.
     Anything that is const should be precalculated and not run per-pixel
+    (could do that cpu-side in commit_params, but what's a few pow and log among friends)
     --------------------------------------------------*/
   const float ts_x1 = pow(2.0f, 6.0f*params.tn_sh + 4.0f);
   const float ts_y1 = params.tn_Lp/100.0f;
