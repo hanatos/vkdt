@@ -1,6 +1,7 @@
 #pragma once
 // some routines shared between node editor and darkroom mode
 #include "widget_tooltip.h"
+#include "pipe/modules/matrices.h"
 
 static inline void
 dt_gui_set_lod(int lod)
@@ -652,20 +653,14 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     if(nk_widget_is_hovered(ctx))
     {
       float xyzE[3] = {0}, xyz[3] = {0};
-      const float rec2020_to_xyz[] = { // a copy from glsl row major, i.e. transposed
-        6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
-        1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
-        1.68880975e-01, 5.93017165e-02, 1.06098506e+00};
+      const float rec2020_to_xyz[] = matrix_rec2020_to_xyz;
       for(int i=0;i<3;i++) for(int j=0;j<3;j++)
         xyzE[i] += rec2020_to_xyz[3*j+i]*val[j];
       // fucking icc uses some fucking variant of D50 as a reference white in the
       // profile connection space, for XYZ! so now we do the same nonsense, just
       // to try and match the spotread -x output. we'll use Bradford adaptation,
       // as does icc:
-      const float lindbloom_E_to_D50[] = { // too lazy to do the math myself
-         0.9977545, -0.0041632, -0.0293713,
-        -0.0097677,  1.0183168, -0.0085490,
-        -0.0074169,  0.0134416,  0.8191853};
+      const float lindbloom_E_to_D50[] = matrix_e_to_d50;
       for(int i=0;i<3;i++) for(int j=0;j<3;j++)
         xyz[i] += lindbloom_E_to_D50[3*i+j]*xyzE[j];
       const float sum = xyz[0]+xyz[1]+xyz[2];

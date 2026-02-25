@@ -8,6 +8,7 @@
 #include <math.h>
 #include <float.h>
 
+#include "core.h"
 #include "../tools/clut/src/xrand.h"
 
 // conjugate gradient solve:

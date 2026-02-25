@@ -8,7 +8,7 @@
 #include <assert.h>
 
 #include "../../../../core/solve.h"
-#include "../../../../tools/shared/matrices.h"
+#include "../../matrices.h"
 
 // discretisation of quadrature scheme
 #define CIE_SAMPLES 95
@@ -54,8 +54,10 @@ void init_tables()//Gamut gamut)
   const double *illuminant = 0;
 
   illuminant = cie_d65;
-  memcpy(xyz_to_rgb, xyz_to_srgb, sizeof(double) * 9);
-  memcpy(rgb_to_xyz, srgb_to_xyz, sizeof(double) * 9);
+  double M0[] = matrix_xyz_to_rec709;
+  double M1[] = matrix_rec709_to_xyz;
+  memcpy(xyz_to_rgb, M0, sizeof(double) * 9);
+  memcpy(rgb_to_xyz, M1, sizeof(double) * 9);
   for (int i = 0; i < CIE_FINE_SAMPLES; ++i)
   {
     double h, lambda, weight;

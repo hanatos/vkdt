@@ -13,6 +13,7 @@
 #include "widget_draw.h"
 #include "render_view.h"
 #include "widget_radial_menu_dr-fwd.h"
+#include "pipe/modules/matrices.h"
 
 static inline int
 style_name_to_colour(const char *name)
@@ -124,15 +125,9 @@ void dt_gui_update_cm()
   glfwGetMonitorPos(monitors[0], &xpos0, &ypos);
   glfwGetMonitorPos(monitors[MIN(monitors_cnt-1, 1)], &xpos1, &ypos);
   float gamma0[] = {0, 0, 0}; // 0 means use sRGB TRC
-  float rec2020_to_dspy0[] = { // to linear sRGB D65
-     1.66022709, -0.58754775, -0.07283832,
-    -0.12455356,  1.13292608, -0.0083496,
-    -0.01815511, -0.100603  ,  1.11899813 };
+  float rec2020_to_dspy0[] = matrix_rec2020_to_rec709;
   float gamma1[] = {0, 0, 0};
-  float rec2020_to_dspy1[] = { // to linear sRGB D65
-     1.66022709, -0.58754775, -0.07283832,
-    -0.12455356,  1.13292608, -0.0083496,
-    -0.01815511, -0.100603  ,  1.11899813 };
+  float rec2020_to_dspy1[] = matrix_rec2020_to_rec709;
   if(vkdt.win.surf_format.colorSpace != VK_COLOR_SPACE_HDR10_ST2084_EXT)
   { // fake cm for sdr monitors:
     if(monitors_cnt > 2)

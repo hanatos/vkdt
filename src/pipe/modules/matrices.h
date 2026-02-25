@@ -4,12 +4,6 @@
 // note that some single-use matrices such as for dtucs or oklab remain in their respective conversion functions
 // as these don't seem very useful without the code surrounding them directly.
 
-// TODO remove all other matrix definitions from the code!
-// check
-// colour
-// colenc
-// i-v4l2
-
 #ifndef GL_core_profile // c version
 #define makemat(A,B,C,D,E,F,G,H,I) \
 { A, B, C, \
@@ -28,6 +22,9 @@
 // M: XYZ to cone-like
 #define matrix_cat16_Mi makemat(1.86206786, -1.01125463,  0.14918677, 0.38752654,  0.62144744, -0.00897398, -0.01584150, -0.03412294,  1.04996444)
 #define matrix_cat16_M  makemat(0.401288, 0.650173, -0.051461, -0.250268, 1.204414,  0.045854, -0.002079, 0.048952,  0.953127)
+
+// the most braindead of all adaptation matrices:
+#define matrix_e_to_d50 makemat(0.9977545, -0.0041632, -0.0293713, -0.0097677,  1.0183168, -0.0085490, -0.0074169,  0.0134416,  0.8191853)
 
 // XYZ
 #define matrix_rec2020_to_xyz makemat(0.636958048301290991, 0.144616903586208406, 0.168880975164172054, 0.26270021201126692, 0.677998071518871148, 0.0593017164698619384, 4.9999999999999999e-17, 0.0280726930490874452, 1.06098505771079066)
