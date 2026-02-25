@@ -5,7 +5,7 @@ https://github.com/jedypod/open-display-transform
 License: GPLv3
 -------------------------------------------------*/
 
-#include "matrices.glsl"
+#include "matrices.h"
 
 /* Math helper functions ----------------------------*/
 
