@@ -1163,6 +1163,7 @@ darkroom_enter()
 
   dt_gui_set_lod(vkdt.wstate.lod_fine);
   vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
+  vkdt.graph_dev.double_buffer = 0; // graph_init does this too, but let's be explicit
   if((vkdt.graph_res[vkdt.graph_dev.double_buffer] =
         dt_graph_run(&vkdt.graph_dev, s_graph_run_all & ~s_graph_run_wait_done)) != VK_SUCCESS)
     dt_gui_notification("running the graph failed (%s)!",
