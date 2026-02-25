@@ -49,6 +49,7 @@
 
 // yuv
 #define matrix_rec709_to_yuv makemat(0.299, 0.587, 0.114, -0.147, -0.289, 0.436, 0.615, -0.515, -0.100)
+#define matrix_yuv_to_rec709 makemat(1.0, -3.94570707e-05, 1.13982797, 1.0, -3.94610164e-01, -5.80500316e-01, 1.0, 2.03199968, -4.81376263e-04)
 
 // M3 in ITU-R BT.2087-0 goes from rec2020 to YCbCr (both normalised)
 #define matrix_rec2020_to_ycbcr makemat(0.2627, 0.6780, 0.0593, -0.2627/1.8814, -0.6780/1.8814, 0.5, 0.5, -0.6780/1.4746, -0.0593/1.4746)

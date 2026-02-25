@@ -157,7 +157,8 @@ main()
   vec3 yuv  = rgb_to_yuv * ((down4 - push.black.rgb) / (push.white.rgb - push.black.rgb) * push.wb.rgb);
   vec3 yuvo = rgb_to_yuv * ((orig  - push.black.rgb) / (push.white.rgb - push.black.rgb) * push.wb.rgb);
   yuv.x = mix(yuvo.x, yuv.x, params.luma);
-  vec3 rgb = (inverse(rgb_to_yuv) * yuv) / push.wb.rgb * (push.white.rgb - push.black.rgb) + push.black.rgb;
+  mat3 yuv_to_rgb = matrix_yuv_to_rec709;
+  vec3 rgb = (yuv_to_rgb * yuv) / push.wb.rgb * (push.white.rgb - push.black.rgb) + push.black.rgb;
 
   imageStore(img_out, ipos, vec4(rgb, test));
 }
