@@ -107,7 +107,7 @@ hs_y_r:slider:0.0:1.0
 group:-1:-1
 # clamp:combo:disabled:enabled
 clamp:hidden
-tn_su:combo:Dark:Dim:Bright
+tn_su:combo:dark:dim:bright
 # o gamut:combo:Rec.709:P3-D65:Rec.2020 (P3 Limited):P3-D60:P3-DCI:XYZ
 # eotf:combo:Linear:2.2 Power sRGB Display:2.4 Power Rec.1886:2.6 Power DCI:ST 2084 PQ:HLG
 o gamut:hidden

@@ -1,0 +1,75 @@
+i gamut:input gamut
+i oetf:input oetf
+tn_Lp:display peak luminance
+tn_gb:HDR grey boost
+pt_hdr:HDR purity
+tn_Lg:display grey luminance
+crv en:tonescale overlay
+tn_con:contrast
+tn_sh:shoulder clip
+tn_toe:toe
+tn_off:offset
+tn_hc_en:contrast high
+tn_hc:amount
+tn_hc_pv:pivot
+tn_hc_st:strength
+tn_lc_en:contrast low
+tn_lc:amount
+tn_lc_w:width
+cwp:creative white
+cwp_lm:limit
+rs_sa:render space strength
+rs_rw:weight r
+rs_bw:weight b
+pt_en:purity compress high
+pt_lml:limit low
+pt_lml_r:red
+pt_lml_g:green
+pt_lml_b:blue
+pt_lmh:purity limit high
+pt_lmh_r:red
+pt_lmh_b:blue
+ptl_en:purity softclip
+ptl_c:cyan
+ptl_m:magenta
+ptl_y:yellow
+ptm_en:mid purity
+ptm_lo:low
+ptm_lo_r:low range
+ptm_lo_s:low strength
+ptm_hi:high
+ptm_hi_r:high range
+ptm_hi_s:high strength
+brl_en:brilliance
+brl:amount
+brl_r:red
+brl_g:green
+brl_b:blue
+brl_rng:range
+brl_st:strength
+brlp_en:post brilliance
+brlp:amount
+brlp_r:red
+brlp_g:green
+brlp_b:blue
+hc_en:hue contrast
+hc_r:red
+hc_r_r:red range
+hsrgb_en:hue shift rgb
+hs_r:red
+hs_r_r:red range
+hs_g:green
+hs_g_r:green range
+hs_b:blue
+hs_b_r:blue range
+hscmy_en:hue shift cmy
+hs_c:cyan
+hs_c_r:cyan range
+hs_m:magenta
+hs_m_r:magenta range
+hs_y:yellow
+hs_y_r:yellow range
+clamp:clamp
+tn_su:surrounding
+o gamut:display gamut
+eotf:display eotf
