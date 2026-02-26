@@ -1,11 +1,11 @@
-i gamut:combo:XYZ:ACES 2065-1:ACEScg:P3D65:Rec.2020:Rec.709:Arri Wide Gamut 3:Arri Wide Gamut 4:Red Wide Gamut RGB:Sony SGamut3:Sony SGamut3Cine:Panasonic V-Gamut:Filmlight E-Gamut:Filmlight E-Gamut2:DaVinci Wide Gamut
-i oetf:combo:Linear:Davinci Intermediate:Filmlight T-Log:ACEScct:Arri LogC3:Arri LogC4:RedLog3G10:Panasonic V-Log:Sony S-Log3:Fuji F-Log2
+i gamut:hidden:combo:XYZ:ACES 2065-1:ACEScg:P3D65:Rec.2020:Rec.709:Arri Wide Gamut 3:Arri Wide Gamut 4:Red Wide Gamut RGB:Sony SGamut3:Sony SGamut3Cine:Panasonic V-Gamut:Filmlight E-Gamut:Filmlight E-Gamut2:DaVinci Wide Gamut
+i oetf:hidden:combo:Linear:Davinci Intermediate:Filmlight T-Log:ACEScct:Arri LogC3:Arri LogC4:RedLog3G10:Panasonic V-Log:Sony S-Log3:Fuji F-Log2
 tn_Lp:slider:100.0:1000.0
 tn_gb:slider:0.0:1.0
 pt_hdr:slider:0.0:1.0
 tn_Lg:slider:3.0:25.0
 ---
-crv en:combo:disabled:enabled
+crv en:hidden:combo:disabled:enabled
 tn_con:slider:1.0:2.0
 tn_sh:slider:0.0:1.0
 tn_toe:slider:0.0:0.1
@@ -102,7 +102,7 @@ hs_y:slider:0.0:1.0
 hs_y_r:slider:0.0:1.0
 ---
 group:-1:-1
-clamp:combo:disabled:enabled
+clamp:hidden:combo:disabled:enabled
 tn_su:combo:Dark:Dim:Bright
-o gamut:combo:Rec.709:P3-D65:Rec.2020 (P3 Limited):P3-D60:P3-DCI:XYZ
-eotf:combo:Linear:2.2 Power sRGB Display:2.4 Power Rec.1886:2.6 Power DCI:ST 2084 PQ:HLG
+o gamut:hidden:combo:Rec.709:P3-D65:Rec.2020 (P3 Limited):P3-D60:P3-DCI:XYZ
+eotf:hidden:combo:Linear:2.2 Power sRGB Display:2.4 Power Rec.1886:2.6 Power DCI:ST 2084 PQ:HLG
