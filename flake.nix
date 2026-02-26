@@ -30,7 +30,7 @@
 
             cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
               inherit pname src cargoRoot;
-              hash = "sha256-l2mOX5sVXE8nm86EP0jwXOxyu+jQqgpZrYsyXj1nsqo=";
+              hash = "sha256-kLpjYCouZxdDjbMGjn4xE/80nKVaf9SZYGxwHOoNL+g=";
             };
 
             strictDeps = true;
@@ -38,7 +38,6 @@
             nativeBuildInputs = with pkgs; [
               cargo
               clang
-              cmake
               git
               glslang
               llvm
@@ -51,18 +50,16 @@
 
             buildInputs = with pkgs; [
               alsa-lib
-              exiv2
               ffmpeg
-              freetype
               glfw
               libjpeg
               libmad
               libvorbis
               llvmPackages.openmp
-              pugixml
               vulkan-headers
               vulkan-loader
               vulkan-tools
+              zlib
             ];
 
             dontUseCmakeConfigure = true;
