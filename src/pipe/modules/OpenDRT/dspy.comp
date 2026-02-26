@@ -5,11 +5,22 @@
 #include "params.glsl"
 #include "opendrt.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
-layout(set = 1, binding = 0) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0, std430) buffer buf_hist { uint  histogram[]; };
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec3 rgb = vec3(0.05); // background colour
+
+  { // draw histogram
+    const uint hist_size = 256;
+    vec2 tc = (ipos+0.5) / vec2(imageSize(img_out));
+    const float h = 0.25*log(1.0+100000.0*histogram[int(clamp(tc.x*hist_size, 0, hist_size-1))]/float(histogram[hist_size]))-1.0;
+    if(1.0-tc.y < h) rgb = vec3(0.3);
+  }
+
   vec2 pos = ipos;
   vec2 res = imageSize(img_out);
   float crv_tsn = 0.0;
@@ -52,8 +63,6 @@ void main()
   if (params.eotf == 4) crv_tsn *= 10.0f;
   vec3 crv_rgb = vec3(crv_tsn);
   crv_rgb = display_gamut_whitepoint(crv_rgb, crv_tsn_const, params.cwp_lm, params.o_gamut, params.cwp);
-
-  vec3 rgb = vec3(0.0);
 
   vec3 crv_rgb_dst = vec3(
       res.y-pos.y-crv_rgb.x*res.y,

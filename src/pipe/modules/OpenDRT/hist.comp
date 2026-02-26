@@ -1,0 +1,45 @@
+// LDAP's merian histogram code stolen:
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+#include "colourspaces.glsl"
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+layout(set = 1, binding = 0) uniform sampler2D img_src;
+layout(set = 1, binding = 1, std430) buffer buf_hist { uint  histogram[]; };
+#include "params.glsl"
+const uint hist_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
+shared uint[hist_size] local_hist;
+shared uint count;
+
+uint get_bin(vec3 rgb)
+{
+  float l = luminance_rec2020(rgb);
+  uint bin = uint(hist_size * l + 0.5);
+  return clamp(bin, 0, hist_size - 1);
+}
+
+void main()
+{
+  const ivec2 ipos = ivec2(gl_GlobalInvocationID);
+
+  local_hist[gl_LocalInvocationIndex] = 0;
+  if (gl_LocalInvocationIndex == 0) count = 0;
+  barrier();
+
+  const ivec2 isize = textureSize(img_src, 0);
+  if (all(lessThan(ipos, isize)))
+  {
+    vec3 color = texelFetch(img_src, ipos, 0).rgb;
+    const uint bin = get_bin(color);
+    if(bin > 0)
+    {
+      atomicAdd(local_hist[bin], 1);
+      atomicAdd(count, 1);
+    }
+  }
+  barrier();
+
+  atomicAdd(histogram[gl_LocalInvocationIndex], local_hist[gl_LocalInvocationIndex]);
+  if (gl_LocalInvocationIndex == 0) atomicAdd(histogram[hist_size], count);
+}
