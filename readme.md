@@ -42,7 +42,12 @@ which you can use to try out/run on any linux distro, for instance:
 ```
   nix-shell -p vkdt
 ```
-and if you're on arch, there is a vkdt-git package in aur:
+`vkdt` comes with a nix flake for an up-to-date package, so you
+can checkout this repository and then
+```
+  nix run .
+```
+if you're on arch, there is a vkdt-git package in aur:
 ```
   yay vkdt-git
 ```
