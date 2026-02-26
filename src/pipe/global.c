@@ -188,6 +188,7 @@ dt_module_so_load(
       fscanf(f, "%8191[^\n]", line);
       char *b = line;
       if(fgetc(f) == EOF) break; // read \n
+      if(line[0] == '#') continue; // ignore comment lines
       dt_token_t parm = dt_read_token(b, &b);
       dt_token_t type = dt_read_token(b, &b);
       if(parm == dt_token("---"))
