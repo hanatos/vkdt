@@ -269,7 +269,8 @@ int dt_gui_init()
   if(dt_gui_win_init_vk(&vkdt.win)) return 1;
 
   // joystick detection: find first gamepad.
-  FILE *f = fopen("/usr/share/sdl/gamecontrollerdb.txt", "r");
+  FILE *f = fopen("gamecontrollerdb.txt", "r");
+  if(!f) f = fopen("/usr/share/sdl/gamecontrollerdb.txt", "r");
   if(f)
   { // load additional controller descriptions from file above if present
     fseek(f, SEEK_END, 0);
