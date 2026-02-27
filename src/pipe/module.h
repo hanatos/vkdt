@@ -26,8 +26,8 @@ typedef enum dt_colour_primaries_t
   s_colour_primaries_adobe        =  3, // adobe rgb 1998
   s_colour_primaries_P3           =  4, // this is display P3, D65
   s_colour_primaries_XYZ          =  5, // CIE XYZ (illuminant E)
-  s_colour_primaries_aces2065_1   =  6, // ACES 2065-1
-  s_colour_primaries_acescg       =  7, // ACEScg
+  s_colour_primaries_aces2065_1   =  6, // ACES 2065-1 or AP0
+  s_colour_primaries_acescg       =  7, // ACEScg or AP1
   s_colour_primaries_arri3        =  8, // Arri Wide Gamut 3
   s_colour_primaries_arri4        =  9, // Arri Wide Gamut 4
   s_colour_primaries_red          = 10, // Red Wide Gamut RGB
@@ -49,7 +49,7 @@ typedef enum dt_colour_trc_t
   s_colour_trc_PQ             =  3, // SMPTE ST 2084
   s_colour_trc_DCI            =  4, // SMPTE ST 428-1
   s_colour_trc_HLG            =  5, // Rec. ITU-R BT.2100-1 (HLG)
-  s_colour_trc_gamma          =  6, // mostly 2.2 for adobe rgb
+  s_colour_trc_gamma          =  6, // 2.2 for adobe rgb
   s_colour_trc_davinci_inter  =  7, // Davinci Intermediate
   s_colour_trc_filmlight_tlog =  8, // Filmlight T-Log
   s_colour_trc_acescct        =  9, // ACEScct

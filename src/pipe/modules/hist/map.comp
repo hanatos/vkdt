@@ -5,20 +5,12 @@
 #include "shared.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
-
 // layout(std140, set = 0, binding = 1) uniform params_t { } params;
-
-layout( // input ui32 buffer r
-    set = 1, binding = 0
-) uniform usampler2D img_in;
-
-layout( // output f16 buffer rgba
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform usampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 // display histogram, runs on output dimensions==input
-void
-main()
+void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
@@ -31,4 +23,3 @@ main()
   rgb = pow(rgb, vec3(0.3));
   imageStore(img_out, ipos, vec4(rgb, 1.0));
 }
-

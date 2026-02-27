@@ -1,6 +1,7 @@
 #include "shared.glsl"
 #include "colourspaces.glsl"
 #include "shared/dtucs.glsl"
+#include "shared/oetf.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -29,35 +30,17 @@ layout(push_constant, std140) uniform push_t
   int have_abney; // only set if we have both img_abney and img_spectra
 } push;
 
-
-layout( // input
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
-
-layout( // if have_clut, the colour lookup table is here
-    set = 1, binding = 2
-) uniform sampler2D img_clut;
-
-layout( // picked colour if any.
-    set = 1, binding = 3
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+layout(set = 1, binding = 2) uniform sampler2D img_clut;
+layout(set = 1, binding = 3
 #ifdef HAVE_NO_ATOMICS
 ) uniform usampler2D img_pick;
 #else
 ) uniform sampler2D img_pick;
 #endif
-
-layout( // if have_abney, this contains the hue constancy map
-    set = 1, binding = 4
-) uniform sampler2D img_abney;
-
-layout( // if have_abney, this contains the spectral upsampling table
-    set = 1, binding = 5
-) uniform sampler2D img_spectra;
-
+layout(set = 1, binding = 4) uniform sampler2D img_abney;
+layout(set = 1, binding = 5) uniform sampler2D img_spectra;
 
 vec3 // return adapted rec2020
 cat16(vec3 rec2020_d65, vec3 rec2020_src, vec3 rec2020_dst)
@@ -84,9 +67,6 @@ rbfk(vec3 ci, vec3 p)
 { // thinplate spline kernel
   float r2 = dot(ci-p, ci-p);
   return sqrt(r2);
-  // if(r2 < 1e-8) return 0.0;
-  // return r2 * sqrt(r2);
-  // return r2 * log(r2);
 }
 
 void tri2quad(inout vec2 tc)
@@ -144,43 +124,63 @@ vec3 decode_colour(vec3 rgb)
     // zscale says:
     rgb = mix((exp((rgb-c)/a) + b)/12.0, rgb*rgb/3.0, lessThanEqual(rgb, vec3(0.5)));
   }
-  else if(params.trc == 6) // gamma
-  { // TODO get gamma from params
+  else if(params.trc == 6) // gamma 2.2
     rgb = pow(max(rgb, vec3(0.0)), vec3(2.2)); // happens to be adobe rgb
-  }
-  else if(params.trc == 7) // mcraw log to linear
-  {
-    const float a = 0.13, b = 1.0 - 4.0 * a, c = 0.5 - a * log(4.0 * a);
-    rgb = mix(rgb * rgb / 3.0, (exp((rgb - c) / a) + b) / 12.0, greaterThan(rgb, vec3(0.5)));
-  }
+  else if(params.trc == 7) // davinci intermediate
+    rgb = oetf_davinci_intermediate(rgb);
+  else if(params.trc == 8) // filmlight t-log
+    rgb = oetf_filmlight_tlog(rgb);
+  else if(params.trc == 9) // aces cct
+    rgb = oetf_acescct(rgb);
+  else if(params.trc == 10) // arri logC3
+    rgb = oetf_arri_logc3(rgb);
+  else if(params.trc == 11) // arri logC4
+    rgb = oetf_arri_logc4(rgb);
+  else if(params.trc == 12) // red log3G10
+    rgb = oetf_red_log3g10(rgb);
+  else if(params.trc == 13) // panasonic v-log
+    rgb = oetf_panasonic_vlog(rgb);
+  else if(params.trc == 14) // sony s-log3
+    rgb = oetf_sony_slog3(rgb);
+  else if(params.trc == 15) // fuji f-log2
+    rgb = oetf_fujifilm_flog2(rgb);
+
 
   if(params.primaries == 0)
   { // use uploaded custom matrix
     rgb = params.cam_to_rec2020 * rgb;
   }
-  else if(params.primaries == 1) // srgb
-  { // convert linear rec709 to linear rec2020
-    const mat3 M = matrix_rec709_to_rec2020;
-    rgb = M * rgb;
+#define TO2020(I, P) \
+  else if(params.primaries == I)\
+  {\
+    const mat3 M = matrix_ ## P ## _to_rec2020;\
+    rgb = M * rgb; \
   }
-  // else if(params.primaries == 2) // 2020 and 2100
-  // { // identity 
-  // }
-  else if(params.primaries == 3) // adobeRGB
-  {
-    const mat3 adobeRGB_to_rec2020 = matrix_adobergb_to_rec2020;
-    rgb = adobeRGB_to_rec2020 * rgb;
+  TO2020(1, rec709)
+  // 2 is rec2020 already
+  TO2020(3, adobergb)
+  TO2020(4, p3d65)
+  TO2020(5, xyz)
+  TO2020(6, ap0)
+  TO2020(7, ap1)
+  TO2020(10, redwg)
+#undef TO2020
+#define TO2020(I, P) \
+  else if(params.primaries == I)\
+  {\
+    const mat3 M0 = matrix_ ## P ## _to_xyz;\
+    const mat3 M1 = matrix_xyz_to_rec2020;\
+    rgb = M1 * M0 * rgb; \
   }
-  else if(params.primaries == 4) // P3
-  {
-    const mat3 display_P3_to_rec2020 = matrix_p3d65_to_rec2020;
-    rgb = display_P3_to_rec2020 * rgb;
-  }
-  else if(params.primaries == 5) // XYZ
-  {
-    const mat3 xyz_to_rec2020 = matrix_xyz_to_rec2020;
-    rgb = xyz_to_rec2020 * rgb;
-  }
+  TO2020( 8, arriwg3)
+  TO2020( 9, arriwg4)
+  TO2020(11, sonysgamut3)
+  TO2020(12, sonysgamut3cine)
+  TO2020(13, vgamut)
+  TO2020(14, egamut)
+  TO2020(15, egamut2)
+  TO2020(16, davinciwg)
+#undef TO2020
   return rgb;
 }
 

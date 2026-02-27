@@ -331,6 +331,6 @@ void main()
     crv_rgb_dst = clamp(crv_rgb_dst, vec3(0.0), vec3(1.0));
     rgb = rgb * (1.0f - crv_rgb_dst) + vec3(crv_lm, crv_lm, crv_lm)*crv_rgb_dst;
   }
-  
+
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

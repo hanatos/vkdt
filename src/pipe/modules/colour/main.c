@@ -264,7 +264,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     i[off+6] = s_colour_trc_linear;
   }
   else if(p_mat == 5)
-  { // read what we have stored in params
+  { // secret backdoor: read explicit matrix stored in params
     i[off+5] = s_colour_primaries_custom;
     i[off+6] = s_colour_trc_linear;
     for(int j=0;j<3;j++) for(int i=0;i<3;i++)

@@ -1,5 +1,5 @@
 filename:filename
 noise a:slider:0:10000
 noise b:slider:0:20
-prim:combo:custom:sRGB:rec2020:adobeRGB:P3:XYZ
-trc:combo:linear:709:sRGB:PQ:DCI:HLG:gamma:mclog
+prim:combo:custom:sRGB:rec2020:adobeRGB:P3 D65:XYZ:ACES AP0:ACES AP1:Arri wide gamut 3:Arri wide gamut 4:red wide gamut RGB:Sony SGamut3:Sony SGamut3Cine:Panasonic V-Gamut:Filmlight E-Gamut:Filmlight E-Gamut2:DaVinci wide gamut
+trc:combo:linear:709:sRGB:PQ:DCI:HLG:gamma:DaVinci intermediate:Filmlight T-Log:ACEScct:Arri LogC3:Arri LogC4:Red Log3G10:Panasonic V-Log:Sony S-Log3:Fuji F-Log2

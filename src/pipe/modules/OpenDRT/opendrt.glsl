@@ -6,6 +6,7 @@ License: GPLv3
 -------------------------------------------------*/
 
 #include "matrices.h"
+#include "shared/oetf.glsl"
 
 /* Math helper functions ----------------------------*/
 
@@ -32,81 +33,29 @@ float fmaxf3(vec3 a) { return max(a.x, max(a.y, a.z)); }
 // Return the max of vec3 a
 float fminf3(vec3 a) { return min(a.x, min(a.y, a.z)); }
 
-float exp10(float v) { return pow(10.0, v); }
-
-/* OETF Linearization Transfer Functions ---------------------------------------- */
-
-float oetf_davinci_intermediate(float x) {
-    return x <= 0.02740668f ? x/10.44426855f : exp2(x/0.07329248f - 7.0f) - 0.0075f;
-}
-float oetf_filmlight_tlog(float x) {
-  return x < 0.075f ? (x-0.075f)/16.184376489665897f : exp((x - 0.5520126568606655f)/0.09232902596577353f) - 0.0057048244042473785f;
-}
-float oetf_acescct(float x) {
-  return x <= 0.155251141552511f ? (x - 0.0729055341958355f)/10.5402377416545f : exp2(x*17.52f - 9.72f);
-}
-float oetf_arri_logc3(float x) {
-  return x < 5.367655f*0.010591f + 0.092809f ? (x - 0.092809f)/5.367655f : (exp10((x - 0.385537f)/0.247190f) - 0.052272f)/5.555556f;
-}
-float oetf_arri_logc4(float x) {
-  return x < -0.7774983977293537f ? x*0.3033266726886969f - 0.7774983977293537f : (exp2(14.0f*(x - 0.09286412512218964f)/0.9071358748778103f + 6.0f) - 64.0f)/2231.8263090676883f;
-}
-float oetf_red_log3g10(float x) {
-  return x < 0.0f ? (x/15.1927f) - 0.01f : (exp10(x/0.224282f) - 1.0f)/155.975327f - 0.01f;
-}
-float oetf_panasonic_vlog(float x) {
-  return x < 0.181f ? (x - 0.125f)/5.6f : exp10((x - 0.598206f)/0.241514f) - 0.00873f;
-}
-float oetf_sony_slog3(float x) {
-  return x < 171.2102946929f/1023.0f ? (x*1023.0f - 95.0f)*0.01125f/(171.2102946929f - 95.0f) : (exp10(((x*1023.0f - 420.0f)/261.5f))*(0.18f + 0.01f) - 0.01f);
-}
-float oetf_fujifilm_flog2(float x) {
-  return x < 0.100686685370811f ? (x - 0.092864f)/8.799461f : (exp10(((x - 0.384316f)/0.245281f))/5.555556f - 0.064829f/5.555556f);
-}
-
-
 vec3 linearize(vec3 rgb, int tf) {
-  if (tf==0) { // Linear
+  if (tf==0) // Linear
     return rgb;
-  } else if (tf==1) { // Davinci Intermediate
-    rgb.x = oetf_davinci_intermediate(rgb.x);
-    rgb.y = oetf_davinci_intermediate(rgb.y);
-    rgb.z = oetf_davinci_intermediate(rgb.z);
-  } else if (tf==2) { // Filmlight T-Log
-    rgb.x = oetf_filmlight_tlog(rgb.x);
-    rgb.y = oetf_filmlight_tlog(rgb.y);
-    rgb.z = oetf_filmlight_tlog(rgb.z);
-  } else if (tf==3) { // ACEScct
-    rgb.x = oetf_acescct(rgb.x);
-    rgb.y = oetf_acescct(rgb.y);
-    rgb.z = oetf_acescct(rgb.z);
-  } else if (tf==4) { // Arri LogC3
-    rgb.x = oetf_arri_logc3(rgb.x);
-    rgb.y = oetf_arri_logc3(rgb.y);
-    rgb.z = oetf_arri_logc3(rgb.z);
-  } else if (tf==5) { // Arri LogC4
-    rgb.x = oetf_arri_logc4(rgb.x);
-    rgb.y = oetf_arri_logc4(rgb.y);
-    rgb.z = oetf_arri_logc4(rgb.z);
-  } else if (tf==6) { // RedLog3G10
-    rgb.x = oetf_red_log3g10(rgb.x);
-    rgb.y = oetf_red_log3g10(rgb.y);
-    rgb.z = oetf_red_log3g10(rgb.z);
-  } else if (tf==7) { // Panasonic V-Log
-    rgb.x = oetf_panasonic_vlog(rgb.x);
-    rgb.y = oetf_panasonic_vlog(rgb.y);
-    rgb.z = oetf_panasonic_vlog(rgb.z);
-  } else if (tf==8) { // Sony S-Log3
-    rgb.x = oetf_sony_slog3(rgb.x);
-    rgb.y = oetf_sony_slog3(rgb.y);
-    rgb.z = oetf_sony_slog3(rgb.z);
-  } else if (tf==9) { // Fuji F-Log2
-    rgb.x = oetf_fujifilm_flog2(rgb.x);
-    rgb.y = oetf_fujifilm_flog2(rgb.y);
-    rgb.z = oetf_fujifilm_flog2(rgb.z);
-  }  return rgb;
+  else if (tf==1) // Davinci Intermediate
+    rgb = oetf_davinci_intermediate(rgb);
+  else if (tf==2) // Filmlight T-Log
+    rgb = oetf_filmlight_tlog(rgb);
+  else if (tf==3) // ACEScct
+    rgb = oetf_acescct(rgb);
+  else if (tf==4) // Arri LogC3
+    rgb = oetf_arri_logc3(rgb);
+  else if (tf==5) // Arri LogC4
+    rgb = oetf_arri_logc4(rgb);
+  else if (tf==6) // RedLog3G10
+    rgb = oetf_red_log3g10(rgb);
+  else if (tf==7) // Panasonic V-Log
+    rgb = oetf_panasonic_vlog(rgb);
+  else if (tf==8) // Sony S-Log3
+    rgb = oetf_sony_slog3(rgb);
+  else if (tf==9) // Fuji F-Log2
+    rgb = oetf_fujifilm_flog2(rgb);
+  return rgb;
 }
-
 
 
 /* EOTF Transfer Functions ---------------------------------------- */

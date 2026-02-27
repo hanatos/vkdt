@@ -4,6 +4,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 #include "shared.glsl"
 #include "colourspaces.glsl"
+#include "opendrt.glsl"
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 layout(set = 1, binding = 0) uniform sampler2D img_src;
 layout(set = 1, binding = 1, std430) buffer buf_hist { uint  histogram[]; };
