@@ -57,6 +57,7 @@ dt_radial_menu_dr(
     if(!m->mouse) pos = (struct nk_vec2){
         bounds.x + bounds.w/2 + gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_X]*bounds.w,
         bounds.y + bounds.h/2 + gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]*bounds.w};
+    if(m->mouse) m->selected = m->left = -1;
     int sel = dt_radial_menu(&vkdt.ctx,
         // could pass mouse positions like
         // m->mouse ? vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].clicked_pos.x :

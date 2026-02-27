@@ -1,2 +1,2 @@
-prim:combo:custom:sRGB:rec2020:adobeRGB:P3:XYZ
-trc:combo:linear:709:sRGB:PQ:DCI:HLG:gamma:mclog
+prim:combo:custom:sRGB:rec2020:adobeRGB:P3 D65:XYZ:ACES AP0:ACES AP1
+trc:combo:linear:709:sRGB:PQ:DCI:HLG:gamma

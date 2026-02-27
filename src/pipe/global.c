@@ -188,6 +188,7 @@ dt_module_so_load(
       fscanf(f, "%8191[^\n]", line);
       char *b = line;
       if(fgetc(f) == EOF) break; // read \n
+      if(line[0] == '#') continue; // ignore comment lines
       dt_token_t parm = dt_read_token(b, &b);
       dt_token_t type = dt_read_token(b, &b);
       if(parm == dt_token("---"))
@@ -270,10 +271,37 @@ dt_module_so_load(
     fclose(f);
   }
 
+  // read translated ui widget names
+  for(int i=0;i<mod->num_params;i++) mod->param[i]->long_name = mod->param[i]->tooltip = 0; // de-init
+  snprintf(filename, sizeof(filename), "modules/%s/params.en", dirname);
+  f = dt_graph_open_resource(0, 0, filename, "rb");
+  if(f)
+  { // this is optional
+    while(!feof(f))
+    {
+      char *b = line;
+      fscanf(f, "%8191[^\n]", line);
+      if(fgetc(f) == EOF) break; // read \n
+      dt_token_t pn = dt_read_token(b, &b);
+      for(int i=0;i<mod->num_params;i++)
+      {
+        if(mod->param[i]->name == pn)
+        {
+          size_t len = strnlen(b, sizeof(line)-9); // remove max token + :
+          char *copy = malloc(sizeof(char) * (len+1));
+          strncpy(copy, b, len);
+          copy[len] = 0; // make sure it's terminated even upon truncation
+          mod->param[i]->long_name = copy;
+          break;
+        }
+      }
+    }
+    fclose(f);
+  }
+
   // read extracted parameter tooltips
   snprintf(filename, sizeof(filename), "modules/%s/ptooltips", dirname);
   f = dt_graph_open_resource(0, 0, filename, "rb");
-  for(int i=0;i<mod->num_params;i++) mod->param[i]->tooltip = 0; // de-init
   if(f)
   {
     while(!feof(f))
@@ -391,6 +419,7 @@ dt_module_so_unload(dt_module_so_t *mod)
   {
     free(mod->param[i]->widget.data);
     free((char *)mod->param[i]->tooltip);
+    free((char *)mod->param[i]->long_name);
     free(mod->param[i]);
   }
   for(int i=0;i<mod->num_connectors;i++)

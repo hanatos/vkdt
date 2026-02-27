@@ -1,6 +1,7 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #include "shared.glsl"
+#include "matrices.h"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
@@ -20,41 +21,21 @@ void main()
   if(params.primaries == 0)
   { // TODO: use uploaded custom matrix?
   }
-  else if(params.primaries == 1) // srgb
-  { // convert linear rec2020 to linear rec709
-    const mat3 M = mat3(
-         1.66022677, -0.12455334, -0.01815514,
-        -0.58754761,  1.13292605, -0.10060303,
-        -0.07283825, -0.00834963,  1.11899817);
-    rgb = M * rgb;
+#define CONV(I, P) \
+  else if(params.primaries == I)\
+  {\
+    const mat3 M = matrix_rec2020_to_ ## P;\
+    rgb = M * rgb; \
   }
-  // else if(params.primaries == 2) // 2020 and 2100
-  // { // identity 
-  // }
-  else if(params.primaries == 3) // adobeRGB
-  {
-    const mat3 rec2020_to_adobeRGB = mat3(
-         1.15194302, -0.12454585, -0.02253539,
-        -0.09753232,  1.13290963, -0.04979918,
-        -0.05448118, -0.00837122,  1.07275365);
-    rgb = rec2020_to_adobeRGB * rgb;
-  }
-  else if(params.primaries == 4) // P3
-  {
-    const mat3 rec2020_to_display_P3 = mat3(
-     1.34353337, -0.06530851,  0.00282971,
-    -0.28218904,  1.07578268, -0.01961215,
-    -0.06142427, -0.01048453,  1.01717851);
-    rgb = rec2020_to_display_P3 * rgb;
-  }
-  else if(params.primaries == 5) // XYZ
-  {
-    const mat3 rec2020_to_xyz = mat3(
-        6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
-        1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
-        1.68880975e-01, 5.93017165e-02, 1.06098506e+00);
-    rgb = rec2020_to_xyz * rgb;
-  }
+  CONV(1, rec709)
+  CONV(3, adobergb)
+  CONV(4, p3d65)
+  CONV(5, xyz)
+  CONV(6, ap0)
+  CONV(7, ap1)
+  CONV(10, redwg)
+#undef CONV
+  // the other primaries are more like input spaces, we don't want to output them.
 
   // if(params.trc == 0) // linear
   if(params.trc == 1) // 709
@@ -94,11 +75,6 @@ void main()
   else if(params.trc == 6) // gamma
   { // TODO get gamma from params
     rgb = pow(rgb, vec3(1.0/2.2)); // happens to be adobe rgb
-  }
-  else if(params.trc == 7) // mcraw linear to log
-  {
-    const float a = 0.13, b = 1.0 - 4.0 * a, c = 0.5 - a * log(4.0 * a);
-    rgb = mix(sqrt(3.0*rgb), a * log(12.0 * rgb - b) + c, greaterThan(rgb, vec3(1.0/12.0)));
   }
 
   imageStore(img_out, ipos, vec4(rgb, 1.0));

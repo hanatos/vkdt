@@ -1,0 +1,3 @@
+input:read:*:*
+output:write:*:*
+dspy:write:rgba:f16

@@ -5,20 +5,12 @@
 #include "shared.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
-
 // layout(std140, set = 0, binding = 1) uniform params_t { } params;
-
-layout( // input f16 buffer rgb
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output ui32 buffer rgb
-    set = 1, binding = 1, r32ui
-) uniform uimage2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1, r32ui) uniform uimage2D img_out;
 
 // histogram counter. this runs on the input dimensions
-void
-main()
+void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, textureSize(img_in, 0)))) return;
@@ -32,4 +24,3 @@ main()
   imageAtomicAdd(img_out, ivec2(opos, y.g), 1024);
   imageAtomicAdd(img_out, ivec2(opos, y.b), 1048576);
 }
-

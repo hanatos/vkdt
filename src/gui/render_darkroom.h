@@ -187,8 +187,9 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       dt_token_str(vkdt.graph_dev.module[modid].name),
       dt_token_str(vkdt.graph_dev.module[modid].inst),
       dt_token_str(param->name), num);
-  char str[10] = { 0 };
-  memcpy(str, &param->name, 8);
+  char str[64] = { 0 };
+  if(param->long_name) snprintf(str, sizeof(str), "%s", param->long_name);
+  else memcpy(str, &param->name, 8);
   // distinguish by type:
   if(param->widget.type == dt_token("slider"))
   {

@@ -1,0 +1,6 @@
+# use the open display transform approach instead of the film curve module.
+# this drops in the module with default parameters.
+module:OpenDRT:01
+connect:colour:01:output:OpenDRT:01:input
+connect:OpenDRT:01:output:llap:01:input
+connect:-1:-1:-1:filmcurv:01:input

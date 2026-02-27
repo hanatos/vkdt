@@ -20,26 +20,46 @@
 
 typedef enum dt_colour_primaries_t
 {
-  s_colour_primaries_custom = 0, // use cam_to_rec2020
-  s_colour_primaries_srgb   = 1,
-  s_colour_primaries_2020   = 2, // = 2100
-  s_colour_primaries_adobe  = 3,
-  s_colour_primaries_P3     = 4,
-  s_colour_primaries_XYZ    = 5,
-  s_colour_primaries_unknown = 0xffff, // signal that we don't know and can be overwritten
+  s_colour_primaries_custom       =  0, // use cam_to_rec2020
+  s_colour_primaries_srgb         =  1, // rec709
+  s_colour_primaries_2020         =  2, // bt2020 = bt2100 primaries
+  s_colour_primaries_adobe        =  3, // adobe rgb 1998
+  s_colour_primaries_P3           =  4, // this is display P3, D65
+  s_colour_primaries_XYZ          =  5, // CIE XYZ (illuminant E)
+  s_colour_primaries_aces2065_1   =  6, // ACES 2065-1 or AP0
+  s_colour_primaries_acescg       =  7, // ACEScg or AP1
+  s_colour_primaries_arri3        =  8, // Arri Wide Gamut 3
+  s_colour_primaries_arri4        =  9, // Arri Wide Gamut 4
+  s_colour_primaries_red          = 10, // Red Wide Gamut RGB
+  s_colour_primaries_sony3        = 11, // Sony SGamut3
+  s_colour_primaries_sony3cine    = 12, // Sony SGamut3Cine
+  s_colour_primaries_pana_v       = 13, // Panasonic V-Gamut
+  s_colour_primaries_filmlight_e  = 14, // Filmlight E-Gamut
+  s_colour_primaries_filmlight_e2 = 15, // Filmlight E-Gamut2
+  s_colour_primaries_davinci_wide = 16, // DaVinci Wide Gamut
+  s_colour_primaries_unknown      = 0xffff, // signal that we don't know and can be overwritten
 }
 dt_colour_primaries_t;
 
 typedef enum dt_colour_trc_t
 {
-  s_colour_trc_linear = 0,
-  s_colour_trc_709    = 1, // SMPTE RP 431-2
-  s_colour_trc_srgb   = 2, // IEC 61966-2-1 sRGB
-  s_colour_trc_PQ     = 3, // SMPTE ST 2084
-  s_colour_trc_DCI    = 4, // SMPTE ST 428-1
-  s_colour_trc_HLG    = 5, // Rec. ITU-R BT.2100-1 (HLG)
-  s_colour_trc_gamma  = 6, //
-  s_colour_trc_unknown = 0xffff,
+  s_colour_trc_linear         =  0,
+  s_colour_trc_709            =  1, // SMPTE RP 431-2
+  s_colour_trc_srgb           =  2, // IEC 61966-2-1 sRGB
+  s_colour_trc_PQ             =  3, // SMPTE ST 2084
+  s_colour_trc_DCI            =  4, // SMPTE ST 428-1
+  s_colour_trc_HLG            =  5, // Rec. ITU-R BT.2100-1 (HLG)
+  s_colour_trc_gamma          =  6, // 2.2 for adobe rgb
+  s_colour_trc_davinci_inter  =  7, // Davinci Intermediate
+  s_colour_trc_filmlight_tlog =  8, // Filmlight T-Log
+  s_colour_trc_acescct        =  9, // ACEScct
+  s_colour_trc_arri_logc3     = 10, // Arri LogC3
+  s_colour_trc_arri_logc4     = 11, // Arri LogC4
+  s_colour_trc_red_log3g10    = 12, // RedLog3G10
+  s_colour_trc_pana_vlog      = 13, // Panasonic V-Log
+  s_colour_trc_sony_slog3     = 14, // Sony S-Log3
+  s_colour_trc_fuji_flog2     = 15, // Fuji F-Log2
+  s_colour_trc_unknown        = 0xffff,
 }
 dt_colour_trc_t;
 

@@ -1,0 +1,13 @@
+# this sets the OpenDRT:01 module to ACES-2.0 tone scale
+module:OpenDRT:01
+param:OpenDRT:01:tn_con:1.15
+param:OpenDRT:01:tn_sh:0.5
+param:OpenDRT:01:tn_toe:0.04
+param:OpenDRT:01:tn_off:0.0
+param:OpenDRT:01:tn_hc_en:0
+param:OpenDRT:01:tn_hc:1.0
+param:OpenDRT:01:tn_hc_pv:1.0
+param:OpenDRT:01:tn_hc_st:1.0
+param:OpenDRT:01:tn_lc_en:0
+param:OpenDRT:01:tn_lc:1.0
+param:OpenDRT:01:tn_lc_w:0.6
