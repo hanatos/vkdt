@@ -188,3 +188,4 @@ block) and print paper options (second block).
 * `radius` change the radius of the halation effect
 * `strength` the strength of the halation effect per colour channel / layer in the film
 * `scale` scale the rgb strength of the halation effect in lockstep
+* `hal mids` midtone protection for halation. this heuristic lets you gradually fade out the effect of halation for darker tones. useful to preserve some extra sharpness outside the highlights. set to 1 for maximum effect, 0 means all tones are affected equally.

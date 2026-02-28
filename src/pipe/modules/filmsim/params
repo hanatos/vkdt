@@ -19,6 +19,6 @@ tune y:float:1:0.0
 halation:int:1:0
 radius:float:1:0.0015
 scale:float:1:0.35
-halmids:float:1:0.0
+hal mids:float:1:0.0
 pad:float:2:0
 strength:float:4:0.8:0.05:0.01:0

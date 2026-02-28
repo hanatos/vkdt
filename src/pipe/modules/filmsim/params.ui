@@ -33,6 +33,6 @@ group:halation:1
 strength:rgbknobs
 scale:slider:0:10.0
 radius:slider:0.00001:0.003
-halmids:hidden
+hal mids:slider:0:1
 pad:hidden
 
