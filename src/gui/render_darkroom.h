@@ -404,8 +404,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       if(newmode != mode) change = 1;
       if(change) // don't do this if resetblock triggers change
       {
-        if(mode == 1)
-        { // don't convert rgb
+        if(newmode == 1)
+        { // convert only hsluv back to rgb
           struct nk_colorf rgb = hsv2rgb(hsv.r, hsv.g, hsv.b);
           val[0] = rgb.r; val[1] = rgb.g; val[2] = rgb.b;
         }
