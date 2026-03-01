@@ -1379,7 +1379,7 @@ static inline void render_darkroom_widgets(
             MIN(out_dspy->connector[0].roi.ht, row.w) / iht);
         int ht = scale * iht, wd = scale * iwd;
         float r = wd / (float)row.w;
-        nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));
+        nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,ctx->style.window.spacing.y));
         float w3[] = {
           0.5*(1-r)*pwd-ctx->style.window.spacing.x,
           r*pwd-ctx->style.window.spacing.x,
