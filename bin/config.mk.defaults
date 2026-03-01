@@ -112,7 +112,8 @@ GLSLC_FLAGS=--target-env vulkan1.3
 # optimised flags, you may want to use -march=x86-64 for distro builds.
 # it is set to "native" here to transparently support local arm builds for instance
 OPT_CFLAGS=-Wall -pipe -O3 -march=native -DNDEBUG
-OPT_LDFLAGS=-s
+# add -s to strip binaries:
+OPT_LDFLAGS=
 AR=ar
 DYNAMIC=-rdynamic -fvisibility=hidden
 
