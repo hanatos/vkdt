@@ -71,10 +71,10 @@ load_raw(
       rl_deallocate(mod_data->img.dng_opcode_lists[i], mod_data->img.dng_opcode_lists_len[i]);
       mod_data->img.dng_opcode_lists[i] = 0;
       mod_data->img.dng_opcode_lists_len[i] = 0;
-      have_dngop = 1;
+      have_dngop++;
     }
   }
-  if(have_dngop)
+  if(have_dngop == 3)
   {
     mod_data->dngop = (dt_image_metadata_dngop_t){
       .type = s_image_metadata_dngop,
