@@ -57,13 +57,18 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [hilite: highlight reconstruction based on local inpainting](./hilite/readme.md)
 * [jddcnn: joint demosaicing and denoising via neural network](./jddcnn/readme.md)
 
-**colour processing**
+**output display transform/tonemapping**
+
+* [filmcurv: display transform curve](./filmcurv/readme.md)
+* [filmsim: spectral analog film simulation](./filmsim/readme.md)
+* [OpenDRT: sophisticated display transform with some colour correction options](./OpenDRT/readme.md)
+
+**colour processing/encoding**
 
 * [colenc: encode colour for colour managed output like adobeRGB, P3, etc](./colenc/readme.md)
-* [colour: generic colour manipulation/input transform](./colour/readme.md)
+* [colour: generic colour manipulation/input device transform](./colour/readme.md)
 * [curves: rgb and 3x3 ych curve widgets](./curves/readme.md)
 * [grade: simple ACES CDL grading tool](./grade/readme.md)
-* [filmsim: spectral analog film simulation](./filmsim/readme.md)
 
 **corrective**
 
@@ -83,10 +88,8 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [contrast: local contrast enhancement using the guided filter](./contrast/readme.md)
 * [eq: local contrast equaliser](./eq/readme.md)
 * [exposure: simple exposure correction, useful for dodging/burning](./exposure/readme.md)
-* [filmcurv: display transform curve](./filmcurv/readme.md)
 * [grad: linear gradient density filter](./grad/readme.md)
 * [llap: local contrast, shadow lifting, and highligh compression via local laplacian pyramids](./llap/readme.md)
-* [OpenDRT: sophisticated display transform with some colour correction options](./OpenDRT/readme.md)
 * [vignette: add/remove parametric vignette](./vignette/readme.md)
 * [zones: zone system-like tone manipulation tool](./zones/readme.md)
 
