@@ -402,7 +402,7 @@ VkResult dt_graph_run(
     // on module scope, but needs to interlude here, so ray tracing nodes can
     // cut the tri_cnt of dynamic geo that is known after upload. animated nodes
     // should do this in commit_params (and need to find out their respective node
-    // from the modules)
+    // from the modules). this calls commit_params:
     QVKR(dt_graph_run_modules_upload_uniforms(graph, run));
 
     // record command buffer, including memory barriers for transfers (to uniforms and staging)

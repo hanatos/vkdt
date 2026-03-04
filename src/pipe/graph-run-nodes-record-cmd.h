@@ -368,7 +368,6 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     }
   }
   else if(dt_node_source(node) &&
-         !dt_connector_ssbo(node->connector+0) && // ssbo source nodes use staging memory and thus don't need a copy.
          (node->connector[0].array_length <= 1))  // arrays share the staging buffer, are handled by iterating read_source()
   {
     // push profiler start
@@ -379,21 +378,35 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       graph->query[f].name  [graph->query[f].cnt  ] = node->name;
       graph->query[f].kernel[graph->query[f].cnt++] = node->kernel;
     }
-    IMG_LAYOUT(
-        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer),
-        UNDEFINED,
-        TRANSFER_DST_OPTIMAL);
-    if(wd > 0 && ht > 0)
-      vkCmdCopyBufferToImage(
-        cmd_buf,
-        node->connector[0].staging[graph->double_buffer],
-        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->image,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        yuv ? 2 : 1, yuv ? regions+1 : regions);
-    IMG_LAYOUT(
-        dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer),
-        TRANSFER_DST_OPTIMAL,
-        SHADER_READ_ONLY_OPTIMAL);
+    if(dt_connector_ssbo(node->connector+0))
+    { // no layout change, copy host visible to real memory:
+      dt_connector_t *c = node->connector;
+      VkBufferCopy region = {0, 0, dt_connector_bufsize(c, c->roi.wd, c->roi.ht)};
+      vkCmdCopyBuffer(
+          cmd_buf,
+          node->connector[0].staging[graph->double_buffer],
+          dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->buffer,
+          1, &region);
+      BARRIER_COMPUTE_BUFFER(dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->buffer);
+    }
+    else
+    { // images with layout change
+      IMG_LAYOUT(
+          dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer),
+          UNDEFINED,
+          TRANSFER_DST_OPTIMAL);
+      if(wd > 0 && ht > 0)
+        vkCmdCopyBufferToImage(
+          cmd_buf,
+          node->connector[0].staging[graph->double_buffer],
+          dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->image,
+          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+          yuv ? 2 : 1, yuv ? regions+1 : regions);
+      IMG_LAYOUT(
+          dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer),
+          TRANSFER_DST_OPTIMAL,
+          SHADER_READ_ONLY_OPTIMAL);
+    }
     // get a profiler timestamp:
     if(graph->query[f].cnt < graph->query[f].max)
     {
@@ -402,12 +415,6 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       graph->query[f].name  [graph->query[f].cnt  ] = node->name;
       graph->query[f].kernel[graph->query[f].cnt++] = node->kernel;
     }
-  }
-  else if(dt_node_source(node) &&
-         dt_connector_ssbo(node->connector+0) && // ssbo source node just needs a barrier on the staging memory
-         (node->connector[0].array_length <= 1)) // arrays share the staging buffer, are handled by iterating read_source()
-  {
-    BARRIER_COMPUTE_BUFFER(dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->buffer);
   }
 
   // only non-sink and non-source nodes have a pipeline:

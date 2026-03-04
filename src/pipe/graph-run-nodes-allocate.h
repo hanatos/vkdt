@@ -282,10 +282,7 @@ bind_buffers_to_memory(
   { // storage buffer
     if(img->image_view) vkDestroyImageView(qvk.device, img->image_view, VK_NULL_HANDLE);
     img->image_view = 0;
-    if(c->type == dt_token("source"))
-      QVKR(vkBindBufferMemory(qvk.device, img->buffer, graph->vkmem_staging, img->offset));
-    else
-      QVKR(vkBindBufferMemory(qvk.device, img->buffer, graph->vkmem, img->offset));
+    QVKR(vkBindBufferMemory(qvk.device, img->buffer, graph->vkmem, img->offset));
   }
   else
   { // storage image
@@ -448,7 +445,8 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
   for(int i=0;i<node->num_connectors;i++)
   { // bind staging memory:
     dt_connector_t *c = node->connector+i;
-    if((!dt_connector_ssbo(c) && (c->type == dt_token("source"))) || c->type == dt_token("sink"))
+    if(((!dt_connector_ssbo(c) && (c->type == dt_token("source"))) || c->type == dt_token("sink")) ||
+        ( dt_connector_ssbo(c) && (c->type == dt_token("source"))))
     {
       vkBindBufferMemory(qvk.device, c->staging[0], graph->vkmem_staging, c->offset_staging[0]);
       vkBindBufferMemory(qvk.device, c->staging[1], graph->vkmem_staging, c->offset_staging[1]);
@@ -530,10 +528,7 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
       {
         dt_connector_image_t *im = dt_graph_connector_image(graph, node-graph->node, i, k, f);
         if(!im) return VK_INCOMPLETE;
-        if(dt_connector_ssbo(c) && c->type == dt_token("source")) // host visible buffer
-          dt_vkfree(&graph->heap_staging, im->mem);
-        else // device visible only
-          dt_vkfree(&graph->heap, im->mem);
+        dt_vkfree(&graph->heap, im->mem);
       }
     }
     // staging memory for sources or sinks only needed during execution once
@@ -595,37 +590,23 @@ allocate_buffer_array_element(
 #endif
   // fprintf(stderr, "DEBUG allocating ssbo %"PRItkn":%"PRItkn":%"PRItkn":%"PRItkn" %zu = %d x %d\n", dt_token_str(node->name), dt_token_str(node->module->inst), dt_token_str(node->kernel), dt_token_str(c->name), size, c->roi.wd, c->roi.ht);
   VkMemoryRequirements buf_mem_req;
+  vkGetBufferMemoryRequirements(qvk.device, img->buffer, &buf_mem_req);
+  // graph->memory_type_bits = buf_mem_req.memoryTypeBits;
 
-  if(c->type == dt_token("source"))
-  { // source nodes are protected because we want to avoid re-transmit when possible.
-    // also, they are allocated in host-visible staging memory
-    vkGetBufferMemoryRequirements(qvk.device, img->buffer, &buf_mem_req);
-    // graph->memory_type_bits_staging = buf_mem_req.memoryTypeBits;
+  // XXX TODO: need to work here if we want to enable uploads to dynamic arrays.
+  // XXX this means allocate sources as protected inside the inner heap
+  // XXX all inner allocations are already protected/feedback for all the outer heap knows.
+  // XXX this is a problem for geometry node kinda graphs/memory use
+  // if(heap_offset == 0 && (c->frames == 2 || c->type == dt_token("source") || (c->flags & s_conn_protected))) // allocate protected memory, only in outer heap
 
-    img->mem = dt_vkalloc_protected(&graph->heap_staging, buf_mem_req.size, buf_mem_req.alignment);
-  }
+  // source nodes are protected because we want to avoid re-transmit when possible.
+  if((c->frames == 2 || c->type == dt_token("source") || (c->flags & s_conn_protected))) // allocate protected memory
+    img->mem = dt_vkalloc_protected(&graph->heap, buf_mem_req.size, buf_mem_req.alignment);
   else
-  { // other buffers are device only, i.e. use the default heap:
-    vkGetBufferMemoryRequirements(qvk.device, img->buffer, &buf_mem_req);
-    // graph->memory_type_bits = buf_mem_req.memoryTypeBits;
-
-    // XXX TODO: need to work here if we want to enable uploads to dynamic arrays.
-    // XXX this means allocate sources as protected inside the inner heap
-    // XXX all inner allocations are already protected/feedback for all the outer heap knows.
-    // XXX this is a problem for geometry node kinda graphs/memory use
-    // if(heap_offset == 0 && (c->frames == 2 || c->type == dt_token("source") || (c->flags & s_conn_protected))) // allocate protected memory, only in outer heap
-    if((c->frames == 2 || (c->flags & s_conn_protected))) // allocate protected memory
-      img->mem = dt_vkalloc_protected(&graph->heap, buf_mem_req.size, buf_mem_req.alignment);
-    else
-      img->mem = dt_vkalloc(&graph->heap, buf_mem_req.size, buf_mem_req.alignment);
-  }
+    img->mem = dt_vkalloc(&graph->heap, buf_mem_req.size, buf_mem_req.alignment);
   img->offset = img->mem->offset;
   img->size   = size; // for validation layers, this is the smaller of the two sizes.
-  // set the staging offsets so it'll transparently work with read_source further down
-  // when running the graph.
-  c->size_staging      = size;
-  c->offset_staging[f] = img->mem->offset;
-  if(f == 0 && c->frames < 2) c->offset_staging[1] = img->mem->offset; // not double buffered
+
   // reference counting. we can't just do a ref++ here because we will
   // free directly after and wouldn't know which node later on still relies
   // on this buffer. hence we ran a reference counting pass before this, and
@@ -1096,6 +1077,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         c->array_alloc = calloc(sizeof(dt_vkalloc_t), 1);
         dt_vkalloc_init(c->array_alloc, c->array_length * 2, c->array_alloc_size);
       }
+
     }
     else if(!dt_connector_ssbo(c) && dt_connector_owner(c))
     { // allocate our output buffers
@@ -1120,11 +1102,12 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         c->array_alloc = calloc(sizeof(dt_vkalloc_t), 1);
         dt_vkalloc_init(c->array_alloc, c->array_length * 2, c->array_alloc_size);
       }
+    }
 
-      // allocate only one staging buffer for the whole array:
+    if(dt_connector_owner(c))
+    { // staging memory for sources, be it ssbo or images:
       if(c->type == dt_token("source"))
-      {
-        // allocate staging buffer for uploading to the just allocated image
+      { // allocate staging buffer (this is host visible/slow), one for the whole array if any
         VkBufferCreateInfo buffer_info = {
           .sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
           .size        = dt_connector_bufsize(c, c->roi.wd, c->roi.ht),
@@ -1156,11 +1139,12 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         c->mem_staging    = dt_vkalloc(&graph->heap_staging, staging_size, buf_mem_req.alignment);
         c->offset_staging[0] = c->mem_staging->offset;
         c->offset_staging[1] = need_dbuf ? c->mem_staging->offset + buf_mem_req.size : c->mem_staging->offset;
-        c->size_staging   = buf_mem_req.size;
+        c->size_staging      = buf_mem_req.size;
         c->mem_staging->ref++; // ref staging memory so we don't overwrite it before the pipe starts (will be written in read_source() in the module)
       }
     }
-    else if(dt_connector_input(c))
+
+    if(dt_connector_input(c))
     { // point our inputs to their counterparts and allocate staging memory for sinks
       dt_cid_t owner = dt_connector_find_owner(graph, c->connected);
       if(!dt_cid_unset(owner))
