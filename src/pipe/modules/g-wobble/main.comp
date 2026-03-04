@@ -10,7 +10,13 @@ layout(std140, set = 0, binding = 0) uniform global_t
   int frame_cnt;
 }
 global;
-// layout(std140, set = 0, binding = 1) uniform params_t { } params;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float strength;
+  float radius;
+  float speed;
+}
+params;
 layout(push_constant, std140) uniform push_t
 {
   int tri_cnt;
@@ -22,8 +28,8 @@ layout(set = 1, binding = 1) writeonly buffer buf_ovtx_t { rtgeo_vtx_t v[]; } bu
 // perform (non-linear) transformation of a point p in world space
 vec3 xform(vec3 p)
 {
-  float rad = 3;
-  float angle = 0.4*p.y + .1*global.frame;
+  float rad = params.radius;
+  float angle = params.strength*p.y + params.speed*global.frame;
   vec2 off = vec2(rad, 0);
   mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
   off = rot * off;
