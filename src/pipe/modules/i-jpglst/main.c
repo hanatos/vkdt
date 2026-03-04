@@ -13,6 +13,7 @@ typedef struct lst_t
   const char **filename; // pointers to lines
   int          cnt;      // number of files in list
   uint32_t    *dim;      // dimensions of the images
+  char lstname[PATH_MAX];
 }
 lst_t;
 
@@ -126,6 +127,9 @@ void modify_roi_out(
   lst_t *lst = mod->data;
   // load list of images, keep number of files and the dimension of their images.
   const char *filename = dt_module_param_string(mod, 0);
+  if(lst && !strcmp(lst->lstname, filename))
+    return; // already loaded
+  lst->lstname[0] = 0; // de-init
   FILE *f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
   if(!f) return;
   fseek(f, 0, SEEK_END);
@@ -176,6 +180,7 @@ void modify_roi_out(
     mod->img_param.whitebalance[k] = 1.0f;
   }
   mod->img_param.filters = 0;
+  snprintf(lst->lstname, sizeof(lst->lstname), "%s", filename);
 }
 
 int read_source(

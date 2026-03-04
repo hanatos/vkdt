@@ -73,11 +73,22 @@ void main()
   // rasterise envelope lines
   float y = env(tc.x);
   float ddx = ddx_env(tc.x);
-  const float w = 2.0; // stroke width
-  if(abs(env(tc.x - w/imageSize(img_out).x) - y) >= 1.0) ddx = 1000.0;
-  float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
-  float d = abs((1.0-y) * imageSize(img_out).y - ipos.y);
-  rgba = max(rgba, 0.7 * vec4(vec3(smoothstep(t, 0.0, d)), 1));
+  const float w = 20.0; // stroke width
+  const float y2 = env(tc.x - w/imageSize(img_out).x);
+  if(abs(y2 - y) >= .15)
+  {
+    if((ipos.y >= (1.0-y )*imageSize(img_out).y &&
+        ipos.y <= (1.0-y2)*imageSize(img_out).y) ||
+       (ipos.y <= (1.0-y )*imageSize(img_out).y &&
+        ipos.y >= (1.0-y2)*imageSize(img_out).y))
+      rgba = max(rgba, vec4(vec3(0.7), 1));
+  }
+  else
+  {
+    float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
+    float d = abs((1.0-y) * imageSize(img_out).y - ipos.y);
+    rgba = max(rgba, 0.7 * vec4(vec3(smoothstep(t, 0.0, d)), 1));
+  }
 
   imageStore(img_out, ipos, rgba);
 }

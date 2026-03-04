@@ -14,7 +14,7 @@
 // for dynamic texture caches that go directly from CPU to the consumer node.
 
 static inline VkResult
-dt_check_device_allocation(uint64_t size)
+dt_check_device_allocation(uint64_t size, int heap_index)
 {
   // vkAllocateMemory overcommits, moves to system ram, and sometimes works even when you think it should not.
   // find out whether we still stay in device memory, and fail over if not:
@@ -31,6 +31,7 @@ dt_check_device_allocation(uint64_t size)
     if(memprop.memoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
       if(budget.heapBudget[i] > size)
         return VK_SUCCESS;
+  dt_log(s_log_qvk, "failed to allocate %ld MB index %d", size/1024/1024, heap_index);
   return VK_ERROR_OUT_OF_DEVICE_MEMORY;
 }
 
@@ -1312,7 +1313,7 @@ dt_graph_run_nodes_allocate(
       graph->vkmem = 0;
     }
     graph->vkmem_size = 0;
-    QVKR(dt_check_device_allocation(graph->heap.vmsize));
+    QVKR(dt_check_device_allocation(graph->heap.vmsize, 0));
     VkMemoryAllocateFlagsInfo allocation_flags = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
       .flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
@@ -1336,7 +1337,7 @@ dt_graph_run_nodes_allocate(
       graph->vkmem_staging = 0;
     }
     graph->vkmem_staging_size = 0;
-    QVKR(dt_check_device_allocation(graph->heap_staging.vmsize));
+    QVKR(dt_check_device_allocation(graph->heap_staging.vmsize, 1));
     // staging memory to copy to and from device
     VkMemoryAllocateFlagsInfo allocation_flags = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
@@ -1394,7 +1395,7 @@ dt_graph_run_nodes_allocate(
       .allocationSize  = mem_req.size,
       .memoryTypeIndex = qvk_memory_get_uniform(),
     };
-    QVKR(dt_check_device_allocation(mem_req.size));
+    QVKR(dt_check_device_allocation(mem_req.size, 2));
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_uniform, 0, &graph->vkmem_uniform));
     graph->vkmem_uniform_size = 2 * graph->uniform_size;
     vkBindBufferMemory(qvk.device, graph->uniform_buffer, graph->vkmem_uniform, 0);
