@@ -279,7 +279,7 @@ create_nodes(
     dt_connector_copy(graph, module, 3, id_main, 0);
     dt_connector_copy(graph, module, 4, id_main, 3);
   }
-  else if(sampler == 1)
+  else // if(sampler == 1)
   { // mcpg: markov chain path guiding, alber 2025
     dt_roi_t roi_mc = {
       .wd = MC_ADAPTIVE_BUFFER_SIZE + MC_STATIC_BUFFER_SIZE,

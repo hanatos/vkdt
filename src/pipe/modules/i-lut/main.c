@@ -142,6 +142,9 @@ void modify_roi_out(
   if(len > 4 && !strncmp(c-4, ".txt", 4))
   { // this is not a lut but in fact a list of texture filenames as text.
     // load list of images, keep number of files and the dimension of their images.
+    if(lut && !strcmp(lut->filename, filename))
+      return; // already loaded
+    lut->filename[0] = 0;
     FILE *f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
     if(!f) return;
     fseek(f, 0, SEEK_END);
@@ -185,6 +188,7 @@ void modify_roi_out(
     mod->connector[0].array_length = cnt;
     // instruct the connector that we have an array with different image resolution for every element:
     mod->connector[0].array_dim = lut->lst_dim;
+    snprintf(lut->filename, sizeof(lut->filename), "%s", filename);
   }
   else
   { // regular single lut file
