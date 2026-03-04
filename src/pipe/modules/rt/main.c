@@ -85,6 +85,9 @@ input(
     return 0;
   }
 
+  // we're not interested in mouse over widget input
+  if(!p->grabbed) return 0;
+
   if(p->type == 2)
   { // rotate camera based on mouse coordinate
     if(mx == -666.0 && my == -666.0) { mx = p->x; my = p->y; }
