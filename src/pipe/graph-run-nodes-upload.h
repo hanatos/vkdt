@@ -73,8 +73,7 @@ dt_graph_run_nodes_upload(
               }
               dt_read_source_params_t p = { .node = node, .c = c, .a = a };
               size_t offset = node->connector[c].offset_staging[graph->double_buffer];
-              node->module->so->read_source(node->module,
-                  mapped + offset, &p);
+              node->module->so->read_source(node->module, mapped + offset, &p);
               if(node->connector[c].array_length > 1)
               {
                 if(!dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer)->image)

@@ -929,7 +929,7 @@ int read_source(
 
   if(p->node->kernel == dt_token("tex") && p->a < d->tex_cnt)
   { // upload texture array
-    // fprintf(stderr, "quake read source tex connector length %d\n", p->node->connector[0].array_length);
+    // fprintf(stderr, "quake read source tex %d connector length %d\n", p->a, p->node->connector[0].array_length);
     memcpy(mapped, d->tex[p->a], sizeof(uint32_t)*d->tex_dim[2*p->a]*d->tex_dim[2*p->a+1]);
     p->node->flags &= ~s_module_request_read_source; // done uploading textures
     d->tex_req[p->a] = 0;

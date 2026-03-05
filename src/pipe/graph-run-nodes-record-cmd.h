@@ -525,24 +525,37 @@ dt_graph_run_nodes_record_cmd(
     QVKR(vkBeginCommandBuffer(graph->command_buffer[buf_curr], &begin_info));
     graph->query[buf_curr].cnt = 0;
     vkCmdResetQueryPool(graph->command_buffer[buf_curr], graph->query[buf_curr].pool, 0, graph->query[buf_curr].max);
+    int bvh_cnt = 0;
+    for(int i=0;i<cnt;i++)
+      if(graph->node[nodeid[i]].name == dt_token("bvh")) bvh_cnt++;
+    if(bvh_cnt == 0) bvh_cnt = -1; // we don't have bvhs
     double rt_beg = dt_time();
-    int run_all = run & s_graph_run_upload_source;
-    int run_mod = module_flags & s_module_request_build_bvh;
-    if(run_all || run_mod) QVKR(dt_raytrace_record_command_buffer_accel_build(graph));
-    double rt_end = dt_time();
-    dt_log(s_log_perf, "create raytrace accel:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
-    rt_beg = rt_end;
+    const int run_all = run & s_graph_run_upload_source;
     for(int i=0;i<cnt;i++)
     {
+      // dt_log(s_log_err, "dispatch %"PRItkn":%"PRItkn":%"PRItkn,
+      //     dt_token_str(graph->node[nodeid[i]].name),
+      //     dt_token_str(graph->node[nodeid[i]].kernel),
+      //     dt_token_str(graph->node[nodeid[i]].module->inst));
       VkResult res = record_command_buffer(graph, graph->node+nodeid[i], run_all ||
           (graph->node[nodeid[i]].module->flags & s_module_request_read_source));
+      if(graph->node[nodeid[i]].name == dt_token("bvh")) bvh_cnt--;
+      if(bvh_cnt == 0)
+      { // all bvh nodes have been processed, ready to build ray tracing stuff
+        double rt_beg = dt_time();
+        const int run_mod = module_flags & s_module_request_build_bvh;
+        if(run_all || run_mod) QVKR(dt_raytrace_record_command_buffer_accel_build(graph));
+        double rt_end = dt_time();
+        dt_log(s_log_perf, "create raytrace accel:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
+        bvh_cnt = -1; // don't do this again
+      }
       if(res != VK_SUCCESS)
       { // need to clean up command buffer before we quit
         QVKR(vkEndCommandBuffer(graph->command_buffer[buf_curr]));
         return res;
       }
     }
-    rt_end = dt_time();
+    double rt_end = dt_time();
     dt_log(s_log_perf, "record command buffer:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
     QVKR(vkEndCommandBuffer(graph->command_buffer[buf_curr]));
   }

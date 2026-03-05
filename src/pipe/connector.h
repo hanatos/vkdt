@@ -109,7 +109,7 @@ typedef struct dt_connector_t
   int           array_resync;     // means we need to sync a dynamic array for multi-frame descriptor sets with one frame delay (internal use)
 
   // buffer associated with this in case it connects nodes:
-  uint64_t offset_staging[2], size_staging;
+  uint64_t offset_staging[2];
   // mem object for allocator:
   // while this may seem duplicate with offset/size, it may be freed already
   // and the offset and size are still valid for successive runs through the

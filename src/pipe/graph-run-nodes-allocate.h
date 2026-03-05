@@ -2,10 +2,11 @@
 
 // this takes care of the memory allocation, buffer binding, image and image_view
 // creation and the descriptor sets for the connectors between nodes.
-// staging buffers are created for source and sink nodes for images, to facilitate
-// cpu memory mapping of host visible staging memory with the appropriate
-// layout transforms in between. ssbo/buffers don't have staging memory, but their
-// source and sink connectors use the staging memory directly.
+// staging buffers are created for source and sink nodes for images as well as
+// source nodes for ssbo, to facilitate cpu memory mapping of host visible
+// staging memory with the appropriate
+// layout transforms in between. ssbo sinks don't have staging memory, but their
+// sink connectors use the staging memory directly.
 // there is support for array connectors, with multiple buffers per connector.
 // images (not ssbo) also support *dynamic* connectors via the
 // s_conn_dynamic_array flag on the connector.
@@ -121,16 +122,16 @@ write_descriptor_sets(
         {
           dt_connector_image_t *img = dt_graph_connector_image(graph,
               node - graph->node, c - node->connector, k, MIN(f, c->frames-1));
-          int iii = cur_buf++;
-          buf_info[iii].buffer = img->buffer;
-          buf_info[iii].offset = c->ssbo_offset;
-          buf_info[iii].range  = img->size-c->ssbo_offset;
+          buf_info[cur_buf++] = (VkDescriptorBufferInfo){
+            .buffer = img->buffer,
+            .offset = c->ssbo_offset,
+            .range  = img->size-c->ssbo_offset,
+          };
         }
         int dset = cur_dset++;
         img_dset[dset].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         img_dset[dset].dstSet          = node->dset[f];
         img_dset[dset].dstBinding      = c - node->connector;
-        img_dset[dset].dstArrayElement = 0;
         img_dset[dset].descriptorCount = MAX(c->array_length, 1);
         img_dset[dset].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         img_dset[dset].pBufferInfo     = buf_info + ii;
@@ -154,18 +155,17 @@ write_descriptor_sets(
           if(!img->image_view) // for dynamic arrays maybe a lazy programmer left empty slots? set to tex 0:
             img = dt_graph_connector_image(graph,
                 node - graph->node, c - node->connector, 0, MIN(f, c->frames-1));
-
-          int iii = cur_img++;
-          img_info[iii].sampler     = VK_NULL_HANDLE;
-          img_info[iii].imageView   = img->image_view;
+          img_info[cur_img++] = (VkDescriptorImageInfo){
+            .sampler     = VK_NULL_HANDLE,
+            .imageView   = img->image_view,
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+          };
           assert(img->image_view);
-          img_info[iii].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         }
         int dset = cur_dset++;
         img_dset[dset].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         img_dset[dset].dstSet          = node->dset[f];
         img_dset[dset].dstBinding      = c - node->connector;
-        img_dset[dset].dstArrayElement = 0;
         img_dset[dset].descriptorCount = MAX(c->array_length, 1);
         img_dset[dset].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         img_dset[dset].pImageInfo      = img_info + ii;
@@ -207,10 +207,11 @@ write_descriptor_sets(
           }
           if(dt_connector_ssbo(c))
           { // storage buffer
-            int iii = cur_buf++;
-            buf_info[iii].buffer = img->buffer;
-            buf_info[iii].offset = c->ssbo_offset;
-            buf_info[iii].range  = img->size-c->ssbo_offset;
+            buf_info[cur_buf++] = (VkDescriptorBufferInfo){
+              .buffer = img->buffer,
+              .offset = c->ssbo_offset,
+              .range  = img->size-c->ssbo_offset,
+            };
           }
           else
           { // image buffer
@@ -219,25 +220,22 @@ write_descriptor_sets(
             if(!img->image_view) // for dynamic arrays maybe a lazy programmer left empty slots? set to tex 0:
               img = dt_graph_connector_image(graph,
                   node - graph->node, c - node->connector, 0, frame);
-            int iii = cur_img++;
-            if(c->format == dt_token("yuv"))
-              img_info[iii].sampler   = 0; // needs immutable sampler
-            else if(node->module->name == dt_token("display"))
-              img_info[iii].sampler   = qvk.tex_sampler_dspy;
-            else if(c->type == dt_token("sink") || c->format == dt_token("ui32") || c->format == dt_token("atom"))
-              img_info[iii].sampler   = qvk.tex_sampler_nearest;
-            else
-              img_info[iii].sampler   = qvk.tex_sampler;
-            img_info[iii].imageView   = img->image_view;
+            img_info[cur_img++] = (VkDescriptorImageInfo){
+              .sampler = 
+                (c->format == dt_token("yuv")) ? 0 : // needs immutable sampler
+                (node->module->name == dt_token("display")) ? qvk.tex_sampler_dspy :
+                (c->type == dt_token("sink") || c->format == dt_token("ui32") || c->format == dt_token("atom")) ? qvk.tex_sampler_nearest :
+                qvk.tex_sampler,
+              .imageView   = img->image_view,
+              .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            };
             assert(img->image_view);
-            img_info[iii].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
           }
         }
         int dset = cur_dset++;
         img_dset[dset].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         img_dset[dset].dstSet          = node->dset[f];
         img_dset[dset].dstBinding      = c - node->connector;
-        img_dset[dset].dstArrayElement = 0;
         img_dset[dset].descriptorCount = MAX(c->array_length, 1);
         if(dt_connector_ssbo(c))
         {
@@ -445,8 +443,7 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
   for(int i=0;i<node->num_connectors;i++)
   { // bind staging memory:
     dt_connector_t *c = node->connector+i;
-    if(((!dt_connector_ssbo(c) && (c->type == dt_token("source"))) || c->type == dt_token("sink")) ||
-        ( dt_connector_ssbo(c) && (c->type == dt_token("source"))))
+    if(c->mem_staging)
     {
       vkBindBufferMemory(qvk.device, c->staging[0], graph->vkmem_staging, c->offset_staging[0]);
       vkBindBufferMemory(qvk.device, c->staging[1], graph->vkmem_staging, c->offset_staging[1]);
@@ -492,6 +489,9 @@ alloc_outputs3(dt_graph_t *graph, dt_node_t *node)
 static inline VkResult
 free_inputs(dt_graph_t *graph, dt_node_t *node)
 {
+  // really just decrementing the ref counter for *everything* except disconnected inputs and owners which are dynamic arrays.
+  // could allow dt_graph_connector_image to return 0 without error message and then just skip this owner.
+  // could lock dynamic arrays in protected memory.
   for(int i=0;i<node->num_connectors;i++)
   {
     dt_connector_t *c = node->connector+i;
@@ -505,7 +505,6 @@ free_inputs(dt_graph_t *graph, dt_node_t *node)
       //     dt_token_str(node->name),
       //     dt_token_str(node->kernel),
       //     dt_token_str(c->name));
-      // ssbo do not use staging memory for sinks, and if they did these are no sinks:
       for(int f=0;f<c->frames;f++) for(int k=0;k<MAX(1,c->array_length);k++)
       {
         dt_connector_image_t *im = dt_graph_connector_image(graph, node-graph->node, i, k, f);
@@ -830,7 +829,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     QVK(vkCreateRenderPass(qvk.device, &info, 0, &node->draw_render_pass));
   }
 
-  // a sink needs a descriptor set (for display via imgui)
+  // a sink needs a descriptor set (for display via gui)
   if(!dt_node_source(node))
   {
     // create a descriptor set layout
@@ -845,7 +844,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 
   // a sink or a source does not need a pipeline to be run.
   // note, however, that a sink does need a descriptor set, as we want to bind
-  // it to imgui textures later on.
+  // it to ui textures later on.
   if(!(dt_node_sink(node) || dt_node_source(node)))
   {
     // create the pipeline layout
@@ -1139,8 +1138,10 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         c->mem_staging    = dt_vkalloc(&graph->heap_staging, staging_size, buf_mem_req.alignment);
         c->offset_staging[0] = c->mem_staging->offset;
         c->offset_staging[1] = need_dbuf ? c->mem_staging->offset + buf_mem_req.size : c->mem_staging->offset;
-        c->size_staging      = buf_mem_req.size;
         c->mem_staging->ref++; // ref staging memory so we don't overwrite it before the pipe starts (will be written in read_source() in the module)
+        // fprintf(stderr, "allocing staging dbuf %d %"PRItkn"_%"PRItkn"_%"PRItkn"@%d [%lx,%lx)\n",
+        //     need_dbuf, dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name),
+        //     0, c->mem_staging->offset, c->mem_staging->offset + staging_size);
       }
     }
 
@@ -1150,7 +1151,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       if(!dt_cid_unset(owner))
       { // point to conn_image of connected output directly:
         node->conn_image[i] = graph->node[owner.i].conn_image[owner.c];
-        if(c->type == dt_token("sink"))
+        if(c->type == dt_token("sink") && node->module->so->write_sink)
         {
           // allocate staging buffer for downloading from connected input
           VkBufferCreateInfo buffer_info = {
@@ -1183,8 +1184,10 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
           // sinks are (for now) not double buffered:
           c->offset_staging[0] = c->mem_staging->offset;
           c->offset_staging[1] = c->mem_staging->offset;
-          c->size_staging      = c->mem_staging->size;
           c->mem_staging->ref++; // so we don't overwrite it before the pipe ends, because write_sink is called for all modules once at the end
+          // fprintf(stderr, "allocing staging sink %"PRItkn"_%"PRItkn"_%"PRItkn"@%d [%lx,%lx)\n",
+          //     dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name),
+          //     0, c->mem_staging->offset, c->mem_staging->offset + c->mem_staging->size);
         }
       }
     }
