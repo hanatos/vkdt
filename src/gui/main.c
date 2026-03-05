@@ -47,33 +47,6 @@ gamepad_changed(
   return 0;
 }
 
-// since in glfw, joysticks can only be polled and have no event interface
-// (see this pull request: https://github.com/glfw/glfw/pull/1590)
-// we need to look for changes in a busy loop in this dedicated thread.
-// once we find activity, we'll step outside the glfwWaitEvents call by
-// posting an empty event from here.
-// note that the actual joystick callbacks will be handled there, in
-// the gui thread. here, we only detect change and raise the flag.
-static void*
-joystick_active(void *unused)
-{
-  static GLFWgamepadstate last = {0};
-  GLFWgamepadstate curr;
-  while(!glfwWindowShouldClose(vkdt.win.window))
-  {
-    if(!glfwGetGamepadState(vkdt.wstate.joystick_id, &curr)) break; // no more joystick?
-    if(gamepad_changed(&last, &curr))
-    {
-      last = curr;
-      vkdt.wstate.busy = 20; // make sure we'll stay awake for a few frames
-      glfwPostEmptyEvent();
-    }
-    struct timespec req = { .tv_sec = 0, .tv_nsec = 16000 }, rem;
-    nanosleep(&req, &rem);
-  }
-  return 0;
-}
-
 static void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -170,6 +143,11 @@ dt_gui_print_usage()
          "  none qvk pipe gui db cli snd perf mem err all\n");
 }
 
+// since in glfw, joysticks can only be polled and have no event interface
+// (see this pull request: https://github.com/glfw/glfw/pull/1590)
+// and glfwGetGamepadState is not thread safe, poll from the main thread
+// using glfwWaitEventsTimeout instead of glfwWaitEvents when a joystick
+// is present.
 int main(int argc, char *argv[])
 {
   if(argc > 1)
@@ -268,10 +246,8 @@ int main(int argc, char *argv[])
   }
   dt_gui_read_tags();
 
-  // joystick
-  pthread_t joystick_thread;
-  const int joystick_present = vkdt.wstate.have_joystick;
-  if(joystick_present) pthread_create(&joystick_thread, 0, joystick_active, 0);
+  // joystick polling interval in seconds
+  const double joystick_poll_interval = 0.005; // 200Hz
 
   // main loop
   double beg_rf = dt_time();
@@ -310,7 +286,10 @@ int main(int argc, char *argv[])
     if(vkdt.win1.window)
       nk_glfw3_input_begin(&vkdt.ctx1, vkdt.win1.window, vkdt.session_type == 1);
 
-    glfwWaitEvents();
+    if(vkdt.wstate.have_joystick)
+      glfwWaitEventsTimeout(joystick_poll_interval);
+    else
+      glfwWaitEvents();
 
     // preserve these after nk_input_end:
     vkdt.wstate.interact_begin = 0;
@@ -327,9 +306,14 @@ int main(int argc, char *argv[])
       GLFWgamepadstate gamepad_curr;
       if (!glfwGetGamepadState(vkdt.wstate.joystick_id, &gamepad_curr)) vkdt.wstate.have_joystick = 0;
       else if(gamepad_changed(&gamepad_last, &gamepad_curr))
-      {
+      { // joystick change detected: stay awake for a few frames to process it
+        vkdt.wstate.busy = 20;
         dt_view_gamepad(vkdt.win.window, &gamepad_last, &gamepad_curr);
         gamepad_last = gamepad_curr;
+      }
+      else if(vkdt.wstate.busy <= 0)
+      { // no joystick change and not otherwise busy: go back to sleep
+        continue;
       }
     }
 
@@ -342,7 +326,6 @@ int main(int argc, char *argv[])
     static int bs = 1;
     if(bs) { dt_gui_toggle_fullscreen(); bs = 0; }
   }
-  if(joystick_present) pthread_join(joystick_thread, 0);
 
   for(int q=0;q<s_queue_cnt;q++)
     if(qvk.qid[q] == q)
