@@ -1324,6 +1324,7 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
   dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
   if(out_main)
   {
+    const float sensitivity = 0.002;
 #define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
     float wd  = (float)out_main->connector[0].roi.wd;
     float ht  = (float)out_main->connector[0].roi.ht;
@@ -1335,11 +1336,11 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
     float ay = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
     float zo = curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER];
     float zi = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER];
-    if(zi > -1.0f) scale *= powf(2.0, -0.04*SMOOTH(zi+1.0f)); 
-    if(zo > -1.0f) scale *= powf(2.0,  0.04*SMOOTH(zo+1.0f)); 
+    if(zi > -1.0f) scale *= powf(2.0, -2*sensitivity*SMOOTH(zi+1.0f)); 
+    if(zo > -1.0f) scale *= powf(2.0,  2*sensitivity*SMOOTH(zo+1.0f)); 
     // scale *= powf(2.0, -0.1*SMOOTH(axes[4])); 
-    vkdt.wstate.img_widget.look_at_x += SMOOTH(ax) * 0.01 / scale;
-    vkdt.wstate.img_widget.look_at_y += SMOOTH(ay) * wd/ht * 0.01 / scale;
+    vkdt.wstate.img_widget.look_at_x += SMOOTH(ax) * sensitivity / scale;
+    vkdt.wstate.img_widget.look_at_y += SMOOTH(ay) * wd/ht * sensitivity / scale;
     vkdt.wstate.img_widget.scale = scale;
 #undef SMOOTH
   }

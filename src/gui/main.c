@@ -42,8 +42,8 @@ gamepad_changed(
   if(fabsf(curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y])  > deadzone) return 1;
   if(fabsf(curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_X]) > deadzone) return 1;
   if(fabsf(curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]) > deadzone) return 1;
-  if(curr->axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER]   > deadzone) return 1;
-  if(curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER]  > deadzone) return 1;
+  if(curr->axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER]   > -1.0f+deadzone) return 1;
+  if(curr->axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER]  > -1.0f+deadzone) return 1;
   return 0;
 }
 
@@ -268,7 +268,7 @@ int main(int argc, char *argv[])
     if(vkdt.wstate.busy > 0) glfwPostEmptyEvent();
     else vkdt.wstate.busy = 3;
 
-    if(frame_limiter || (dt_log_global.mask & s_log_perf))
+    if(frame_limiter)
     { // artificially limit frames rate to frame_limiter milliseconds/frame as minimum.
       double end_rf = dt_time();
       if(frame_limiter && end_rf - beg_rf < frame_limiter / 1000.0)
@@ -287,22 +287,8 @@ int main(int argc, char *argv[])
       nk_glfw3_input_begin(&vkdt.ctx1, vkdt.win1.window, vkdt.session_type == 1);
 
     if(vkdt.wstate.have_joystick)
-      glfwWaitEventsTimeout(joystick_poll_interval);
-    else
-      glfwWaitEvents();
-
-    // preserve these after nk_input_end:
-    vkdt.wstate.interact_begin = 0;
-    vkdt.wstate.interact_end   = 0;
-    if(vkdt.ctx.input.mouse.grab)   vkdt.wstate.interact_begin = 1;
-    if(vkdt.ctx.input.mouse.ungrab) vkdt.wstate.interact_end   = 1;
-
-    nk_glfw3_input_end(&vkdt.ctx, vkdt.win.window, vkdt.session_type == 1);
-    if(vkdt.win1.window)
-      nk_glfw3_input_end(&vkdt.ctx1, vkdt.win1.window, vkdt.session_type == 1);
-
-    if(vkdt.wstate.have_joystick)
     {
+      glfwWaitEventsTimeout(joystick_poll_interval);
       GLFWgamepadstate gamepad_curr;
       if (!glfwGetGamepadState(vkdt.wstate.joystick_id, &gamepad_curr)) vkdt.wstate.have_joystick = 0;
       else if(gamepad_changed(&gamepad_last, &gamepad_curr))
@@ -316,6 +302,17 @@ int main(int argc, char *argv[])
         continue;
       }
     }
+    else glfwWaitEvents();
+
+    // preserve these after nk_input_end:
+    vkdt.wstate.interact_begin = 0;
+    vkdt.wstate.interact_end   = 0;
+    if(vkdt.ctx.input.mouse.grab)   vkdt.wstate.interact_begin = 1;
+    if(vkdt.ctx.input.mouse.ungrab) vkdt.wstate.interact_end   = 1;
+
+    nk_glfw3_input_end(&vkdt.ctx, vkdt.win.window, vkdt.session_type == 1);
+    if(vkdt.win1.window)
+      nk_glfw3_input_end(&vkdt.ctx1, vkdt.win1.window, vkdt.session_type == 1);
 
     dt_view_process(); // process before render/preset because this might swap the output image backbuffers
     if(vkdt.graph_dev.gui_msg && vkdt.graph_dev.gui_msg[0]) dt_gui_notification(vkdt.graph_dev.gui_msg);
