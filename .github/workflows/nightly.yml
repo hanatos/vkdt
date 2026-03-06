@@ -341,7 +341,7 @@ jobs:
             for lib in $versionedLibs
             do
               currentVersion=$(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//') | grep -v dylib);
-              if [ "$currentVersion" ]
+              if [ "$currentVersion" != "" ]
               then
                 if [ "$lib" != "$currentVersion.dylib" ]
                 then
