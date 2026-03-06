@@ -340,14 +340,14 @@ jobs:
           do
             for lib in $versionedLibs
             do
-              currentVersion=$(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//') | grep -v dylib);
-              if [ "$currentVersion" != "" ]
-              then
-                if [ "$lib" != "$currentVersion.dylib" ]
-                then
-                  ln -s $lib $(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//')).dylib
-                fi
-              fi
+#               currentVersion=$(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//') | grep -v dylib);
+#               if [ "$currentVersion" != "" ]
+#               then
+#                 if [ "$lib" != "$currentVersion.dylib" ]
+#                 then
+#                   ln -s $lib $(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//')).dylib
+#                 fi
+#               fi
             done
           done
       - name: install moltenvk icd
