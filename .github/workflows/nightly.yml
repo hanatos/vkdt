@@ -335,19 +335,19 @@ jobs:
       - name: something more on libs
         run: |
           cd ${APPDIR}/Contents/Frameworks
-          versionedLibs=$(ls ${APPDIR}/Contents/Frameworks | tr '\n' '\0' | xargs -0 -n1 bash -c 'echo "$0" "$(otool -D $0 | grep $0 | wc -l)"' | grep " 1" | cut -wf 1)
+          versionedLibs=$(ls ${APPDIR}/Contents/Frameworks | tr '\n' '\0' | xargs -0 -n1 bash -c 'echo "$0" "$(otool -D $0 | grep $0 | wc -l)"' | grep " 1" | cut -f 1)
           for i in $(seq 1 5)
           do
             for lib in $versionedLibs
             do
-#               currentVersion=$(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//') | grep -v dylib);
-#               if [ "$currentVersion" != "" ]
-#               then
-#                 if [ "$lib" != "$currentVersion.dylib" ]
-#                 then
-#                   ln -s $lib $(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//')).dylib
-#                 fi
-#               fi
+              currentVersion=$(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//') | grep -v dylib);
+              if [ "$currentVersion" != "" ]
+              then
+                if [ "$lib" != "$currentVersion.dylib" ]
+                then
+                  ln -s $lib $(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//')).dylib
+                fi
+              fi
             done
           done
       - name: install moltenvk icd
