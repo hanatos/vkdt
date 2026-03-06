@@ -278,6 +278,7 @@ jobs:
           retention-days: 1
 
   macintosh:
+    if: false
     if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt macintosh
     runs-on: macos-14
