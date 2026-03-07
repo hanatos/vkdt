@@ -278,7 +278,7 @@ jobs:
           retention-days: 1
 
   macintosh:
-    if: false
+    if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt macintosh
     runs-on: macos-14
     strategy:
@@ -318,37 +318,20 @@ jobs:
           ditto $(brew --prefix)/lib/libMoltenVK.dylib ${APPDIR}/Contents/Frameworks/libMoltenVK.dylib
       - name: copy library dependencies
         run: |
-          cd ${SRC_DIR}
-
-          # recursively track dependencies. use a for loop to make sure it
-          # always terminates.
-          previousRun=-1
-          run=0
-          for i in $(seq 1 20)
-          do
-            previousRun=$run
-            find ${APPDIR} -type f -print0 | xargs -0 otool -L | grep $(brew --prefix) | sort | uniq | cut -wf 2 | xargs -I {} ditto {} ${APPDIR}/Contents/Frameworks/
-            run=$(ls ${APPDIR}/Contents/Frameworks/ | wc -l)
-            echo $run
-            [ "$previousRun" == "$run" ] && break
-          done
-      - name: something more on libs
-        run: |
-          cd ${APPDIR}/Contents/Frameworks
-          versionedLibs=$(ls ${APPDIR}/Contents/Frameworks | tr '\n' '\0' | xargs -0 -n1 bash -c 'echo "$0" "$(otool -D $0 | grep $0 | wc -l)"' | grep " 1" | cut -f 1)
-          for i in $(seq 1 5)
-          do
-            for lib in $versionedLibs
-            do
-              currentVersion=$(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//') | grep -v dylib);
-              if [ "$currentVersion" != "" ]
-              then
-                if [ "$lib" != "$currentVersion.dylib" ]
-                then
-                  ln -sf $lib $(echo $lib | cut -d . -f $(seq -s "," 1 $i | sed 's/.$//')).dylib
-                fi
+          BREW_PREFIX=$(brew --prefix)
+          for i in $(seq 1 20); do
+            found=0
+            for lib in $(find ${APPDIR} -type f \( -name "*.dylib" -o -name "*.so" -o -perm +111 \) -print0 \
+              | xargs -0 otool -L 2>/dev/null \
+              | awk "/${BREW_PREFIX//\//\\/}/{ gsub(/[[:space:]].*/, \"\", \$1); print \$1 }" \
+              | sort -u); do
+              name=$(basename "$lib")
+              if [ ! -f "${APPDIR}/Contents/Frameworks/${name}" ]; then
+                cp -L "$lib" "${APPDIR}/Contents/Frameworks/${name}"
+                found=1
               fi
             done
+            [ "$found" = "0" ] && break
           done
       - name: install moltenvk icd
         run: |
@@ -435,7 +418,7 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [AppImage, WindowsRawler]
+    needs: [AppImage, WindowsRawler, macintosh]
     steps:
       - name: download artifacts
         uses: actions/download-artifact@v4
@@ -489,3 +472,4 @@ jobs:
             artifact-appimage-rawler-glfw3.4/*
             artifact-appimage-rawler-pentablet/*
             artifact-windows-rawler/*
+            artifact-macos/*
