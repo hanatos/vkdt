@@ -6,6 +6,7 @@ dt_graph_run_nodes_download(
     const dt_graph_run_t run,
     dt_module_flags_t    module_flags)
 {
+  if(!graph->vkmem_staging_size) return VK_SUCCESS; // this graph doesn't even have staging memory
   // XXX FIXME: this is a race condition for multi-frames. we'll need to wait until download is complete before starting the other command buffer!
   // XXX FIXME: maybe lock the queue mutex around the whole block?
   // XXX FIXME: may need an entirely different logic block for single frame?

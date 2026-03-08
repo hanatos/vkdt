@@ -90,8 +90,6 @@ typedef struct dt_connector_t
   // inputs (read buffers) can only be connected to exactly one output
   // we only keep track of where inputs come from. this is also
   // how we'll access it in the DAG during DFS from sinks.
-  // XXX is a reference count for "write"|"source" on *nodes* (these allocate/own a buffer)
-  // XXX put ref count on conn_image instead?
   dt_cid_t connected;  // for inputs ("read"|"sink"|"modify"): pointing to connected output (owner or not)
   dt_cid_t associated; // for *nodes*, points back to module layer if repointing is needed (dt_connector_copy interface)
   dt_cid_t bypass;     // set on input and output which form a tunnel, bypassing *modules*
@@ -102,8 +100,8 @@ typedef struct dt_connector_t
 
   // if the output/write connector holds an array and the entries have different size:
   uint32_t     *array_dim;        // or 0 if all have the same size of the roi
-  dt_vkalloc_t *array_alloc;      // or 0 if not needed. if the connector is flags & s_conn_dynamic_array use this.
-  size_t        array_alloc_size; // size of the pool allocated for this dynamic texture array
+  dt_vkalloc_t *array_heap;       // or 0 if not needed. if the connector is flags & s_conn_dynamic_array use this.
+  size_t        array_heap_size;  // size of the pool allocated for this dynamic texture array
   dt_vkmem_t   *array_mem;        // memory allocated in outer mem pool, will be split for array dynamically
   uint8_t      *array_req;        // points to flags what do do: 0 - nothing, 1 - alloc, 2 - upload, 4 - free
   int           array_resync;     // means we need to sync a dynamic array for multi-frame descriptor sets with one frame delay (internal use)

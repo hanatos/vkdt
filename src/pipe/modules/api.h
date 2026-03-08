@@ -52,6 +52,12 @@ dt_connector_output(const dt_connector_t *c)
 { // this means another node/module can connect to this in a reading fashion
   return c->type == dt_token("write") || c->type == dt_token("source") || c->type == dt_token("modify");
 }
+static inline int
+dt_connector_has_staging(const dt_connector_t *c, const dt_node_t *n)
+{ // indicates a connector requires staging memory
+  return (c->type == dt_token("source") && n->module->so->read_source) ||
+         (c->type == dt_token("sink")   && n->module->so->write_sink);
+}
 static inline dt_cid_t
 dt_connector_find_owner(const dt_graph_t *g, dt_cid_t c)
 { // returns the id of the connector which allocated the buffer associated with connector c

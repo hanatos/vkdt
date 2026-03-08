@@ -1011,7 +1011,7 @@ create_nodes(
   graph->node[id_tex].connector[0].array_req = d->tex_req;
   // mark as dynamic allocation suitable for multi-frame processing (double buffered)
   graph->node[id_tex].connector[0].flags = s_conn_dynamic_array | s_conn_feedback;
-  graph->node[id_tex].connector[0].array_alloc_size = 1500<<20; // something enough for quake
+  graph->node[id_tex].connector[0].array_heap_size = 1500<<20; // something enough for quake
   module->connector[3].array_length = graph->node[id_tex].connector[0].array_length;
 }
 

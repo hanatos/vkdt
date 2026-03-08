@@ -607,7 +607,7 @@ dt_graph_run_modules(
           dt_connector_image_t *img0 = (graph->node[i].conn_image[j] != -1) ? dt_graph_connector_image(graph, i, j, k, 0) : 0;
           dt_connector_image_t *img1 = (graph->node[i].conn_image[j] != -1) ? dt_graph_connector_image(graph, i, j, k, 1) : 0;
           if(!img0 || !img1) continue;
-          if(img0->buffer == img1->buffer)
+          if(img0->buffer == img1->buffer && img0->image == img1->image)
           { // it's enough to clean up one replicant, the rest will shut down cleanly later:
             *img0 = (dt_connector_image_t){0};
           }
@@ -631,11 +631,12 @@ dt_graph_run_modules(
     for(int i=0;i<graph->conn_image_end;i++)
     {
       if(graph->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    graph->conn_image_pool[i].buffer, VK_NULL_HANDLE);
-      if(graph->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     graph->conn_image_pool[i].image, VK_NULL_HANDLE);
       if(graph->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, graph->conn_image_pool[i].image_view, VK_NULL_HANDLE);
+      if(graph->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     graph->conn_image_pool[i].image, VK_NULL_HANDLE);
       graph->conn_image_pool[i].buffer = 0;
       graph->conn_image_pool[i].image = 0;
       graph->conn_image_pool[i].image_view = 0;
+      graph->conn_image_pool[i].mem = 0;
     }
     graph->conn_image_end = 0;
     for(int i=0;i<cnt;i++)

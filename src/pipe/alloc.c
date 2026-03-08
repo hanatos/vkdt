@@ -51,7 +51,6 @@ dt_vkmem_t*
 dt_vkalloc_protected(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 {
   if(!alignment) alignment = 1;
-  assert(!dt_vkalloc_check(a));
   // linear scan through free list O(n)
   dt_vkmem_t *l = a->free;
   assert(l && "vkalloc: no more free slots!");
@@ -99,6 +98,7 @@ dt_vkalloc_protected(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
   mem->offset_orig = l->offset_orig;
   mem->offset = offset;
   mem->size = size;
+  mem->check = 2;
   l->offset = l->offset_orig = mem->offset + mem->size;
   assert(end >= l->offset_orig);
   l->size = end - l->offset_orig;
@@ -107,9 +107,7 @@ dt_vkalloc_protected(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
   a->peak_rss = MAX(a->peak_rss, a->rss);
   a->vmsize = MAX(a->vmsize, mem->offset + mem->size);
   a->used = DLIST_PREPEND(a->used, mem);
-  mem->ref = 1;
 
-  assert(!dt_vkalloc_check(a));
   return mem;
 }
 
@@ -155,7 +153,7 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
       a->peak_rss = MAX(a->peak_rss, a->rss);
       a->vmsize = MAX(a->vmsize, mem->offset + mem->size);
       a->used = DLIST_PREPEND(a->used, mem);
-      mem->ref = 1;
+      mem->check = 1;
       return mem;
     }
     l = l->next;
@@ -167,12 +165,8 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 void
 dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
 {
-  if(mem->ref)
-  {
-    mem->ref--;
-    if(mem->ref) return; // don't free if still referenced
-  }
-  else return; // no ref count: already freed
+  assert(mem->check);
+  mem->check = 0;
   // remove from used list, put back to free list.
   a->rss -= mem->size;
   a->used = DLIST_REMOVE(a->used, mem);
@@ -333,4 +327,3 @@ dt_vkalloc_check(dt_vkalloc_t *a)
 
   return 0; // yay, we made it!
 }
-

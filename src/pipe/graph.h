@@ -12,15 +12,16 @@ typedef uint32_t dt_graph_run_t;
 
 typedef struct dt_connector_image_t
 {
-  uint64_t      offset, size;   // actual memory position during the time it is valid
-  uint64_t      plane1_offset;  // yuv buffers need the offset to the chroma plane
-  uint32_t      wd, ht;         // if non zero, these are the varying dimensions of image arrays
-  uint32_t      mip_levels;     // number of mip map levels, if any (mostly zero)
-  dt_vkmem_t   *mem;            // used for alloc/free during graph traversal
-  VkImage       image;          // vulkan image object
-  VkImageView   image_view;
-  VkImageLayout layout;
-  VkBuffer      buffer;         // in case this is a storage buffer
+  uint64_t             offset, size;   // actual memory position during the time it is valid
+  uint64_t             plane1_offset;  // yuv buffers need the offset to the chroma plane
+  uint32_t             wd, ht;         // if non zero, these are the varying dimensions of image arrays
+  uint32_t             mip_levels;     // number of mip map levels, if any (mostly zero)
+  int                  nid_last_ref;   // nodeid in topological sort that uses this buffer last (can be freed/aliased after this)
+  dt_vkmem_t          *mem;            // used for alloc/free during graph traversal
+  VkImage              image;          // vulkan image object
+  VkImageView          image_view;
+  VkImageLayout        layout;
+  VkBuffer             buffer;         // in case this is a storage buffer
 }
 dt_connector_image_t;
 

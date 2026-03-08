@@ -79,7 +79,7 @@ typedef struct dt_export_widget_t
 { // this memory belongs to the gui and export threads need to copy it.
   int      modid_cnt;   // number of output modules found
   int     *modid;       // points into dt_pipe.module, lists all output modules
-  char    *format_text; // output module selection text for imgui combobox
+  char    *format_text; // output module selection text for combobox
   uint8_t *pdata_buf;   // allocation for all the parameters
   uint8_t **pdata;      // pointer to parameter data for all output modules
 

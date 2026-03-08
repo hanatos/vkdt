@@ -125,11 +125,11 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
               dt_graph_connector_image(graph, node-graph->node, i, 0, graph->double_buffer),
               SHADER_READ_ONLY_OPTIMAL,
               COLOR_ATTACHMENT_OPTIMAL);
-        else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
-          IMG_LAYOUT(
-              dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer),
-              SHADER_READ_ONLY_OPTIMAL,
-              GENERAL);
+        // else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
+        //   IMG_LAYOUT(
+        //       dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer),
+        //       SHADER_READ_ONLY_OPTIMAL,
+        //       GENERAL);
       }
     }
     return VK_SUCCESS;

@@ -8,7 +8,6 @@
   img->layout = nl;\
 } while(0)
 
-// run the graph.
 // upload source to GPU buffers portion.
 // the logic when an upload is triggered follow several steps:
 // - the module requested upload as a whole, via module->flags & s_module_request_read_source
@@ -34,6 +33,8 @@ dt_graph_run_nodes_upload(
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
   };
+
+  if(!graph->vkmem_staging_size) return VK_SUCCESS; // this graph doesn't even have staging memory
 
   threads_mutex_t *mutex = 0;// graph->io_mutex; // no speed impact, maybe not needed
   if(mutex) threads_mutex_lock(mutex);
@@ -76,8 +77,9 @@ dt_graph_run_nodes_upload(
               node->module->so->read_source(node->module, mapped + offset, &p);
               if(node->connector[c].array_length > 1)
               {
-                if(!dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer)->image)
-                  continue;
+                dt_connector_image_t *img = dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer);
+                if(!img) continue;
+                // fprintf(stderr, "upload %d[%d] off %lx size %lx\n", a, graph->double_buffer, img->offset, img->size);
                 vkUnmapMemory(qvk.device, graph->vkmem_staging);
                 const uint32_t wd = MAX(1, node->connector[c].array_dim ? node->connector[c].array_dim[2*a+0] : node->connector[c].roi.wd);
                 const uint32_t ht = MAX(1, node->connector[c].array_dim ? node->connector[c].array_dim[2*a+1] : node->connector[c].roi.ht);
@@ -90,7 +92,7 @@ dt_graph_run_nodes_upload(
                   .imageSubresource.layerCount = 1,
                   .imageExtent = { wd, ht, 1 },
                 },{
-                  .bufferOffset = dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer)->plane1_offset,
+                  .bufferOffset = img->plane1_offset,
                   .imageSubresource.aspectMask = VK_IMAGE_ASPECT_PLANE_1_BIT,
                   .imageSubresource.layerCount = 1,
                   .imageExtent = { wd / 2, ht / 2, 1 },
@@ -99,17 +101,17 @@ dt_graph_run_nodes_upload(
                 VkCommandBuffer cmd_buf = graph->command_buffer[graph->double_buffer];
                 QVKR(vkBeginCommandBuffer(cmd_buf, &begin_info));
                 IMG_LAYOUT(
-                    dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer),
+                    img,
                     UNDEFINED,
                     TRANSFER_DST_OPTIMAL);
                 vkCmdCopyBufferToImage(
                     cmd_buf,
                     node->connector[c].staging[graph->double_buffer],
-                    dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer)->image,
+                    img->image,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     yuv ? 2 : 1, yuv ? regions+1 : regions);
                 IMG_LAYOUT(
-                    dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer),
+                    img,
                     TRANSFER_DST_OPTIMAL,
                     SHADER_READ_ONLY_OPTIMAL);
                 QVKR(vkEndCommandBuffer(cmd_buf));
