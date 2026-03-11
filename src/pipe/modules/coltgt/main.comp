@@ -20,10 +20,22 @@ void main()
 
   ivec2 idx = ivec2(
       (ipos.x * 6)/imageSize(img_out).x,
-      (ipos.y * 5)/imageSize(img_out).y);
+      (ipos.y * 7)/imageSize(img_out).y);
 
-  int i = idx.y*6+idx.x;
-  vec3 rgb = vec3(col[3*i], col[3*i+1], col[3*i+2]);
+  vec3 rgb = vec3(0);
+  if(idx.y == 5)
+  { // gamma ramp, stripes
+    if((ipos.x & 1) == 1) rgb = vec3(1.0);
+  }
+  else if(idx.y == 6)
+  { // gamma ramp, average
+    rgb = vec3(0.5);
+  }
+  else
+  { // colour swatches
+    int i = idx.y*6+idx.x;
+    rgb = vec3(col[3*i], col[3*i+1], col[3*i+2]);
+  }
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
 
