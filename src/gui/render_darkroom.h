@@ -1087,6 +1087,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
             if(mod->so->input) mod->so->input(mod, &p);
           dt_gui_dr_anim_start();
         }
+        RESETBLOCK
         if(nk_button_label(ctx, "grab input"))
         {
           widget_end(); // if another one is still in progress, end that now
@@ -1100,6 +1101,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
             if(mod->so->input) mod->so->input(mod, &p);
           dt_gui_dr_anim_start();
         }
+        KEYFRAME
       }
     }
   }
