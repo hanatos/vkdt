@@ -381,7 +381,10 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     if(dt_connector_ssbo(node->connector+0))
     { // no layout change, copy host visible to real memory:
       dt_connector_t *c = node->connector;
-      VkBufferCopy region = {0, 0, dt_connector_bufsize(c, c->roi.wd, c->roi.ht)};
+      VkBufferCopy region = {0, 0,
+        c->format == dt_token("tri") ?  // only copy actually occupied trianges, not the full buffer size
+        dt_connector_bufsize(c, c->roi.full_wd, 1) :
+        dt_connector_bufsize(c, c->roi.wd, c->roi.ht)};
       vkCmdCopyBuffer(
           cmd_buf,
           node->connector[0].staging[graph->double_buffer],
