@@ -194,8 +194,14 @@ main()
       float converge = params.rolloff * 1.0 * smoothstep(0.0, 0.3, away);
       h = lerp_chromaticity_angle(h, h_target, converge);
     }
-    // chroma: 0=mono, 1=natural, >1=boost
-    float cr = max(params.chroma, 0.0);
+    // chroma compensation matching modes 0-4: derivative-based highlight
+    // boost + hunt effect shadow correction, centered at chroma=1.0
+    float c = params.chroma - 1.0;
+    float deriv = weibull_pdf(lum0, il, k);
+    float hi = pow(max(1.0, 1.0 / max(deriv, 0.15)), c * 0.1);
+    float sw = smoothstep(0.3, 0.0, lum1);
+    float lo = 1.0 + c * 0.15 * sw;
+    float cr = hi * lo;
     // per-hue chroma trim to compensate uneven per-channel desaturation
     cr *= 1.0
       + params.red    * hue_bump(h, 0.7,   1.0)
@@ -210,14 +216,21 @@ main()
       vec4 col_crv = vec4(0, 0, 0, 1);
       float x = ipos.x/float(imageSize(img_crv).x);
       float y = weibull_cdf(x, il, k);
+      float ddx = weibull_pdf(x, il, k);
+      // chain rule through rolloff: d/dx[y + r*y²*(1-y)] = (1 + r*y*(2-3y)) * dy/dx
+      ddx *= 1.0 + params.rolloff * y * (2.0 - 3.0 * y);
       y = y + params.rolloff * y * y * (1.0 - y);
       if(params.shadows > 0.0)
-      {
+      { // chain rule through shadow toe: mix(y, y^g, s(y))
         float tg = 1.0 - 0.5 * params.shadows;
         float yt = pow(max(y, 1e-7), tg);
-        y = mix(y, yt, smoothstep(0.3, 0.0, y));
+        float dyt = tg * pow(max(y, 1e-7), tg - 1.0);
+        float u = clamp((0.3 - y) / 0.3, 0.0, 1.0);
+        float s = u * u * (3.0 - 2.0 * u);
+        float ds = -20.0 * u * (1.0 - u);
+        ddx *= (1.0 - s) + s * dyt + ds * (yt - y);
+        y = mix(y, yt, s);
       }
-      float ddx = weibull_pdf(x, il, k);
       const float w = 2.0;
       float t2 = w * sqrt(1.0 + ddx*ddx);
       float d = abs((1.0-y) * imageSize(img_crv).y - ipos.y);
@@ -225,29 +238,6 @@ main()
       imageStore(img_crv, ipos, col_crv);
     }
     return;
-  }
-
-  // smooth highlight rolloff: C1-continuous cubic, preserves white point
-  if(params.rolloff > 0.0)
-  {
-    const vec3 lw = vec3(0.2627, 0.6780, 0.0593);
-    float lum1 = max(dot(col1, lw), 1e-7);
-    float new_lum = lum1 + params.rolloff * lum1 * lum1 * (1.0 - lum1);
-    col1 *= new_lum / lum1;
-  }
-
-  // compensate tone curve's saturation loss using curve derivative (highlights)
-  // and hunt effect correction (shadows)
-  if(params.chroma != 0.0)
-  {
-    const vec3 lw = vec3(0.2627, 0.6780, 0.0593);
-    float lum0 = max(dot(col0, lw), 1e-7);
-    float lum1 = max(dot(col1, lw), 1e-7);
-    float deriv = weibull_pdf(lum0, il, k);
-    float hi = pow(max(1.0, 1.0 / max(deriv, 0.15)), params.chroma * 0.1);
-    float sw = smoothstep(0.3, 0.0, lum1);
-    float lo = 1.0 + params.chroma * 0.15 * sw;
-    col1 = mix(vec3(lum1), col1, hi * lo);
   }
 
   if(all(lessThan(ipos, imageSize(img_crv))))
