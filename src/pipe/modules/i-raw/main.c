@@ -62,6 +62,7 @@ load_raw(
   int have_dngop = 0;
   for(int i=0;i<3;i++)
   {
+    mod_data->dng_opcode_lists[i] = 0;
     if(mod_data->img.dng_opcode_lists_len[i] > 0)
     {
       // decode the raw opcode list into C structures we can access directly
@@ -74,7 +75,7 @@ load_raw(
       have_dngop++;
     }
   }
-  if(have_dngop == 3)
+  if(have_dngop)
   {
     mod_data->dngop = (dt_image_metadata_dngop_t){
       .type = s_image_metadata_dngop,
