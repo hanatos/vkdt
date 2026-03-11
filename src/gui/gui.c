@@ -273,9 +273,9 @@ int dt_gui_init()
   if(!f) f = fopen("/usr/share/sdl/gamecontrollerdb.txt", "rb");
   if(f)
   { // load additional controller descriptions from file above if present
-    fseek(f, SEEK_END, 0);
-    size_t sz = ftell(f);
-    fseek(f, SEEK_SET, 0);
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    rewind(f);
     char *buf = malloc(sz+1);
     fread(buf, 1, sz, f);
     fclose(f);
