@@ -167,49 +167,43 @@ main()
     const vec3 lw = vec3(0.2627, 0.6780, 0.0593);
     float lum0 = max(dot(col0, lw), 1e-7);
     float lum1 = weibull_cdf(lum0, il, k);
-    // smooth highlight rolloff: C1-continuous cubic, preserves white point
-    // g(x) = x + r*x²*(1-x), g(0)=0, g(1)=1, g'(0)=1, g'(1)=1-r
-    lum1 = lum1 + params.rolloff * lum1 * lum1 * (1.0 - lum1);
-    // shadow toe: independent from brightness/contrast
-    if(params.shadows > 0.0)
+    lum1 = lum1 + params.rolloff * lum1 * lum1 * (1.0 - lum1); // C1 rolloff
+    if(params.shadows != 0.0)
     {
       float toe_gamma = 1.0 - 0.5 * params.shadows;
       float lum_toe = pow(max(lum1, 1e-7), toe_gamma);
       lum1 = mix(lum1, lum_toe, smoothstep(0.3, 0.0, lum1));
     }
     float L1 = L0 * pow(lum1 / lum0, 1.0/3.0);
-    // chroma from per-channel curve: preserves natural saturation rolloff
+    // chroma from per-channel curve preserves natural saturation rolloff
     vec3 lab_pc = rec2020_to_oklab(weibull_cdf(col0, il, k));
     float C1 = length(lab_pc.yz);
-    // tame per-channel oversaturation in midtones/highlights
-    C1 *= 1.0 - 0.6 * params.rolloff * smoothstep(0.15, 0.5, lum1);
+    // tame rolloff-induced oversaturation, fade out when chroma > 1
+    float tame = 1.0 - 0.6 * params.rolloff * smoothstep(0.15, 0.5, lum1);
+    C1 *= mix(tame, 1.0, clamp(params.chroma - 1.0, 0.0, 1.0));
     float h = atan(lab_pc.z, lab_pc.y);
-    // converge warm/skin hues toward ~55° oklab in highlights and shadows
-    // to reduce hue spread, giving a more coherent look on skin tones
+    // converge warm hues toward ~55° to reduce skin tone hue spread
     float h_target = 0.96;
     float h_dist = abs(mod(h - h_target + M_PI, 2.0*M_PI) - M_PI);
     if(h_dist < 0.7)
     {
       float away = abs(lum1 - 0.35);
-      float converge = params.rolloff * 1.0 * smoothstep(0.0, 0.3, away);
+      float converge = 0.3 * smoothstep(0.0, 0.3, away);
       h = lerp_chromaticity_angle(h, h_target, converge);
     }
-    // chroma compensation matching modes 0-4: derivative-based highlight
-    // boost + hunt effect shadow correction, centered at chroma=1.0
+    // 0=mono, 1=natural, 2=boosted; derivative-based highlight/shadow correction
     float c = params.chroma - 1.0;
     float deriv = weibull_pdf(lum0, il, k);
     float hi = pow(max(1.0, 1.0 / max(deriv, 0.15)), c * 0.1);
     float sw = smoothstep(0.3, 0.0, lum1);
     float lo = 1.0 + c * 0.15 * sw;
-    float cr = hi * lo;
-    // per-hue chroma trim to compensate uneven per-channel desaturation
-    cr *= 1.0
+    float cr = params.chroma * hi * lo;
+    cr *= 1.0 // per-hue trim for uneven per-channel desaturation
       + params.red    * hue_bump(h, 0.7,   1.0)
       + params.yellow * hue_bump(h, 1.76,  1.0)
       + params.blue   * hue_bump(h, -1.76, 1.0);
     vec3 lab1 = vec3(L1, C1 * cr * cos(h), C1 * cr * sin(h));
     col1 = oklab_to_rec2020(lab1);
-    // skip rolloff and chroma blocks below (already handled)
     imageStore(img_out, ipos, vec4(col1, 1));
     if(all(lessThan(ipos, imageSize(img_crv))))
     {
@@ -217,14 +211,13 @@ main()
       float x = ipos.x/float(imageSize(img_crv).x);
       float y = weibull_cdf(x, il, k);
       float ddx = weibull_pdf(x, il, k);
-      // chain rule through rolloff: d/dx[y + r*y²*(1-y)] = (1 + r*y*(2-3y)) * dy/dx
-      ddx *= 1.0 + params.rolloff * y * (2.0 - 3.0 * y);
+      ddx *= 1.0 + params.rolloff * y * (2.0 - 3.0 * y); // chain rule through rolloff
       y = y + params.rolloff * y * y * (1.0 - y);
-      if(params.shadows > 0.0)
-      { // chain rule through shadow toe: mix(y, y^g, s(y))
+      if(params.shadows != 0.0)
+      { // chain rule through shadow toe
         float tg = 1.0 - 0.5 * params.shadows;
         float yt = pow(max(y, 1e-7), tg);
-        float dyt = tg * pow(max(y, 1e-7), tg - 1.0);
+        float dyt = min(tg * pow(max(y, 1e-7), tg - 1.0), 100.0);
         float u = clamp((0.3 - y) / 0.3, 0.0, 1.0);
         float s = u * u * (3.0 - 2.0 * u);
         float ds = -20.0 * u * (1.0 - u);
@@ -249,7 +242,7 @@ main()
     float y = weibull_cdf(x, il, k);
     float ddx = weibull_pdf(x, il, k);
     const float w = 2.0; // stroke width
-    float t = w * sqrt(1.0 + ddx*ddx); // line thinckness along const y
+    float t = w * sqrt(1.0 + ddx*ddx); // line thickness along const y
     float d = abs((1.0+of0-y) * (1.0-of0) * imageSize(img_crv).y - ipos.y);
     col_crv = max(col_crv, 0.2 * vec4(vec3(smoothstep(t, 0.0, d)), 1));
     imageStore(img_crv, ipos, col_crv);
