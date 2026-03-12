@@ -57,7 +57,6 @@ typedef struct dt_thumbnails_t
   dt_thumbnail_t       *mru;   // most  recently used thumbnail, append here
 
   char                  cachedir[1024];
-  int                   triggered_realloc;
 }
 dt_thumbnails_t;
 
@@ -105,7 +104,7 @@ VkResult dt_thumbnails_load_one(dt_thumbnails_t *tn, const char *filename, uint3
 // and return after it's done. it'll update lru lists and try to load bc1 thumbnails
 // from the cache location. it does not trigger a bc1 creation process (such as
 // dt_thumbnails_cache_directory() does).
-void
+VkResult
 dt_thumbnails_load_list(
     dt_thumbnails_t *tn,           // thumbnails to write to
     struct dt_db_t  *db,           // database with image structs

@@ -290,13 +290,31 @@ void render_lighttable_center()
   nk_style_push_vec2(&vkdt.ctx, &vkdt.ctx.style.window.spacing, nk_vec2(spacing, spacing));
 
   // precache round robin
-  const int iv = 5;
+  const int iv = 20;
   static int cacheline = 0;
-  dt_thumbnails_load_list(
+  static int triggered_rebuild = 0;
+  // note that we do this once per frame, and before we set any
+  // thumbnail ids on the images below. in case a rebuild is triggered,
+  // this will invalidate all images and descriptor sets and we have to
+  // wait for one frame (until the command buffer is through with the
+  // resources)
+  if(triggered_rebuild)
+  { // triggered a reset
+    uint64_t heap_size = 2*vkdt.thumbnails.alloc.heap_size, pool_size = 2*vkdt.thumbnails.alloc.pool_size;
+    uint32_t wd = vkdt.thumbnails.thumb_wd, ht = vkdt.thumbnails.thumb_ht;
+    // kill them all
+    dt_thumbnails_cleanup(&vkdt.thumbnails);
+    // re-allocate
+    dt_thumbnails_init(&vkdt.thumbnails, wd, ht, pool_size, heap_size);
+    triggered_rebuild = 0;
+  }
+  VkResult thumb_res = dt_thumbnails_load_list(
       &vkdt.thumbnails,
       &vkdt.db,
       vkdt.db.collection,
       cacheline, MIN(vkdt.db.collection_cnt, cacheline+iv));
+  if(thumb_res == VK_ERROR_OUT_OF_DATE_KHR)
+    triggered_rebuild = 1;
   cacheline += iv;
   if(cacheline > vkdt.db.collection_cnt) cacheline = 0;
   for(int i=0;i<vkdt.db.collection_cnt;i++)
@@ -320,15 +338,6 @@ void render_lighttable_center()
         g_scroll_colid = -1;
       }
     }
-
-    // precache this line
-    if(row.y - vkdt.ctx.current->scrollbar.y <= content.y + content.h)
-    if((i % ipl) == 0)
-      dt_thumbnails_load_list(
-          &vkdt.thumbnails,
-          &vkdt.db,
-          vkdt.db.collection,
-          i, MIN(vkdt.db.collection_cnt, i+ipl));
 
     if(row.y + row.h <= content.y ||
        row.y > content.y + content.h)

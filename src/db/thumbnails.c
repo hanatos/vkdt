@@ -184,18 +184,18 @@ dt_thumbnails_cleanup(
     dt_graph_cleanup(tn->graph + i);
     pthread_mutex_destroy(tn->graph_lock + i);
   }
+  if(tn->dset_layout) vkDestroyDescriptorSetLayout(qvk.device, tn->dset_layout, 0);
+  if(tn->dset_pool)   vkDestroyDescriptorPool     (qvk.device, tn->dset_pool,   0);
+  if(tn->vkmem)       vkFreeMemory                (qvk.device, tn->vkmem,       0);
   for(int i=0;i<tn->thumb_max;i++)
   {
-    if(tn->thumb[i].image)      vkDestroyImage    (qvk.device, tn->thumb[i].image,      0);
     if(tn->thumb[i].image_view) vkDestroyImageView(qvk.device, tn->thumb[i].image_view, 0);
+    if(tn->thumb[i].image)      vkDestroyImage    (qvk.device, tn->thumb[i].image,      0);
     tn->thumb[i].image      = 0;
     tn->thumb[i].image_view = 0;
   }
   free(tn->thumb);
   tn->thumb = 0;
-  if(tn->dset_layout) vkDestroyDescriptorSetLayout(qvk.device, tn->dset_layout, 0);
-  if(tn->dset_pool)   vkDestroyDescriptorPool     (qvk.device, tn->dset_pool,   0);
-  if(tn->vkmem)       vkFreeMemory                (qvk.device, tn->vkmem,       0);
   dt_vkalloc_cleanup(&tn->alloc);
 }
 
@@ -437,7 +437,7 @@ dt_thumbnails_cache_collection(
 //    start single-thread and maybe interleave with two threads, too
 //    (needs lru mutex then)
 // this function is 2):
-void
+VkResult
 dt_thumbnails_load_list(
     dt_thumbnails_t *tn,
     dt_db_t         *db,
@@ -460,8 +460,10 @@ dt_thumbnails_load_list(
 
       VkResult res = dt_thumbnails_load_one(tn, filename, &thumb_index);
       if(res == VK_ERROR_OUT_OF_DATE_KHR)
+      {
         dt_db_invalidate_thumbnails(db);
-      if(tn->triggered_realloc) return; // try again next frame (not using thumbs)
+        return res;
+      }
       if(res == VK_SUCCESS)
       {
         loaded++;
@@ -485,6 +487,7 @@ dt_thumbnails_load_list(
   if(loaded) dt_log(s_log_mem, "thumbs: peak rss %g MB vmsize %g MB",
       tn->alloc.peak_rss/(1024.0*1024.0),
       tn->alloc.vmsize  /(1024.0*1024.0));
+  return VK_SUCCESS;
 }
 
 // load a previously cached thumbnail to a VkImage onto the GPU.
@@ -591,19 +594,7 @@ dt_thumbnails_load_one(
     dt_log(s_log_qvk|s_log_err, "[thm] memory type bits don't match!");
 
   if(tn->alloc.vmsize + mem_req.size > tn->alloc.heap_size)
-  {
-    if(tn->triggered_realloc == 1)
-    {
-      uint64_t heap_size = 2*tn->alloc.heap_size, pool_size = 2*tn->alloc.pool_size;
-      uint32_t wd = tn->thumb_wd, ht = tn->thumb_ht;
-      dt_log(s_log_db, "re-allocating thumbnail cache to %g MB!", heap_size/1024.0/1024.0);
-      // kill them all
-      dt_thumbnails_cleanup(tn);
-      // re-allocate
-      QVKR(dt_thumbnails_init(tn, wd, ht, pool_size, heap_size));
-      tn->triggered_realloc = 0;
-    }
-    else tn->triggered_realloc = 1;
+  { // uhm not enough memory, trigger reset of all thumbnail references
     // reload will be triggered by ui
     *thumb_index = 0;
     return VK_ERROR_OUT_OF_DATE_KHR;
