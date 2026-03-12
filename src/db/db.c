@@ -221,13 +221,6 @@ void dt_db_load_directory(
     dt_thumbnails_t *thumbnails,
     const char      *dirname)
 {
-  uint32_t id = 0;
-  if(dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id) != VK_SUCCESS)
-  {
-    dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
-    return;
-  }
-
   DIR *dp = dirname ? opendir(dirname) : 0;
   if(!dp)
   {
@@ -320,13 +313,6 @@ int dt_db_load_image(
   int len = strnlen(filename, 2048);
   if(len > 4 && !strcasecmp(filename+len-4, ".cfg"))
     len -= 4; // remove .cfg suffix
-
-  uint32_t id = 0;
-  if(dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id) != VK_SUCCESS)
-  {
-    dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
-    return 1;
-  }
 
   db->image = malloc(sizeof(dt_image_t)*db->image_max);
   memset(db->image, 0, sizeof(dt_image_t)*db->image_max);
@@ -718,4 +704,11 @@ void dt_db_duplicate_selected_images(dt_db_t *db)
     }
 next:;
   }
+}
+
+void dt_db_invalidate_thumbnails(dt_db_t *db)
+{
+  threads_mutex_lock(&db->image_mutex);
+  for(int i=0;i<db->image_cnt;i++) db->image[i].thumbnail = 0;
+  threads_mutex_unlock(&db->image_mutex);
 }

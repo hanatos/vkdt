@@ -201,3 +201,5 @@ void dt_db_duplicate_selected_images(dt_db_t *db);
 void dt_db_reset_to_defaults(const char *fullfn);
 // convenience function to read create date of an image
 void dt_db_read_createdate(const dt_db_t *db, uint32_t imgid, char createdate[20]);
+// clean out all references to cached thumbnail images
+void dt_db_invalidate_thumbnails(dt_db_t *db);

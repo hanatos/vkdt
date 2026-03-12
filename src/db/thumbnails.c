@@ -172,6 +172,13 @@ dt_thumbnails_init(
   for(int i=0;i<tn->thumb_max;i++)
     QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, &tn->thumb[i].dset));
 
+  uint32_t id = 0;
+  if(dt_thumbnails_load_one(tn, "data/busybee.bc1", &id) != VK_SUCCESS)
+  {
+    dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
+    return 1;
+  }
+
   return VK_SUCCESS;
 }
 
@@ -445,6 +452,7 @@ dt_thumbnails_load_list(
     uint32_t         beg,
     uint32_t         end)
 {
+  int loaded = 0;
   for(int k=beg;k<end;k++)
   { // for all images in given collection
     const uint32_t imgid = collection[k];
@@ -456,8 +464,12 @@ dt_thumbnails_load_list(
       char filename[1024];
       dt_db_image_path(db, imgid, filename, sizeof(filename));  
       uint32_t thumb_index = -1u;
-      if(dt_thumbnails_load_one(tn, filename, &thumb_index) == VK_SUCCESS)
+
+      VkResult res = dt_thumbnails_load_one(tn, filename, &thumb_index);
+      if(res == VK_ERROR_OUT_OF_DATE_KHR) dt_db_invalidate_thumbnails(db);
+      if(res == VK_SUCCESS)
       {
+        loaded++;
         threads_mutex_lock(&db->image_mutex);
         img->thumbnail = thumb_index;
         threads_mutex_unlock(&db->image_mutex);
@@ -475,6 +487,9 @@ dt_thumbnails_load_list(
       // threads_mutex_unlock(&tn->lru_lock);
     }
   }
+  if(loaded) dt_log(s_log_mem, "thumbs: peak rss %g MB vmsize %g MB",
+      tn->alloc.peak_rss/(1024.0*1024.0),
+      tn->alloc.vmsize  /(1024.0*1024.0));
 }
 
 // load a previously cached thumbnail to a VkImage onto the GPU.
@@ -580,16 +595,27 @@ dt_thumbnails_load_one(
   if(mem_req.memoryTypeBits != tn->memory_type_bits)
     dt_log(s_log_qvk|s_log_err, "[thm] memory type bits don't match!");
 
+#if 1
+  if(tn->alloc.vmsize + mem_req.size > tn->alloc.heap_size)
+  {
+    uint64_t heap_size = 2*tn->alloc.heap_size, pool_size = 2*tn->alloc.pool_size;
+    uint32_t wd = tn->thumb_wd, ht = tn->thumb_ht;
+    dt_log(s_log_db, "[thm] re-allocating thumbnail cache to %g MB!", heap_size/1024.0/1024.0);
+    // kill them all
+    dt_thumbnails_cleanup(tn);
+    // re-allocate
+    QVKR(dt_thumbnails_init(tn, wd, ht, pool_size, heap_size));
+    // reload will be triggered by ui
+    return VK_ERROR_OUT_OF_DATE_KHR;
+  }
+#endif
+
   dt_vkmem_t *mem = dt_vkalloc(&tn->alloc, mem_req.size, mem_req.alignment);
   if(!mem)
   {
-    dt_log(s_log_err, "[thm] no more thumbnail gpu memory allocation possible!\n");
+    dt_log(s_log_err, "[thm] no more thumbnail gpu memory allocation possible!");
     return VK_INCOMPLETE; // probably fragmented memory
   }
-  // TODO: if (!mem) we have not enough memory! need to handle this now (more cache eviction?)
-  // TODO: could do batch cleanup in case we need memory:
-  // walk lru list from front and kill all contents (see above)
-  // but leave list as it is
 
   assert(mem);
   th->mem    = mem;

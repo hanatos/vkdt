@@ -208,7 +208,7 @@ int main(int argc, char *argv[])
   // to create thumbnails, if necessary.
   // only width/height will matter here
   dt_thumbnails_init(&vkdt.thumbnail_gen, 400, 400, 0, 0);
-  dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 3000, 1ul<<30);
+  dt_thumbnails_init(&vkdt.thumbnails, 400, 400, 10, 1ul<<20);
   dt_db_init(&vkdt.db);
   char *filename = 0;
   {
