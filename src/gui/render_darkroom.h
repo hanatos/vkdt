@@ -674,9 +674,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   {
     nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
     float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
-    const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
-    const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
-    const float aspect = iwd/iht;
     if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
       int accept = 0;
@@ -699,12 +696,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
       if(nk_button_label(ctx, string))
       {
-        // dt_gamepadhelp_push();
-        // dt_gamepadhelp_clear();
-        // dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next corner");
-        // dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move corner");
-        // dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
-        // dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
         widget_end(); // if another one is still in progress, end that now
         vkdt.wstate.active_widget_modid = modid;
         vkdt.wstate.active_widget_parid = parid;
@@ -716,11 +707,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), 0.0f);
         vkdt.wstate.state[9] = rot;
         // reset module params so the image will not appear cropped:
-        float defc[] = {
-          .5f + MAX(1.0f, 1.0f/aspect) * (0.0f - .5f),
-          .5f + MAX(1.0f, 1.0f/aspect) * (1.0f - .5f),
-          .5f + MAX(1.0f,      aspect) * (0.0f - .5f),
-          .5f + MAX(1.0f,      aspect) * (1.0f - .5f)};
+        float defc[] = {0,1,0,1};
         memcpy(vkdt.wstate.state+10, dt_module_param_float(vkdt.graph_dev.module+modid, dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("crop"))), sizeof(float)*4);
         dt_module_set_param_float_n(vkdt.graph_dev.module+modid, dt_token("crop"), defc, 4);
         // reset module params so the image will not appear distorted:
@@ -799,9 +786,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     const float w3[] = {0.3f*pwd-ctx->style.window.spacing.x, 0.4f*pwd-ctx->style.window.spacing.x, wds[1]};
     nk_layout_row(ctx, NK_STATIC, row_height, 3, w3);
     float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
-    const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
-    const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
-    const float aspect = iwd/iht;
     if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
       int accept = 0;
@@ -810,12 +794,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
       if(nk_button_label(ctx, string) || accept)
       {
-        vkdt.wstate.state[0] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
-        vkdt.wstate.state[1] = .5f + MAX(1.0f, 1.0f/aspect) * (vkdt.wstate.state[1] - .5f);
-        vkdt.wstate.state[2] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[2] - .5f);
-        vkdt.wstate.state[3] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[3] - .5f);
         widget_end();
-        // dt_gamepadhelp_pop();
         dt_image_reset_zoom(&vkdt.wstate.img_widget);
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
@@ -827,12 +806,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
       if(nk_button_label(ctx, string))
       {
-        // dt_gamepadhelp_push();
-        // dt_gamepadhelp_clear();
-        // dt_gamepadhelp_set(dt_gamepadhelp_R1, "select next edge");
-        // dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_R, "move edge");
-        // dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept changes");
-        // dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "discard changes");
         widget_end(); // if another one is still in progress, end that now
         vkdt.wstate.active_widget_modid = modid;
         vkdt.wstate.active_widget_parid = parid;
@@ -840,34 +813,15 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
         // copy to quad state
         memcpy(vkdt.wstate.state, v, sizeof(float)*4);
-
-        // the values we draw are relative to output of the whole pipeline,
-        // but the coordinates of crop are relative to the *input*
-        // coordinates of the module!
-        // the output is the anticipated output while we switched off crop, i.e
-        // using the default values to result in a square of max(iwd, iht)^2
-        // first convert these v[] from input w/h to output w/h of the module:
-        const float iwd = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.wd;
-        const float iht = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.ht;
-        const float owd = MAX(iwd, iht);
-        const float oht = MAX(iwd, iht);
         float *c = vkdt.wstate.state;
         if(c[0] == 1.0 && c[1] == 3.0 && c[2] == 3.0 && c[3] == 7.0)
         {
           c[0] = c[2] = 0.0f;
           c[1] = c[3] = 1.0f;
         }
-        vkdt.wstate.state[0] = .5f +  iwd/owd * (vkdt.wstate.state[0] - .5f);
-        vkdt.wstate.state[1] = .5f +  iwd/owd * (vkdt.wstate.state[1] - .5f);
-        vkdt.wstate.state[2] = .5f +  iht/oht * (vkdt.wstate.state[2] - .5f);
-        vkdt.wstate.state[3] = .5f +  iht/oht * (vkdt.wstate.state[3] - .5f);
 
         // reset module params so the image will not appear cropped:
-        float def[] = {
-          .5f + MAX(1.0f, 1.0f/aspect) * (0.0f - .5f),
-          .5f + MAX(1.0f, 1.0f/aspect) * (1.0f - .5f),
-          .5f + MAX(1.0f,      aspect) * (0.0f - .5f),
-          .5f + MAX(1.0f,      aspect) * (1.0f - .5f)};
+        float def[] = {0,1,0,1};
         memcpy(v, def, sizeof(float)*4);
         vkdt.graph_dev.runflags = s_graph_run_all;
         dt_image_widget_t *w = &vkdt.wstate.img_widget;

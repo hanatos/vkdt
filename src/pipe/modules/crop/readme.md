@@ -7,7 +7,7 @@ make these lines parallel after application.
 # parameters
 
 * `perspect` the quad used for perspective correction
-* `crop` the axis aligned quad used for cropping
+* `crop` the axis aligned quad used for cropping as (x, X, y, Y) as fractions of (wd,ht), i.e. (0,1,0,1) is the uncropped picture. (1,3,3,7) will result in a micro-cropped version that introduces resampling safety margin.
 * `rotate` the rotation angle in degrees. if it is set to the special value
   `1337`, it will pick the rotation angle from the orientation exif metadata if
   it is passed along with the input image buffer. this is also the default.
