@@ -172,13 +172,6 @@ dt_thumbnails_init(
   for(int i=0;i<tn->thumb_max;i++)
     QVKR(vkAllocateDescriptorSets(qvk.device, &dset_info, &tn->thumb[i].dset));
 
-  uint32_t id = 0;
-  if(dt_thumbnails_load_one(tn, "data/busybee.bc1", &id) != VK_SUCCESS)
-  {
-    dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
-    return 1;
-  }
-
   return VK_SUCCESS;
 }
 
@@ -466,7 +459,9 @@ dt_thumbnails_load_list(
       uint32_t thumb_index = -1u;
 
       VkResult res = dt_thumbnails_load_one(tn, filename, &thumb_index);
-      if(res == VK_ERROR_OUT_OF_DATE_KHR) dt_db_invalidate_thumbnails(db);
+      if(res == VK_ERROR_OUT_OF_DATE_KHR)
+        dt_db_invalidate_thumbnails(db);
+      if(tn->triggered_realloc) return; // try again next frame (not using thumbs)
       if(res == VK_SUCCESS)
       {
         loaded++;
@@ -595,20 +590,24 @@ dt_thumbnails_load_one(
   if(mem_req.memoryTypeBits != tn->memory_type_bits)
     dt_log(s_log_qvk|s_log_err, "[thm] memory type bits don't match!");
 
-#if 1
   if(tn->alloc.vmsize + mem_req.size > tn->alloc.heap_size)
   {
-    uint64_t heap_size = 2*tn->alloc.heap_size, pool_size = 2*tn->alloc.pool_size;
-    uint32_t wd = tn->thumb_wd, ht = tn->thumb_ht;
-    dt_log(s_log_db, "[thm] re-allocating thumbnail cache to %g MB!", heap_size/1024.0/1024.0);
-    // kill them all
-    dt_thumbnails_cleanup(tn);
-    // re-allocate
-    QVKR(dt_thumbnails_init(tn, wd, ht, pool_size, heap_size));
+    if(tn->triggered_realloc == 1)
+    {
+      uint64_t heap_size = 2*tn->alloc.heap_size, pool_size = 2*tn->alloc.pool_size;
+      uint32_t wd = tn->thumb_wd, ht = tn->thumb_ht;
+      dt_log(s_log_db, "re-allocating thumbnail cache to %g MB!", heap_size/1024.0/1024.0);
+      // kill them all
+      dt_thumbnails_cleanup(tn);
+      // re-allocate
+      QVKR(dt_thumbnails_init(tn, wd, ht, pool_size, heap_size));
+      tn->triggered_realloc = 0;
+    }
+    else tn->triggered_realloc = 1;
     // reload will be triggered by ui
+    *thumb_index = 0;
     return VK_ERROR_OUT_OF_DATE_KHR;
   }
-#endif
 
   dt_vkmem_t *mem = dt_vkalloc(&tn->alloc, mem_req.size, mem_req.alignment);
   if(!mem)

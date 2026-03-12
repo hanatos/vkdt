@@ -57,6 +57,7 @@ typedef struct dt_thumbnails_t
   dt_thumbnail_t       *mru;   // most  recently used thumbnail, append here
 
   char                  cachedir[1024];
+  int                   triggered_realloc;
 }
 dt_thumbnails_t;
 
