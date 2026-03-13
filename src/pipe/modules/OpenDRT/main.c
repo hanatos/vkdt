@@ -29,6 +29,7 @@ create_nodes(
       module->connector[2].roi.wd, module->connector[2].roi.ht, 1, 0, 0, 2,
       "hist",   "read",  "ssbo", "u32", dt_no_roi,
       "output", "write", "rgba", "f16", &module->connector[2].roi);
+  graph->node[id_hist].connector[1].flags |= s_conn_clear;
   dt_node_connect_named(graph, id_hist, "hist", id_dspy, "hist");
   dt_connector_copy(graph, module, 0, id_hist, 0);
   dt_connector_copy(graph, module, 0, id_main, 0);
