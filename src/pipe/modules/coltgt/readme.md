@@ -7,13 +7,12 @@ magenta, yellow, and cyan.
 this can be useful in conjunction with say argyll's spotread to verify a
 display colour management setup.
 
-the bottom two rows contain a stripe pattern with 50% grey and 50% fully lit
-pixels, as well as an average 0.5 row. if your monitor gamma is set correctly
-and the colour profile is correct, these two should look the same if viewed
-at 100% zoom from some distance. sometimes it's necessary to move the window
-around a bit to avoid resampling issues. also make sure you don't use
+the bottom two rows contain a stripe pattern with 50% grey and 50% black
+pixels, as well as a row with the linear averages. if your monitor gamma is set
+correctly and the colour profile is correct, these two should look the same if
+viewed at 100% zoom from some distance. sometimes it's necessary to move the
+window around a bit to avoid resampling issues. also make sure you don't use
 *fractional scaling* in your compositor, leave the content scale factor at
 integer values.
-
 
 ![colour target](coltgt.jpg)
