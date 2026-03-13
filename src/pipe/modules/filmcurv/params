@@ -2,3 +2,9 @@ light:float:1:3
 contrast:float:1:1.2
 bias:float:1:0.0
 colour:int:1:3
+chroma:float:1:1.0
+rolloff:float:1:0.0
+red:float:1:0.0
+yellow:float:1:0.0
+blue:float:1:0.0
+shadows:float:1:0.0
