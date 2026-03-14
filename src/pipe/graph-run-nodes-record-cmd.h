@@ -112,7 +112,8 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       }
 
   // runflag will be 1 if we ask to upload source explicitly (the first time around)
-  if((runflag == 0) && dt_node_source(node) && !node->force_upload)
+  if((runflag == 0) && dt_node_source(node) && !node->force_upload &&
+      !(node->flags & s_module_request_copy_staging))
   {
     for(int i=0;i<node->num_connectors;i++)
     { // this is completely retarded and just to make the layout match what we expect below
@@ -367,9 +368,10 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       BARRIER_COMPUTE_BUFFER(node->connector[0].staging[graph->double_buffer]);
     }
   }
-  else if(dt_node_source(node) &&
+  else if(dt_node_source(node) && node->module->so->read_source &&
          (node->connector[0].array_length <= 1))  // arrays share the staging buffer, are handled by iterating read_source()
   {
+    node->flags &= ~s_module_request_copy_staging; // clear request
     // push profiler start
     if(graph->query[f].cnt < graph->query[f].max)
     {
