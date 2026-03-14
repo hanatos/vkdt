@@ -786,6 +786,12 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     const float w3[] = {0.3f*pwd-ctx->style.window.spacing.x, 0.4f*pwd-ctx->style.window.spacing.x, wds[1]};
     nk_layout_row(ctx, NK_STATIC, row_height, 3, w3);
     float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
+    const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
+    const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
+    const float aspect = iwd/iht;
+    const float rot = dt_module_param_float(vkdt.graph_dev.module+modid, dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("rotate")))[0];
+    const int portrait = (fabsf(rot-90) < 45 || fabsf(rot-270) < 45);
+    static int portrait_on_activate;
     if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
       int accept = 0;
@@ -794,6 +800,13 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
       if(nk_button_label(ctx, string) || accept)
       {
+        if(portrait_on_activate)
+        {
+          vkdt.wstate.state[0] = .5f + MIN(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
+          vkdt.wstate.state[1] = .5f + MIN(1.0f, 1.0f/aspect) * (vkdt.wstate.state[1] - .5f);
+          vkdt.wstate.state[2] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[2] - .5f);
+          vkdt.wstate.state[3] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[3] - .5f);
+        }
         widget_end();
         dt_image_reset_zoom(&vkdt.wstate.img_widget);
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
@@ -813,15 +826,33 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
         // copy to quad state
         memcpy(vkdt.wstate.state, v, sizeof(float)*4);
-        float *c = vkdt.wstate.state;
-        if(c[0] == 1.0 && c[1] == 3.0 && c[2] == 3.0 && c[3] == 7.0)
-        {
-          c[0] = c[2] = 0.0f;
-          c[1] = c[3] = 1.0f;
-        }
-
+        // the values we draw are relative to output of the whole pipeline,
+        // but the coordinates of crop are relative to the *input*
+        // coordinates of the module!
+        // the output is the anticipated output while we switched off crop
+        // first convert these v[] from input w/h to output w/h of the module:
+        const float iwd = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.wd;
+        const float iht = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.ht;
+        const float owd = portrait ? iht : iwd;
+        const float oht = portrait ? iwd : iht;
         // reset module params so the image will not appear cropped:
         float def[] = {0,1,0,1};
+        if(portrait)
+        {
+          portrait_on_activate = portrait;
+          def[0] = .5f + MIN(1.0f, 1.0f/aspect) * (0.0f - .5f);
+          def[1] = .5f + MIN(1.0f, 1.0f/aspect) * (1.0f - .5f);
+          def[2] = .5f + MAX(1.0f,      aspect) * (0.0f - .5f);
+          def[3] = .5f + MAX(1.0f,      aspect) * (1.0f - .5f);
+        }
+        float *c = vkdt.wstate.state;
+        if(c[0] == 1.0 && c[1] == 3.0 && c[2] == 3.0 && c[3] == 7.0)
+          memcpy(c, def, sizeof(def));
+        vkdt.wstate.state[0] = .5f +  iwd/owd * (vkdt.wstate.state[0] - .5f);
+        vkdt.wstate.state[1] = .5f +  iwd/owd * (vkdt.wstate.state[1] - .5f);
+        vkdt.wstate.state[2] = .5f +  iht/oht * (vkdt.wstate.state[2] - .5f);
+        vkdt.wstate.state[3] = .5f +  iht/oht * (vkdt.wstate.state[3] - .5f);
+
         memcpy(v, def, sizeof(float)*4);
         vkdt.graph_dev.runflags = s_graph_run_all;
         dt_image_widget_t *w = &vkdt.wstate.img_widget;
