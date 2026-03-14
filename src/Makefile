@@ -67,7 +67,7 @@ clean: Makefile
 	# such stale libraries can still cause segfaults because they would be loaded.
 	# at some point we probably need to harden the api such that this still works. maybe.
 	rm -f pipe/modules/*/lib*.so
-	rm -f pipe/modules/*/*.spv
+	@rm -rf $(SPV)
 	rm -f pipe/modules/*/{ctooltips,ptooltips}
 
 distclean: clean
