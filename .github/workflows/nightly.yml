@@ -322,7 +322,7 @@ jobs:
           for i in $(seq 1 20)
           do
             found=0
-            for exe in bin/vkdt bin/vkdt-cli $(find ${APPDIR} -type f \( -name "*.dylib" -o -name "*.so" \))
+            for exe in ${APPDIR}/Contents/MacOS/lib/vkdt/vkdt* $(find ${APPDIR} -type f \( -name "*.dylib" -o -name "*.so" \))
             do
               [[ $exe == *rawloader-c* ]] && continue
               # echo "our binary: $exe"
