@@ -316,11 +316,6 @@ jobs:
           make VKDTBIN=/tmp/dontinstall DESTDIR=${APPDIR} prefix=/Contents/MacOS install
           cp vkdt.png ${APPDIR}/Contents/Resources/vkdt.png
           ditto $(brew --prefix)/lib/libMoltenVK.dylib ${APPDIR}/Contents/Frameworks/libMoltenVK.dylib
-      - name: repoint dynamic library paths
-        run: |
-          cd ${APPDIR}/Contents/MacOS/lib/vkdt
-          install_name_tool -change $(brew --prefix)/opt/vulkan-loader/lib/libvulkan.1.dylib @rpath/libvulkan.1.dylib vkdt
-          install_name_tool -change $(brew --prefix)/opt/glfw/lib/libglfw.3.dylib @rpath/libglfw.3.dylib vkdt
       - name: copy library dependencies
         run: |
           BREW_PREFIX=$(brew --prefix)
@@ -338,6 +333,11 @@ jobs:
             done
             [ "$found" = "0" ] && break
           done
+      - name: repoint dynamic library paths
+        run: |
+          cd ${APPDIR}/Contents/MacOS/lib/vkdt
+          install_name_tool -change $(brew --prefix)/opt/vulkan-loader/lib/libvulkan.1.dylib @rpath/libvulkan.1.dylib vkdt
+          install_name_tool -change $(brew --prefix)/opt/glfw/lib/libglfw.3.dylib @rpath/libglfw.3.dylib vkdt
       - name: install moltenvk icd
         run: |
           mkdir -p ${APPDIR}/Contents/Resources/vulkan/icd.d
