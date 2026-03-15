@@ -319,25 +319,32 @@ jobs:
       - name: copy library dependencies
         run: |
           BREW_PREFIX=$(brew --prefix)
-          for i in $(seq 1 20); do
+          for i in $(seq 1 20)
+          do
             found=0
-            for lib in $(find ${APPDIR} -type f \( -name "*.dylib" -o -name "*.so" -o -perm +111 \) -print0 \
-              | xargs -0 otool -L 2>/dev/null \
-              | awk "/${BREW_PREFIX//\//\\/}/{ gsub(/[[:space:]].*/, \"\", \$1); print \$1 }" \
-              | sort -u); do
-              name=$(basename "$lib")
-              if [ ! -f "${APPDIR}/Contents/Frameworks/${name}" ]; then
-                cp -L "$lib" "${APPDIR}/Contents/Frameworks/${name}"
-                found=1
-              fi
+            for exe in bin/vkdt bin/vkdt-cli $(find ${APPDIR} -type f \( -name "*.dylib" -o -name "*.so" \))
+            do
+              [[ $exe == *rawloader-c* ]] && continue
+              # echo "our binary: $exe"
+              for lib in $(otool -L $exe 2>/dev/null | grep '(' | cut -f1 -d" ")
+              do
+                [[ $lib == /* ]] || continue
+                [[ $lib == /*libSystem* ]] && continue
+                [[ $lib == ${BREW_PREFIX}/* ]] || continue
+                # lib=$(echo $lib | awk "/${BREW_PREFIX//\//\\/}/{ gsub(/[[:space:]].*/, \"\", \$1); print \$1 }")
+                name=$(basename "$lib")
+                [[ "$name" = "" ]] && continue
+                echo "lib dependency $lib"
+                echo "name $name"
+                install_name_tool -change $lib @rpath/$name $exe
+                if [ ! -f "${APPDIR}/Contents/Frameworks/${name}" ]; then
+                  cp -L "$lib" "${APPDIR}/Contents/Frameworks/${name}"
+                  found=1
+                fi
+              done
             done
-            [ "$found" = "0" ] && break
+            [ "$found" = "0" ] && echo "terminating after iteration $i" && break
           done
-      - name: repoint dynamic library paths
-        run: |
-          cd ${APPDIR}/Contents/MacOS/lib/vkdt
-          install_name_tool -change $(brew --prefix)/opt/vulkan-loader/lib/libvulkan.1.dylib @rpath/libvulkan.1.dylib vkdt
-          install_name_tool -change $(brew --prefix)/opt/glfw/lib/libglfw.3.dylib @rpath/libglfw.3.dylib vkdt
       - name: install moltenvk icd
         run: |
           mkdir -p ${APPDIR}/Contents/Resources/vulkan/icd.d
