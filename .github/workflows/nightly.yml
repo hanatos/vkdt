@@ -424,7 +424,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: ${{ env.SRC_DIR }}/vkdt-${{ env.VERSION }}-${{ matrix.os }}.dmg
-          name: artifact-macos
+          name: artifact-${{ matrix.os }}
           retention-days: 1
 
   upload_to_release:
@@ -486,4 +486,5 @@ jobs:
             artifact-appimage-rawler-glfw3.4/*
             artifact-appimage-rawler-pentablet/*
             artifact-windows-rawler/*
-            artifact-macos/*
+            artifact-macos-14/*
+            artifact-macos-15-intel/*
