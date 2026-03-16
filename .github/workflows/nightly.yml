@@ -281,11 +281,10 @@ jobs:
     if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt macintosh
     strategy:
+      fail-fast: true
       matrix:
         os: [macos-14, macos-15-intel]
     runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: true
     env:
       SRC_DIR: ${{ github.workspace }}/src
       INSTALL_PREFIX: ${{ github.workspace }}/install
