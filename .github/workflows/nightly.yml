@@ -280,7 +280,10 @@ jobs:
   macintosh:
     if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt macintosh
-    runs-on: macos-14
+    strategy:
+      matrix:
+        os: [macos-14, macos-15-intel]
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
     env:
@@ -415,13 +418,13 @@ jobs:
           mv ${APPDIR} vkdt-image/vkdt.app
 
           hdiutil create -srcfolder vkdt-image -format UDSB vkdt-image.sparsebundle
-          hdiutil convert vkdt-image.sparsebundle -format ULMO -o vkdt-${{ env.VERSION }}.dmg
+          hdiutil convert vkdt-image.sparsebundle -format ULMO -o vkdt-${{ env.VERSION }}-${{ matrix.os }}.dmg
           # TODO: codesign --force -s - /path/to/dylib on every dylib
       - name: package upload
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.SRC_DIR }}/vkdt-${{ env.VERSION }}.dmg
+          path: ${{ env.SRC_DIR }}/vkdt-${{ env.VERSION }}-${{ matrix.os }}.dmg
           name: artifact-macos
           retention-days: 1
 
