@@ -292,7 +292,7 @@ jobs:
     steps:
       - name: install dependencies
         run: |
-          brew install pkgconf cmake jpeg-turbo ffmpeg make glfw3 vulkan-validationlayers vulkan-headers rust molten-vk
+          brew install pkgconf cmake jpeg-turbo ffmpeg make glfw3 vulkan-validationlayers vulkan-headers rust vulkan-tools
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -317,7 +317,6 @@ jobs:
           mkdir ${APPDIR}/Contents/Resources
           make VKDTBIN=/tmp/dontinstall DESTDIR=${APPDIR} prefix=/Contents/MacOS install
           cp vkdt.png ${APPDIR}/Contents/Resources/vkdt.png
-          ditto $(brew --prefix)/lib/libMoltenVK.dylib ${APPDIR}/Contents/Frameworks/libMoltenVK.dylib
       - name: copy library dependencies
         run: |
           BREW_PREFIX=$(brew --prefix)
@@ -347,17 +346,6 @@ jobs:
             done
             [ "$found" = "0" ] && echo "terminating after iteration $i" && break
           done
-      - name: install moltenvk icd
-        run: |
-          mkdir -p ${APPDIR}/Contents/Resources/vulkan/icd.d
-          echo "{
-              "file_format_version": "1.0.0",
-              "ICD": {
-                  "library_path": "../../../../../Frameworks/libMoltenVK.dylib",
-                  "api_version": "1.3.0",
-                  "is_portability_driver": true
-              }
-          }" >> ${APPDIR}/Contents/Resources/vulkan/icd.d/MoltenVK_icd.json
       - name: build dmg image
         run: |
           cd ${SRC_DIR}
