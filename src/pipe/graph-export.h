@@ -1,4 +1,5 @@
 #pragma once
+#include <stdatomic.h>
 
 // export convenience functions, see cli/main.c
 
@@ -42,6 +43,7 @@ typedef struct dt_graph_export_t
   int          dump_modules;   // debug output: write module graph in dot format
   int          last_frame_only;// only write the very last frame of an animation
   int          print_progress; // print progress (for long animations)
+  atomic_uint *p_abort;        // if non-zero, the will watch this place to flag early abortion
 }
 dt_graph_export_t;
 

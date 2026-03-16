@@ -266,6 +266,7 @@ dt_graph_export(
     }
     for(int f=1;f<graph->frame_cnt;f++)
     {
+      if(param->p_abort && param->p_abort[0]) break; // abort signal triggered
       graph->frame = f;
       for(int i=0;i<param->output_cnt;i++)
       {

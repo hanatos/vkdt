@@ -469,7 +469,6 @@ render_lighttable_header()
 }
 
 
-
 // export bg job stuff. put into api.hh?
 typedef struct export_job_t
 { // this memory belongs to the export thread and will not change behind its back.
@@ -527,6 +526,7 @@ void export_job_work(uint32_t item, void *arg)
   param.output[0].colour_trc       = j->colour_trc;
   param.last_frame_only      = j->last_frame_only;
   param.p_cfgfile            = infilename;
+  param.p_abort              = &j->abort;
   if(j->output_module == dt_token("o-web"))
   { // if module is o-web, also generate thumbnails at reduced size.
     param.output_cnt = 2;
