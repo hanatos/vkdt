@@ -229,7 +229,7 @@ main()
     acc_col += colour_to_rgb(acc, lambda, hrp);
   } // end spp
 
-  acc_col = clamp(acc_col, vec3(0.0), vec3(65000.0));
+  acc_col = clamp(acc_col/params.spp, vec3(0.0), vec3(65000.0));
 
   fb_set(ipos, fbdim, vec4(acc_col, 1.0));
 }
