@@ -61,7 +61,7 @@ dt_connector_has_staging(const dt_connector_t *c, const dt_node_t *n)
 static inline dt_cid_t
 dt_connector_find_owner(const dt_graph_t *g, dt_cid_t c)
 { // returns the id of the connector which allocated the buffer associated with connector c
-  while(!dt_cid_unset(c))
+  while(!dt_cid_unset(c) && c.i < g->num_nodes && c.i >= 0)
   {
     if(dt_connector_owner(g->node[c.i].connector+c.c)) return c;
     if(dt_connector_input(g->node[c.i].connector+c.c)) c = g->node[c.i].connector[c.c].connected;

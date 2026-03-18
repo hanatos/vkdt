@@ -352,7 +352,18 @@ propagate_roi_in(dt_graph_t *graph, dt_module_t *module)
   }
 
   // propagate to our output/allocated connectors:
-  if(!module->disabled && module->so->modify_roi_out)
+  if(strncmp(dt_token_str(module->name), "i-", 2))
+  { // don't call modify_roi_out twice on source/input modules such as i-jpg
+    for(int i=0;i<module->num_connectors;i++)
+    {
+      if(dt_connector_owner(module->connector+i))
+      {
+        module->connector[i].roi.wd = module->connector[i].roi.full_wd;
+        module->connector[i].roi.ht = module->connector[i].roi.full_ht;
+      }
+    }
+  }
+  else if(!module->disabled && module->so->modify_roi_out)
   { // have custom callback
     dt_module_t tmp = *module;
     for(int i=0;i<module->num_connectors;i++)
