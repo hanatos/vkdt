@@ -1236,9 +1236,9 @@ static inline void render_darkroom_widgets(
   struct nk_context *ctx = &vkdt.ctx;
   const float pwd = vkdt.state.panel_wd - ctx->style.window.scrollbar_size.x - 2*ctx->style.window.padding.x;
   const float w3[] = {
-    0.06f*pwd,
-    0.88f*pwd-2*ctx->style.window.spacing.x,
-    0.06f*pwd};
+    0.07f*pwd,
+    0.86f*pwd-2*ctx->style.window.spacing.x,
+    0.07f*pwd};
   const float row_height = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
   snprintf(name, sizeof(name), "%" PRItkn " %" PRItkn,
       dt_token_str(arr[curr].name), dt_token_str(arr[curr].inst));
@@ -1251,8 +1251,13 @@ static inline void render_darkroom_widgets(
   bound.y -= offy; // account for scrolling: both drawing and mouse events are not relative to scroll window, widget bounds are
   nk_fill_rect(nk_window_get_canvas(ctx), bound, 0.0, vkdt.style.colour[NK_COLOR_DT_BACKGROUND]);
   bound.h -= ctx->style.tab.padding.y;
-  nk_fill_rect(nk_window_get_canvas(ctx), bound, 0.0, ctx->style.tab.background.data.color);
+  if(active)
+    nk_fill_rect(nk_window_get_canvas(ctx), bound, 0.0, vkdt.style.colour[NK_COLOR_BUTTON_ACTIVE]);
+  else
+    nk_fill_rect(nk_window_get_canvas(ctx), bound, 0.0, ctx->style.tab.background.data.color);
   bound.x += w3[0]; // mouse click: not the disable button
+  if(active)
+    nk_style_push_color(&vkdt.ctx, &vkdt.ctx.style.text.color, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT_ACTIVE]);
 
   if(module->so->has_inout_chain)
   {
@@ -1306,6 +1311,7 @@ static inline void render_darkroom_widgets(
   ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize * 0.9;
   nk_label(ctx, active ? "\ue5e0" : "\ue5e1", NK_TEXT_CENTERED);
   ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize;
+  if(active) nk_style_pop_color(&vkdt.ctx);
   // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
   const struct nk_input *in = (vkdt.ctx.current->layout->flags & NK_WINDOW_ROM) ? 0 : &ctx->input;
   if(in && nk_input_is_mouse_hovering_rect(in, bound) && 
