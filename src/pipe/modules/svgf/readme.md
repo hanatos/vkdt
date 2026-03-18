@@ -27,6 +27,7 @@ frame via taa with box clamping.
   input samples
 * `iter` number of a-trous wavelet iterations. zero switches off wavelet smoothing
 * `vis emit` this is a popular hack that tunes down the directly visible lights by some ev
+* `firefly` whether or not to filter out bright outlier pixels, fireflies. if you encounter blocky artifacts, switch this off
 
 ## connectors
 
