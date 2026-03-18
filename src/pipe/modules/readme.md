@@ -14,7 +14,6 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [i-exr: input openexr images](./i-exr/readme.md)
 * [i-hdr: greg ward's rgbe hdr images](./i-hdr/readme.md)
 * [i-jpg: jpg input module](./i-jpg/readme.md)
-* [i-jpglst: input a longer list of jpg as an array connector](./i-jpglst/readme.md)
 * [i-lut: half float lut input module](./i-lut/readme.md)
 * [i-mcraw: read motioncam raw video](./i-mcraw/readme.md)
 * [i-mlv: magic lantern raw video input module](./i-mlv/readme.md)

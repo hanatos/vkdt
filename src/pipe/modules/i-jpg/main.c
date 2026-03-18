@@ -15,6 +15,12 @@ typedef struct jpginput_buf_t
   uint32_t width, height;
   struct jpeg_decompress_struct dinfo;
   FILE *f;
+
+  // for array mode:
+  char        *lst_data;     // list file in one chunk
+  const char **lst_filename; // pointers to lines / filenames
+  int          lst_cnt;      // number of filenames in list
+  uint32_t    *lst_dim;      // individual dimensions of the images
 }
 jpginput_buf_t;
 
@@ -206,11 +212,14 @@ read_icc_profile(
 static int 
 read_header(
     dt_module_t *mod,
-    uint32_t    frame,
-    const char *filename)
+    uint32_t     frame,
+    const char  *filename,
+    uint32_t    *dim)
 {
+  if(dim) dim[0] = dim[1] = 0;
   jpginput_buf_t *jpg = mod->data;
-  if(jpg && !strcmp(jpg->filename, filename) && jpg->frame == frame)
+
+  if(jpg && !jpg->lst_filename && !strcmp(jpg->filename, filename) && jpg->frame == frame)
     return 0; // already loaded
   assert(jpg); // this should be inited in init()
 
@@ -252,6 +261,11 @@ read_header(
   jpg->dinfo.out_color_components = 3;
   jpg->width  = jpg->dinfo.image_width;
   jpg->height = jpg->dinfo.image_height;
+  if(dim)
+  {
+    dim[0] = jpg->width;
+    dim[1] = jpg->height;
+  }
 
   for(int k=0;k<4;k++)
   {
@@ -391,6 +405,9 @@ void cleanup(dt_module_t *mod)
     if(jpg->f) fclose(jpg->f);
     jpg->filename[0] = 0;
   }
+  if(jpg->lst_filename) free(jpg->lst_filename);
+  if(jpg->lst_data)     free(jpg->lst_data);
+  if(jpg->lst_dim)      free(jpg->lst_dim);
   free(jpg);
   mod->data = 0;
 }
@@ -422,12 +439,68 @@ void modify_roi_out(
   // load image if not happened yet
   const int   id       = dt_module_param_int(mod, 1)[0];
   const char *filename = dt_module_param_string(mod, 0);
-  if(strstr(filename, "%")) // reading a sequence of raws as a timelapse animation
+  if(strstr(filename, "%")) // reading a sequence of images as a timelapse animation
     mod->flags = s_module_request_read_source;
-  if(read_header(mod, id+graph->frame, filename)) return;
+
   jpginput_buf_t *jpg = mod->data;
-  mod->connector[0].roi.full_wd = jpg->width;
-  mod->connector[0].roi.full_ht = jpg->height;
+  int len = strlen(filename);
+  const char *c = filename + strlen(filename);
+  if(len > 4 && !strncmp(c-4, ".txt", 4))
+  { // this is not an image but in fact a list of texture filenames as text.
+    // load list of images, keep number of files and the dimension of their images.
+    if(jpg && !strcmp(jpg->filename, filename))
+      return; // already loaded
+    jpg->filename[0] = 0;
+    FILE *f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
+    if(!f) return;
+    fseek(f, 0, SEEK_END);
+    uint64_t size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if(jpg->lst_data)     free(jpg->lst_data);
+    if(jpg->lst_dim)      free(jpg->lst_dim);
+    if(jpg->lst_filename) free(jpg->lst_filename);
+    jpg->lst_data = malloc(size);
+    fread(jpg->lst_data, size, 1, f);
+    fclose(f);
+    int cnt = 0;
+    for(int i=0;i<size;i++)
+      if(jpg->lst_data[i] == '\n') { jpg->lst_data[i] = 0; cnt++; }
+
+    jpg->lst_cnt = cnt;
+    jpg->lst_dim = calloc(2*sizeof(uint32_t), cnt);
+    jpg->lst_filename = calloc(sizeof(const char*), cnt+1);
+    jpg->lst_filename[0] = jpg->lst_data;
+    cnt = 0;
+    for(int i=0;i<size;i++)
+      if(jpg->lst_data[i] == 0)
+        jpg->lst_filename[++cnt] = jpg->lst_data + i + 1;
+
+    // for each one image, open the header and find the size of the image
+    for(int i=0;i<jpg->lst_cnt;i++)
+      read_header(mod, 0, jpg->lst_filename[i], jpg->lst_dim + 2*i);
+
+    uint32_t max_wd = 0, max_ht = 0;
+    for(int i=0;i<jpg->lst_cnt;i++)
+    {
+      max_wd = MAX(max_wd, jpg->lst_dim[2*i+0]);
+      max_ht = MAX(max_ht, jpg->lst_dim[2*i+1]);
+    }
+    mod->connector[0].roi.full_wd = max_wd; // will be used to allocate staging buffer
+    mod->connector[0].roi.full_ht = max_ht;
+    mod->connector[0].roi.wd = max_wd;
+    mod->connector[0].roi.ht = max_ht;
+    mod->connector[0].roi.scale = 1;
+    mod->connector[0].array_length = cnt;
+    // instruct the connector that we have an array with different image resolution for every element:
+    mod->connector[0].array_dim = jpg->lst_dim;
+    snprintf(jpg->filename, sizeof(jpg->filename), "%s", filename);
+  }
+  else
+  { // regular single lut file
+    if(read_header(mod, id+graph->frame, filename, 0)) return;
+    mod->connector[0].roi.full_wd = jpg->width;
+    mod->connector[0].roi.full_ht = jpg->height;
+  }
 
   int *p_prim = (int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("prim")));
   int *p_trc  = (int*)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("trc" )));
@@ -443,11 +516,19 @@ int read_source(
     void                    *mapped,
     dt_read_source_params_t *p)
 {
-  const int   id       = dt_module_param_int(mod, 1)[0];
-  const char *filename = dt_module_param_string(mod, 0);
-  if(read_header(mod, id+mod->graph->frame, filename)) return 1;
   jpginput_buf_t *jpg = mod->data;
-  jpeg_read(jpg, mapped);
+  if(jpg->lst_filename)
+  {
+    if(read_header(mod, 0, jpg->lst_filename[p->a], 0)) return 1;
+    return jpeg_read(jpg, mapped);
+  }
+  else
+  {
+    const int   id       = dt_module_param_int(mod, 1)[0];
+    const char *filename = dt_module_param_string(mod, 0);
+    if(read_header(mod, id+mod->graph->frame, filename, 0)) return 1;
+    jpeg_read(jpg, mapped);
+  }
   return 0;
 }
 #undef ICC_MARKER
