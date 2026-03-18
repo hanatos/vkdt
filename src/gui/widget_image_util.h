@@ -75,7 +75,8 @@ dt_image_zoom(
   }
   else if(w->scale >= scale1)
   { // double up
-    w->scale = MIN(w->scale * 2.0f, scale1*8.0f);
+    if(w->scale < 2.0f*scale1) w->scale = 2.0f*scale1; // round to 200%
+    else w->scale = MIN(w->scale * 2.0f, scale1*8.0f);
   }
   float img1[2];
   dt_image_from_view(w, view, img1);
