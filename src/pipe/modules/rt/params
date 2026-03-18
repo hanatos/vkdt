@@ -4,6 +4,7 @@ cltime:float:1:0
 spp:int:1:1
 wd:int:1:1920
 ht:int:1:1080
+vis emit:float:1:0.0
 cam mode:int:1:0
 cam_mod:string:8:
 cam_inst:string:8:

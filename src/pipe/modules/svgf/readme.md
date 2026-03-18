@@ -26,6 +26,7 @@ frame via taa with box clamping.
 * `prealpha` controls the exponentially weighted average of the pre-blend pass on the noisy
   input samples
 * `iter` number of a-trous wavelet iterations. zero switches off wavelet smoothing
+* `vis emit` this is a popular hack that tunes down the directly visible lights by some ev
 
 ## connectors
 

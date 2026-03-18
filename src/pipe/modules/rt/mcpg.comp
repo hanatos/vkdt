@@ -26,18 +26,7 @@ layout(std140, set = 0, binding = 0) uniform global_t
   int frame;
 } global;
 
-layout(std140, set = 0, binding = 1) uniform params_t
-{ 
-  vec4 cam_x;
-  vec4 cam_w;
-  vec4 cam_u;
-  vec4 fog;
-  float cltime;
-  int spp;
-  int wd;
-  int ht;
-} params;
-
+#include "params.glsl"
 #include "config.h"
 
 layout(set = 1, binding = 0) buffer buf_fb_t { float v[]; } buf_fb;
@@ -142,7 +131,7 @@ void main()
   vec3 albedo = vec3(1);
   vec4 acc_rgb = vec4(0);
 
-  for (int s = 0; s < SURFACE_SPP; s++)
+  for (int s = 0; s < params.spp; s++)
   {
     vec4 hrp = vec4(1); // hero wavelength p, only deviates from 1 if pdf is different per wavelength
     vec4 contrib = vec4(1.0);
@@ -180,13 +169,16 @@ void main()
       specular = (ms.geo_flags & s_geo_dielectric)>0;
       if((flags & s_emit) != 0)
       {
-        acc_rgb.rgb = colour_to_rgb(contrib * ms.col_emit, lambda, hrp)/SURFACE_SPP;
+        acc_rgb.rgb = colour_to_rgb(contrib * ms.col_emit, lambda, hrp)/params.spp;
         albedo = acc_rgb.rgb;
         albedo = clamp(albedo, vec3(-1.0), vec3(65000.0));
         acc_rgb.rgb = vec3(1);
       }
       contrib /= colour_upsample(albedo, lambda); // divide out first albedo for svgf
-      if(s == 0) imageStore(img_aov, ipos, vec4(albedo, 1)); // write albedo to buffer for svgf
+      if(s == 0) imageStore(img_aov, ipos,
+            ((flags & s_emit) != 0)?
+            vec4(-albedo, 1) : // signal directly visible light in buffer
+            vec4(albedo, 1)); // write albedo to buffer for svgf
     }
     vec4 f = vec4(0); // store measurement of full path if connected to emitter
     float p = 1.0;    // this is scalar because we don't sample directions by lambda
@@ -353,9 +345,9 @@ void main()
     const vec4 acc_sample = f / p;
     if(!any(isinf(acc_sample)) && !any(isnan(acc_sample)))
     {
-      acc_rgb.rgb += colour_to_rgb(acc_sample, lambda, hrp)/SURFACE_SPP;
+      acc_rgb.rgb += colour_to_rgb(acc_sample, lambda, hrp)/params.spp;
       acc_rgb.rgb = clamp(acc_rgb.rgb, vec3(-1.0), vec3(65000.0));
-      acc_rgb.w += merian_square(luminance_rec2020(acc_rgb.rgb))/SURFACE_SPP;
+      acc_rgb.w += merian_square(luminance_rec2020(acc_rgb.rgb))/params.spp;
     }
   } // for number of surface samples
 

@@ -14,6 +14,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float taa;
   float lalpha;
   int   iter;
+  float vis_emit;
 } params;
 
 layout(set = 1, binding = 0) uniform sampler2D img_mv;     // motion vectors
@@ -51,6 +52,7 @@ main()
   for(int yy=-r;yy<=r;yy++) for(int xx=-r;xx<=r;xx++)
   {
     vec3 a = texelFetch(img_albedo, ipos + ivec2(xx, yy), 0).rgb;
+    if(a.r < 0.0) a = -pow(2.0, params.vis_emit) * a;
     vec3 L = texelFetch(img_light, eaw3_tc(ipos + ivec2(xx, yy), sz), 0).rgb;
     vec3 b = M * (a*L);
     m1 += b;
@@ -64,6 +66,7 @@ main()
   prevb = clamp(prevb, max(vec3(0), m1 - thresh * sigma), m1 + thresh * sigma);
 
   vec3 albedo = texelFetch(img_albedo, ipos, 0).rgb; // multiply albedo
+  if(albedo.r < 0.0) albedo = -pow(2.0, params.vis_emit) * albedo;
   vec3 beauty = L.rgb * albedo;
 
   beauty = M * beauty;

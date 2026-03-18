@@ -7,6 +7,7 @@ cam mode:combo:our camera:camera from other module
 group:cam mode:0
 cam:grab
 fog:rgbknobs
+vis emit:slider:-5:5.0
 cltime:slider:0:10000
 group:cam mode:1
 cam_mod:filename

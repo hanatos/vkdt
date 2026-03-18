@@ -39,6 +39,7 @@ this still changes so often.. be careful to trust this text.
 * `sampler` choose which path space sampler to use for rendering: path tracing/env-nee, markov chain path guiding
 * `wd` width of the render in pixels
 * `ht` height of the render in pixels
+* `vis emit` this is a popular hack that tunes down the directly visible lights by some ev
 
 the sampler dropdown list includes simple path tracing with optional next event estimation to the envmap,
 as well as markov chain path guiding based on the publication:  

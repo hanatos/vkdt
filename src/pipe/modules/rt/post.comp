@@ -9,6 +9,7 @@
 #extension GL_EXT_shader_subgroup_extended_types_float16 : enable
 
 #include "shared.glsl"
+#include "params.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(set = 1, binding = 0) readonly buffer buf_t { float v[]; } buf;
 layout(set = 1, binding = 1) uniform sampler2D img_albedo;
@@ -21,6 +22,7 @@ void main()
   vec4 albedo = texelFetch(img_albedo, ipos, 0);
   ivec2 sz = imageSize(img_out);
   uint idx = 4*(sz.x * ipos.y + ipos.x);
+  if(albedo.r < 0.0) albedo = -pow(2.0, params.vis_emit) * albedo;
   vec4 rgba = albedo * vec4(buf.v[idx], buf.v[idx+1], buf.v[idx+2], 1.0);
   imageStore(img_out, ipos, rgba);
 }
