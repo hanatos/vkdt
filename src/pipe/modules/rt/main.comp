@@ -87,7 +87,7 @@ main()
     float frame = global.frame;// + 0.5*rand.x; // 180 degree shutter
     vec4 thr = vec4(1.0);
     // dithermask shows *no* difference for stratified hwl:
-    uint seed2 = 19937*global.frame;
+    uint seed2 = 19937*global.frame+s;
     vec4 lambda = colour_sample_lambda(dithermask(vec4(mrand(seed2)), rp), thr, hrp);
     // vec4 lambda = colour_sample_lambda(dithermask(vec4(rand64(seed2)), rp).xxxx, thr, hrp);
     // mono wl:
@@ -154,8 +154,9 @@ main()
         thr /= colour_upsample(albedo, lambda); // divide out first albedo for svgf
         if(s == 0) imageStore(img_aov, ipos,
             ((i == 0) && ((flags & s_emit) != 0))?
-            vec4(-albedo*params.spp, 1) : // directly visible emitters
-            vec4(albedo, 1)); // write albedo to buffer for svgf
+            vec4(-albedo, 1) : // directly visible emitters
+            vec4( albedo, 1)); // write albedo to buffer for svgf
+        if((flags & s_emit) != 0) break;
       }
       if((flags & s_envmap) > 0)
       { // escaped to environment map, eval MIS
@@ -217,10 +218,10 @@ main()
         break;
       }
     }
-    acc_col += colour_to_rgb(acc, lambda, hrp);
+    acc_col += colour_to_rgb(acc, lambda, hrp)/params.spp;
   } // end spp
 
-  acc_col = clamp(acc_col/params.spp, vec3(0.0), vec3(65000.0));
+  acc_col = clamp(acc_col, vec3(-1.0), vec3(65000.0));
 
   fb_set(ipos, fbdim, vec4(acc_col, 1.0));
 }
