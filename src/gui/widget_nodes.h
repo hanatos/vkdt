@@ -54,6 +54,17 @@ dt_node_editor_clear_selection(
   memset(nedit->selected_mid, 0, sizeof(nedit->selected_mid));
 }
 
+static inline void
+dt_node_editor_select(
+    dt_node_editor_t *nedit,
+    dt_graph_t       *graph,
+    int               mid)
+{
+  nedit->selected = graph->module + mid;
+  if(mid < 0 || mid >= NK_LEN(nedit->selected_mid)) return;
+  nedit->selected_mid[mid] = 1;
+}
+
 static inline struct nk_vec2
 dt_node_world_to_view(
     dt_node_editor_t *nedit,

@@ -151,8 +151,7 @@ void render_nodes()
     vkdt.graph_dev.module[num_modules].gui_x = nodes.nedit.add_pos_x;
     vkdt.graph_dev.module[num_modules].gui_y = nodes.nedit.add_pos_y;
     dt_node_editor_clear_selection(&nodes.nedit);
-    if(num_modules < NK_LEN(nodes.nedit.selected_mid)) nodes.nedit.selected_mid[num_modules] = 1;
-    nodes.nedit.selected = vkdt.graph_dev.module + num_modules;
+    dt_node_editor_select(&nodes.nedit, &vkdt.graph_dev, num_modules);
   }
   struct nk_rect bounds = { vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht };
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
