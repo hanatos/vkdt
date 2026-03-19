@@ -1,8 +1,10 @@
 #pragma once
 #include "core/core.h"
 #include "core/mat3.h"
+#include "pipe/modules/matrices.h"
 #include <float.h>
 #include <math.h>
+#include <stdio.h>
 
 // every so often we need a tiny bit of colour work on the cpu/host side.
 // we collect this stuff here:
@@ -62,11 +64,8 @@ matrix_to_chromaticities(
     float *b,
     float *w)       // transform 111 in your-rgb to xyz
 {
-  float T[9] = {0.0f};
-  const float rec2020_to_xyz[] = {
-    0.6369580483, 0.1446169036, 0.1688809752,
-    0.2627002120, 0.6779980715, 0.0593017165,
-    0.0000000000, 0.0280726930, 1.0609850577 };
+  float T[9] = {0.0f}; // your-rgb to xyz
+  const float rec2020_to_xyz[] = matrix_rec2020_to_xyz;
   mat3mul(T, rec2020_to_xyz, M);
   float wc[3] = {1.0f, 1.0f, 1.0f}, n[3];
   mat3mulv(n, T, wc);
@@ -102,10 +101,7 @@ chromaticities_to_matrix(
       S[0] * Yr, S[1] * Yg, S[2] * Yb,
       S[0] * Zr, S[1] * Zg, S[2] * Zb,
     };
-    const float xyz_to_rec2020[] = {
-       1.7166511880, -0.3556707838, -0.2533662814,
-      -0.6666843518,  1.6164812366,  0.0157685458,
-       0.0176398574, -0.0427706133,  0.9421031212 };
+    const float xyz_to_rec2020[] = matrix_xyz_to_rec2020;
     mat3mul(O, xyz_to_rec2020, M);
   }
 }
@@ -346,10 +342,7 @@ hsluv_to_rec2020(const float hsl[], float rgb[])
   hsluv2lch(tmp);
   lch2luv(tmp);
   luv2xyz(tmp);
-  const float xyz_to_rec2020[] = {
-    1.71665119, -0.66668435,  0.01763986,
-   -0.35567078,  1.61648124, -0.04277061,
-   -0.25336628,  0.01576855,  0.94210312};
+  const float xyz_to_rec2020[] = matrix_xyz_to_rec2020;
   rgb[0] = rgb[1] = rgb[2] = 0.0f;
   for(int k=0;k<3;k++)
     for(int i=0;i<3;i++)
@@ -361,10 +354,7 @@ static inline void
 rec2020_to_hsluv(const float rgb[], float hsl[])
 {
   float tmp[3] = {0.0f};
-  const float rec2020_to_xyz[] = {
-    0.6369580483, 0.1446169036, 0.1688809752,
-    0.2627002120, 0.6779980715, 0.0593017165,
-    0.0000000000, 0.0280726930, 1.0609850577 };
+  const float rec2020_to_xyz[] = matrix_rec2020_to_xyz;
   for(int k=0;k<3;k++)
     for(int i=0;i<3;i++)
       tmp[k] += rec2020_to_xyz[3*k+i] * rgb[i];
@@ -449,21 +439,21 @@ xyz2rgb(Triplet* in_out)
 static void
 rgb2xyz(Triplet* in_out)
 {
-    Triplet rgbl = { to_linear(in_out->a), to_linear(in_out->b), to_linear(in_out->c) };
-    float x = dot_product(&m_inv[0], &rgbl);
-    float y = dot_product(&m_inv[1], &rgbl);
-    float z = dot_product(&m_inv[2], &rgbl);
-    in_out->a = x;
-    in_out->b = y;
-    in_out->c = z;
-}
-
-/* for XYZ */
-static const Triplet m_inv[3] = {
+  /* for XYZ */
+  static const Triplet m_inv[3] = {
     {  0.41239079926595948129,  0.35758433938387796373,  0.18048078840183428751 },
     {  0.21263900587151035754,  0.71516867876775592746,  0.07219231536073371500 },
     {  0.01933081871559185069,  0.11919477979462598791,  0.95053215224966058086 }
-};
+  };
+
+  Triplet rgbl = { to_linear(in_out->a), to_linear(in_out->b), to_linear(in_out->c) };
+  float x = dot_product(&m_inv[0], &rgbl);
+  float y = dot_product(&m_inv[1], &rgbl);
+  float z = dot_product(&m_inv[2], &rgbl);
+  in_out->a = x;
+  in_out->b = y;
+  in_out->c = z;
+}
 
 static inline float
 hsluv_dist_from_pole_squared(float x, float y)
@@ -545,6 +535,4 @@ hpluv2lch(float *in_out)
   in_out[1] = c;
   in_out[2] = h;
 }
-
-
 #endif

@@ -61,15 +61,16 @@ dt_graph_replace_display(
   }
 
   // new module export with same inst
-  const int m1 = dt_module_add(graph, dt_token("colenc"), iout);
-  const int i1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
-  const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
   const int m2 = dt_module_add(graph, mod, iout);
   const int i2 = dt_module_get_connector(graph->module+m2, dt_token("input"));
   if(graph->module[m2].connector[i2].format == dt_token("ui8") ||
      prim != s_colour_primaries_2020 || 
      trc  != s_colour_trc_linear)
   {
+    const int m1 = dt_module_add(graph, dt_token("colenc"), iout);
+    const int i1 = dt_module_get_connector(graph->module+m1, dt_token("input"));
+    const int o1 = dt_module_get_connector(graph->module+m1, dt_token("output"));
+
     // if we don't know what it is, try to ask the module:
     if(prim == s_colour_primaries_unknown) prim = graph->module[m0].img_param.colour_primaries;
     if(trc  == s_colour_trc_unknown)       trc  = graph->module[m0].img_param.colour_trc;

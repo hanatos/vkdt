@@ -82,7 +82,19 @@ void write_sink(
     { 1.0,    0.0,    0.0,    1.0,    0.0,    0.0,    0.3333, 0.3333}, // XYZ illum E
     { 0.708,  0.292,  0.170,  0.797,  0.131,  0.046,  0.3127, 0.3290}, // unknown, assume rec2020
   };
-  matrix_to_chromaticities(img_param->cam_to_rec2020,
+  float matrix[][9] = {
+    {0},
+    matrix_rec709_to_rec2020,
+    {1,0,0,0,1,0,0,0,1},
+    matrix_adobergb_to_rec2020,
+    matrix_p3d65_to_rec2020,
+    matrix_xyz_to_rec2020,
+    {1,0,0,0,1,0,0,0,1}};
+  if(isnanf(img_param->cam_to_rec2020[0])) // disabled? assume bt2020
+    memcpy(&matrix[0][0], &matrix[2][0], sizeof(float)*9);
+  else
+    memcpy(&matrix[0][0], img_param->cam_to_rec2020, sizeof(float)*9);
+  matrix_to_chromaticities(matrix[CLAMP(img_param->colour_primaries, 0, 7)],
       &chromaticities[0][0], &chromaticities[0][2], &chromaticities[0][4], &chromaticities[0][6]);
   const char *trc[] = {"linear", "bt709", "sRGB", "PQ", "DCI", "HLG", "gamma"};
   EXRAttribute custom_attributes[] = {{
