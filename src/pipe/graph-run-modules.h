@@ -352,7 +352,7 @@ propagate_roi_in(dt_graph_t *graph, dt_module_t *module)
   }
 
   // propagate to our output/allocated connectors:
-  if(strncmp(dt_token_str(module->name), "i-", 2))
+  if(!strncmp(dt_token_str(module->name), "i-", 2))
   { // don't call modify_roi_out twice on source/input modules such as i-jpg
     for(int i=0;i<module->num_connectors;i++)
     {
