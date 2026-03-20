@@ -275,10 +275,14 @@ void nodes_process()
   darkroom_process();    // the rest stays the same though.
 }
 
+void nodes_mouse_position(GLFWwindow* window, double x, double y)
+{
+  dt_gui_darkroom_dspy_mouse_position(window, x, y);
+}
+
 void nodes_mouse_button(GLFWwindow *window, int button, int action, int mods)
 {
-  // XXX this is not a good idea because middle mouse means pan
-  // if(button == GLFW_MOUSE_BUTTON_MIDDLE) nodes.nedit.zoom = 1;
+  dt_gui_darkroom_dspy_mouse_button(window, button, action, mods);
 }
 
 void nodes_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)

@@ -91,6 +91,9 @@ dt_view_mouse_position(GLFWwindow *window, double x, double y)
   case s_view_lighttable:
     lighttable_mouse_position(window, x, y);
     break;
+  case s_view_nodes:
+    nodes_mouse_position(window, x, y);
+    break;
   default:;
   }
 }
