@@ -317,6 +317,7 @@ void render_lighttable_center()
     triggered_rebuild = 1;
   cacheline += iv;
   if(cacheline > vkdt.db.collection_cnt) cacheline = 0;
+  int force_local_cacheline = 0;
   for(int i=0;i<vkdt.db.collection_cnt;i++)
   {
     struct nk_rect row = nk_widget_bounds(&vkdt.ctx);
@@ -351,6 +352,7 @@ void render_lighttable_center()
 
     uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
     if(tid == -1u) tid = 0; // busybee
+    if(tid == 0 && !force_local_cacheline) force_local_cacheline = cacheline = i;
     struct nk_color col = vkdt.style.colour[NK_COLOR_BUTTON];
     struct nk_color hov = vkdt.style.colour[NK_COLOR_BUTTON_HOVER];
     const int selected = vkdt.db.image[vkdt.db.collection[i]].labels & s_image_label_selected;

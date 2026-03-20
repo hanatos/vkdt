@@ -174,6 +174,7 @@ void dt_gui_update_cm()
   { // running on hdr monitor
     gamma0[0] = gamma0[1] = gamma0[2] = -1.0; // PQ
     gamma1[0] = gamma1[1] = gamma1[2] = -1.0;
+    gamma0[1] = gamma1[1] = dt_rc_get_float(&vkdt.rc, "gui/hdr_avg_nits", 128.0f);
     memset(rec2020_to_dspy0, 0, sizeof(rec2020_to_dspy0));
     memset(rec2020_to_dspy1, 0, sizeof(rec2020_to_dspy1));
     rec2020_to_dspy0[0] = rec2020_to_dspy0[4] = rec2020_to_dspy0[8] = 

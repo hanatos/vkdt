@@ -163,7 +163,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
 #endif
     "VK_LAYER_hdr_wsi",
   };
-  int num_layers = LENGTH(vk_requested_layers) + (enable_hdr_wsi ? 0 : -1);
+  int num_layers = LENGTH(vk_requested_layers) -1;//XXX+ (enable_hdr_wsi ? 0 : -1);
   qvk.hdr_supported = enable_hdr_wsi;
 
   /* create instance */

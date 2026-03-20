@@ -679,6 +679,7 @@ dt_gui_dr_draw_position(
 // sets the hdr metadata for the given window.
 // parameters are a straight copy of the vulkan spec,
 // nobody knows what they mean or how they impact the look.
+// (it appears they are sanity checked and then discarded)
 static inline void
 dt_gui_set_hdr_metadata(
     dt_gui_win_t *win,
