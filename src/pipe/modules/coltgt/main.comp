@@ -29,7 +29,10 @@ void main()
   }
   else if(idx.y == 6)
   { // gamma ramp, average
-    rgb = idx.x < 2 ? vec3(0.2) : idx.x < 4 ? vec3(0.3) : vec3(0.5);
+    if(idx.x == 5)
+      rgb = vec3(1.0); // white ref
+    else
+      rgb = idx.x < 2 ? vec3(0.2) : idx.x < 4 ? vec3(0.3) : vec3(0.5);
   }
   else
   { // colour swatches
