@@ -653,10 +653,11 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     struct nk_color col = {val[0]*255, val[1]*255, val[2]*255, 0xff };
     if(nk_widget_is_hovered(ctx))
     {
-      float xyzE[3] = {0}, xyz[3] = {0};
+      float xyzE[3] = {0};//, xyz[3] = {0};
       const float rec2020_to_xyz[] = matrix_rec2020_to_xyz;
       for(int i=0;i<3;i++) for(int j=0;j<3;j++)
         xyzE[i] += rec2020_to_xyz[3*j+i]*val[j];
+#if 0
       // fucking icc uses some fucking variant of D50 as a reference white in the
       // profile connection space, for XYZ! so now we do the same nonsense, just
       // to try and match the spotread -x output. we'll use Bradford adaptation,
@@ -664,9 +665,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       const float lindbloom_E_to_D50[] = matrix_e_to_d50;
       for(int i=0;i<3;i++) for(int j=0;j<3;j++)
         xyz[i] += lindbloom_E_to_D50[3*i+j]*xyzE[j];
-      const float sum = xyz[0]+xyz[1]+xyz[2];
-      dt_tooltip("%s\n%5.3f %5.3f %5.3f bt2020\n%5.3f %5.3f %5.3f Yxy (D50)", param->tooltip,
-          val[0], val[1], val[2], xyz[1], xyz[0]/sum, xyz[1]/sum);
+#endif
+      const float sum = xyzE[0]+xyzE[1]+xyzE[2];
+      dt_tooltip("%s\n%5.3f %5.3f %5.3f bt2020\n%5.3f %5.3f %5.3f Yxy (E)", param->tooltip,
+          val[0], val[1], val[2], xyzE[1], xyzE[0]/sum, xyzE[1]/sum);
     }
     nk_button_color(ctx, col);
   }
