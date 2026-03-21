@@ -90,7 +90,7 @@ void write_sink(
     matrix_p3d65_to_rec2020,
     matrix_xyz_to_rec2020,
     {1,0,0,0,1,0,0,0,1}};
-  if(isnanf(img_param->cam_to_rec2020[0])) // disabled? assume bt2020
+  if(img_param->cam_to_rec2020[0] != img_param->cam_to_rec2020[0]) // disabled? assume bt2020
     memcpy(&matrix[0][0], &matrix[2][0], sizeof(float)*9);
   else
     memcpy(&matrix[0][0], img_param->cam_to_rec2020, sizeof(float)*9);
