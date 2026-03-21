@@ -300,7 +300,7 @@ jobs:
       - name: configure
         run: |
           cd ${SRC_DIR}
-          echo "OPT_LDFLAGS=\"-Wl,-rpath,@executable_path/../../../Frameworks\"" > bin/config.mk
+          echo "OPT_LDFLAGS=\"-Wl,-rpath,@executable_path/../Frameworks\"" > bin/config.mk
           echo "export OPT_LDLFAGS" >> bin/config.mk
       - name: compile
         run: |
@@ -316,14 +316,30 @@ jobs:
           mkdir ${APPDIR}/Contents/Frameworks
           mkdir ${APPDIR}/Contents/Resources
           make VKDTBIN=/tmp/dontinstall DESTDIR=${APPDIR} prefix=/Contents/MacOS install
+          mv ${APPDIR}/Contents/MacOS/lib/vkdt/* ${APPDIR}/Contents/MacOS/
+          rm -rf ${APPDIR}/Contents/MacOS/lib
           cp vkdt.png ${APPDIR}/Contents/Resources/vkdt.png
+      - name: bundle moltenvk
+        run: |
+          ditto $(brew --prefix)/lib/libMoltenVK.dylib ${APPDIR}/Contents/Frameworks/libMoltenVK.dylib
+          mkdir -p "$APPDIR"/Contents/Resources/vulkan/icd.d
+          cat > ${APPDIR}/Contents/Resources/vulkan/icd.d/MoltenVK_icd.json << EOM
+          {
+            "file_format_version": "1.0.0",
+            "ICD": {
+              "library_path": "../../../Frameworks/libMoltenVK.dylib",
+              "api_version": "1.4.0",
+              "is_portability_driver": true
+            }
+          }
+          EOM
       - name: copy library dependencies
         run: |
           BREW_PREFIX=$(brew --prefix)
           for i in $(seq 1 20)
           do
             found=0
-            for exe in ${APPDIR}/Contents/MacOS/lib/vkdt/vkdt* $(find ${APPDIR} -type f \( -name "*.dylib" -o -name "*.so" \))
+            for exe in ${APPDIR}/Contents/MacOS/vkdt* $(find ${APPDIR} -type f \( -name "*.dylib" -o -name "*.so" \))
             do
               [[ $exe == *rawloader-c* ]] && continue
               # echo "our binary: $exe"
@@ -357,7 +373,7 @@ jobs:
             <key>CFBundleDevelopmentRegion</key>
             <string>English</string>
             <key>CFBundleExecutable</key>
-            <string>lib/vkdt/vkdt</string>
+            <string>vkdt</string>
             <key>CFBundleIconFile</key>
             <string>vkdt.png</string>
             <key>CFBundleIdentifier</key>
