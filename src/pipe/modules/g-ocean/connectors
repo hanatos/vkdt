@@ -1,0 +1,2 @@
+input:read:ssbo:tri
+output:write:ssbo:tri
