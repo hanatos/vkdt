@@ -50,23 +50,23 @@ create_nodes(
 {
   // preblend: merge samples from previous frame buffer before denoising
   const int id_preblend = dt_node_add(graph, module, "svgf", "preblend",
-      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 6,
+      module->connector[3].roi.wd, module->connector[3].roi.ht, 1, 0, 0, 6,
       "mv",     "read",  "rg",   "*",   dt_no_roi,
       "irrp",   "read",  "rgba", "f32", dt_no_roi,
       "irrc",   "read",  "ssbo", "f32", dt_no_roi,
       "gbufp",  "read",  "*",    "f32", dt_no_roi,
       "gbufc",  "read",  "*",    "f32", dt_no_roi,
-      "output", "write", "rgba", "f32", &module->connector[0].roi);
+      "output", "write", "rgba", "f32", &module->connector[3].roi);
   graph->node[id_preblend].connector[5].flags |= s_conn_clear_once;
 
   // blend: final taa and albedo modulation
   const int id_blend = dt_node_add(graph, module, "svgf", "blend",
-      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 5,
+      module->connector[3].roi.wd, module->connector[3].roi.ht, 1, 0, 0, 5,
       "mv",     "read",  "rg",   "*",   dt_no_roi,
       "prevb",  "read",  "rgba", "*",   dt_no_roi,
       "light",  "read",  "rgba", "*",   dt_no_roi,
       "albedo", "read",  "rgba", "*",   dt_no_roi,
-      "output", "write", "rgba", "f32", &module->connector[0].roi);
+      "output", "write", "rgba", "f32", &module->connector[3].roi);
   graph->node[id_blend].connector[4].flags |= s_conn_clear_once;
 
   const int pid_iter = dt_module_get_param(module->so, dt_token("iter"));
@@ -76,11 +76,11 @@ create_nodes(
   {
     int pc[] = {1<<i};
     id_eaw[i] = dt_node_add(graph, module, "svgf", "eaw",
-        module->connector[0].roi.wd, module->connector[0].roi.ht, 1, sizeof(pc), pc, 4,
+        module->connector[3].roi.wd, module->connector[3].roi.ht, 1, sizeof(pc), pc, 4,
         "input",    "read",  "rgba", "*",   dt_no_roi,
         "gbuf",     "read",  "*",    "f32", dt_no_roi,
-        "output",   "write", "rgba", "f16", &module->connector[0].roi,
-        "gbuf_out", "write", "rg",   "f32", &module->connector[0].roi);
+        "output",   "write", "rgba", "f16", &module->connector[3].roi,
+        "gbuf_out", "write", "rg",   "f32", &module->connector[3].roi);
   }
 
   dt_connector_copy(graph, module, 0, id_preblend, 0);  // mv
