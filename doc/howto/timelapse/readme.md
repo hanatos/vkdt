@@ -5,12 +5,16 @@ in darkroom mode). it is therefore straight forward to process timelapses.
 
 ## load an image sequence
 
-to wire consecutive images in a timelapse sequence to individual frame numbers
-in an animation, use
+vkdt can wire consecutive images in a timelapse sequence to individual frame
+numbers in an animation. in lighttable mode, select a couple of images, then
+press `selected images`→`create video`. this will merge images into
+a video, indicated by the little "play" symbol on the thumbnail.
+
+in the background,
 [the `i-raw` module](../../../src/pipe/modules/i-raw/readme.md) for raw images or
-[the `i-jpg` module](../../../src/pipe/modules/i-jpg/readme.md) for jpg images.
-they both support loading animations in the following way: you should set the
-`filename` parameter to say `IMG_%04d.CR2` and the `startid` parameter to the
+[the `i-jpg` module](../../../src/pipe/modules/i-jpg/readme.md) for jpg images
+both support loading animations in the following way: the
+`filename` parameter is set to say `IMG_%04d.CR2` and the `startid` parameter to the
 first image in the sequence (say 305 if `IMG_0305.CR2` is the filename of the
 first frame). the module will then construct a filename for every frame,
 starting at `startid` and using the total frame count set on the graph. you can
@@ -73,6 +77,8 @@ to something else, keep hovering over the control, press `ctrl-k` again.
 
 keyframes are *sample and hold* i.e. the first keyframe is valid from the
 beginning of the movie, and the last one until the end.
+you can right click a keyframe te select various ease-in and ease-out
+modes.
 
 if you play the animation from the start now (press `backspace` followed by
 `space`) you should see an effect. a good first test could be the rotation
@@ -84,7 +90,7 @@ parameter of the `crop` module.
 there are a few options to export animated content. you can either use a
 sequence of individual images by using say the
 [`o-jpg` module](../../../src/pipe/modules/o-jpg/readme.md). you can also directly
-[write video output](../../../src/pipe/modules/o-ffmpeg/readme.md).
+[write video output](../../../src/pipe/modules/o-vid/readme.md).
 note that this will output the video stream and the audio separately in a
 different file, it is currently necessary to manually combine them in a single
 container after export.
