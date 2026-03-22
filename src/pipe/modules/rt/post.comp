@@ -23,6 +23,6 @@ void main()
   ivec2 sz = imageSize(img_out);
   uint idx = 4*(sz.x * ipos.y + ipos.x);
   if(albedo.r < 0.0) albedo = -pow(2.0, params.vis_emit) * albedo;
-  vec4 rgba = albedo * vec4(buf.v[idx], buf.v[idx+1], buf.v[idx+2], 1.0);
+  vec4 rgba = vec4(albedo.rgb, 1) * vec4(buf.v[idx], buf.v[idx+1], buf.v[idx+2], 1.0);
   imageStore(img_out, ipos, rgba);
 }

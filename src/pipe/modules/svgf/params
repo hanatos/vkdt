@@ -2,5 +2,5 @@ alpha:float:1:0.9
 taa:float:1:1.0
 prealpha:float:1:0.9
 iter:int:1:4
-vis emit:float:1:1
+vis emit:float:1:0
 firefly:int:1:0
