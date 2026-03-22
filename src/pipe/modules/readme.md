@@ -17,7 +17,6 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [i-lut: half float lut input module](./i-lut/readme.md)
 * [i-mcraw: read motioncam raw video](./i-mcraw/readme.md)
 * [i-mlv: magic lantern raw video input module](./i-mlv/readme.md)
-* [i-obj: load triangle meshes from wavefront obj files](./i-obj/readme.md)
 * [i-pfm: 32-bit floating point map input module](./i-pfm/readme.md)
 * [i-raw: input module for raw-format photographic stills or timelapses](./i-raw/readme.md)
 * [i-v4l2: webcam input module](./i-v4l2/readme.md)
@@ -119,13 +118,19 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 **3d/rendering**
 
 * [accum: accumulate frames in a frame buffer](./accum/readme.md)
-* [bvh: append triangle mesh to ray tracing acceleration structure](./bvh/readme.md)
 * [logo: render the animated vkdt icon](./logo/readme.md)
 * [physarum: mesmerizing interactive particle simulation](./physarum/readme.md)
 * [quake: the 1996 game ray traced based on QSS](./quake/readme.md)
 * [rt: real-time ray tracing](./rt/readme.md)
 * [spheres: shadertoy demo ported for testing](./spheres/readme.md)
 * [svgf: spatiotemporal variance guided filtering](./svgf/readme.md)
+
+**3d geometry**
+
+* [bvh: append triangle mesh to ray tracing acceleration structure](./bvh/readme.md)
+* [g-ocean: ocean synthesis displacement modifier](./g-ocean/readme.md)
+* [g-wobble: circular motion for vertices](./g-wobble/readme.md)
+* [i-obj: load triangle meshes from wavefront obj files](./i-obj/readme.md)
 
 **internal use**
 
