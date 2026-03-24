@@ -1,0 +1,8 @@
+# module menu key overrides and exclusions
+# format:
+#   label key     — assign key to module (e.g. "filmcurv:01 f")
+#   !label        — exclude module from menu (by name or name:instance)
+#
+# exclude infrastructure modules
+!colenc
+!demosaic

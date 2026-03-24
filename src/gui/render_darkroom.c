@@ -20,6 +20,8 @@
 #include "gui/render_view.h"
 #include "gui/hotkey.h"
 #include "gui/keyaccel.h"
+#include "gui/dragkey.h"
+#include "gui/menu.h"
 #include "gui/api_gui.h"
 #include "gui/widget_dopesheet.h"
 #include "gui/widget_draw.h"
@@ -39,6 +41,8 @@
 
 
 static dt_keyaccel_t keyaccel;
+static dt_dragkeys_t dragkeys;
+static dt_menu_t     darkroom_menu;
 
 enum hotkey_names_t
 { // for sane access in code
@@ -175,11 +179,38 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     { // abort all widget interaction
       widget_end();
     }
+    else if(action == GLFW_PRESS && key == GLFW_KEY_ENTER)
+    { // confirm active widget
+      int modid = vkdt.wstate.active_widget_modid;
+      int parid = vkdt.wstate.active_widget_parid;
+      if(vkdt.graph_dev.module[modid].name == dt_token("crop"))
+      { // crop: restore rotation+crop params saved at widget start, then commit
+        dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
+        dt_module_set_param_float_n(vkdt.graph_dev.module+modid, dt_token("crop"), vkdt.wstate.state+10, 4);
+        widget_end();
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, 2.0);
+      }
+      else
+      { // generic: commit current state and end widget
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, 0.0);
+        widget_end();
+      }
+    }
     return;
   }
 
+  { // chord menu system: check before dragkeys and hotkeys
+    int mr = dt_menu_keyboard(&darkroom_menu, hk_darkroom, hk_darkroom_cnt, key, action);
+    if(mr == 1) return;       // consumed (menu opened/closed/navigated)
+    if(mr < -1)               // negative = menu selected a hotkey index
+    { gui.hotkey = -(mr + 2); goto hotkey_dispatch; }
+  }
+
+  if(dt_dragkey_keyboard(&dragkeys, key, action)) return;
+
   gui.hotkey = action == GLFW_PRESS ? hk_get_hotkey(hk_darkroom, hk_darkroom_cnt, key) : -1;
   if(action != GLFW_PRESS) return; // only handle key down events
+hotkey_dispatch:
   switch(gui.hotkey)
   { // these are "destructive" hotkeys, they change the image and invalidate the dset.
     // this has to happen this frame *before* the dset is sent to imgui for display.
@@ -354,6 +385,7 @@ void render_darkroom()
     return;
   }
 
+  dt_gui_set_lod(dragkeys.active >= 0 ? vkdt.wstate.lod_interact : vkdt.wstate.lod_fine);
   dt_radial_menu_dr(&vkdt.wstate.radial_menu_dr, bounds);
 
   static int resize_panel = 0;
@@ -643,8 +675,13 @@ void render_darkroom()
 
     if(current_tab == 0)
     {
-      vkdt.graph_dev.active_module = -1;
-      render_darkroom_favourite();
+      if(vkdt.wstate.pending_modid >= 0)
+        current_tab = 1; // switch to tweak-all when chord menu activated a module
+      else
+      {
+        vkdt.graph_dev.active_module = -1;
+        render_darkroom_favourite();
+      }
     }
     else if(current_tab == 1)
     {
@@ -798,8 +835,39 @@ void render_darkroom()
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
   }
+  dt_menu_render(&darkroom_menu, &vkdt.ctx); // chord menu overlay
+  dt_menu_process_clicks(&darkroom_menu, hk_darkroom, hk_darkroom_cnt);
+  if(vkdt.wstate.pending_modid >= 0)
+    dt_darkroom_activate_module(vkdt.wstate.pending_modid);
   gui.pgupdn = 0;  // reset rotary encoder knob counter
   gui.hotkey = -1; // reset hotkey, we worked on all we could
+}
+
+static void darkroom_menu_action(const char *action)
+{
+  if(dt_menu_exec_combo(action)) return;
+  if(!strncmp(action, "dragkey:", 8))
+  {
+    if(dt_dragkey_parse_and_activate(&dragkeys, action))
+      dt_gui_notification("cannot activate dragkey: %s", action + 8);
+    else
+      dt_gui_notification("drag to adjust -- click to confirm, esc to cancel");
+    return;
+  }
+  size_t len = strlen(action);
+  if(len > 4 && !strcmp(action + len - 4, ".pst"))
+  {
+    uint32_t err = render_darkroom_apply_preset(action);
+    if(err) dt_gui_notification("preset failed at line %u", err);
+  }
+  else if(!strncmp(action, "activate:", 9))
+  {
+    dt_token_t mod, inst;
+    if(!dt_menu_parse_activate(action, &mod, &inst))
+      dt_darkroom_activate_module(dt_module_get(&vkdt.graph_dev, mod, inst));
+  }
+  else
+    dt_keyaccel_exec(action);
 }
 
 void render_darkroom_init()
@@ -808,17 +876,23 @@ void render_darkroom_init()
   gui.active_instance = 0;
   hk_darkroom_cnt = dt_keyaccel_init(&keyaccel, hk_darkroom, hk_darkroom_cnt, hk_darkroom_size);
   hk_deserialise("darkroom", hk_darkroom, hk_darkroom_cnt);
+  dt_dragkeys_init(&dragkeys);
+  dt_menu_load(&darkroom_menu, "darkroom");
+  darkroom_menu.action_cb = darkroom_menu_action;
 }
 
 void render_darkroom_cleanup()
 {
   hk_serialise("darkroom", hk_darkroom, hk_darkroom_cnt);
   dt_keyaccel_cleanup(&keyaccel);
+  dt_dragkeys_cleanup(&dragkeys);
+  dt_menu_cleanup(&darkroom_menu);
 }
 
 void
 darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
+  if(dt_dragkey_mouse_button(&dragkeys, button, action)) return;
   dt_gui_darkroom_dspy_mouse_button(window, button, action, mods);
   double x, y;
   dt_view_get_cursor_pos(vkdt.win.window, &x, &y);
@@ -864,6 +938,7 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
 void
 darkroom_mouse_position(GLFWwindow* window, double x, double y)
 {
+  if(dt_dragkey_mouse_move(&dragkeys, x)) return;
   dt_gui_darkroom_dspy_mouse_position(window, x, y);
   if(vkdt.wstate.grabbed)
   {
@@ -1242,6 +1317,7 @@ darkroom_pentablet_data(double x, double y, double z, double pressure, double pi
 void
 darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr)
 {
+  if(dt_menu_gamepad(&darkroom_menu, hk_darkroom, hk_darkroom_cnt, last, curr)) return;
 #define PRESSED(A) curr->buttons[A] && !last->buttons[A]
   if(PRESSED(GLFW_GAMEPAD_BUTTON_A))
   {

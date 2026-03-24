@@ -102,6 +102,11 @@ char_callback(GLFWwindow* window, unsigned int c)
 static void
 scroll_callback(GLFWwindow *window, double xoff, double yoff)
 {
+  if(vkdt.wstate.chord_menu_active)
+  { // menu open: capture raw scroll exclusively (no DPI scale needed)
+    vkdt.wstate.chord_menu_scroll += yoff;
+    return;
+  }
   float xscale, yscale;
   dt_gui_content_scale(window, &xscale, &yscale);
   xoff *= xscale;

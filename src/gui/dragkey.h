@@ -53,7 +53,7 @@ typedef struct dt_dragkeys_t
 	dt_dragkey_t dk[DT_DRAGKEY_MAX];
 	dt_dragkey_t menu_dk;    // temporary dragkey for menu-triggered adjustments
 	int    cnt;
-	int    active;           // index of active drag, or -1 (DT_DRAGKEY_MAX = menu_dk)
+	int    active;           // index of active drag; -1 = none, DT_DRAGKEY_MAX = menu_dk active
 	int    latched;          // 1 = menu-triggered, click to finish
 	double start_x;          // mouse x when drag began
 }
@@ -70,7 +70,6 @@ dt_dragkey_load_file(dt_dragkey_t *dk, const char *path, const char *basename)
 	char line[256];
 	while(fgets(line, sizeof(line), f))
 	{
-		// strip newline
 		char *nl = strchr(line, '\n');
 		if(nl) *nl = 0;
 		if(line[0] == '#' || line[0] == 0) continue;
@@ -141,7 +140,6 @@ dt_dragkeys_cleanup(dt_dragkeys_t *dk)
 	dk->active = -1;
 }
 
-// commit all changed params to history
 static inline void
 dt_dragkey_commit(dt_dragkey_t *d)
 {
@@ -328,7 +326,6 @@ dt_dragkey_activate(
 	if(range <= 0) range = 1.0f;
 	float width = vkdt.state.center_wd > 0 ? vkdt.state.center_wd : 1000.0f;
 	d->comp[0].sensitivity = range / width;
-	// build display name
 	snprintf(d->name, sizeof(d->name), "%.8s:%.8s",
 			dt_token_str(mod), dt_token_str(param));
 	double mx, my;

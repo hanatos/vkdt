@@ -5,6 +5,7 @@
 #include "gui/job_copy.h"
 #include "gui/render_view.h"
 #include "gui/hotkey.h"
+#include "gui/menu.h"
 #include "gui/widget_filebrowser.h"
 #include "gui/widget_recentcollect.h"
 #include "gui/widget_resize_panel.h"
@@ -13,6 +14,7 @@
 #include <unistd.h>
 
 static dt_filebrowser_widget_t filebrowser = {{0}};
+static dt_menu_t files_menu;
 
 static hk_t hk_files[] = {
   {"focus filter",    "move the gui focus to the filter edit box",      {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_F}},
@@ -299,6 +301,8 @@ void render_files()
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
   }
+  dt_menu_render(&files_menu, &vkdt.ctx);
+  dt_menu_process_clicks(&files_menu, hk_files, NK_LEN(hk_files));
 }
 
 void
@@ -410,6 +414,10 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
   if(vkdt.wstate.popup == s_popup_edit_hotkeys)
     return hk_keyboard(hk_files, window, key, scancode, action, mods);
   if(dt_gui_input_blocked()) return;
+  { // chord menu
+    int mr = dt_menu_keyboard(&files_menu, hk_files, sizeof(hk_files)/sizeof(hk_files[0]), key, action);
+    if(mr == 1) return;
+  }
   dt_filebrowser_widget_t *w = &filebrowser;
 
   int hotkey = action == GLFW_PRESS ? hk_get_hotkey(hk_files, sizeof(hk_files)/sizeof(hk_files[0]), key) : -1;
@@ -458,11 +466,13 @@ void files_mouse_scrolled(GLFWwindow *window, double xoff, double yoff) { }
 void render_files_init()
 {
   hk_deserialise("files", hk_files, sizeof(hk_files)/sizeof(hk_files[0]));
+  dt_menu_load(&files_menu, "files");
 }
 
 void render_files_cleanup()
 {
   hk_serialise("files", hk_files, sizeof(hk_files)/sizeof(hk_files[0]));
+  dt_menu_cleanup(&files_menu);
 }
 
 int
@@ -484,6 +494,7 @@ files_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr
 {
   if(vkdt.wstate.popup == s_popup_edit_hotkeys) return;
   if(dt_gui_input_blocked()) return;
+  if(dt_menu_gamepad(&files_menu, hk_files, NK_LEN(hk_files), last, curr)) return;
   dt_filebrowser_widget_t *w = &filebrowser;
   const float ay = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
 #define PRESSED(A) (curr->buttons[A] && !last->buttons[A])

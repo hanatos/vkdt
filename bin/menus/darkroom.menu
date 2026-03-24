@@ -1,0 +1,72 @@
+# darkroom chord menus
+gamepad:start
+presets p
+  opendrt o
+    !opendrt a
+    looks l
+      !opendrt-look-aery a
+      !opendrt-look-arriba r
+      !opendrt-look-base b
+      !opendrt-look-colourful c
+      !opendrt-look-dystopic d
+      !opendrt-look-standard s
+      !opendrt-look-sylvan y
+      !opendrt-look-umbra u
+    tonescale t
+      !opendrt-tonescale-aces-1.x 1
+      !opendrt-tonescale-aces-2.0 2
+      !opendrt-tonescale-aery a
+      !opendrt-tonescale-arriba r
+      !opendrt-tonescale-colourful c
+      !opendrt-tonescale-dagrinchi d
+      !opendrt-tonescale-dystopic y
+      !opendrt-tonescale-high-contrast h
+      !opendrt-tonescale-low-contrast l
+      !opendrt-tonescale-marvelous v
+      !opendrt-tonescale-medium-contrast m
+      !opendrt-tonescale-sylvan s
+      !opendrt-tonescale-umbra u
+  colour-monk c
+    !colour-monk-0 0
+    !colour-monk-1 1
+    !colour-monk-2 2
+    !colour-monk-3 3
+    !colour-monk-4 4
+    !colour-monk-5 5
+    !colour-monk-6 6
+    !colour-monk-7 7
+    !colour-monk-8 8
+    !colour-monk-9 9
+  dodge-burn d
+    !dodge o
+    !dodge-guided g
+    !burn b
+    !burn-guided u
+  retouch t
+    !draw-tint t
+    !draw-double-tint d
+    !mask-tint m
+    !retouch r
+    !inpaint i
+  white-balance w
+    !whitebalance-camera c
+    !whitebalance-D65 d
+    !pick-neutral p
+  !filmsim f
+  !clut l
+  !colourcube u
+  !gamut g
+  !jddcnn j
+  !noise-profile n
+  !mcraw-temporal-denoise m
+  !vectorscope-skin v
+  !ColorChecker k
+  !SpyderChecker24 s
+adjust a
+  *scan_keyaccel
+modules m
+  *scan_modules
+rotate r
+  !rotate-90cw 1
+  !rotate-180 2
+  !rotate-90ccw 3

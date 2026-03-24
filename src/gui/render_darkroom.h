@@ -68,6 +68,33 @@ static inline void widget_abort()
   vkdt.wstate.selected = -1;
 }
 
+static inline void
+dt_darkroom_activate_module(int modid)
+{
+  dt_graph_t *graph = &vkdt.graph_dev;
+  if(modid < 0 || modid >= (int)graph->num_modules) return;
+  if(graph->active_module == modid) return;
+  graph->active_module = modid;
+  int cid = dt_module_get_connector(graph->module + modid, dt_token("dspy"));
+  if(cid >= 0 && !graph->module[modid].disabled)
+  {
+    int mid = dt_module_add(graph, dt_token("display"), dt_token("dspy"));
+    if(mid >= 0)
+    {
+      if(graph->module[mid].connector[0].connected.i != modid ||
+         graph->module[mid].connector[0].connected.c != cid)
+      {
+        dt_module_connect(graph, modid, cid, mid, 0);
+        const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
+        graph->module[mid].connector[0].max_wd = pwd;
+        graph->module[mid].connector[0].max_ht = pwd;
+      }
+    }
+  }
+  graph->runflags = s_graph_run_all;
+  vkdt.wstate.busy += 2;
+}
+
 static inline void render_perf_overlay()
 {
   const int nvmask = 127;

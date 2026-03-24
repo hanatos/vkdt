@@ -4,6 +4,10 @@
 #include "gui/files.h"
 #include "gui/render.h"
 #include "gui/nodes.h"
+#include "gui/hotkey.h"
+#include "gui/actionkey.h"
+
+static dt_actionkeys_t actionkeys;
 
 int
 dt_view_switch(dt_gui_view_t view)
@@ -123,6 +127,7 @@ dt_view_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
 void
 dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+  if(dt_actionkey_keyboard(&actionkeys, key, action)) return;
   switch(vkdt.view_mode)
   {
     case s_view_darkroom:
