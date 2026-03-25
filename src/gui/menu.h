@@ -36,7 +36,6 @@
 #define DT_MENU_MAX_DEPTH       4
 #define DT_MENU_STACK_DYN_PARENT  -1  // stack sentinel: parent is dyn_parent copy
 #define DT_MENU_STACK_GAMEPAD_ROOT -2  // stack sentinel: gamepad opened menu at root
-
 typedef struct dt_menu_entry_t
 {
 	uint16_t    key;            // GLFW key code for this entry
@@ -383,39 +382,107 @@ dt_menu_entry_init(dt_menu_entry_t *e)
 	e->hotkey_index = -1;
 }
 
+#define DT_MENU_SCANDIR_CACHE_SLOTS 4
+
+typedef struct dt_menu_scandir_slot_t
+{
+	char            dirname[64];
+	char            ext[16];
+	time_t          mtime[2]; // [0]=homedir [1]=basedir; 0=absent
+	dt_menu_entry_t buf[DT_MENU_MAX_DYNAMIC];
+	int             cnt;
+}
+dt_menu_scandir_slot_t;
+
+static dt_menu_scandir_slot_t g_menu_scandir_cache[DT_MENU_SCANDIR_CACHE_SLOTS];
+
+static inline time_t
+dt_menu_dir_mtime(const char *dirname, int inbase)
+{
+	char path[PATH_MAX];
+	snprintf(path, sizeof(path), "%s/%s",
+			inbase ? dt_pipe.basedir : dt_pipe.homedir, dirname);
+	struct stat st;
+	return stat(path, &st) ? 0 : st.st_mtime;
+}
+
 static inline int
 dt_menu_prov_scandir(dt_menu_entry_t *buf, int max, const char *dirname, const char *ext)
 {
+	time_t mtime[2] = { dt_menu_dir_mtime(dirname, 0), dt_menu_dir_mtime(dirname, 1) };
+	const char *ext_key = ext ? ext : "";
+
+	// find matching cache slot
+	dt_menu_scandir_slot_t *slot = 0;
+	int free_slot = -1;
+	for(int i = 0; i < DT_MENU_SCANDIR_CACHE_SLOTS; i++)
+	{
+		dt_menu_scandir_slot_t *s = g_menu_scandir_cache + i;
+		if(s->dirname[0] && !strcmp(s->dirname, dirname) && !strcmp(s->ext, ext_key))
+		{ slot = s; break; }
+		if(!s->dirname[0] && free_slot < 0) free_slot = i;
+	}
+
+	// cache hit: directories unchanged
+	if(slot && slot->mtime[0] == mtime[0] && slot->mtime[1] == mtime[1])
+	{
+		int cnt = slot->cnt < max ? slot->cnt : max;
+		for(int i = 0; i < cnt; i++)
+		{
+			buf[i] = slot->buf[i];
+			buf[i].label = buf[i].action_buf; // re-point into output buffer
+		}
+		return cnt;
+	}
+
+	// cache miss: pick slot, evict slot 0 if all full
+	if(!slot)
+	{
+		slot = g_menu_scandir_cache + (free_slot >= 0 ? free_slot : 0);
+		snprintf(slot->dirname, sizeof(slot->dirname), "%s", dirname);
+		snprintf(slot->ext,     sizeof(slot->ext),     "%s", ext_key);
+	}
+
+	// full directory scan into slot
 	int cnt = 0;
-	for(int inbase = 0; inbase < 2 && cnt < max; inbase++)
+	for(int inbase = 0; inbase < 2 && cnt < DT_MENU_MAX_DYNAMIC; inbase++)
 	{
 		void *dirp = dt_res_opendir(dirname, inbase);
 		if(!dirp) continue;
 		const char *basename = 0;
-		while((basename = dt_res_next_basename(dirp, inbase)) && cnt < max)
+		while((basename = dt_res_next_basename(dirp, inbase)) && cnt < DT_MENU_MAX_DYNAMIC)
 		{
 			if(basename[0] == '.') continue;
 			if(ext)
-			{ // filter by extension
+			{
 				size_t len = strlen(basename), elen = strlen(ext);
 				if(len <= elen || strcmp(basename + len - elen, ext)) continue;
 			}
 			int dup = 0;
 			for(int i = 0; i < cnt; i++)
-				if(!strcmp(buf[i].action_buf, basename)) { dup = 1; break; }
+				if(!strcmp(slot->buf[i].action_buf, basename)) { dup = 1; break; }
 			if(dup) continue;
-
-			dt_menu_entry_init(buf + cnt);
-			snprintf(buf[cnt].action_buf, sizeof(buf[cnt].action_buf), "%s", basename);
-			buf[cnt].label = buf[cnt].action_buf;
-			buf[cnt].key = 0;
-			if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
+			dt_menu_entry_init(slot->buf + cnt);
+			snprintf(slot->buf[cnt].action_buf, sizeof(slot->buf[cnt].action_buf), "%s", basename);
+			slot->buf[cnt].label = slot->buf[cnt].action_buf;
+			if(cnt > 0) slot->buf[cnt - 1].next_sibling = cnt;
 			cnt++;
 		}
 		dt_res_closedir(dirp, inbase);
 	}
-	dt_menu_assign_dynamic_keys(buf, cnt);
-	return cnt;
+	dt_menu_assign_dynamic_keys(slot->buf, cnt);
+	slot->cnt      = cnt;
+	slot->mtime[0] = mtime[0];
+	slot->mtime[1] = mtime[1];
+
+	// copy to output
+	int out_cnt = cnt < max ? cnt : max;
+	for(int i = 0; i < out_cnt; i++)
+	{
+		buf[i] = slot->buf[i];
+		buf[i].label = buf[i].action_buf;
+	}
+	return out_cnt;
 }
 
 static int
@@ -727,6 +794,7 @@ dt_menu_ensure_children(dt_menu_t *m)
 	if(m->depth <= 0) return 0;
 	if(!m->children_dirty) return m->child_cnt;
 	int16_t si = m->stack[m->depth - 1];
+	double t_scan_beg = glfwGetTime();
 	if(si == -1)
 	{
 		if(m->dyn_parent.provider)
@@ -749,6 +817,9 @@ dt_menu_ensure_children(dt_menu_t *m)
 		m->child_cnt = dt_menu_get_children(m, si,
 				m->children, DT_MENU_MAX_DYNAMIC + DT_MENU_MAX_ENTRIES);
 	}
+	dt_log(s_log_perf, "[menu] ensure_children (%s depth=%d):\t%8.3f ms",
+			m->view_name ? m->view_name : "?", m->depth,
+			1000.0*(glfwGetTime() - t_scan_beg));
 	m->children_dirty = 0;
 	return m->child_cnt;
 }

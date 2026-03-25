@@ -374,6 +374,7 @@ void render_darkroom_full(char *filter_name, char *filter_inst)
 
 void render_darkroom()
 {
+  double clock_beg = dt_time();
   int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
   int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
   struct nk_rect bounds = {win_x, win_y, win_w, win_h};
@@ -841,6 +842,7 @@ void render_darkroom()
     dt_darkroom_activate_module(vkdt.wstate.pending_modid);
   gui.pgupdn = 0;  // reset rotary encoder knob counter
   gui.hotkey = -1; // reset hotkey, we worked on all we could
+  dt_log(s_log_perf, "render_darkroom cpu:\t%8.3f ms", 1000.0*(dt_time() - clock_beg));
 }
 
 static void darkroom_menu_action(const char *action)
@@ -1099,10 +1101,6 @@ darkroom_process()
     }
   }
 
-  // struct timespec end;
-  // clock_gettime(CLOCK_REALTIME, &end);
-  // double dt = (double)(end.tv_sec - beg.tv_sec) + 1e-9*(end.tv_nsec - beg.tv_nsec);
-  // dt_log(s_log_perf, "frame time %2.3fs", dt);
 }
 
 int
