@@ -27,6 +27,7 @@
 #include "pipe/modules/api.h"
 #include "nk.h"
 
+#include <assert.h>
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
@@ -34,8 +35,8 @@
 #define DT_MENU_MAX_ENTRIES   256
 #define DT_MENU_MAX_DYNAMIC    64
 #define DT_MENU_MAX_DEPTH       4
-#define DT_MENU_STACK_DYN_PARENT  -1  // stack sentinel: parent is dyn_parent copy
-#define DT_MENU_STACK_GAMEPAD_ROOT -2  // stack sentinel: gamepad opened menu at root
+typedef enum { DT_MENU_SK_ENTRY=0, DT_MENU_SK_DYN_PARENT=1, DT_MENU_SK_GAMEPAD_ROOT=2 } dt_menu_sk_t;
+typedef struct { int16_t idx; uint8_t kind; } dt_menu_stack_entry_t;
 typedef struct dt_menu_entry_t
 {
 	uint16_t    key;            // GLFW key code for this entry
@@ -59,7 +60,7 @@ typedef struct dt_menu_t
 	dt_menu_entry_t children[DT_MENU_MAX_DYNAMIC + DT_MENU_MAX_ENTRIES]; // scratch buffer for get_children
 	dt_stringpool_t sp;
 	int             cnt;        // number of static entries
-	int16_t         stack[DT_MENU_MAX_DEPTH]; // entry indices of open menu chain
+	dt_menu_stack_entry_t stack[DT_MENU_MAX_DEPTH];
 	int             depth;      // 0 = closed
 	int             cursor;     // highlighted entry for gamepad/keyboard nav
 	int             clicked;    // index of clicked entry this frame, -1 = none
@@ -675,7 +676,8 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
 			buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
 			buf[cnt].key = 0;
 			buf[cnt].provider = dt_menu_prov_combo_opts;
-			buf[cnt].provider_data = (void *)(intptr_t)(((unsigned)modid << 16) | (p & 0xffff));
+			assert(modid < 0x10000 && p < 0x10000);
+			buf[cnt].provider_data = (void *)(intptr_t)(((unsigned)modid << 16) | (unsigned)p);
 			if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
 			cnt++;
 		}
@@ -793,9 +795,9 @@ dt_menu_ensure_children(dt_menu_t *m)
 {
 	if(m->depth <= 0) return 0;
 	if(!m->children_dirty) return m->child_cnt;
-	int16_t si = m->stack[m->depth - 1];
+	dt_menu_stack_entry_t se = m->stack[m->depth - 1];
 	double t_scan_beg = glfwGetTime();
-	if(si == -1)
+	if(se.kind == DT_MENU_SK_DYN_PARENT)
 	{
 		if(m->dyn_parent.provider)
 		{
@@ -807,14 +809,14 @@ dt_menu_ensure_children(dt_menu_t *m)
 		}
 		else m->child_cnt = 0;
 	}
-	else if(si == DT_MENU_STACK_GAMEPAD_ROOT)
+	else if(se.kind == DT_MENU_SK_GAMEPAD_ROOT)
 	{
 		m->child_cnt = dt_menu_get_children(m, -1,
 				m->children, DT_MENU_MAX_DYNAMIC + DT_MENU_MAX_ENTRIES);
 	}
 	else
 	{
-		m->child_cnt = dt_menu_get_children(m, si,
+		m->child_cnt = dt_menu_get_children(m, se.idx,
 				m->children, DT_MENU_MAX_DYNAMIC + DT_MENU_MAX_ENTRIES);
 	}
 	dt_log(s_log_perf, "[menu] ensure_children (%s depth=%d):\t%8.3f ms",
@@ -834,26 +836,26 @@ dt_menu_select(dt_menu_t *m, dt_menu_entry_t *children, int child_cnt,
 
 	if(e->first_child >= 0 || e->provider)
 	{
-		if(m->depth >= DT_MENU_MAX_DEPTH) { dt_menu_set_depth(m, 0); return 1; }
+		if(m->depth >= DT_MENU_MAX_DEPTH) { dt_gui_notification("menu too deep"); return 1; }
 		if(e->provider)
 		{
 			if(e->on_open) e->on_open(e->provider_data);
 			m->dyn_parent = *e;
-			m->stack[m->depth] = DT_MENU_STACK_DYN_PARENT;
+			m->stack[m->depth] = (dt_menu_stack_entry_t){.kind = DT_MENU_SK_DYN_PARENT};
 			dt_menu_set_depth(m, m->depth + 1);
 			m->cursor = 0;
 			m->scroll_off = 0;
 		}
 		else
 		{
-			int parent_idx = m->stack[m->depth - 1];
-			int match_parent = parent_idx < -1 ? -1 : parent_idx;
+			dt_menu_stack_entry_t pse = m->stack[m->depth - 1];
+			int match_parent = pse.kind == DT_MENU_SK_ENTRY ? pse.idx : -1;
 			int found = 0;
 			for(int j = 0; j < m->cnt; j++)
 			{
 				if(m->entries[j].key == e->key && m->entries[j].parent == match_parent)
 				{
-					m->stack[m->depth] = j;
+					m->stack[m->depth] = (dt_menu_stack_entry_t){.idx = j};
 					dt_menu_set_depth(m, m->depth + 1);
 					m->cursor = 0;
 					m->scroll_off = 0;
@@ -906,7 +908,7 @@ dt_menu_keyboard(
 			if(m->entries[i].key != key) continue;
 			if(m->entries[i].first_child >= 0 || m->entries[i].provider)
 			{
-				m->stack[0] = i;
+				m->stack[0] = (dt_menu_stack_entry_t){.idx = i};
 				dt_menu_set_depth(m, 1);
 				m->cursor = 0;
 				m->scroll_off = 0;
@@ -967,7 +969,7 @@ dt_menu_gamepad(dt_menu_t *m, hk_t *hk, int hk_cnt,
 	{
 		if(GP_PRESSED(m->gamepad_button))
 		{
-			m->stack[0] = DT_MENU_STACK_GAMEPAD_ROOT;
+			m->stack[0] = (dt_menu_stack_entry_t){.kind = DT_MENU_SK_GAMEPAD_ROOT};
 			dt_menu_set_depth(m, 1);
 			m->cursor = 0;
 			m->scroll_off = 0;
@@ -1011,8 +1013,8 @@ dt_menu_render(dt_menu_t *m, struct nk_context *ctx)
 	int boff = 0;
 	for(int d = 0; d < m->depth && d < DT_MENU_MAX_DEPTH; d++)
 	{
-		if(m->stack[d] < 0) continue; // sentinels have no entry to label
-		const char *l = m->entries[m->stack[d]].label;
+		if(m->stack[d].kind != DT_MENU_SK_ENTRY) continue;
+		const char *l = m->entries[m->stack[d].idx].label;
 		if(l) boff += snprintf(breadcrumb + boff, sizeof(breadcrumb) - boff, "%s%s", d ? " > " : "", l);
 	}
 	if(child_cnt > max_visible)
