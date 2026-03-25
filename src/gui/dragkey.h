@@ -170,6 +170,15 @@ dt_dragkey_restore(dt_dragkey_t *d)
 	vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
 }
 
+static inline void
+dt_dragkeys_cancel(dt_dragkeys_t *dk)
+{
+	if(dk->latched) dt_dragkey_restore(&dk->menu_dk);
+	dk->active = -1;
+	dk->latched = 0;
+	dk->commit_time = 0.0;
+}
+
 // reset all params to their module default values
 static inline void
 dt_dragkey_reset(dt_dragkey_t *d)

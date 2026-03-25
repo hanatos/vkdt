@@ -10,4 +10,5 @@ void darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, in
 void darkroom_pentablet_data(double x, double y, double z, double pressure, double pitch, double yaw, double roll);
 void darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr);
 void darkroom_process();
+void darkroom_focus_lost();
 int  darkroom_leave();

@@ -93,6 +93,12 @@ window_close_callback(GLFWwindow* window)
 }
 
 static void
+window_focus_callback(GLFWwindow* window, int focused)
+{
+  if(!focused) dt_view_focus_lost();
+}
+
+static void
 char_callback(GLFWwindow* window, unsigned int c)
 {
   if(!vkdt.wstate.grabbed)
@@ -199,6 +205,7 @@ int main(int argc, char *argv[])
   glfwSetCharCallback(vkdt.win.window, char_callback);
   glfwSetScrollCallback(vkdt.win.window, scroll_callback);
   glfwSetWindowCloseCallback(vkdt.win.window, window_close_callback);
+  glfwSetWindowFocusCallback(vkdt.win.window, window_focus_callback);
 #if VKDT_USE_PENTABLET==1
   glfwSetPenTabletDataCallback(pentablet_data_callback);
   glfwSetPenTabletCursorCallback(pentablet_cursor_callback);

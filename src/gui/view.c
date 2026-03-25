@@ -205,6 +205,18 @@ dt_view_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *cu
   }
 }
 
+void
+dt_view_focus_lost()
+{
+  switch(vkdt.view_mode)
+  {
+    case s_view_darkroom:
+      darkroom_focus_lost();
+      break;
+    default:;
+  }
+}
+
 void dt_view_get_cursor_pos(GLFWwindow *window, double *x, double *y)
 {
   glfwGetCursorPos(window, x, y);

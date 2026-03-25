@@ -883,6 +883,11 @@ void render_darkroom_init()
   darkroom_menu.action_cb = darkroom_menu_action;
 }
 
+void darkroom_focus_lost()
+{
+  dt_dragkeys_cancel(&dragkeys);
+}
+
 void render_darkroom_cleanup()
 {
   hk_serialise("darkroom", hk_darkroom, hk_darkroom_cnt);
