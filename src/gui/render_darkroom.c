@@ -839,7 +839,10 @@ void render_darkroom()
   dt_menu_render(&darkroom_menu, &vkdt.ctx); // chord menu overlay
   dt_menu_process_clicks(&darkroom_menu, hk_darkroom, hk_darkroom_cnt);
   if(vkdt.wstate.pending_modid >= 0)
+  {
     dt_darkroom_activate_module(vkdt.wstate.pending_modid);
+    vkdt.wstate.pending_modid = -1;
+  }
   gui.pgupdn = 0;  // reset rotary encoder knob counter
   gui.hotkey = -1; // reset hotkey, we worked on all we could
   dt_log(s_log_perf, "render_darkroom cpu:\t%8.3f ms", 1000.0*(dt_time() - clock_beg));
