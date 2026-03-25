@@ -206,7 +206,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     { gui.hotkey = -(mr + 2); goto hotkey_dispatch; }
   }
 
-  if(dt_dragkey_keyboard(&dragkeys, key, action)) return;
+  if(dt_dragkey_keyboard(&dragkeys, key, action, mods)) return;
 
   gui.hotkey = action == GLFW_PRESS ? hk_get_hotkey(hk_darkroom, hk_darkroom_cnt, key) : -1;
   if(action != GLFW_PRESS) return; // only handle key down events

@@ -20,8 +20,9 @@
 #include <dirent.h>
 #include <limits.h>
 
-#define DT_DRAGKEY_MAX       16
-#define DT_DRAGKEY_MAX_COMP   8
+#define DT_DRAGKEY_MAX            16
+#define DT_DRAGKEY_MAX_COMP        8
+#define DT_DRAGKEY_DBLCLICK_WIN  0.4  // seconds: window for double-click reset after commit
 
 typedef struct dt_dragkey_comp_t
 {
@@ -53,9 +54,10 @@ typedef struct dt_dragkeys_t
 	dt_dragkey_t dk[DT_DRAGKEY_MAX];
 	dt_dragkey_t menu_dk;    // temporary dragkey for menu-triggered adjustments
 	int    cnt;
-	int    active;           // index of active drag; -1 = none, DT_DRAGKEY_MAX = menu_dk active
-	int    latched;          // 1 = menu-triggered, click to finish
+	int    active;           // -1 = none, DT_DRAGKEY_MAX = latched drag active (menu_dk)
+	int    latched;          // 1 = latched drag active, click or any key to finish
 	double start_x;          // mouse x when drag began
+	double commit_time;      // glfwGetTime() of last commit (for double-click reset)
 }
 dt_dragkeys_t;
 
@@ -138,6 +140,8 @@ dt_dragkeys_cleanup(dt_dragkeys_t *dk)
 {
 	dk->cnt = 0;
 	dk->active = -1;
+	dk->latched = 0;
+	dk->commit_time = 0.0;
 }
 
 static inline void
@@ -166,21 +170,61 @@ dt_dragkey_restore(dt_dragkey_t *d)
 	vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
 }
 
+// reset all params to their module default values
+static inline void
+dt_dragkey_reset(dt_dragkey_t *d)
+{
+	for(int j = 0; j < d->comp_cnt; j++)
+	{
+		dt_dragkey_comp_t *c = d->comp + j;
+		if(c->modid < 0 || c->parid < 0) continue;
+		const dt_ui_param_t *pp = vkdt.graph_dev.module[c->modid].so->param[c->parid];
+		float *val = (float *)(vkdt.graph_dev.module[c->modid].param + pp->offset);
+		val[c->component] = ((const float *)pp->val)[c->component];
+	}
+	// append history once per (modid, parid) pair
+	for(int j = 0; j < d->comp_cnt; j++)
+	{
+		dt_dragkey_comp_t *c = d->comp + j;
+		if(c->modid < 0 || c->parid < 0) continue;
+		int dup = 0;
+		for(int k = 0; k < j; k++)
+			if(d->comp[k].modid == c->modid && d->comp[k].parid == c->parid) { dup = 1; break; }
+		if(!dup) dt_graph_history_append(&vkdt.graph_dev, c->modid, c->parid, 0.0);
+	}
+	vkdt.graph_dev.runflags = s_graph_run_all;
+	vkdt.wstate.busy += 2;
+}
+
 // called from darkroom_keyboard. returns 1 if the event was consumed.
 static inline int
-dt_dragkey_keyboard(dt_dragkeys_t *dk, int key, int action)
+dt_dragkey_keyboard(dt_dragkeys_t *dk, int key, int action, int mods)
 {
 	if(action == GLFW_PRESS && dk->active < 0)
 	{
 		for(int i = 0; i < dk->cnt; i++)
 		{
 			if(dk->dk[i].key != key) continue;
-			// resolve modules and record start values
 			dt_dragkey_t *d = dk->dk + i;
+			if(mods & GLFW_MOD_SHIFT) { // shift+key: reset to module defaults
+				for(int j = 0; j < d->comp_cnt; j++)
+				{
+					dt_dragkey_comp_t *c = d->comp + j;
+					c->modid = dt_module_get(&vkdt.graph_dev, c->module, c->instance);
+					if(c->modid < 0) continue;
+					c->parid = dt_module_get_param(vkdt.graph_dev.module[c->modid].so, c->param);
+				}
+				dt_dragkey_reset(d);
+				dt_gui_notification("%s: reset to default", d->name);
+				return 1;
+			}
+			// activate latched drag: press once, drag, click or any key to commit
+			dk->menu_dk = *d;
+			dt_dragkey_t *md = &dk->menu_dk;
 			int ok = 0;
-			for(int j = 0; j < d->comp_cnt; j++)
+			for(int j = 0; j < md->comp_cnt; j++)
 			{
-				dt_dragkey_comp_t *c = d->comp + j;
+				dt_dragkey_comp_t *c = md->comp + j;
 				c->modid = dt_module_get(&vkdt.graph_dev, c->module, c->instance);
 				if(c->modid < 0) continue;
 				c->parid = dt_module_get_param(vkdt.graph_dev.module[c->modid].so, c->param);
@@ -194,35 +238,30 @@ dt_dragkey_keyboard(dt_dragkeys_t *dk, int key, int action)
 				ok = 1;
 			}
 			if(!ok) return 0;
-			vkdt.wstate.pending_modid = d->comp[0].modid;
+			vkdt.wstate.pending_modid = md->comp[0].modid;
 			double mx, my;
 			dt_view_get_cursor_pos(vkdt.win.window, &mx, &my);
 			dk->start_x = mx;
-			dk->active = i;
+			dk->active = DT_DRAGKEY_MAX;
+			dk->latched = 1;
+			dt_gui_notification("%s: drag to adjust -- click or any key to confirm, esc to cancel", md->name);
 			return 1;
 		}
 	}
-	else if(dk->active == DT_DRAGKEY_MAX && dk->latched)
-	{ // latched mode (menu-triggered): any key commits
-		if(action == GLFW_PRESS)
-		{
-			if(key == GLFW_KEY_ESCAPE)
+	else if(dk->active == DT_DRAGKEY_MAX && dk->latched) { // latched mode: any key commits
+		if(action == GLFW_PRESS) {
+			if(key == GLFW_KEY_ESCAPE) {
 				dt_dragkey_restore(&dk->menu_dk);
-			else
+				dk->commit_time = 0.0;
+			} else {
 				dt_dragkey_commit(&dk->menu_dk);
+				dk->commit_time = glfwGetTime();
+			}
 			dk->active = -1;
 			dk->latched = 0;
 			return 1;
 		}
 		return 1; // consume all key events while latched
-	}
-	else if(action == GLFW_RELEASE && dk->active >= 0)
-	{
-		dt_dragkey_t *d = dk->dk + dk->active;
-		if(key != d->key) return 0;
-		dt_dragkey_commit(d);
-		dk->active = -1;
-		return 1;
 	}
 	return 0;
 }
@@ -232,20 +271,8 @@ static inline int
 dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x)
 {
 	if(dk->active < 0) return 0;
-	dt_dragkey_t *d = dk->active == DT_DRAGKEY_MAX ? &dk->menu_dk : dk->dk + dk->active;
-	double dx = x - dk->start_x;
-	// exponential drag for keyboard-triggered drags: linear feel for small
-	// movements, accelerates for large ones so min/max are always reachable.
-	// menu-triggered (latched) drags already have sensitivity = range/width,
-	// so they stay linear.
-	float delta;
-	if(!dk->latched)
-	{
-		float scale = vkdt.state.center_wd > 0 ? vkdt.state.center_wd * 0.5f : 500.0f;
-		float adx = fminf(fabsf((float)dx), 20.0f * scale);
-		delta = (dx >= 0 ? 1.0f : -1.0f) * scale * (expf(adx / scale) - 1.0f);
-	}
-	else delta = (float)dx;
+	dt_dragkey_t *d = &dk->menu_dk;
+	float delta = (float)(x - dk->start_x);
 	char msg[128];
 	int off = 0;
 	off += snprintf(msg + off, sizeof(msg) - off, "%s:", d->name);
@@ -274,12 +301,20 @@ dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x)
 static inline int
 dt_dragkey_mouse_button(dt_dragkeys_t *dk, int button, int action)
 {
+	if(button == 0 && action == GLFW_PRESS && dk->active < 0
+	   && dk->commit_time > 0.0 && (glfwGetTime() - dk->commit_time) < DT_DRAGKEY_DBLCLICK_WIN) { // double-click to reset: second left-click within window after a commit
+		dk->commit_time = 0.0;
+		dt_dragkey_reset(&dk->menu_dk);
+		dt_gui_notification("%s: reset to default", dk->menu_dk.name);
+		return 1;
+	}
 	if(dk->active < 0 || !dk->latched) return 0;
 	if(button == 0 && action == GLFW_PRESS)
 	{ // left click: commit
 		dt_dragkey_commit(&dk->menu_dk);
 		dk->active = -1;
 		dk->latched = 0;
+		dk->commit_time = glfwGetTime();
 		return 1;
 	}
 	if(button == 1 && action == GLFW_PRESS)
@@ -287,6 +322,7 @@ dt_dragkey_mouse_button(dt_dragkeys_t *dk, int button, int action)
 		dt_dragkey_restore(&dk->menu_dk);
 		dk->active = -1;
 		dk->latched = 0;
+		dk->commit_time = 0.0;
 		return 1;
 	}
 	return 1; // consume all mouse buttons while latched
