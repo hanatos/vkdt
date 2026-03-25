@@ -723,7 +723,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     else
     {
       snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
-      if(nk_button_label(ctx, string))
+      int do_pers_start = nk_button_label(ctx, string);
+      if(!do_pers_start && vkdt.wstate.pending_widget_modid == modid && vkdt.wstate.pending_widget_parid == parid)
+        { do_pers_start = 1; vkdt.wstate.pending_widget_modid = -1; }
+      if(do_pers_start)
       {
         widget_end(); // if another one is still in progress, end that now
         vkdt.wstate.active_widget_modid = modid;
@@ -779,7 +782,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     else
     {
       dt_tooltip("draw lines on the image to be rotated to align exactly horizontally or vertically");
-      if(nk_button_label(ctx, "straighten"))
+      int do_straight_start = nk_button_label(ctx, "straighten");
+      if(!do_straight_start && vkdt.wstate.pending_widget_modid == modid && vkdt.wstate.pending_widget_parid == parid)
+        { do_straight_start = 1; vkdt.wstate.pending_widget_modid = -1; }
+      if(do_straight_start)
       {
         widget_end();
         vkdt.wstate.active_widget_modid = modid;
@@ -846,7 +852,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     else
     {
       snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
-      if(nk_button_label(ctx, string))
+      int do_crop_start = nk_button_label(ctx, string);
+      if(!do_crop_start && vkdt.wstate.pending_widget_modid == modid && vkdt.wstate.pending_widget_parid == parid)
+        { do_crop_start = 1; vkdt.wstate.pending_widget_modid = -1; }
+      if(do_crop_start)
       {
         widget_end(); // if another one is still in progress, end that now
         vkdt.wstate.active_widget_modid = modid;

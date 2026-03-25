@@ -127,6 +127,8 @@ typedef struct dt_gui_wstate_t
   int   chord_menu_active;      // non-zero when a chord menu overlay is open (blocks view scroll)
   float chord_menu_scroll;      // accumulated scroll delta while menu is open
   int   pending_modid;           // module to activate in right panel (-1 = none), set by menu/dragkey
+  int   pending_widget_modid;   // module to start interactive widget for (-1 = none)
+  int   pending_widget_parid;   // param index for pending widget start
 
   int lighttable_images_per_row;// how many images per row in lighttable mode
 }

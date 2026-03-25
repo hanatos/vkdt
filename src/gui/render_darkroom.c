@@ -868,6 +868,37 @@ static void darkroom_menu_action(const char *action)
     if(!dt_menu_parse_activate(action, &mod, &inst))
       dt_darkroom_activate_module(dt_module_get(&vkdt.graph_dev, mod, inst));
   }
+  else if(!strncmp(action, "widget:", 7))
+  {
+    dt_token_t mod, inst, param;
+    if(!dt_menu_parse_widget(action, &mod, &inst, &param))
+    {
+      int modid = dt_module_get(&vkdt.graph_dev, mod, inst);
+      int parid = modid >= 0 ? dt_module_get_param(vkdt.graph_dev.module[modid].so, param) : -1;
+      if(modid >= 0 && parid >= 0)
+      {
+        vkdt.wstate.pending_widget_modid = modid;
+        vkdt.wstate.pending_widget_parid = parid;
+        vkdt.wstate.pending_modid = modid; // also scroll to module
+      }
+    }
+  }
+  else if(!strncmp(action, "callback:", 9))
+  {
+    dt_token_t mod, inst, param;
+    if(!dt_menu_parse_callback_action(action, &mod, &inst, &param))
+    {
+      int modid = dt_module_get(&vkdt.graph_dev, mod, inst);
+      if(modid >= 0)
+      {
+        dt_module_t *m = vkdt.graph_dev.module + modid;
+        if(m->so->ui_callback) m->so->ui_callback(m, param);
+        vkdt.graph_dev.runflags |= s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.active_module = modid;
+        dt_graph_history_append(&vkdt.graph_dev, modid, -1, 0);
+      }
+    }
+  }
   else
     dt_keyaccel_exec(action);
 }
@@ -1116,8 +1147,10 @@ darkroom_enter()
   vkdt.state.anim_frame = 0;
   dt_gui_dr_anim_stop();
   dt_image_reset_zoom(&vkdt.wstate.img_widget);
-  vkdt.wstate.active_widget_modid = -1;
-  vkdt.wstate.active_widget_parid = -1;
+  vkdt.wstate.active_widget_modid  = -1;
+  vkdt.wstate.active_widget_parid  = -1;
+  vkdt.wstate.pending_widget_modid = -1;
+  vkdt.wstate.pending_widget_parid = -1;
   dt_radial_menu_dr_close(&vkdt.wstate.radial_menu_dr);
   vkdt.wstate.mapped = 0;
   vkdt.wstate.selected = -1;

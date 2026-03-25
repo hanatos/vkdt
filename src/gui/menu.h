@@ -537,6 +537,38 @@ dt_menu_parse_activate(const char *action, dt_token_t *mod, dt_token_t *inst)
 }
 
 static inline void
+dt_menu_format_widget(char *buf, int bufsz, dt_token_t mod, dt_token_t inst, dt_token_t param)
+{
+	snprintf(buf, bufsz, "widget:%.8s:%.8s:%.8s",
+			dt_token_str(mod), dt_token_str(inst), dt_token_str(param));
+}
+
+static inline int
+dt_menu_parse_widget(const char *action, dt_token_t *mod, dt_token_t *inst, dt_token_t *param)
+{
+	char m[9] = {0}, i[9] = {0}, p[9] = {0};
+	if(sscanf(action + 7, "%8[^:]:%8[^:]:%8s", m, i, p) < 3) return 1;
+	*mod = dt_token(m); *inst = dt_token(i); *param = dt_token(p);
+	return 0;
+}
+
+static inline void
+dt_menu_format_callback_action(char *buf, int bufsz, dt_token_t mod, dt_token_t inst, dt_token_t param)
+{
+	snprintf(buf, bufsz, "callback:%.8s:%.8s:%.8s",
+			dt_token_str(mod), dt_token_str(inst), dt_token_str(param));
+}
+
+static inline int
+dt_menu_parse_callback_action(const char *action, dt_token_t *mod, dt_token_t *inst, dt_token_t *param)
+{
+	char m[9] = {0}, i[9] = {0}, p[9] = {0};
+	if(sscanf(action + 9, "%8[^:]:%8[^:]:%8s", m, i, p) < 3) return 1;
+	*mod = dt_token(m); *inst = dt_token(i); *param = dt_token(p);
+	return 0;
+}
+
+static inline void
 dt_menu_prov_on_open_module(void *data)
 {
 	vkdt.wstate.pending_modid = (int)(intptr_t)data;
@@ -655,6 +687,7 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
 		dt_token_t wtype = param->widget.type;
 		if(wtype == dt_token("hidden") || wtype == dt_token("filename")) continue;
 		int is_slider = (param->type == dt_token("float") && wtype == dt_token("slider"));
+		int is_rgb    = (param->type == dt_token("float") && wtype == dt_token("rgb"));
 		int is_combo  = (param->type == dt_token("int")   && wtype == dt_token("combo"));
 
 		if(is_slider)
@@ -665,6 +698,24 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
 				dt_dragkey_format_action(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
 						mod->name, mod->inst, param->name, c);
 				buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
+				buf[cnt].key = 0;
+				if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
+				cnt++;
+			}
+		}
+		else if(is_rgb)
+		{
+			static const char *suffix[3] = {" r", " g", " b"};
+			const char *base = param->long_name ? param->long_name : dt_token_str(param->name);
+			for(int c = 0; c < 3 && cnt < max; c++)
+			{
+				dt_menu_entry_init(buf + cnt);
+				dt_dragkey_format_action(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
+						mod->name, mod->inst, param->name, c);
+				int alen = strlen(buf[cnt].action_buf);
+				snprintf(buf[cnt].action_buf + alen + 1,
+						sizeof(buf[cnt].action_buf) - alen - 1, "%s%s", base, suffix[c]);
+				buf[cnt].label = buf[cnt].action_buf + alen + 1;
 				buf[cnt].key = 0;
 				if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
 				cnt++;
@@ -681,6 +732,53 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
 			if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
 			cnt++;
 		}
+		else if(wtype == dt_token("callback"))
+		{ // button that calls ui_callback
+			dt_menu_entry_init(buf + cnt);
+			dt_menu_format_callback_action(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
+					mod->name, mod->inst, param->name);
+			buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
+			buf[cnt].key = 0;
+			if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
+			cnt++;
+		}
+		else if(wtype == dt_token("pers") || wtype == dt_token("crop"))
+		{ // tool widget: start interactive overlay
+			dt_menu_entry_init(buf + cnt);
+			dt_menu_format_widget(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
+					mod->name, mod->inst, param->name);
+			buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
+			buf[cnt].key = 0;
+			if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
+			cnt++;
+		}
+		else if(wtype == dt_token("straight"))
+		{ // tool widget with embedded float slider: emit both dragkey and tool-start entries
+			dt_menu_entry_init(buf + cnt);
+			dt_dragkey_format_action(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
+					mod->name, mod->inst, param->name, 0);
+			buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
+			buf[cnt].key = 0;
+			if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
+			cnt++;
+			if(cnt < max)
+			{
+				dt_menu_entry_init(buf + cnt);
+				dt_menu_format_widget(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
+						mod->name, mod->inst, param->name);
+				// pack label "paramname tool" after action string
+				int alen = strlen(buf[cnt].action_buf);
+				const char *base = param->long_name ? param->long_name : dt_token_str(param->name);
+				snprintf(buf[cnt].action_buf + alen + 1,
+						sizeof(buf[cnt].action_buf) - alen - 1, "%s tool", base);
+				buf[cnt].label = buf[cnt].action_buf + alen + 1;
+				buf[cnt].key = 0;
+				if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
+				cnt++;
+			}
+		}
+		else if(wtype == dt_token("colour") || wtype == dt_token("print"))
+			continue; // display-only, no useful menu action
 		else // tool/interactive widget: activate module
 		{
 			dt_menu_entry_init(buf + cnt);
