@@ -44,6 +44,7 @@ typedef struct dt_menu_entry_t
 	int16_t     first_child;    // index of first child, -1 = leaf
 	int16_t     next_sibling;   // next entry at same level, -1 = last
 	const char *label;          // display text (from stringpool)
+	const char *tooltip;        // hover tooltip, or NULL (from stringpool)
 	int         hotkey_index;   // for leaves: index into view's hk[] array, -1 = provider action
 	char        action_buf[64]; // for provider leaves: action string copy (stable storage)
 	int       (*provider)(      // non-NULL: fills dynamic children into buf, returns count
@@ -235,10 +236,10 @@ dt_menu_load(dt_menu_t *m, const char *viewname)
 			}
 			else snprintf(acname, sizeof(acname), "%s", p);
 
-			// read first-line comment as display label
 			char fname[PATH_MAX], comment[128] = {0};
 			snprintf(fname, sizeof(fname), "keyaccel/%s", acname);
 			FILE *kf = dt_graph_open_resource(0, 0, fname, "rb");
+			int is_preset = 0;
 			if(kf) { fscanf(kf, "# %127[^\n]", comment); fclose(kf);
 			         snprintf(e->action_buf, sizeof(e->action_buf), "%s", acname); }
 			else
@@ -248,11 +249,25 @@ dt_menu_load(dt_menu_t *m, const char *viewname)
 				FILE *pf = dt_graph_open_resource(0, 0, pst_fname, "rb");
 				if(pf) { fscanf(pf, "# %127[^\n]", comment); fclose(pf); }
 				snprintf(e->action_buf, sizeof(e->action_buf), "%s.pst", acname);
+				is_preset = 1;
 			}
-			if(!comment[0]) snprintf(comment, sizeof(comment), "%s", acname);
 
 			const char *dedup = 0;
-			dt_stringpool_get(&m->sp, comment, strlen(comment), m->cnt + 1, &dedup);
+			if(is_preset)
+			{ // label = short filename; tooltip = first-line comment if any
+				dt_stringpool_get(&m->sp, acname, strlen(acname), m->cnt + 1, &dedup);
+				if(comment[0])
+				{
+					const char *tip = 0;
+					dt_stringpool_get(&m->sp, comment, strlen(comment), m->cnt, &tip);
+					e->tooltip = tip;
+				}
+			}
+			else
+			{ // keyaccel: label = comment (or acname fallback), no tooltip
+				if(!comment[0]) snprintf(comment, sizeof(comment), "%s", acname);
+				dt_stringpool_get(&m->sp, comment, strlen(comment), m->cnt + 1, &dedup);
+			}
 			e->label = dedup;
 			e->key = keyname[0] ? hk_name_to_glfw(keyname) : 0;
 
@@ -1118,12 +1133,11 @@ dt_menu_render(dt_menu_t *m, struct nk_context *ctx)
 	if(child_cnt > max_visible)
 		boff += snprintf(breadcrumb + boff, sizeof(breadcrumb) - boff, " [%d/%d]", m->cursor + 1, child_cnt);
 
-	struct nk_color bg = nk_rgba(25, 25, 30, 230);
-	struct nk_color hl = nk_rgba(70, 70, 110, 255);
-	struct nk_color label_col = nk_rgba(210, 210, 210, 255);
-	struct nk_color bc_col = nk_rgba(140, 140, 170, 255);
-	struct nk_color btn_normal = nk_rgba(35, 35, 45, 200);
-	struct nk_color btn_hover = nk_rgba(55, 55, 75, 255);
+	struct nk_color bg        = vkdt.style.colour[NK_COLOR_WINDOW];
+	struct nk_color hl        = vkdt.style.colour[NK_COLOR_DT_ACCENT];
+	struct nk_color label_col = vkdt.style.colour[NK_COLOR_TEXT];
+	struct nk_color btn_normal = vkdt.style.colour[NK_COLOR_BUTTON];
+	struct nk_color btn_hover = vkdt.style.colour[NK_COLOR_BUTTON_HOVER];
 
 	nk_style_push_color(ctx, &ctx->style.window.background, bg);
 	nk_style_push_vec2(ctx, &ctx->style.window.padding, nk_vec2(8, 6));
@@ -1140,9 +1154,10 @@ dt_menu_render(dt_menu_t *m, struct nk_context *ctx)
 	const float row_h = ctx->style.font->height + 2 * ctx->style.button.padding.y + 4;
 	const float row_spacing = ctx->style.window.spacing.y;
 	const float header_h = row_h + 8;
+	const float key_col_w = 50.0f;
 	const int display_rows = child_cnt < max_visible ? child_cnt : max_visible;
 	const float content_h = header_h + display_rows * (row_h + row_spacing) + 2 * ctx->style.window.padding.y;
-	const float menu_w = 400;
+	const float menu_w = 550;
 	const float menu_x = vkdt.state.center_x + (vkdt.state.center_wd - menu_w) * 0.5f;
 	const float menu_y = vkdt.state.center_y + (vkdt.state.center_ht - content_h) * 0.5f - 30;
 
@@ -1151,7 +1166,7 @@ dt_menu_render(dt_menu_t *m, struct nk_context *ctx)
 				NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_BORDER))
 	{
 		nk_layout_row_dynamic(ctx, header_h, 1);
-		nk_label_colored(ctx, breadcrumb, NK_TEXT_LEFT, bc_col);
+		nk_label_colored(ctx, breadcrumb, NK_TEXT_LEFT, label_col);
 
 		m->clicked = -1;
 
@@ -1178,6 +1193,7 @@ dt_menu_render(dt_menu_t *m, struct nk_context *ctx)
 		if(m->scroll_off > max_off) m->scroll_off = max_off;
 		int visible = child_cnt < max_visible ? child_cnt : max_visible;
 
+		nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0, row_spacing));
 		for(int vi = 0; vi < visible; vi++)
 		{
 			int i = vi + m->scroll_off;
@@ -1185,31 +1201,42 @@ dt_menu_render(dt_menu_t *m, struct nk_context *ctx)
 			int is_cursor = (i == m->cursor);
 			int has_sub = m->children[i].first_child >= 0 || m->children[i].provider;
 
-			char display[192], clean_lbl[128];
-			const char *kname = m->children[i].key ? dt_menu_glfw_to_name(m->children[i].key) : " ";
+			char label_display[192], clean_lbl[128];
+			const char *kname = m->children[i].key ? dt_menu_glfw_to_name(m->children[i].key) : "";
 			const char *lbl = m->children[i].label ? m->children[i].label : "?";
 			snprintf(clean_lbl, sizeof(clean_lbl), "%s", lbl);
 			size_t ll = strlen(clean_lbl);
 			if(ll > 4 && !strcmp(clean_lbl + ll - 4, ".pst")) clean_lbl[ll - 4] = 0; // strip .pst
-			snprintf(display, sizeof(display), " %s   %s%s",
-					kname, clean_lbl, has_sub ? "  >" : "");
+			snprintf(label_display, sizeof(label_display), "%s%s", clean_lbl, has_sub ? "  >" : "");
 
 			if(is_cursor)
 			{
 				nk_style_push_color(ctx, &ctx->style.button.normal.data.color, hl);
 				nk_style_push_color(ctx, &ctx->style.button.hover.data.color, hl);
+				nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
+				nk_style_push_color(ctx, &ctx->style.button.text_hover,  vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
 			}
 
-			nk_layout_row_dynamic(ctx, row_h, 1);
-			if(nk_button_label(ctx, display))
-				m->clicked = i; // real index, not visual
+			nk_layout_row_template_begin(ctx, row_h);
+			nk_layout_row_template_push_static(ctx, key_col_w);
+			nk_layout_row_template_push_dynamic(ctx);
+			nk_layout_row_template_end(ctx);
+			nk_style_push_flags(ctx, &ctx->style.button.text_alignment, NK_TEXT_CENTERED);
+			if(nk_button_label(ctx, kname)) m->clicked = i;      // key column
+			nk_style_pop_flags(ctx);
+			int hovered = nk_widget_is_hovered(ctx);
+			if(nk_button_label(ctx, label_display)) m->clicked = i; // label column
+			if(hovered && m->children[i].tooltip) nk_tooltip(ctx, m->children[i].tooltip);
 
 			if(is_cursor)
 			{
 				nk_style_pop_color(ctx);
 				nk_style_pop_color(ctx);
+				nk_style_pop_color(ctx);
+				nk_style_pop_color(ctx);
 			}
 		}
+		nk_style_pop_vec2(ctx);
 
 	}
 	nk_end(ctx);
@@ -1221,7 +1248,7 @@ dt_menu_render(dt_menu_t *m, struct nk_context *ctx)
 
 	vkdt.wstate.nk_active_next = 0; // don't steal keyboard from hotkeys
 
-	// 11 pushes above
+	// 11 pushes above (spacing and cursor colours are balanced inside the loop)
 	nk_style_pop_flags(ctx);
 	nk_style_pop_vec2(ctx);
 	nk_style_pop_float(ctx);
