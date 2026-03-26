@@ -184,15 +184,6 @@ int dt_gui_init()
 {
   memset(&vkdt, 0, sizeof(vkdt));
   vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE;
-  const char *session_type = getenv("XDG_SESSION_TYPE");
-  if     (!session_type)                    vkdt.session_type = -1;
-  else if(!strcmp(session_type, "x11"))     vkdt.session_type =  0;
-  else if(!strcmp(session_type, "wayland")) vkdt.session_type =  1;
-  else vkdt.session_type = -1; // what's this? macos maybe?
-#ifdef _WIN64
-  vkdt.session_type = 666;
-#endif
-
   const char *hdr_wsi = getenv("ENABLE_HDR_WSI");
   int enable_hdr_wsi = 0;
   if     (!hdr_wsi)              enable_hdr_wsi = 0;
@@ -207,6 +198,13 @@ int dt_gui_init()
     dt_log(s_log_gui|s_log_err, "glfwInit() failed: %s", description);
     return 1;
   }
+  int pt = glfwGetPlatform();
+  vkdt.session_type = -1;
+  if     (pt == GLFW_PLATFORM_X11)     vkdt.session_type = 0;
+  else if(pt == GLFW_PLATFORM_WAYLAND) vkdt.session_type = 1;
+  else if(pt == GLFW_PLATFORM_COCOA)   vkdt.session_type = 2;
+  else if(pt == GLFW_PLATFORM_WIN32)   vkdt.session_type = 666;
+
   dt_log(s_log_gui, "glfwGetVersionString() : %s", glfwGetVersionString() );
   if(!glfwVulkanSupported())
   {
