@@ -232,6 +232,8 @@ dt_dragkeys_exit(dt_dragkeys_t *dk, int commit)
 		dt_dragkey_restore(&dk->menu_dk);
 		dk->commit_time = 0.0;
 	}
+	if(dk->dragging)
+		glfwSetInputMode(vkdt.win.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 	dk->latched        = 0;
 	dk->dragging       = 0;
 	dk->mousedown_time = 0.0;
@@ -452,10 +454,12 @@ dt_dragkey_mouse_button(dt_dragkeys_t *dk, int button, int action)
 		dk->start_x = mx;
 		dk->mousedown_time = glfwGetTime();
 		dk->dragging = 1;
+		glfwSetInputMode(vkdt.win.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		return 1;
 	}
 	if(button == 0 && action == GLFW_RELEASE)
 	{
+		glfwSetInputMode(vkdt.win.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 		if((glfwGetTime() - dk->mousedown_time) < DT_DRAGKEY_CLICK_WIN)
 		{ // quick click (no real drag): confirm and exit
 			dt_dragkeys_exit(dk, 1);
