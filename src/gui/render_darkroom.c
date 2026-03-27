@@ -397,7 +397,7 @@ void render_darkroom()
 	int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
 	struct nk_rect bounds = {win_x, win_y, win_w, win_h};
 	const int display_frame = vkdt.graph_dev.double_buffer % 2;
-	if(!dt_gui_input_blocked() && nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
+	if(!dt_gui_input_blocked() && !vkdt.wstate.dragkey_latched && nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
 	{
 		dt_view_switch(s_view_lighttable);
 		gui.pgupdn = 0;
@@ -900,7 +900,7 @@ static void darkroom_menu_action(const char *action)
 		if(dt_dragkey_parse_and_activate(&dragkeys, action))
 			dt_gui_notification("cannot activate dragkey: %s", action + 8);
 		else
-			dt_gui_notification("drag to adjust -- click to confirm, esc to cancel");
+			dt_gui_notification("click and drag to adjust -- right-click or any key to confirm, esc to cancel");
 		return;
 	}
 	if(!strncmp(action, "dragkey_named:", 14))
@@ -908,7 +908,7 @@ static void darkroom_menu_action(const char *action)
 		if(dt_dragkey_activate_named(&dragkeys, action + 14))
 			dt_gui_notification("cannot activate dragkey: %s", action + 14);
 		else
-			dt_gui_notification("%s: drag to adjust -- click or any key to confirm, esc to cancel", dragkeys.menu_dk.name);
+			dt_gui_notification("%s: click and drag to adjust -- right-click or any key to confirm, esc to cancel", dragkeys.menu_dk.name);
 		return;
 	}
 	size_t len = strlen(action);

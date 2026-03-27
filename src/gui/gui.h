@@ -126,6 +126,7 @@ typedef struct dt_gui_wstate_t
 	int tab_state;                // state required to tab between tabbable widgets
 
 	int   chord_menu_active;      // non-zero when a chord menu overlay is open (blocks view scroll)
+	int   dragkey_latched;        // non-zero when a dragkey is armed (blocks image pan/zoom)
 	float chord_menu_scroll;      // accumulated scroll delta while menu is open
 	int   pending_modid;           // module to activate in right panel (-1 = none), set by menu/dragkey
 	int   pending_widget_modid;   // module to start interactive widget for (-1 = none)
