@@ -72,6 +72,9 @@ install-mod: bin Makefile lut
 	cp -rfL bin/keyaccel $(VKDTDIR)
 	cp -rfL bin/presets $(VKDTDIR)
 	cp -rfL bin/default* $(VKDTDIR)
+	cp -rfL bin/actionkeys $(VKDTDIR)
+	cp -rfL bin/dragkeys $(VKDTDIR)
+	cp -rfL bin/menus $(VKDTDIR)
 
 install: install-bin install-mod Makefile
 
