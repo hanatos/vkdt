@@ -27,7 +27,6 @@
 #include "pipe/modules/api.h"
 #include "nk.h"
 
-#include <assert.h>
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
@@ -560,7 +559,7 @@ dt_menu_prov_dragkeys(dt_menu_entry_t *buf, int max, void *data)
 			char path[PATH_MAX];
 			snprintf(path, sizeof(path), "%s/dragkeys/%s",
 					inbase ? dt_pipe.basedir : dt_pipe.homedir, basename);
-			dt_dragkey_load_file(&dk, path, basename);
+			if(dt_dragkey_load_file(&dk, path, basename)) continue;
 			dt_menu_entry_t *e = g_dragkeys_cache.buf + cnt;
 			dt_menu_entry_init(e);
 			snprintf(e->action_buf, sizeof(e->action_buf), "dragkey_named:%s", basename);
@@ -775,12 +774,21 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
 
 		if(is_slider)
 		{
+			const char *base = param->long_name ? param->long_name : dt_token_str(param->name);
 			for(int c = 0; c < param->cnt && cnt < max; c++)
 			{
 				dt_menu_entry_init(buf + cnt);
 				dt_dragkey_format_action(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
 						mod->name, mod->inst, param->name, c);
-				buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
+				if(param->cnt > 1)
+				{ // pack "name N" label after action string for multi-component sliders
+					int alen = strlen(buf[cnt].action_buf);
+					snprintf(buf[cnt].action_buf + alen + 1,
+							sizeof(buf[cnt].action_buf) - alen - 1, "%s %d", base, c);
+					buf[cnt].label = buf[cnt].action_buf + alen + 1;
+				}
+				else
+					buf[cnt].label = base;
 				buf[cnt].key = 0;
 				if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
 				cnt++;
@@ -810,7 +818,7 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
 			buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
 			buf[cnt].key = 0;
 			buf[cnt].provider = dt_menu_prov_combo_opts;
-			assert(modid < 0x10000 && p < 0x10000);
+			if(modid >= 0x10000 || p >= 0x10000) continue; // encoding limit; unreachable in practice
 			buf[cnt].provider_data = (void *)(intptr_t)(((unsigned)modid << 16) | (unsigned)p);
 			if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
 			cnt++;
