@@ -101,6 +101,7 @@ window_focus_callback(GLFWwindow* window, int focused)
 static void
 char_callback(GLFWwindow* window, unsigned int c)
 {
+  dt_view_char(window, c);
   if(!vkdt.wstate.grabbed)
     nk_glfw3_char_callback(window, c);
 }

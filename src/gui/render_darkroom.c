@@ -80,7 +80,11 @@ enum hotkey_names_t
 	s_hotkey_menu_drag       = 32,
 	s_hotkey_menu_modules    = 33,
 	s_hotkey_menu_rotate     = 34,
-	s_hotkey_count           = 35,
+	s_hotkey_dragkey_dec     = 35,
+	s_hotkey_dragkey_inc     = 36,
+	s_hotkey_dragkey_dec_alt = 37,
+	s_hotkey_dragkey_inc_alt = 38,
+	s_hotkey_count           = 39,
 };
 
 static const int hk_darkroom_size = 128;
@@ -115,7 +119,7 @@ static hk_t hk_darkroom[128] = {
 	{"reload shaders",  "debug: reload shader code while running",    {}},
 	{"copy history",    "copy history from curren image",             {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_C}},
 	{"paste history",   "paste history to selected images",           {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_V}},
-	{"show hotkeys",    "show all hotkey bindings",                   {GLFW_KEY_H}},
+	{"show hotkeys",    "show all hotkey bindings",                   {}},
 	{"presets",         "open presets chord menu",                    {GLFW_KEY_P}},
 	{"adjust",          "open key-accel chord menu",                 {GLFW_KEY_A}},
 	{"drag",            "open drag-to-adjust chord menu",            {GLFW_KEY_D}},
@@ -177,7 +181,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
 		return hk_keyboard(hk_darkroom, window, key, scancode, action, mods);
 	if(vkdt.wstate.popup == s_popup_hotkeys)
 	{
-		if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_H))
+		if(action == GLFW_PRESS && key == GLFW_KEY_ESCAPE)
 			vkdt.wstate.popup = 0;
 		return;
 	}
@@ -966,6 +970,17 @@ static void darkroom_menu_action(const char *action)
 	}
 	else
 		dt_keyaccel_exec(action);
+}
+
+void
+darkroom_char(GLFWwindow *window, unsigned int c)
+{
+	if(c != '?') return;
+	(void)window;
+	if(vkdt.wstate.popup == s_popup_hotkeys)
+		vkdt.wstate.popup = 0;
+	else if(!dt_gui_input_blocked())
+		vkdt.wstate.popup = s_popup_hotkeys;
 }
 
 void render_darkroom_init()

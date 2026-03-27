@@ -125,6 +125,16 @@ dt_view_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
 }
 
 void
+dt_view_char(GLFWwindow *window, unsigned int c)
+{
+  switch(vkdt.view_mode)
+  {
+    case s_view_darkroom: darkroom_char(window, c); break;
+    default:;
+  }
+}
+
+void
 dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
   if(dt_actionkey_keyboard(&actionkeys, key, action)) return;
