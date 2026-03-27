@@ -40,7 +40,6 @@
 #include <limits.h>
 
 
-static dt_keyaccel_t keyaccel;
 static dt_dragkeys_t dragkeys;
 static dt_menu_t     darkroom_menu;
 
@@ -75,7 +74,13 @@ enum hotkey_names_t
   s_hotkey_reload_shaders  = 26,
   s_hotkey_copy_hist       = 27,
   s_hotkey_paste_hist      = 28,
-  s_hotkey_count           = 29,
+  s_hotkey_show_hotkeys    = 29,
+  s_hotkey_menu_presets    = 30,
+  s_hotkey_menu_adjust     = 31,
+  s_hotkey_menu_drag       = 32,
+  s_hotkey_menu_modules    = 33,
+  s_hotkey_menu_rotate     = 34,
+  s_hotkey_count           = 35,
 };
 
 static const int hk_darkroom_size = 128;
@@ -110,6 +115,12 @@ static hk_t hk_darkroom[128] = {
   {"reload shaders",  "debug: reload shader code while running",    {}},
   {"copy history",    "copy history from curren image",             {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_C}},
   {"paste history",   "paste history to selected images",           {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_V}},
+  {"show hotkeys",    "show all hotkey bindings",                   {GLFW_KEY_H}},
+  {"presets",         "open presets chord menu",                    {GLFW_KEY_P}},
+  {"adjust",          "open key-accel chord menu",                 {GLFW_KEY_A}},
+  {"drag",            "open drag-to-adjust chord menu",            {GLFW_KEY_D}},
+  {"modules",         "open modules chord menu",                   {GLFW_KEY_M}},
+  {"rotate",          "open rotate chord menu",                    {GLFW_KEY_R}},
 };
 
 // used to communictate between the gui helper functions
@@ -160,6 +171,12 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   }
   if(vkdt.wstate.popup == s_popup_edit_hotkeys)
     return hk_keyboard(hk_darkroom, window, key, scancode, action, mods);
+  if(vkdt.wstate.popup == s_popup_hotkeys)
+  {
+    if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_H))
+      vkdt.wstate.popup = 0;
+    return;
+  }
 
   if(dt_radial_menu_dr_active(&vkdt.wstate.radial_menu_dr))
   { // radial menus block input, so check this before checking block
@@ -273,9 +290,10 @@ hotkey_dispatch:
     case s_hotkey_paste_hist:
       dt_gui_paste_history();
       break;
-    default:
-     if(gui.hotkey >= s_hotkey_count && gui.hotkey < hk_darkroom_cnt) dt_keyaccel_exec(hk_darkroom[gui.hotkey].name);
-     break;
+    case s_hotkey_show_hotkeys:
+      dt_gui_dr_show_hotkeys();
+      break;
+    default: break;
   }
 
   if(!dt_gui_input_blocked())
@@ -836,6 +854,32 @@ void render_darkroom()
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
   }
+  if(vkdt.wstate.popup == s_popup_hotkeys)
+  {
+    if(nk_begin(&vkdt.ctx, "hotkeys", bounds, NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_TITLE))
+    {
+      struct nk_context *ctx = &vkdt.ctx;
+      const float row_h = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+      struct nk_rect total = nk_window_get_content_region(ctx);
+      nk_layout_row_dynamic(ctx, total.h - row_h, 1);
+      if(nk_group_begin(ctx, "hklist", 0))
+      {
+        nk_layout_row_dynamic(ctx, row_h, 2);
+        for(int i = 0; i < hk_darkroom_cnt; i++)
+        {
+          char keybuf[128];
+          hk_get_hotkey_lib(hk_darkroom + i, keybuf, sizeof(keybuf));
+          nk_label(ctx, keybuf, NK_TEXT_LEFT);
+          nk_label(ctx, hk_darkroom[i].lib, NK_TEXT_LEFT);
+        }
+        nk_group_end(ctx);
+      }
+      nk_layout_row_dynamic(ctx, row_h, 1);
+      if(nk_button_label(ctx, "close")) vkdt.wstate.popup = 0;
+    }
+    else vkdt.wstate.popup = 0;
+    nk_end(&vkdt.ctx);
+  }
   dt_menu_render(&darkroom_menu, &vkdt.ctx); // chord menu overlay
   dt_menu_process_clicks(&darkroom_menu, hk_darkroom, hk_darkroom_cnt);
   if(vkdt.wstate.pending_modid >= 0)
@@ -857,6 +901,14 @@ static void darkroom_menu_action(const char *action)
       dt_gui_notification("cannot activate dragkey: %s", action + 8);
     else
       dt_gui_notification("drag to adjust -- click to confirm, esc to cancel");
+    return;
+  }
+  if(!strncmp(action, "dragkey_named:", 14))
+  {
+    if(dt_dragkey_activate_named(&dragkeys, action + 14))
+      dt_gui_notification("cannot activate dragkey: %s", action + 14);
+    else
+      dt_gui_notification("%s: drag to adjust -- click or any key to confirm, esc to cancel", dragkeys.menu_dk.name);
     return;
   }
   size_t len = strlen(action);
@@ -910,10 +962,31 @@ void render_darkroom_init()
 {
   gui.active_module = 0;
   gui.active_instance = 0;
-  hk_darkroom_cnt = dt_keyaccel_init(&keyaccel, hk_darkroom, hk_darkroom_cnt, hk_darkroom_size);
-  hk_deserialise("darkroom", hk_darkroom, hk_darkroom_cnt);
   dt_dragkeys_init(&dragkeys);
+  for(int i = 0; i < dragkeys.cnt && hk_darkroom_cnt < hk_darkroom_size; i++)
+  { // register each drag key as a rebindable hotkey (name points into stable dk storage)
+    hk_darkroom[hk_darkroom_cnt].name   = dragkeys.dk[i].name;
+    hk_darkroom[hk_darkroom_cnt].lib    = "drag to adjust";
+    hk_darkroom[hk_darkroom_cnt].key[0] = (uint16_t)dragkeys.dk[i].key;
+    for(int k = 1; k < 4; k++) hk_darkroom[hk_darkroom_cnt].key[k] = 0;
+    hk_darkroom_cnt++;
+  }
+  hk_deserialise("darkroom", hk_darkroom, hk_darkroom_cnt);
+  // sync drag key keys back from hotkey table (respects user rebindings)
+  for(int i = 0; i < dragkeys.cnt; i++)
+    for(int j = s_hotkey_count; j < hk_darkroom_cnt; j++)
+      if(hk_darkroom[j].name && !strcmp(hk_darkroom[j].name, dragkeys.dk[i].name) && hk_darkroom[j].key[0])
+        { dragkeys.dk[i].key = hk_darkroom[j].key[0]; break; }
   dt_menu_load(&darkroom_menu, "darkroom");
+  // sync chord menu root entry keys from hotkey table (respects user rebindings)
+  for(int i = 0; i < darkroom_menu.cnt; i++)
+  {
+    if(darkroom_menu.entries[i].parent != -1) continue;
+    const char *label = darkroom_menu.entries[i].label;
+    for(int j = 0; j < s_hotkey_count; j++)
+      if(hk_darkroom[j].name && !strcmp(hk_darkroom[j].name, label) && hk_darkroom[j].key[0])
+        { darkroom_menu.entries[i].key = hk_darkroom[j].key[0]; break; }
+  }
   darkroom_menu.action_cb = darkroom_menu_action;
 }
 
@@ -925,7 +998,6 @@ void darkroom_focus_lost()
 void render_darkroom_cleanup()
 {
   hk_serialise("darkroom", hk_darkroom, hk_darkroom_cnt);
-  dt_keyaccel_cleanup(&keyaccel);
   dt_dragkeys_cleanup(&dragkeys);
   dt_menu_cleanup(&darkroom_menu);
 }

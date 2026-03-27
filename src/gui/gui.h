@@ -72,6 +72,7 @@ typedef enum dt_gui_popup_t
   s_popup_apply_preset,
   s_popup_add_module,
   s_popup_edit_hotkeys,
+  s_popup_hotkeys,
 } dt_gui_popup_t;
 
 // a few local things to exchange data between core and ui

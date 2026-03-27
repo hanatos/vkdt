@@ -29,6 +29,14 @@ dt_gui_edit_hotkeys()
 }
 
 static inline void
+dt_gui_dr_show_hotkeys()
+{
+  vkdt.wstate.popup = s_popup_hotkeys;
+  vkdt.wstate.popup_appearing = 1;
+  vkdt.wstate.busy += 5;
+}
+
+static inline void
 dt_gui_lt_assign_tag()
 {
   if(vkdt.db.selection_cnt <= 0)

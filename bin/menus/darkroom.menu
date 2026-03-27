@@ -62,6 +62,8 @@ presets p
   !vectorscope-skin v
   !ColorChecker k
   !SpyderChecker24 s
+drag d
+  *scan_dragkeys
 adjust a
   *scan_keyaccel
 modules m
