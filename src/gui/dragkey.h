@@ -26,6 +26,7 @@
 #define DT_DRAGKEY_MAX_COMP        8
 #define DT_DRAGKEY_DBLCLICK_WIN  0.4  // seconds: window for double-click reset after commit
 #define DT_DRAGKEY_CLICK_WIN     0.2  // seconds: max press duration to count as a confirm click
+#define DT_DRAGKEY_ARROW_STEP   10.0f // pixels equivalent per arrow key press
 
 typedef struct dt_dragkey_comp_t
 {
@@ -58,13 +59,14 @@ typedef struct dt_dragkeys_t
 	dt_dragkey_t dk[DT_DRAGKEY_MAX];
 	dt_dragkey_t menu_dk;    // temporary dragkey for menu-triggered adjustments
 	int    cnt;
-	int    active;           // -1 = none, DT_DRAGKEY_MAX = latched drag active (menu_dk)
-	int    latched;          // 1 = latched drag active, right-click or any key to confirm, esc to cancel
+	int    latched;          // 1 = armed: click-drag adjusts, right-click or any key confirms, esc cancels
 	int    dragging;         // 1 = left button currently held (drag segment in progress)
 	double start_x;          // mouse x at start of current drag segment (set on each mousedown)
 	double mousedown_time;   // glfwGetTime() of last left mousedown (for quick-click confirm)
 	double commit_time;      // glfwGetTime() of last commit (for post-confirm double-click reset)
 	double mouseup_time;     // glfwGetTime() of last left mouseup (for in-session double-click reset)
+	int    key_dec[2];       // keys for step-decrease: [0]=primary (LEFT), [1]=alt (H)
+	int    key_inc[2];       // keys for step-increase: [0]=primary (RIGHT), [1]=alt (L)
 }
 dt_dragkeys_t;
 
@@ -108,11 +110,31 @@ dt_dragkey_load_file(dt_dragkey_t *dk, const char *path, const char *basename)
 	return (dk->key == 0 || dk->comp_cnt == 0) ? 1 : 0;
 }
 
+// resolve module and parameter IDs on all components. returns 1 if no component resolved.
+static inline int
+dt_dragkey_resolve(dt_dragkey_t *d)
+{
+	int ok = 0;
+	for(int j = 0; j < d->comp_cnt; j++)
+	{
+		dt_dragkey_comp_t *c = d->comp + j;
+		c->modid = dt_module_get(&vkdt.graph_dev, c->module, c->instance);
+		if(c->modid < 0) { c->parid = -1; continue; }
+		c->parid = dt_module_get_param(vkdt.graph_dev.module[c->modid].so, c->param);
+		if(c->parid >= 0) ok = 1;
+	}
+	return ok ? 0 : 1;
+}
+
 static inline void
 dt_dragkeys_init(dt_dragkeys_t *dk)
 {
 	memset(dk, 0, sizeof(*dk));
-	dk->active = -1;
+	// default step keys (rebindable via hotkey system, see render_darkroom.c)
+	dk->key_dec[0] = GLFW_KEY_LEFT;
+	dk->key_dec[1] = GLFW_KEY_H;
+	dk->key_inc[0] = GLFW_KEY_RIGHT;
+	dk->key_inc[1] = GLFW_KEY_L;
 	// load from home dir first (user overrides), then basedir (shipped defaults)
 	for(int inbase = 0; inbase < 2; inbase++)
 	{
@@ -143,19 +165,6 @@ dt_dragkeys_init(dt_dragkeys_t *dk)
 }
 
 static inline void
-dt_dragkeys_cleanup(dt_dragkeys_t *dk)
-{
-	dk->cnt = 0;
-	dk->active = -1;
-	dk->latched = 0;
-	dk->dragging = 0;
-	dk->mousedown_time = 0.0;
-	dk->commit_time = 0.0;
-	dk->mouseup_time = 0.0;
-	vkdt.wstate.dragkey_latched = 0;
-}
-
-static inline void
 dt_dragkey_commit(dt_dragkey_t *d)
 {
 	for(int j = 0; j < d->comp_cnt; j++)
@@ -179,19 +188,6 @@ dt_dragkey_restore(dt_dragkey_t *d)
 		val[c->component] = c->arm_val;
 	}
 	vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
-}
-
-static inline void
-dt_dragkeys_cancel(dt_dragkeys_t *dk)
-{
-	if(dk->latched) dt_dragkey_restore(&dk->menu_dk);
-	dk->active = -1;
-	dk->latched = 0;
-	dk->dragging = 0;
-	dk->mousedown_time = 0.0;
-	dk->commit_time = 0.0;
-	dk->mouseup_time = 0.0;
-	vkdt.wstate.dragkey_latched = 0;
 }
 
 // reset all params to their module default values
@@ -220,24 +216,64 @@ dt_dragkey_reset(dt_dragkey_t *d)
 	vkdt.wstate.busy += 2;
 }
 
-// copy d to menu_dk, resolve module/param IDs, and begin latched drag.
+// shared teardown for all latched-mode exit paths.
+// commit=1: append history, enable post-confirm double-click reset.
+// commit=0: restore arm-time values, disable post-confirm double-click.
+static inline void
+dt_dragkeys_exit(dt_dragkeys_t *dk, int commit)
+{
+	if(commit)
+	{
+		dt_dragkey_commit(&dk->menu_dk);
+		dk->commit_time = glfwGetTime();
+	}
+	else
+	{
+		dt_dragkey_restore(&dk->menu_dk);
+		dk->commit_time = 0.0;
+	}
+	dk->latched        = 0;
+	dk->dragging       = 0;
+	dk->mousedown_time = 0.0;
+	dk->mouseup_time   = 0.0;
+	vkdt.wstate.dragkey_latched = 0;
+}
+
+static inline void
+dt_dragkeys_cleanup(dt_dragkeys_t *dk)
+{
+	if(dk->latched) dt_dragkey_restore(&dk->menu_dk);
+	dk->cnt            = 0;
+	dk->latched        = 0;
+	dk->dragging       = 0;
+	dk->mousedown_time = 0.0;
+	dk->commit_time    = 0.0;
+	dk->mouseup_time   = 0.0;
+	vkdt.wstate.dragkey_latched = 0;
+}
+
+static inline void
+dt_dragkeys_cancel(dt_dragkeys_t *dk)
+{
+	if(dk->latched) dt_dragkeys_exit(dk, 0);
+}
+
+// copy d to menu_dk, resolve module/param IDs, snapshot arm values, and arm latched drag.
 // returns 0 on success, 1 if no eligible component found.
 static inline int
 dt_dragkey_activate_dk(dt_dragkeys_t *dk, dt_dragkey_t *d)
 {
 	dk->menu_dk = *d;
 	dt_dragkey_t *md = &dk->menu_dk;
+	if(dt_dragkey_resolve(md)) return 1;
 	int ok = 0;
 	for(int j = 0; j < md->comp_cnt; j++)
 	{
 		dt_dragkey_comp_t *c = md->comp + j;
-		c->modid = dt_module_get(&vkdt.graph_dev, c->module, c->instance);
-		if(c->modid < 0) continue;
-		c->parid = dt_module_get_param(vkdt.graph_dev.module[c->modid].so, c->param);
-		if(c->parid < 0) continue;
+		if(c->modid < 0 || c->parid < 0) continue;
 		const float *val = dt_module_param_float(vkdt.graph_dev.module + c->modid, c->parid);
 		if(!val) continue;
-		c->arm_val = val[c->component];
+		c->arm_val   = val[c->component];
 		c->start_val = c->arm_val;
 		const dt_ui_param_t *pp = vkdt.graph_dev.module[c->modid].so->param[c->parid];
 		c->min_val = pp->widget.min;
@@ -248,9 +284,8 @@ dt_dragkey_activate_dk(dt_dragkeys_t *dk, dt_dragkey_t *d)
 	vkdt.wstate.pending_modid = -1;
 	for(int j = 0; j < md->comp_cnt; j++)
 		if(md->comp[j].modid >= 0) { vkdt.wstate.pending_modid = md->comp[j].modid; break; }
-	dk->active = DT_DRAGKEY_MAX;
-	dk->latched = 1;
-	dk->dragging = 0;
+	dk->latched      = 1;
+	dk->dragging     = 0;
 	dk->mouseup_time = 0.0;
 	vkdt.wstate.dragkey_latched = 1;
 	return 0;
@@ -270,22 +305,20 @@ dt_dragkey_activate_named(dt_dragkeys_t *dk, const char *name)
 static inline int
 dt_dragkey_keyboard(dt_dragkeys_t *dk, int key, int action, int mods)
 {
-	if(action == GLFW_PRESS && dk->active < 0)
+	if(action == GLFW_PRESS && !dk->latched)
 	{
 		for(int i = 0; i < dk->cnt; i++)
 		{
 			if(dk->dk[i].key != key) continue;
 			dt_dragkey_t *d = dk->dk + i;
-			if(mods & GLFW_MOD_SHIFT) { // shift+key: reset to module defaults
-				for(int j = 0; j < d->comp_cnt; j++)
+			if(mods & GLFW_MOD_SHIFT)
+			{ // shift+key: reset to module defaults
+				dt_dragkey_t tmp = *d;
+				if(!dt_dragkey_resolve(&tmp))
 				{
-					dt_dragkey_comp_t *c = d->comp + j;
-					c->modid = dt_module_get(&vkdt.graph_dev, c->module, c->instance);
-					if(c->modid < 0) continue;
-					c->parid = dt_module_get_param(vkdt.graph_dev.module[c->modid].so, c->param);
+					dt_dragkey_reset(&tmp);
+					dt_gui_notification("%s: reset to default", d->name);
 				}
-				dt_dragkey_reset(d);
-				dt_gui_notification("%s: reset to default", d->name);
 				return 1;
 			}
 			// activate: click and drag to adjust, right-click or any key to confirm
@@ -297,19 +330,39 @@ dt_dragkey_keyboard(dt_dragkeys_t *dk, int key, int action, int mods)
 			return 0;
 		}
 	}
-	else if(dk->active == DT_DRAGKEY_MAX && dk->latched) { // latched mode: any key confirms
-		if(action == GLFW_PRESS) {
-			if(key == GLFW_KEY_ESCAPE) {
-				dt_dragkey_restore(&dk->menu_dk);
-				dk->commit_time = 0.0;
-			} else {
-				dt_dragkey_commit(&dk->menu_dk);
-				dk->commit_time = glfwGetTime();
+	else if(dk->latched)
+	{ // armed: step keys adjust, any other key-press confirms (esc cancels)
+		int is_dec = (key == dk->key_dec[0] || key == dk->key_dec[1]);
+		int is_inc = (key == dk->key_inc[0] || key == dk->key_inc[1]);
+		if((action == GLFW_PRESS || action == GLFW_REPEAT) && (is_dec || is_inc))
+		{ // step the parameter and stay armed (hold for repeat)
+			float dir = is_inc ? 1.0f : -1.0f;
+			dt_dragkey_t *d = &dk->menu_dk;
+			char msg[128];
+			int off = snprintf(msg, sizeof(msg), "%s:", d->name);
+			for(int j = 0; j < d->comp_cnt; j++)
+			{
+				dt_dragkey_comp_t *c = d->comp + j;
+				if(c->modid < 0 || c->parid < 0) continue;
+				float *val = (float *)(vkdt.graph_dev.module[c->modid].param
+						+ vkdt.graph_dev.module[c->modid].so->param[c->parid]->offset);
+				float new_val = val[c->component] + dir * c->sensitivity * DT_DRAGKEY_ARROW_STEP;
+				if(c->min_val < c->max_val)
+				{
+					if(new_val < c->min_val) new_val = c->min_val;
+					if(new_val > c->max_val) new_val = c->max_val;
+				}
+				val[c->component] = new_val;
+				if(off < (int)sizeof(msg) - 20)
+					off += snprintf(msg + off, sizeof(msg) - off, " %.3f", new_val);
 			}
-			dk->active = -1;
-			dk->latched = 0;
-			dk->dragging = 0;
-			vkdt.wstate.dragkey_latched = 0;
+			vkdt.graph_dev.runflags = s_graph_run_all;
+			dt_gui_notification("%s", msg);
+			return 1;
+		}
+		if(action == GLFW_PRESS)
+		{ // any other key: confirm (esc = cancel/restore)
+			dt_dragkeys_exit(dk, key != GLFW_KEY_ESCAPE);
 			return 1;
 		}
 		return 1; // consume all key events while latched
@@ -321,7 +374,7 @@ dt_dragkey_keyboard(dt_dragkeys_t *dk, int key, int action, int mods)
 static inline int
 dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x)
 {
-	if(dk->active < 0) return 0;
+	if(!dk->latched) return 0;
 	if(!dk->dragging) return 1; // armed but waiting for click: consume, don't adjust
 	dt_dragkey_t *d = &dk->menu_dk;
 	float delta = (float)(x - dk->start_x);
@@ -354,23 +407,18 @@ static inline int
 dt_dragkey_mouse_button(dt_dragkeys_t *dk, int button, int action)
 {
 	// post-confirm double-click: left-press shortly after exiting armed mode resets to default
-	if(button == 0 && action == GLFW_PRESS && dk->active < 0
-		 && dk->commit_time > 0.0 && (glfwGetTime() - dk->commit_time) < DT_DRAGKEY_DBLCLICK_WIN) {
+	if(button == 0 && action == GLFW_PRESS && !dk->latched
+		 && dk->commit_time > 0.0 && (glfwGetTime() - dk->commit_time) < DT_DRAGKEY_DBLCLICK_WIN)
+	{
 		dk->commit_time = 0.0;
 		dt_dragkey_reset(&dk->menu_dk);
 		dt_gui_notification("%s: reset to default", dk->menu_dk.name);
 		return 1;
 	}
-	if(dk->active < 0 || !dk->latched) return 0;
+	if(!dk->latched) return 0;
 	if(button == 1 && action == GLFW_PRESS)
 	{ // right click: confirm and exit
-		dt_dragkey_commit(&dk->menu_dk);
-		dk->active = -1;
-		dk->latched = 0;
-		dk->dragging = 0;
-		dk->commit_time = glfwGetTime();
-		dk->mouseup_time = 0.0;
-		vkdt.wstate.dragkey_latched = 0;
+		dt_dragkeys_exit(dk, 1);
 		return 1;
 	}
 	if(button == 0 && action == GLFW_PRESS)
@@ -410,17 +458,11 @@ dt_dragkey_mouse_button(dt_dragkeys_t *dk, int button, int action)
 	{
 		if((glfwGetTime() - dk->mousedown_time) < DT_DRAGKEY_CLICK_WIN)
 		{ // quick click (no real drag): confirm and exit
-			dt_dragkey_commit(&dk->menu_dk);
-			dk->active = -1;
-			dk->latched = 0;
-			dk->dragging = 0;
-			dk->commit_time = glfwGetTime();
-			dk->mouseup_time = 0.0;
-			vkdt.wstate.dragkey_latched = 0;
+			dt_dragkeys_exit(dk, 1);
 			return 1;
 		}
 		// slow release = real drag: freeze value, stay armed for another drag
-		dk->dragging = 0;
+		dk->dragging     = 0;
 		dk->mouseup_time = glfwGetTime();
 		return 1;
 	}
@@ -429,6 +471,7 @@ dt_dragkey_mouse_button(dt_dragkeys_t *dk, int button, int action)
 
 // programmatically activate a drag for a single parameter component.
 // arms the click-drag mode: click and drag adjusts, right-click or any key confirms, esc cancels.
+// sensitivity is auto-computed from the slider range and current image width.
 static inline int
 dt_dragkey_activate(
 		dt_dragkeys_t *dk,
@@ -437,40 +480,27 @@ dt_dragkey_activate(
 		dt_token_t     param,
 		int            component)
 {
-	dt_dragkey_t *d = &dk->menu_dk;
-	d->comp_cnt = 1;
-	d->comp[0].module    = mod;
-	d->comp[0].instance  = inst;
-	d->comp[0].param     = param;
-	d->comp[0].component = component;
+	// validate early before building the temp struct
 	int modid = dt_module_get(&vkdt.graph_dev, mod, inst);
 	if(modid < 0) return 1;
 	int parid = dt_module_get_param(vkdt.graph_dev.module[modid].so, param);
 	if(parid < 0) return 1;
 	if(component < 0 || component >= vkdt.graph_dev.module[modid].so->param[parid]->cnt) return 1;
-	d->comp[0].modid = modid;
-	d->comp[0].parid = parid;
-	const float *val = dt_module_param_float(vkdt.graph_dev.module + modid, parid);
-	if(!val) return 1;
-	d->comp[0].arm_val = val[component];
-	d->comp[0].start_val = d->comp[0].arm_val;
 	// compute sensitivity from slider range and image width
 	const dt_ui_param_t *pp = vkdt.graph_dev.module[modid].so->param[parid];
-	d->comp[0].min_val = pp->widget.min;
-	d->comp[0].max_val = pp->widget.max;
 	float range = pp->widget.max - pp->widget.min;
 	if(range <= 0) range = 1.0f;
 	float width = vkdt.state.center_wd > 0 ? vkdt.state.center_wd : 1000.0f;
-	d->comp[0].sensitivity = range / width;
-	snprintf(d->name, sizeof(d->name), "%.8s:%.8s",
-			dt_token_str(mod), dt_token_str(param));
-	vkdt.wstate.pending_modid = modid;
-	dk->active = DT_DRAGKEY_MAX;
-	dk->latched = 1;
-	dk->dragging = 0;
-	dk->mouseup_time = 0.0;
-	vkdt.wstate.dragkey_latched = 1;
-	return 0;
+	// build a single-component dragkey and delegate to activate_dk
+	dt_dragkey_t d = {0};
+	d.comp_cnt           = 1;
+	d.comp[0].module     = mod;
+	d.comp[0].instance   = inst;
+	d.comp[0].param      = param;
+	d.comp[0].component  = component;
+	d.comp[0].sensitivity = range / width;
+	snprintf(d.name, sizeof(d.name), "%.8s:%.8s", dt_token_str(mod), dt_token_str(param));
+	return dt_dragkey_activate_dk(dk, &d);
 }
 
 // format a dragkey action string (used by menu provider)

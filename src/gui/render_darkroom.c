@@ -121,6 +121,10 @@ static hk_t hk_darkroom[128] = {
 	{"drag",            "open drag-to-adjust chord menu",            {GLFW_KEY_D}},
 	{"modules",         "open modules chord menu",                   {GLFW_KEY_M}},
 	{"rotate",          "open rotate chord menu",                    {GLFW_KEY_R}},
+	{"dragkey dec",     "step armed parameter left/down",            {GLFW_KEY_LEFT}},
+	{"dragkey inc",     "step armed parameter right/up",             {GLFW_KEY_RIGHT}},
+	{"dragkey dec alt", "step armed parameter left/down (alt)",      {GLFW_KEY_H}},
+	{"dragkey inc alt", "step armed parameter right/up (alt)",       {GLFW_KEY_L}},
 };
 
 // used to communictate between the gui helper functions
@@ -216,14 +220,20 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
 		return;
 	}
 
-	{ // chord menu system: check before dragkeys and hotkeys
+	if(dragkeys.latched)
+	{ // latched: dragkeys first so arrow keys aren't eaten by menu left/right navigation
+		if(dt_dragkey_keyboard(&dragkeys, key, action, mods)) return;
 		int mr = dt_menu_keyboard(&darkroom_menu, hk_darkroom, hk_darkroom_cnt, key, action);
-		if(mr == 1) return;       // consumed (menu opened/closed/navigated)
-		if(mr < -1)               // negative = menu selected a hotkey index
-		{ gui.hotkey = -(mr + 2); goto hotkey_dispatch; }
+		if(mr == 1) return;
+		if(mr < -1) { gui.hotkey = -(mr + 2); goto hotkey_dispatch; }
 	}
-
-	if(dt_dragkey_keyboard(&dragkeys, key, action, mods)) return;
+	else
+	{ // not latched: chord menu first (original priority)
+		int mr = dt_menu_keyboard(&darkroom_menu, hk_darkroom, hk_darkroom_cnt, key, action);
+		if(mr == 1) return;
+		if(mr < -1) { gui.hotkey = -(mr + 2); goto hotkey_dispatch; }
+		if(dt_dragkey_keyboard(&dragkeys, key, action, mods)) return;
+	}
 
 	gui.hotkey = action == GLFW_PRESS ? hk_get_hotkey(hk_darkroom, hk_darkroom_cnt, key) : -1;
 	if(action != GLFW_PRESS) return; // only handle key down events
@@ -404,7 +414,7 @@ void render_darkroom()
 		return;
 	}
 
-	dt_gui_set_lod(dragkeys.active >= 0 ? vkdt.wstate.lod_interact : vkdt.wstate.lod_fine);
+	dt_gui_set_lod(dragkeys.latched ? vkdt.wstate.lod_interact : vkdt.wstate.lod_fine);
 	dt_radial_menu_dr(&vkdt.wstate.radial_menu_dr, bounds);
 
 	static int resize_panel = 0;
@@ -977,6 +987,15 @@ void render_darkroom_init()
 		for(int j = s_hotkey_count; j < hk_darkroom_cnt; j++)
 			if(hk_darkroom[j].name && !strcmp(hk_darkroom[j].name, dragkeys.dk[i].name) && hk_darkroom[j].key[0])
 				{ dragkeys.dk[i].key = hk_darkroom[j].key[0]; break; }
+	// sync step keys from hotkey table (rebindable via Settings → Hotkeys)
+	for(int j = 0; j < hk_darkroom_cnt; j++)
+	{
+		if(!hk_darkroom[j].name || !hk_darkroom[j].key[0]) continue;
+		if(!strcmp(hk_darkroom[j].name, "dragkey dec"))     dragkeys.key_dec[0] = hk_darkroom[j].key[0];
+		if(!strcmp(hk_darkroom[j].name, "dragkey dec alt")) dragkeys.key_dec[1] = hk_darkroom[j].key[0];
+		if(!strcmp(hk_darkroom[j].name, "dragkey inc"))     dragkeys.key_inc[0] = hk_darkroom[j].key[0];
+		if(!strcmp(hk_darkroom[j].name, "dragkey inc alt")) dragkeys.key_inc[1] = hk_darkroom[j].key[0];
+	}
 	dt_menu_load(&darkroom_menu, "darkroom");
 	// sync chord menu root entry keys from hotkey table (respects user rebindings)
 	for(int i = 0; i < darkroom_menu.cnt; i++)
