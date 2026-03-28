@@ -532,7 +532,10 @@ dt_menu_prov_dragkeys(dt_menu_entry_t *buf, int max, void *data)
 		for(int i = 0; i < cnt; i++)
 		{
 			buf[i] = g_dragkeys_cache.buf[i];
-			buf[i].label = buf[i].action_buf + (g_dragkeys_cache.buf[i].label - g_dragkeys_cache.buf[i].action_buf);
+			buf[i].label   = buf[i].action_buf + (g_dragkeys_cache.buf[i].label   - g_dragkeys_cache.buf[i].action_buf);
+			buf[i].tooltip = g_dragkeys_cache.buf[i].tooltip
+				? buf[i].action_buf + (g_dragkeys_cache.buf[i].tooltip - g_dragkeys_cache.buf[i].action_buf)
+				: 0;
 		}
 		return cnt;
 	}
@@ -565,6 +568,14 @@ dt_menu_prov_dragkeys(dt_menu_entry_t *buf, int max, void *data)
 			snprintf(e->action_buf, sizeof(e->action_buf), "dragkey_named:%s", basename);
 			e->label = e->action_buf + (sizeof("dragkey_named:") - 1);
 			e->key = dk.key;
+			int alen = strlen(e->action_buf);
+			if(alen + 2 < (int)sizeof(e->action_buf))
+			{
+				const char *kname = dt_menu_glfw_to_name(dk.key);
+				snprintf(e->action_buf + alen + 1, sizeof(e->action_buf) - alen - 1,
+						"key: %s  %d cmp", kname ? kname : "?", dk.comp_cnt);
+				e->tooltip = e->action_buf + alen + 1;
+			}
 			if(cnt > 0) g_dragkeys_cache.buf[cnt - 1].next_sibling = cnt;
 			cnt++;
 		}
@@ -572,12 +583,15 @@ dt_menu_prov_dragkeys(dt_menu_entry_t *buf, int max, void *data)
 	}
 	g_dragkeys_cache.cnt = cnt;
 
-	// copy to output with label-offset fixup
+	// copy to output with label/tooltip-offset fixup
 	int out_cnt = cnt < max ? cnt : max;
 	for(int i = 0; i < out_cnt; i++)
 	{
 		buf[i] = g_dragkeys_cache.buf[i];
-		buf[i].label = buf[i].action_buf + (g_dragkeys_cache.buf[i].label - g_dragkeys_cache.buf[i].action_buf);
+		buf[i].label   = buf[i].action_buf + (g_dragkeys_cache.buf[i].label   - g_dragkeys_cache.buf[i].action_buf);
+		buf[i].tooltip = g_dragkeys_cache.buf[i].tooltip
+			? buf[i].action_buf + (g_dragkeys_cache.buf[i].tooltip - g_dragkeys_cache.buf[i].action_buf)
+			: 0;
 	}
 	return out_cnt;
 }
@@ -818,7 +832,7 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
 			buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
 			buf[cnt].key = 0;
 			buf[cnt].provider = dt_menu_prov_combo_opts;
-			if(modid >= 0x10000 || p >= 0x10000) continue; // encoding limit; unreachable in practice
+			if(modid >= 0x10000 || p >= 0x10000) { dt_log(s_log_err, "[menu] modid/param index exceeds encoding limit, skipping"); continue; }
 			buf[cnt].provider_data = (void *)(intptr_t)(((unsigned)modid << 16) | (unsigned)p);
 			if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
 			cnt++;
@@ -1233,7 +1247,8 @@ dt_menu_render(dt_menu_t *m, struct nk_context *ctx)
 	const float key_col_w = 50.0f;
 	const int display_rows = child_cnt < max_visible ? child_cnt : max_visible;
 	const float content_h = header_h + display_rows * (row_h + row_spacing) + 2 * ctx->style.window.padding.y;
-	const float menu_w = 550;
+	const float menu_w_raw = vkdt.state.center_wd > 600 ? 550 : vkdt.state.center_wd - 50;
+	const float menu_w = menu_w_raw > 100 ? menu_w_raw : 100;
 	const float menu_x = vkdt.state.center_x + (vkdt.state.center_wd - menu_w) * 0.5f;
 	const float menu_y = vkdt.state.center_y + (vkdt.state.center_ht - content_h) * 0.5f - 30;
 

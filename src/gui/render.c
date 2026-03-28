@@ -316,7 +316,7 @@ typedef struct dt_gamepadhelp_t
 } dt_gamepadhelp_t;
 static dt_gamepadhelp_t g_gamepadhelp = {0};
 
-#define DT_KEYHELP_MAX 64
+#define DT_KEYHELP_MAX 128
 typedef struct dt_keyhelp_entry_t
 {
   char        key[32];

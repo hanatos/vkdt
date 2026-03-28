@@ -9,6 +9,13 @@
 //   <module>:<instance>:<param>:<component>:<sensitivity>
 //   ...
 // multiple component lines per file are supported (e.g. for white balance).
+// sensitivity is the parameter change per pixel of horizontal mouse movement.
+// negative sensitivity is valid: it inverts the drag direction for that component
+// (used in white balance to move red and blue in opposite directions from one drag).
+//
+// return value conventions used in this file:
+//   operation functions (load, resolve, activate_*): 0 = success, 1 = failure
+//   event handler functions (keyboard, mouse_*):     1 = event consumed, 0 = not consumed
 
 #include "core/log.h"
 #include "gui/gui.h"
@@ -70,6 +77,7 @@ typedef struct dt_dragkeys_t
 }
 dt_dragkeys_t;
 
+// parse a dragkey config file into dk. returns 0 on success, 1 if unusable (missing key or components).
 static inline int
 dt_dragkey_load_file(dt_dragkey_t *dk, const char *path, const char *basename)
 {
@@ -97,10 +105,15 @@ dt_dragkey_load_file(dt_dragkey_t *dk, const char *path, const char *basename)
 			float sens = 0.002f;
 			if(sscanf(line, "%8[^:]:%8[^:]:%8[^:]:%d:%f", mod, inst, par, &comp, &sens) >= 4)
 			{
-				c->module    = dt_token(mod);
-				c->instance  = dt_token(inst);
-				c->param     = dt_token(par);
-				c->component = comp;
+				if(comp < 0 || comp >= DT_DRAGKEY_MAX_COMP)
+				{
+					dt_log(s_log_err, "[dragkey] component index %d out of range, skipping line", comp);
+					continue;
+				}
+				c->module      = dt_token(mod);
+				c->instance    = dt_token(inst);
+				c->param       = dt_token(par);
+				c->component   = comp;
 				c->sensitivity = sens;
 				dk->comp_cnt++;
 			}
@@ -121,7 +134,17 @@ dt_dragkey_resolve(dt_dragkey_t *d)
 		c->modid = dt_module_get(&vkdt.graph_dev, c->module, c->instance);
 		if(c->modid < 0) { c->parid = -1; continue; }
 		c->parid = dt_module_get_param(vkdt.graph_dev.module[c->modid].so, c->param);
-		if(c->parid >= 0) ok = 1;
+		if(c->parid >= 0)
+		{
+			int cnt = vkdt.graph_dev.module[c->modid].so->param[c->parid]->cnt;
+			if(c->component >= cnt)
+			{
+				dt_log(s_log_err, "[dragkey] component %d >= param count %d, skipping", c->component, cnt);
+				c->parid = -1;
+				continue;
+			}
+			ok = 1;
+		}
 	}
 	return ok ? 0 : 1;
 }
@@ -245,6 +268,8 @@ static inline void
 dt_dragkeys_cleanup(dt_dragkeys_t *dk)
 {
 	if(dk->latched) dt_dragkey_restore(&dk->menu_dk);
+	if(dk->dragging)
+		glfwSetInputMode(vkdt.win.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 	dk->cnt            = 0;
 	dk->latched        = 0;
 	dk->dragging       = 0;

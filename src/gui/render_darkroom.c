@@ -225,7 +225,9 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
 	}
 
 	if(dragkeys.latched)
-	{ // latched: dragkeys first so arrow keys aren't eaten by menu left/right navigation
+	{ // latched: dragkeys first so arrow keys aren't eaten by menu left/right navigation.
+		// dt_dragkey_keyboard consumes ALL key events while latched (including ESC), so
+		// the menu only runs if the dragkey handler returns 0 (which it never does when latched).
 		if(dt_dragkey_keyboard(&dragkeys, key, action, mods)) return;
 		int mr = dt_menu_keyboard(&darkroom_menu, hk_darkroom, hk_darkroom_cnt, key, action);
 		if(mr == 1) return;
@@ -981,6 +983,9 @@ void render_darkroom_init()
 	gui.active_module = 0;
 	gui.active_instance = 0;
 	dt_dragkeys_init(&dragkeys);
+	// clear any dragkey slots from a previous init, then re-register
+	memset(hk_darkroom + s_hotkey_count, 0, (hk_darkroom_size - s_hotkey_count) * sizeof(hk_darkroom[0]));
+	hk_darkroom_cnt = s_hotkey_count;
 	for(int i = 0; i < dragkeys.cnt && hk_darkroom_cnt < hk_darkroom_size; i++)
 	{ // register each drag key as a rebindable hotkey (name points into stable dk storage)
 		hk_darkroom[hk_darkroom_cnt].name   = dragkeys.dk[i].name;
@@ -1032,7 +1037,7 @@ void render_darkroom_cleanup()
 void
 darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
-	if(dt_dragkey_mouse_button(&dragkeys, button, action)) return;
+	if((dragkeys.latched || !dt_gui_input_blocked()) && dt_dragkey_mouse_button(&dragkeys, button, action)) return;
 	dt_gui_darkroom_dspy_mouse_button(window, button, action, mods);
 	double x, y;
 	dt_view_get_cursor_pos(vkdt.win.window, &x, &y);
@@ -1429,6 +1434,7 @@ darkroom_leave()
 	dt_graph_cleanup(&vkdt.graph_dev);
 	dt_graph_history_cleanup(&vkdt.graph_dev);
 	vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
+	dt_dragkeys_cancel(&dragkeys);
 	dt_gamepadhelp_clear();
 	dt_keyhelp_clear();
 	dt_gui_write_favs("darkroom.ui");

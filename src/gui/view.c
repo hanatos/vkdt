@@ -18,6 +18,7 @@ dt_view_switch(dt_gui_view_t view)
   {
     case s_view_darkroom:
       if(view != s_view_nodes) err = darkroom_leave();
+      else darkroom_focus_lost(); // cancel dragkeys (cursor restore) without full graph teardown
       break;
     case s_view_lighttable:
       err = lighttable_leave();
