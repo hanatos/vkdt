@@ -1,0 +1,2 @@
+# reset rotation to auto (exif)
+param:crop:01:rotate:1337

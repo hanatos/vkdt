@@ -93,8 +93,15 @@ window_close_callback(GLFWwindow* window)
 }
 
 static void
+window_focus_callback(GLFWwindow* window, int focused)
+{
+  if(!focused) dt_view_focus_lost();
+}
+
+static void
 char_callback(GLFWwindow* window, unsigned int c)
 {
+  dt_view_char(window, c);
   if(!vkdt.wstate.grabbed)
     nk_glfw3_char_callback(window, c);
 }
@@ -102,6 +109,11 @@ char_callback(GLFWwindow* window, unsigned int c)
 static void
 scroll_callback(GLFWwindow *window, double xoff, double yoff)
 {
+  if(vkdt.wstate.chord_menu_active)
+  { // menu open: capture raw scroll exclusively (no DPI scale needed)
+    vkdt.wstate.chord_menu_scroll += yoff;
+    return;
+  }
   float xscale, yscale;
   dt_gui_content_scale(window, &xscale, &yscale);
   xoff *= xscale;
@@ -194,6 +206,7 @@ int main(int argc, char *argv[])
   glfwSetCharCallback(vkdt.win.window, char_callback);
   glfwSetScrollCallback(vkdt.win.window, scroll_callback);
   glfwSetWindowCloseCallback(vkdt.win.window, window_close_callback);
+  glfwSetWindowFocusCallback(vkdt.win.window, window_focus_callback);
 #if VKDT_USE_PENTABLET==1
   glfwSetPenTabletDataCallback(pentablet_data_callback);
   glfwSetPenTabletCursorCallback(pentablet_cursor_callback);
@@ -316,11 +329,15 @@ int main(int argc, char *argv[])
     if(vkdt.win1.window)
       nk_glfw3_input_end(&vkdt.ctx1, vkdt.win1.window, vkdt.session_type == 1);
 
+    double t0 = dt_time();
     dt_view_process(); // process before render/preset because this might swap the output image backbuffers
     if(vkdt.graph_dev.gui_msg && vkdt.graph_dev.gui_msg[0]) dt_gui_notification(vkdt.graph_dev.gui_msg);
+    double t1 = dt_time();
 
     if(dt_gui_render() == VK_SUCCESS)
       dt_gui_present();
+    double t2 = dt_time();
+    dt_log(s_log_perf, "frame cpu: process\t%8.3f ms  render\t%8.3f ms", 1000.0*(t1-t0), 1000.0*(t2-t1));
 
     static int bs = 1;
     if(bs) { dt_gui_toggle_fullscreen(); bs = 0; }

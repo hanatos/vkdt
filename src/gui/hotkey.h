@@ -136,6 +136,60 @@ hk_get_key_for_scancode(unsigned int scancode)
   return &hk_keys[0][0];
 }
 
+// map a short key name (e.g. "e", "Space", "Enter") to GLFW key code
+static inline int
+hk_name_to_glfw(const char *name)
+{
+  for(int y = 0; y < 6; y++)
+  {
+    int x = 0;
+    while(hk_keys[y][x].lib)
+    {
+      if(!strcasecmp(hk_keys[y][x].lib, name))
+        return hk_keys[y][x].key;
+      x++;
+    }
+  }
+  if(name[0] >= 'A' && name[0] <= 'Z' && name[1] == 0)
+    return GLFW_KEY_A + (name[0] - 'A');
+  if(name[0] >= 'a' && name[0] <= 'z' && name[1] == 0)
+    return GLFW_KEY_A + (name[0] - 'a');
+  return 0;
+}
+
+// map a gamepad button name to GLFW_GAMEPAD_BUTTON_* index, or -1
+static inline int
+hk_gamepad_name_to_button(const char *name)
+{
+  static const struct { const char *name; int button; } map[] = {
+    {"a",          GLFW_GAMEPAD_BUTTON_A},
+    {"b",          GLFW_GAMEPAD_BUTTON_B},
+    {"x",          GLFW_GAMEPAD_BUTTON_X},
+    {"y",          GLFW_GAMEPAD_BUTTON_Y},
+    {"cross",      GLFW_GAMEPAD_BUTTON_A},
+    {"circle",     GLFW_GAMEPAD_BUTTON_B},
+    {"square",     GLFW_GAMEPAD_BUTTON_X},
+    {"triangle",   GLFW_GAMEPAD_BUTTON_Y},
+    {"l1",         GLFW_GAMEPAD_BUTTON_LEFT_BUMPER},
+    {"r1",         GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER},
+    {"lb",         GLFW_GAMEPAD_BUTTON_LEFT_BUMPER},
+    {"rb",         GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER},
+    {"back",       GLFW_GAMEPAD_BUTTON_BACK},
+    {"start",      GLFW_GAMEPAD_BUTTON_START},
+    {"guide",      GLFW_GAMEPAD_BUTTON_GUIDE},
+    {"l3",         GLFW_GAMEPAD_BUTTON_LEFT_THUMB},
+    {"r3",         GLFW_GAMEPAD_BUTTON_RIGHT_THUMB},
+    {"dpad_up",    GLFW_GAMEPAD_BUTTON_DPAD_UP},
+    {"dpad_down",  GLFW_GAMEPAD_BUTTON_DPAD_DOWN},
+    {"dpad_left",  GLFW_GAMEPAD_BUTTON_DPAD_LEFT},
+    {"dpad_right", GLFW_GAMEPAD_BUTTON_DPAD_RIGHT},
+    {0, -1}
+  };
+  for(int i = 0; map[i].name; i++)
+    if(!strcasecmp(name, map[i].name)) return map[i].button;
+  return -1;
+}
+
 static inline void
 hk_get_hotkey_lib(hk_t *hk, char *buffer, size_t bs)
 {

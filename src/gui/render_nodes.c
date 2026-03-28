@@ -12,6 +12,7 @@
 #include "widget_nodes.h"
 #include "widget_resize_panel.h"
 #include "hotkey.h"
+#include "menu.h"
 #include "api_gui.h"
 #include "widget_image.h"
 #define KEYFRAME // empty define to disable hover/keyframe behaviour
@@ -28,6 +29,8 @@ enum hotkey_names_t
   s_hotkey_apply_preset    = 0,
   s_hotkey_module_add      = 1,
 };
+
+static dt_menu_t nodes_menu;
 
 typedef struct gui_nodes_t
 {
@@ -242,16 +245,20 @@ void render_nodes()
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
   }
+  dt_menu_render(&nodes_menu, &vkdt.ctx);
+  dt_menu_process_clicks(&nodes_menu, hk_nodes, NK_LEN(hk_nodes));
 }
 
 void render_nodes_init()
 {
   hk_deserialise("nodes", hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]));
+  dt_menu_load(&nodes_menu, "nodes");
 }
 
 void render_nodes_cleanup()
 {
   hk_serialise("nodes", hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]));
+  dt_menu_cleanup(&nodes_menu);
 }
 
 int nodes_enter()
@@ -308,6 +315,10 @@ void nodes_keyboard(GLFWwindow *window, int key, int scancode, int action, int m
   if(vkdt.wstate.popup == s_popup_edit_hotkeys)
     return hk_keyboard(hk_nodes, window, key, scancode, action, mods);
   if(dt_gui_input_blocked()) return;
+  { // chord menu
+    int mr = dt_menu_keyboard(&nodes_menu, hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]), key, action);
+    if(mr == 1) return;
+  }
   if(action == GLFW_PRESS && key == GLFW_KEY_ESCAPE)
   { // escape to go back to darkroom
     dt_view_switch(s_view_darkroom);

@@ -290,7 +290,11 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
 
   if(!do_events) return; // on-canvas got the interaction
 
-  if(hovered)
+  if(vkdt.wstate.dragkey_latched)
+  { // dragkey armed: block pan/zoom and clear any in-progress pan
+    w->m_x = w->m_y = -1;
+  }
+  else if(hovered)
   { // zoom/pan interaction
     struct nk_vec2 mpos = ctx->input.mouse.pos;
     if(!nk_input_is_mouse_down(&ctx->input, NK_BUTTON_LEFT) &&
@@ -329,7 +333,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
       w->m_x = w->m_y = -1;
     }
   }
-  if(w->m_x > 0)
+  if(!vkdt.wstate.dragkey_latched && w->m_x > 0)
   { // mouse moved while dragging
     float img0[2], img1[2];
     float view0[2] = {

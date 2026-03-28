@@ -11,6 +11,7 @@
 #include "pipe/graph-defaults.h"
 #include "gui/render_view.h"
 #include "gui/hotkey.h"
+#include "gui/menu.h"
 #include "gui/widget_thumbnail.h"
 #include "gui/widget_recentcollect.h"
 #include "gui/widget_export.h"
@@ -78,6 +79,7 @@ typedef enum hotkey_names_t
   s_hotkey_zoom_in       = 22,
   s_hotkey_zoom_out      = 23,
 } hotkey_names_t;
+static dt_menu_t lighttable_menu;
 static int g_hotkey = -1; // to pass hotkey from handler to rendering. necessary for scrolling/export
 static int g_scroll_colid = -1; // to scroll to certain file name
 static int g_scroll_offset = 0; // remember last offset for leave/reenter
@@ -89,6 +91,12 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
   if(vkdt.wstate.popup == s_popup_edit_hotkeys) // this window needs special
     return hk_keyboard(hk_lighttable, w, key, scancode, action, mods);
   if(dt_gui_input_blocked()) return; // includes other popups
+
+  { // chord menu
+    int mr = dt_menu_keyboard(&lighttable_menu, hk_lighttable, NK_LEN(hk_lighttable), key, action);
+    if(mr == 1) return;
+    // note: menu-triggered hotkeys not yet wired for lighttable
+  }
 
   const int hotkey = action == GLFW_PRESS ? hk_get_hotkey(hk_lighttable, NK_LEN(hk_lighttable), key) : -1;
   switch(hotkey)
@@ -1508,17 +1516,21 @@ void render_lighttable()
     else vkdt.wstate.popup = 0;
     nk_end(&vkdt.ctx);
   }
+  dt_menu_render(&lighttable_menu, &vkdt.ctx);
+  dt_menu_process_clicks(&lighttable_menu, hk_lighttable, NK_LEN(hk_lighttable));
 }
 
 void render_lighttable_init()
 {
   vkdt.wstate.copied_imgid = -1u; // reset to invalid
   hk_deserialise("lighttable", hk_lighttable, NK_LEN(hk_lighttable));
+  dt_menu_load(&lighttable_menu, "lighttable");
 }
 
 void render_lighttable_cleanup()
 {
   hk_serialise("lighttable", hk_lighttable, NK_LEN(hk_lighttable));
+  dt_menu_cleanup(&lighttable_menu);
 }
 
 int lighttable_leave()
@@ -1563,6 +1575,7 @@ void lighttable_mouse_button(GLFWwindow* window, int button, int action, int mod
 
 void lighttable_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr)
 {
+  if(dt_menu_gamepad(&lighttable_menu, hk_lighttable, NK_LEN(hk_lighttable), last, curr)) return;
 #define PRESSED(A) curr->buttons[A] && !last->buttons[A]
   if(PRESSED(GLFW_GAMEPAD_BUTTON_A))
   {

@@ -1,0 +1,6 @@
+# press q to leave current view or quit
+key:q
+darkroom:leave
+lighttable:leave
+nodes:leave
+files:leave

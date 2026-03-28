@@ -68,6 +68,33 @@ static inline void widget_abort()
   vkdt.wstate.selected = -1;
 }
 
+static inline void
+dt_darkroom_activate_module(int modid)
+{
+  dt_graph_t *graph = &vkdt.graph_dev;
+  if(modid < 0 || modid >= (int)graph->num_modules) return;
+  if(graph->active_module == modid) return;
+  graph->active_module = modid;
+  int cid = dt_module_get_connector(graph->module + modid, dt_token("dspy"));
+  if(cid >= 0 && !graph->module[modid].disabled)
+  {
+    int mid = dt_module_add(graph, dt_token("display"), dt_token("dspy"));
+    if(mid >= 0)
+    {
+      if(graph->module[mid].connector[0].connected.i != modid ||
+         graph->module[mid].connector[0].connected.c != cid)
+      {
+        dt_module_connect(graph, modid, cid, mid, 0);
+        const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
+        graph->module[mid].connector[0].max_wd = pwd;
+        graph->module[mid].connector[0].max_ht = pwd;
+      }
+    }
+  }
+  graph->runflags = s_graph_run_all;
+  vkdt.wstate.busy += 2;
+}
+
 static inline void render_perf_overlay()
 {
   const int nvmask = 127;
@@ -696,7 +723,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     else
     {
       snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
-      if(nk_button_label(ctx, string))
+      int do_pers_start = nk_button_label(ctx, string);
+      if(!do_pers_start && vkdt.wstate.pending_widget_modid == modid && vkdt.wstate.pending_widget_parid == parid)
+        { do_pers_start = 1; vkdt.wstate.pending_widget_modid = -1; }
+      if(do_pers_start)
       {
         widget_end(); // if another one is still in progress, end that now
         vkdt.wstate.active_widget_modid = modid;
@@ -752,7 +782,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     else
     {
       dt_tooltip("draw lines on the image to be rotated to align exactly horizontally or vertically");
-      if(nk_button_label(ctx, "straighten"))
+      int do_straight_start = nk_button_label(ctx, "straighten");
+      if(!do_straight_start && vkdt.wstate.pending_widget_modid == modid && vkdt.wstate.pending_widget_parid == parid)
+        { do_straight_start = 1; vkdt.wstate.pending_widget_modid = -1; }
+      if(do_straight_start)
       {
         widget_end();
         vkdt.wstate.active_widget_modid = modid;
@@ -819,7 +852,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     else
     {
       snprintf(string, sizeof(string), "%" PRItkn" start", dt_token_str(param->name));
-      if(nk_button_label(ctx, string))
+      int do_crop_start = nk_button_label(ctx, string);
+      if(!do_crop_start && vkdt.wstate.pending_widget_modid == modid && vkdt.wstate.pending_widget_parid == parid)
+        { do_crop_start = 1; vkdt.wstate.pending_widget_modid = -1; }
+      if(do_crop_start)
       {
         widget_end(); // if another one is still in progress, end that now
         vkdt.wstate.active_widget_modid = modid;

@@ -4,6 +4,10 @@
 #include "gui/files.h"
 #include "gui/render.h"
 #include "gui/nodes.h"
+#include "gui/hotkey.h"
+#include "gui/actionkey.h"
+
+static dt_actionkeys_t actionkeys;
 
 int
 dt_view_switch(dt_gui_view_t view)
@@ -14,6 +18,7 @@ dt_view_switch(dt_gui_view_t view)
   {
     case s_view_darkroom:
       if(view != s_view_nodes) err = darkroom_leave();
+      else darkroom_focus_lost(); // cancel dragkeys (cursor restore) without full graph teardown
       break;
     case s_view_lighttable:
       err = lighttable_leave();
@@ -121,8 +126,19 @@ dt_view_mouse_scrolled(GLFWwindow *window, double xoff, double yoff)
 }
 
 void
+dt_view_char(GLFWwindow *window, unsigned int c)
+{
+  switch(vkdt.view_mode)
+  {
+    case s_view_darkroom: darkroom_char(window, c); break;
+    default:;
+  }
+}
+
+void
 dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+  if(dt_actionkey_keyboard(&actionkeys, key, action)) return;
   switch(vkdt.view_mode)
   {
     case s_view_darkroom:
@@ -195,6 +211,18 @@ dt_view_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *cu
       break;
     case s_view_darkroom:
       darkroom_gamepad(window, last, curr);
+      break;
+    default:;
+  }
+}
+
+void
+dt_view_focus_lost()
+{
+  switch(vkdt.view_mode)
+  {
+    case s_view_darkroom:
+      darkroom_focus_lost();
       break;
     default:;
   }

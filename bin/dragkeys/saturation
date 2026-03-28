@@ -1,0 +1,3 @@
+# hold key and drag mouse to adjust chroma on film curve
+key:s
+filmcurv:01:chroma:0:0.002
