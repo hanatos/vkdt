@@ -878,14 +878,7 @@ void render_darkroom()
 			nk_layout_row_dynamic(ctx, total.h - row_h, 1);
 			if(nk_group_begin(ctx, "hklist", 0))
 			{
-				nk_layout_row_dynamic(ctx, row_h, 2);
-				for(int i = 0; i < hk_darkroom_cnt; i++)
-				{
-					char keybuf[128];
-					hk_get_hotkey_lib(hk_darkroom + i, keybuf, sizeof(keybuf));
-					nk_label(ctx, keybuf, NK_TEXT_LEFT);
-					nk_label(ctx, hk_darkroom[i].lib, NK_TEXT_LEFT);
-				}
+				dt_keyhelp();
 				nk_group_end(ctx);
 			}
 			nk_layout_row_dynamic(ctx, row_h, 1);
@@ -1393,6 +1386,13 @@ darkroom_enter()
 	dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in");
 	dt_gamepadhelp_set(dt_gamepadhelp_L3, "reset zoom");
 	// dt_gamepadhelp_set(dt_gamepadhelp_R3, "reset focussed control");
+	dt_keyhelp_clear();
+	for(int i = 0; i < hk_darkroom_cnt; i++)
+	{
+		char keybuf[32];
+		hk_get_hotkey_lib(hk_darkroom + i, keybuf, sizeof(keybuf));
+		dt_keyhelp_set(keybuf, hk_darkroom[i].lib);
+	}
 	return 0;
 }
 
@@ -1430,6 +1430,7 @@ darkroom_leave()
 	dt_graph_history_cleanup(&vkdt.graph_dev);
 	vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
 	dt_gamepadhelp_clear();
+	dt_keyhelp_clear();
 	dt_gui_write_favs("darkroom.ui");
 	return 0;
 }

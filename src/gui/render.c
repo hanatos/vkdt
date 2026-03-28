@@ -316,6 +316,37 @@ typedef struct dt_gamepadhelp_t
 } dt_gamepadhelp_t;
 static dt_gamepadhelp_t g_gamepadhelp = {0};
 
+#define DT_KEYHELP_MAX 64
+typedef struct dt_keyhelp_entry_t
+{
+  char        key[32];
+  const char *desc; // must point to stable storage (string literal or persistent array)
+} dt_keyhelp_entry_t;
+static dt_keyhelp_entry_t g_keyhelp[DT_KEYHELP_MAX];
+static int g_keyhelp_cnt = 0;
+void dt_keyhelp_set(const char *key, const char *desc)
+{
+  if(g_keyhelp_cnt >= DT_KEYHELP_MAX) return;
+  snprintf(g_keyhelp[g_keyhelp_cnt].key, sizeof(g_keyhelp[g_keyhelp_cnt].key), "%s", key);
+  g_keyhelp[g_keyhelp_cnt].desc = desc;
+  g_keyhelp_cnt++;
+}
+void dt_keyhelp_clear()
+{
+  g_keyhelp_cnt = 0;
+}
+void dt_keyhelp()
+{
+  struct nk_context *ctx = &vkdt.ctx;
+  const float row_h = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
+  nk_layout_row_dynamic(ctx, row_h, 2);
+  for(int i = 0; i < g_keyhelp_cnt; i++)
+  {
+    nk_label(ctx, g_keyhelp[i].key,  NK_TEXT_LEFT);
+    nk_label(ctx, g_keyhelp[i].desc, NK_TEXT_LEFT);
+  }
+}
+
 void dt_gamepadhelp_set(dt_gamepadhelp_input_t which, const char *str)
 {
   if(which < 0 || which >= dt_gamepadhelp_cnt) return;

@@ -61,5 +61,8 @@ void dt_gamepadhelp_set(dt_gamepadhelp_input_t which, const char *str);
 void dt_gamepadhelp_clear();
 void dt_gamepadhelp_push();
 void dt_gamepadhelp_pop();
+void dt_keyhelp_set(const char *key, const char *desc);
+void dt_keyhelp_clear();
+void dt_keyhelp();
 int dt_gui_input_blocked();
 void dt_gamepadhelp();
