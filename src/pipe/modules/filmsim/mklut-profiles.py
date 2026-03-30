@@ -6,30 +6,32 @@ import numpy as np
 import struct
 
 film_stocks = [
-    'kodak_ektar_100_auc',
-    'kodak_portra_160_auc',
-    'kodak_portra_400_auc',
-    'kodak_portra_800_auc',
-    'kodak_portra_800_push1_auc',
-    'kodak_portra_800_push2_auc',
-    'kodak_gold_200_auc',
-    'kodak_ultramax_400_auc',
-    'kodak_vision3_50d_uc',
-    'kodak_vision3_250d_uc',
-    'kodak_vision3_200t_uc',
-    'kodak_vision3_500t_uc',
-    'fujifilm_pro_400h_auc',
-    'fujifilm_xtra_400_auc',
-    'fujifilm_c200_auc',
+    'kodak_ektar_100',
+    'kodak_portra_160',
+    'kodak_portra_400',
+    'kodak_portra_800',
+    'kodak_portra_800_push1',
+    'kodak_portra_800_push2',
+    'kodak_gold_200',
+    'kodak_ultramax_400',
+    'kodak_vision3_50d',
+    'kodak_vision3_250d',
+    'kodak_vision3_200t',
+    'kodak_vision3_500t',
+    'fujifilm_pro_400h',
+    'fujifilm_xtra_400',
+    'fujifilm_c200',
+    'kodak_ektachrome_100',
+    'kodak_kodachrome_64',
 ]
 print_papers = [
-    'kodak_endura_premier_uc',
-    'kodak_ektacolor_edge_uc',
-    'kodak_supra_endura_uc',
-    'kodak_portra_endura_uc',
-    'fujifilm_crystal_archive_typeii_uc',
-    'kodak_2383_uc',
-    'kodak_2393_uc',
+    'kodak_endura_premier',
+    'kodak_ektacolor_edge',
+    'kodak_supra_endura',
+    'kodak_portra_endura',
+    'fujifilm_crystal_archive_typeii',
+    'kodak_2383',
+    'kodak_2393',
 ]
 
 # start lut files:
@@ -53,9 +55,9 @@ for f in film_stocks:
 
     for i in range(0, np.shape(profile.data.log_sensitivity)[0]):
       px = struct.pack('<ffff',
-          profile.data.log_sensitivity[i][0],
-          profile.data.log_sensitivity[i][1],
-          profile.data.log_sensitivity[i][2],
+          float('NaN') if profile.data.log_sensitivity[i][0] is None else profile.data.log_sensitivity[i][0],
+          float('NaN') if profile.data.log_sensitivity[i][1] is None else profile.data.log_sensitivity[i][1],
+          float('NaN') if profile.data.log_sensitivity[i][2] is None else profile.data.log_sensitivity[i][2],
           1)
       f_lut.write(px)
     for i in range(np.shape(profile.data.log_sensitivity)[0], 256):
@@ -63,16 +65,18 @@ for f in film_stocks:
       f_lut.write(px)
 
     # Nx5 but Nx4 is enough for us (C M Y min_densitiy)
-    profile.data.dye_density = np.array(profile.data.dye_density)
-    print(np.shape(profile.data.dye_density)) # (41, 5) or (81, 5)
-    for i in range(0, np.shape(profile.data.dye_density)[0]):
+    profile.data.channel_density= np.array(profile.data.channel_density)
+    profile.data.base_density = np.array(profile.data.base_density)
+    print(np.shape(profile.data.channel_density)) # (41, 3) or (81, 3)
+    print(np.shape(profile.data.base_density)) # (41) or (81)
+    for i in range(0, np.shape(profile.data.channel_density)[0]):
       px = struct.pack('<ffff',
-          profile.data.dye_density[i][0],
-          profile.data.dye_density[i][1],
-          profile.data.dye_density[i][2],
-          profile.data.dye_density[i][3])
+          float('NaN') if profile.data.channel_density[i][0] is None else profile.data.channel_density[i][0],
+          float('NaN') if profile.data.channel_density[i][1] is None else profile.data.channel_density[i][1],
+          float('NaN') if profile.data.channel_density[i][2] is None else profile.data.channel_density[i][2],
+          float('NaN') if profile.data.base_density[i] is None else profile.data.base_density[i])
       f_lut.write(px)
-    for i in range(np.shape(profile.data.dye_density)[0], 256):
+    for i in range(np.shape(profile.data.channel_density)[0], 256):
       px = struct.pack('<ffff', 0, 0, 0, 1)
       f_lut.write(px)
 
