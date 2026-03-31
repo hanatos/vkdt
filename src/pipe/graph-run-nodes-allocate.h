@@ -979,7 +979,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {
         .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
         // TODO: make configurable:
-        .topology               = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,
+        .topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
         .primitiveRestartEnable = VK_FALSE,
       };
 

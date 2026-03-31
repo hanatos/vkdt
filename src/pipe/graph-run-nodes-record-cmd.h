@@ -505,7 +505,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     const int32_t *p_draw = dt_module_param_int(node->module, pi);
 
     if(p_draw[0] > 0)
-      vkCmdDraw(cmd_buf, p_draw[0], 1, 0, 0);
+      vkCmdDraw(cmd_buf, 18*p_draw[0], 1, 0, 0);
     vkCmdEndRenderPass(cmd_buf);
   }
 

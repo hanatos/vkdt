@@ -124,8 +124,8 @@ create_nodes(
       "source", "source", "ssbo", "ui32", &roi_ssbo);
   int pc[] = { aspecti, wd };
   const int id_draw = dt_node_add(graph, module, "draw", "main", wd, ht, dp, sizeof(pc), pc, 2,
-      "input", "read", "ssbo", "ui32", dt_no_roi,
-      "output", "write", "y", "f16", &module->connector[0].roi);
+      "input",  "read",  "ssbo", "ui32", dt_no_roi,
+      "output", "write", "y",    "f16", &module->connector[0].roi);
   graph->node[id_draw].type = s_node_graphics; // mark for rasterisation via vert/geo/frag shaders
   CONN(dt_node_connect(graph, id_source, 0, id_draw, 0));
   dt_connector_copy(graph, module, 0, id_draw, 1);
