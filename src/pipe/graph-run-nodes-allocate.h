@@ -942,15 +942,13 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 
     if(drawn_connector_cnt)
     { // create rasterisation pipeline
-      // TODO: cache shader modules on global struct? (we'll reuse the draw kernels for all strokes)
       const int wd = node->connector[drawn_connector[0]].roi.wd;
       const int ht = node->connector[drawn_connector[0]].roi.ht;
-      VkShaderModule shader_module_vert, shader_module_geom, shader_module_frag;
+      VkShaderModule shader_module_vert, shader_module_frag;
       QVKR(dt_graph_create_shader_module(graph, node->name, node->kernel, "vert", &shader_module_vert));
       QVKR(dt_graph_create_shader_module(graph, node->name, node->kernel, "frag", &shader_module_frag));
-      VkResult geom = dt_graph_create_shader_module(graph, node->name, node->kernel, "geom", &shader_module_geom);
 
-      // vertex shader, geometry shader, fragment shader
+      // vertex shader, fragment shader
       VkPipelineShaderStageCreateInfo shader_info[] = {{
         .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
           .stage  = VK_SHADER_STAGE_VERTEX_BIT,
@@ -960,11 +958,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
           .stage  = VK_SHADER_STAGE_FRAGMENT_BIT,
           .module = shader_module_frag,
-          .pName  = "main",
-      },{
-        .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-          .stage  = VK_SHADER_STAGE_GEOMETRY_BIT,
-          .module = shader_module_geom,
           .pName  = "main",
       }};
 
@@ -1057,7 +1050,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 
       VkGraphicsPipelineCreateInfo pipeline_info = {
         .sType      = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        .stageCount = geom == VK_SUCCESS ? LENGTH(shader_info) : LENGTH(shader_info)-1,
+        .stageCount = LENGTH(shader_info),
         .pStages    = shader_info,
 
         .pVertexInputState   = &vertex_input_info,
@@ -1080,10 +1073,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       QVKR(vkCreateGraphicsPipelines(qvk.device, VK_NULL_HANDLE,
             1, &pipeline_info, NULL, &node->pipeline));
 
-      // TODO: keep cached for others
       vkDestroyShaderModule(qvk.device, shader_module_vert, 0);
       vkDestroyShaderModule(qvk.device, shader_module_frag, 0);
-      if(geom == VK_SUCCESS) vkDestroyShaderModule(qvk.device, shader_module_geom, 0);
     }
     else
     { // create the compute shader stage
