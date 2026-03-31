@@ -59,7 +59,8 @@ void modify_roi_out(
   // const uint32_t *p_draw = dt_module_param_uint32(module, pi);
   // const int num_verts = p_draw[0];
   const int num_verts = module->so->param[pi]->cnt;
-  module->connector[0].roi = (dt_roi_t){ .full_wd = 1024, .full_ht = 1024 };
+  if(module->connector[0].roi.scale == 0.0f) // if someone has strong opinions, don't overwrite:
+    module->connector[0].roi = (dt_roi_t){ .full_wd = 1024, .full_ht = 1024 };
   module->connector[1].roi = (dt_roi_t){ .full_wd = 2+num_verts, .full_ht = 2 };
 }
 

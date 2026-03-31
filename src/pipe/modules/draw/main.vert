@@ -64,9 +64,6 @@ void main()
   t1 *= 2.0*vec2(1.0, push.aspect);
   vec2 e0 = vec2(t0.y, -t0.x);
   vec2 e1 = vec2(t1.y, -t1.x);
-  // XXX DEBUG
-  // t0 *= 4;
-  // t1 *= 4;
 
   if(i == 0 || i == 3)
   {
