@@ -568,6 +568,11 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
     if(win->fence[i])               vkDestroyFence(qvk.device, win->fence[i], 0);
     VkSemaphoreCreateInfo semaphore_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
     QVKR(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, win->sem_image_acquired + i));
+    VkSemaphoreTypeCreateInfo timeline_info = {
+      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+      .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+    };
+    semaphore_info.pNext = &timeline_info;
     QVKR(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, win->sem_render_complete + i));
 
     VkFenceCreateInfo fence_info = {
@@ -675,7 +680,7 @@ dt_gui_win_render(struct nk_context *ctx, dt_gui_win_t *win)
   if(len > 1) // we are adding one more command list reading the current double buf
     vkdt.graph_dev.display_dbuffer[vkdt.graph_dev.double_buffer] = MAX(vkdt.graph_dev.display_dbuffer[0], vkdt.graph_dev.display_dbuffer[1]) + 1;
   uint64_t value_wait  [] = { 0, vkdt.graph_dev.process_dbuffer[vkdt.graph_dev.double_buffer] };
-  uint64_t value_signal[] = { 0, vkdt.graph_dev.display_dbuffer[vkdt.graph_dev.double_buffer] };
+  uint64_t value_signal[] = { ++win->frame_global, vkdt.graph_dev.display_dbuffer[vkdt.graph_dev.double_buffer] };
   VkTimelineSemaphoreSubmitInfo timeline_info = {
     .sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
     .waitSemaphoreValueCount   = len,

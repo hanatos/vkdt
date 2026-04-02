@@ -292,29 +292,38 @@ void render_lighttable_center()
   // precache round robin
   const int iv = 20;
   static int cacheline = 0;
-  static int triggered_rebuild = 0;
+  static uint64_t triggered_rebuild = 0;
   // note that we do this once per frame, and before we set any
   // thumbnail ids on the images below. in case a rebuild is triggered,
   // this will invalidate all images and descriptor sets and we have to
   // wait for one frame (until the command buffer is through with the
   // resources)
   if(triggered_rebuild)
-  { // triggered a reset
-    uint64_t heap_size = 2*vkdt.thumbnails.alloc.heap_size, pool_size = 2*vkdt.thumbnails.alloc.pool_size;
-    uint32_t wd = vkdt.thumbnails.thumb_wd, ht = vkdt.thumbnails.thumb_ht;
-    // kill them all
-    dt_thumbnails_cleanup(&vkdt.thumbnails);
-    // re-allocate
-    dt_thumbnails_init(&vkdt.thumbnails, wd, ht, pool_size, heap_size);
-    triggered_rebuild = 0;
+  {
+    uint64_t v0, v1;
+    vkGetSemaphoreCounterValue(qvk.device, vkdt.win.sem_render_complete[0], &v0);
+    vkGetSemaphoreCounterValue(qvk.device, vkdt.win.sem_render_complete[1], &v1);
+    if(MIN(v0, v1) >= triggered_rebuild)
+    { // triggered a reset
+      uint64_t heap_size = 2*vkdt.thumbnails.alloc.heap_size, pool_size = 2*vkdt.thumbnails.alloc.pool_size;
+      uint32_t wd = vkdt.thumbnails.thumb_wd, ht = vkdt.thumbnails.thumb_ht;
+      // kill them all
+      dt_thumbnails_cleanup(&vkdt.thumbnails);
+      // re-allocate
+      dt_thumbnails_init(&vkdt.thumbnails, wd, ht, pool_size, heap_size);
+      triggered_rebuild = 0;
+    }
   }
   VkResult thumb_res = dt_thumbnails_load_list(
       &vkdt.thumbnails,
       &vkdt.db,
       vkdt.db.collection,
       cacheline, MIN(vkdt.db.collection_cnt, cacheline+iv));
+  // the cache noticed it is too small. internally it reset all the thumbnail references to zero, so they will not
+  // be picked up by further command buffer dispatches. now of course we'll have to wait for the currently pending
+  // ones to finish before we can actually delete/reallocate the vulkan resources for thumbnails.
   if(thumb_res == VK_ERROR_OUT_OF_DATE_KHR)
-    triggered_rebuild = 1;
+    triggered_rebuild = vkdt.win.frame_global; // timeline semaphore of last frame
   cacheline += iv;
   if(cacheline > vkdt.db.collection_cnt) cacheline = 0;
   int force_local_cacheline = 0;
