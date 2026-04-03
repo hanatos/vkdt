@@ -72,7 +72,7 @@ static void
 mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
   dt_view_mouse_button(window, button, action, mods);
-  if(!vkdt.wstate.grabbed)
+  if(!vkdt.wstate.grabbed && !vkdt.wstate.dragkey_latched)
     nk_glfw3_mouse_button_callback(window, button, action, mods);
 }
 
@@ -82,7 +82,7 @@ mouse_position_callback(GLFWwindow* window, double x, double y)
   float xscale, yscale;
   dt_gui_content_scale(window, &xscale, &yscale);
   dt_view_mouse_position(window, x*xscale, y*yscale);
-  if(!vkdt.wstate.grabbed)
+  if(!vkdt.wstate.grabbed && !vkdt.wstate.dragkey_latched)
     nk_glfw3_mouse_position_callback(window, x*xscale, y*yscale);
 }
 

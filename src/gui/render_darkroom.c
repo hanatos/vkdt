@@ -77,17 +77,21 @@ enum hotkey_names_t
 	s_hotkey_show_hotkeys    = 29,
 	s_hotkey_menu_presets    = 30,
 	s_hotkey_menu_adjust     = 31,
-	s_hotkey_menu_drag       = 32,
-	s_hotkey_menu_modules    = 33,
-	s_hotkey_menu_rotate     = 34,
-	s_hotkey_dragkey_dec     = 35,
-	s_hotkey_dragkey_inc     = 36,
-	s_hotkey_dragkey_dec_alt = 37,
-	s_hotkey_dragkey_inc_alt = 38,
-	s_hotkey_count           = 39,
+	s_hotkey_menu_modules    = 32,
+	s_hotkey_menu_rotate     = 33,
+	s_hotkey_dragkey_dec      = 34,
+	s_hotkey_dragkey_inc      = 35,
+	s_hotkey_dragkey_dec_alt  = 36,
+	s_hotkey_dragkey_inc_alt  = 37,
+	s_hotkey_dragkey_ydec     = 38,
+	s_hotkey_dragkey_yinc     = 39,
+	s_hotkey_dragkey_ydec_alt = 40,
+	s_hotkey_dragkey_yinc_alt = 41,
+	s_hotkey_count            = 42,
 };
 
 static const int hk_darkroom_size = 128;
+static_assert(s_hotkey_count + DT_DRAGKEY_MAX <= 128, "hk_darkroom array too small for static + dynamic hotkeys");
 static int hk_darkroom_cnt = s_hotkey_count;
 static hk_t hk_darkroom[128] = {
 	{"create preset",   "create new preset from image",               {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_O}},
@@ -122,16 +126,19 @@ static hk_t hk_darkroom[128] = {
 	{"show hotkeys",    "show all hotkey bindings",                   {}},
 	{"presets",         "open presets chord menu",                    {GLFW_KEY_P}},
 	{"adjust",          "open key-accel chord menu",                 {GLFW_KEY_A}},
-	{"drag",            "open drag-to-adjust chord menu",            {GLFW_KEY_D}},
 	{"modules",         "open modules chord menu",                   {GLFW_KEY_M}},
 	{"rotate",          "open rotate chord menu",                    {GLFW_KEY_R}},
-	{"dragkey dec",     "step armed parameter left/down",            {GLFW_KEY_LEFT}},
-	{"dragkey inc",     "step armed parameter right/up",             {GLFW_KEY_RIGHT}},
-	{"dragkey dec alt", "step armed parameter left/down (alt)",      {GLFW_KEY_H}},
-	{"dragkey inc alt", "step armed parameter right/up (alt)",       {GLFW_KEY_L}},
+	{"dragkey dec",       "step armed parameter left",            {GLFW_KEY_LEFT}},
+	{"dragkey inc",       "step armed parameter right",           {GLFW_KEY_RIGHT}},
+	{"dragkey dec alt",   "step armed parameter left (alt)",      {GLFW_KEY_H}},
+	{"dragkey inc alt",   "step armed parameter right (alt)",     {GLFW_KEY_L}},
+	{"dragkey y-dec",     "step armed parameter down",            {GLFW_KEY_DOWN}},
+	{"dragkey y-inc",     "step armed parameter up",              {GLFW_KEY_UP}},
+	{"dragkey y-dec alt", "step armed parameter down (alt)",      {GLFW_KEY_J}},
+	{"dragkey y-inc alt", "step armed parameter up (alt)",        {GLFW_KEY_K}},
 };
 
-// used to communictate between the gui helper functions
+// used to communicate between the gui helper functions
 static struct gui_state_data_t
 {
 	int hotkey;
@@ -149,6 +156,7 @@ static struct gui_state_data_t
 void
 darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+	if(dragkeys.latched && dt_dragkey_keyboard(&dragkeys, key, action, mods)) return; // before grabbed/blocked checks
 	if(vkdt.wstate.grabbed)
 	{
 		dt_module_input_event_t p = {
@@ -224,22 +232,10 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
 		return;
 	}
 
-	if(dragkeys.latched)
-	{ // latched: dragkeys first so arrow keys aren't eaten by menu left/right navigation.
-		// dt_dragkey_keyboard consumes ALL key events while latched (including ESC), so
-		// the menu only runs if the dragkey handler returns 0 (which it never does when latched).
-		if(dt_dragkey_keyboard(&dragkeys, key, action, mods)) return;
-		int mr = dt_menu_keyboard(&darkroom_menu, hk_darkroom, hk_darkroom_cnt, key, action);
-		if(mr == 1) return;
-		if(mr < -1) { gui.hotkey = -(mr + 2); goto hotkey_dispatch; }
-	}
-	else
-	{ // not latched: chord menu first (original priority)
-		int mr = dt_menu_keyboard(&darkroom_menu, hk_darkroom, hk_darkroom_cnt, key, action);
-		if(mr == 1) return;
-		if(mr < -1) { gui.hotkey = -(mr + 2); goto hotkey_dispatch; }
-		if(dt_dragkey_keyboard(&dragkeys, key, action, mods)) return;
-	}
+	int mr = dt_menu_keyboard(&darkroom_menu, hk_darkroom, hk_darkroom_cnt, key, action);
+	if(mr == 1) return;
+	if(mr < -1) { gui.hotkey = -(mr + 2); goto hotkey_dispatch; }
+	if(dt_dragkey_keyboard(&dragkeys, key, action, mods)) return; // keyboard arm
 
 	gui.hotkey = action == GLFW_PRESS ? hk_get_hotkey(hk_darkroom, hk_darkroom_cnt, key) : -1;
 	if(action != GLFW_PRESS) return; // only handle key down events
@@ -309,7 +305,7 @@ hotkey_dispatch:
 		case s_hotkey_show_hotkeys:
 			dt_gui_dr_show_hotkeys();
 			break;
-		default: break;
+		default: break; // menu leaders and dragkey step keys are consumed before reaching here
 	}
 
 	if(!dt_gui_input_blocked())
@@ -877,7 +873,7 @@ void render_darkroom()
 			struct nk_context *ctx = &vkdt.ctx;
 			const float row_h = ctx->style.font->height + 2 * ctx->style.tab.padding.y;
 			struct nk_rect total = nk_window_get_content_region(ctx);
-			nk_layout_row_dynamic(ctx, total.h - row_h, 1);
+			nk_layout_row_dynamic(ctx, total.h - row_h - ctx->style.window.spacing.y - 2*ctx->style.window.padding.y, 1);
 			if(nk_group_begin(ctx, "hklist", 0))
 			{
 				dt_keyhelp();
@@ -893,7 +889,10 @@ void render_darkroom()
 	dt_menu_process_clicks(&darkroom_menu, hk_darkroom, hk_darkroom_cnt);
 	if(vkdt.wstate.pending_modid >= 0)
 	{
-		dt_darkroom_activate_module(vkdt.wstate.pending_modid);
+		if(vkdt.wstate.dragkey_latched)
+			vkdt.graph_dev.active_module = vkdt.wstate.pending_modid; // just scroll; full activate triggers s_graph_run_all which glitches display
+		else
+			dt_darkroom_activate_module(vkdt.wstate.pending_modid);
 		vkdt.wstate.pending_modid = -1;
 	}
 	gui.pgupdn = 0;  // reset rotary encoder knob counter
@@ -1004,10 +1003,14 @@ void render_darkroom_init()
 	for(int j = 0; j < hk_darkroom_cnt; j++)
 	{
 		if(!hk_darkroom[j].name || !hk_darkroom[j].key[0]) continue;
-		if(!strcmp(hk_darkroom[j].name, "dragkey dec"))     dragkeys.key_dec[0] = hk_darkroom[j].key[0];
-		if(!strcmp(hk_darkroom[j].name, "dragkey dec alt")) dragkeys.key_dec[1] = hk_darkroom[j].key[0];
-		if(!strcmp(hk_darkroom[j].name, "dragkey inc"))     dragkeys.key_inc[0] = hk_darkroom[j].key[0];
-		if(!strcmp(hk_darkroom[j].name, "dragkey inc alt")) dragkeys.key_inc[1] = hk_darkroom[j].key[0];
+		if(!strcmp(hk_darkroom[j].name, "dragkey dec"))       dragkeys.key_xdec[0] = hk_darkroom[j].key[0];
+		if(!strcmp(hk_darkroom[j].name, "dragkey dec alt"))   dragkeys.key_xdec[1] = hk_darkroom[j].key[0];
+		if(!strcmp(hk_darkroom[j].name, "dragkey inc"))       dragkeys.key_xinc[0] = hk_darkroom[j].key[0];
+		if(!strcmp(hk_darkroom[j].name, "dragkey inc alt"))   dragkeys.key_xinc[1] = hk_darkroom[j].key[0];
+		if(!strcmp(hk_darkroom[j].name, "dragkey y-dec"))     dragkeys.key_ydec[0] = hk_darkroom[j].key[0];
+		if(!strcmp(hk_darkroom[j].name, "dragkey y-dec alt")) dragkeys.key_ydec[1] = hk_darkroom[j].key[0];
+		if(!strcmp(hk_darkroom[j].name, "dragkey y-inc"))     dragkeys.key_yinc[0] = hk_darkroom[j].key[0];
+		if(!strcmp(hk_darkroom[j].name, "dragkey y-inc alt")) dragkeys.key_yinc[1] = hk_darkroom[j].key[0];
 	}
 	dt_menu_load(&darkroom_menu, "darkroom");
 	// sync chord menu root entry keys from hotkey table (respects user rebindings)
@@ -1037,7 +1040,7 @@ void render_darkroom_cleanup()
 void
 darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
-	if((dragkeys.latched || !dt_gui_input_blocked()) && dt_dragkey_mouse_button(&dragkeys, button, action)) return;
+	if((dragkeys.latched || !dt_gui_input_blocked()) && dt_dragkey_mouse_button(&dragkeys, button, action, mods)) return;
 	dt_gui_darkroom_dspy_mouse_button(window, button, action, mods);
 	double x, y;
 	dt_view_get_cursor_pos(vkdt.win.window, &x, &y);
@@ -1209,6 +1212,15 @@ darkroom_process()
 			VkResult res = vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30);
 			if(res == VK_SUCCESS)
 				vkdt.graph_dev.double_buffer ^= 1; // lock ^1 as display buffer, we waited for it to complete
+			// double-click reset: the reset rendered into the just-kicked slot but the display
+			// still shows the previous slot. schedule one more grabbed run so the new result
+			// becomes the display buffer, and post an empty event to wake glfwWaitEvents.
+			if(dragkeys.pending_runflags)
+			{
+				vkdt.graph_dev.runflags |= dragkeys.pending_runflags;
+				dragkeys.pending_runflags = 0;
+				glfwPostEmptyEvent();
+			}
 		}
 	}
 

@@ -131,7 +131,6 @@ dt_menu_link_child(dt_menu_t *m, int parent_idx, int child_idx)
 // forward declarations for providers
 static int dt_menu_prov_presets(dt_menu_entry_t *buf, int max, void *data);
 static int dt_menu_prov_keyaccel(dt_menu_entry_t *buf, int max, void *data);
-static int dt_menu_prov_dragkeys(dt_menu_entry_t *buf, int max, void *data);
 static int dt_menu_prov_modules(dt_menu_entry_t *buf, int max, void *data);
 static int dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data);
 static int dt_menu_prov_combo_opts(dt_menu_entry_t *buf, int max, void *data);
@@ -143,7 +142,6 @@ dt_menu_resolve_provider(dt_menu_entry_t *e, const char *name)
 	e->provider_data = 0;
 	if(!strcmp(name, "scan_presets"))       e->provider = dt_menu_prov_presets;
 	else if(!strcmp(name, "scan_keyaccel")) e->provider = dt_menu_prov_keyaccel;
-	else if(!strcmp(name, "scan_dragkeys")) e->provider = dt_menu_prov_dragkeys;
 	else if(!strcmp(name, "scan_modules"))  e->provider = dt_menu_prov_modules;
 	else dt_log(s_log_gui, "[menu] unknown provider '%s'", name);
 }
@@ -412,7 +410,6 @@ typedef struct dt_menu_scandir_slot_t
 dt_menu_scandir_slot_t;
 
 static dt_menu_scandir_slot_t g_menu_scandir_cache[DT_MENU_SCANDIR_CACHE_SLOTS];
-static dt_menu_scandir_slot_t g_dragkeys_cache;
 
 static inline time_t
 dt_menu_dir_mtime(const char *dirname, int inbase)
@@ -517,84 +514,6 @@ dt_menu_prov_keyaccel(dt_menu_entry_t *buf, int max, void *data)
 	return dt_menu_prov_scandir(buf, max, "keyaccel", 0);
 }
 
-static int
-dt_menu_prov_dragkeys(dt_menu_entry_t *buf, int max, void *data)
-{
-	(void)data;
-	time_t mtime[2] = { dt_menu_dir_mtime("dragkeys", 0), dt_menu_dir_mtime("dragkeys", 1) };
-
-	// cache hit: directory unchanged
-	if(g_dragkeys_cache.dirname[0] &&
-		 g_dragkeys_cache.mtime[0] == mtime[0] &&
-		 g_dragkeys_cache.mtime[1] == mtime[1])
-	{
-		int cnt = g_dragkeys_cache.cnt < max ? g_dragkeys_cache.cnt : max;
-		for(int i = 0; i < cnt; i++)
-		{
-			buf[i] = g_dragkeys_cache.buf[i];
-			buf[i].label   = buf[i].action_buf + (g_dragkeys_cache.buf[i].label   - g_dragkeys_cache.buf[i].action_buf);
-			buf[i].tooltip = g_dragkeys_cache.buf[i].tooltip
-				? buf[i].action_buf + (g_dragkeys_cache.buf[i].tooltip - g_dragkeys_cache.buf[i].action_buf)
-				: 0;
-		}
-		return cnt;
-	}
-
-	// cache miss: full scan into cache slot
-	snprintf(g_dragkeys_cache.dirname, sizeof(g_dragkeys_cache.dirname), "dragkeys");
-	g_dragkeys_cache.mtime[0] = mtime[0];
-	g_dragkeys_cache.mtime[1] = mtime[1];
-	int cnt = 0;
-	for(int inbase = 0; inbase < 2 && cnt < DT_MENU_MAX_DYNAMIC; inbase++)
-	{
-		void *dirp = dt_res_opendir("dragkeys", inbase);
-		if(!dirp) continue;
-		const char *basename = 0;
-		while((basename = dt_res_next_basename(dirp, inbase)) && cnt < DT_MENU_MAX_DYNAMIC)
-		{
-			if(basename[0] == '.') continue;
-			int dup = 0;
-			for(int i = 0; i < cnt; i++)
-				if(!strcmp(g_dragkeys_cache.buf[i].label, basename)) { dup = 1; break; }
-			if(dup) continue;
-			dt_dragkey_t dk;
-			memset(&dk, 0, sizeof(dk));
-			char path[PATH_MAX];
-			snprintf(path, sizeof(path), "%s/dragkeys/%s",
-					inbase ? dt_pipe.basedir : dt_pipe.homedir, basename);
-			if(dt_dragkey_load_file(&dk, path, basename)) continue;
-			dt_menu_entry_t *e = g_dragkeys_cache.buf + cnt;
-			dt_menu_entry_init(e);
-			snprintf(e->action_buf, sizeof(e->action_buf), "dragkey_named:%s", basename);
-			e->label = e->action_buf + (sizeof("dragkey_named:") - 1);
-			e->key = dk.key;
-			int alen = strlen(e->action_buf);
-			if(alen + 2 < (int)sizeof(e->action_buf))
-			{
-				const char *kname = dt_menu_glfw_to_name(dk.key);
-				snprintf(e->action_buf + alen + 1, sizeof(e->action_buf) - alen - 1,
-						"key: %s  %d cmp", kname ? kname : "?", dk.comp_cnt);
-				e->tooltip = e->action_buf + alen + 1;
-			}
-			if(cnt > 0) g_dragkeys_cache.buf[cnt - 1].next_sibling = cnt;
-			cnt++;
-		}
-		dt_res_closedir(dirp, inbase);
-	}
-	g_dragkeys_cache.cnt = cnt;
-
-	// copy to output with label/tooltip-offset fixup
-	int out_cnt = cnt < max ? cnt : max;
-	for(int i = 0; i < out_cnt; i++)
-	{
-		buf[i] = g_dragkeys_cache.buf[i];
-		buf[i].label   = buf[i].action_buf + (g_dragkeys_cache.buf[i].label   - g_dragkeys_cache.buf[i].action_buf);
-		buf[i].tooltip = g_dragkeys_cache.buf[i].tooltip
-			? buf[i].action_buf + (g_dragkeys_cache.buf[i].tooltip - g_dragkeys_cache.buf[i].action_buf)
-			: 0;
-	}
-	return out_cnt;
-}
 
 static inline void
 dt_menu_format_combo(char *buf, int bufsz,
@@ -1148,7 +1067,13 @@ dt_menu_keyboard(
 	}
 
 	if(!is_repeat)
-	{ // only on press: match key, close on no match
+	{ // only on press: match key, close on no match (modifier keys are transparent)
+		if(key == GLFW_KEY_LEFT_SHIFT   || key == GLFW_KEY_RIGHT_SHIFT  ||
+		   key == GLFW_KEY_LEFT_CONTROL || key == GLFW_KEY_RIGHT_CONTROL ||
+		   key == GLFW_KEY_LEFT_ALT     || key == GLFW_KEY_RIGHT_ALT    ||
+		   key == GLFW_KEY_LEFT_SUPER   || key == GLFW_KEY_RIGHT_SUPER  ||
+		   key == GLFW_KEY_CAPS_LOCK)
+			return 1;
 		for(int i = 0; i < child_cnt; i++)
 		{
 			if(m->children[i].key != key) continue;
@@ -1315,9 +1240,8 @@ dt_menu_render(dt_menu_t *m, struct nk_context *ctx)
 			nk_style_push_flags(ctx, &ctx->style.button.text_alignment, NK_TEXT_CENTERED);
 			if(nk_button_label(ctx, kname)) m->clicked = i;      // key column
 			nk_style_pop_flags(ctx);
-			int hovered = nk_widget_is_hovered(ctx);
 			if(nk_button_label(ctx, label_display)) m->clicked = i; // label column
-			if(hovered && m->children[i].tooltip) nk_tooltip(ctx, m->children[i].tooltip);
+			if(nk_widget_is_hovered(ctx) && m->children[i].tooltip) nk_tooltip(ctx, m->children[i].tooltip);
 
 			if(is_cursor)
 			{
