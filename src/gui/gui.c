@@ -565,15 +565,17 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
 
     if(win->sem_image_acquired[i])  vkDestroySemaphore(qvk.device, win->sem_image_acquired[i], 0);
     if(win->sem_render_complete[i]) vkDestroySemaphore(qvk.device, win->sem_render_complete[i], 0);
+    if(win->sem_frame_complete [i]) vkDestroySemaphore(qvk.device, win->sem_frame_complete[i], 0);
     if(win->fence[i])               vkDestroyFence(qvk.device, win->fence[i], 0);
     VkSemaphoreCreateInfo semaphore_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
     QVKR(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, win->sem_image_acquired + i));
+    QVKR(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, win->sem_render_complete + i));
     VkSemaphoreTypeCreateInfo timeline_info = {
       .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
       .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
     };
     semaphore_info.pNext = &timeline_info;
-    QVKR(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, win->sem_render_complete + i));
+    QVKR(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, win->sem_frame_complete + i));
 
     VkFenceCreateInfo fence_info = {
       .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
@@ -597,12 +599,14 @@ dt_gui_win_cleanup(dt_gui_win_t *win)
     vkDestroyCommandPool(qvk.device, win->command_pool[i], 0);
     vkDestroySemaphore(qvk.device, win->sem_image_acquired[i], 0);
     vkDestroySemaphore(qvk.device, win->sem_render_complete[i], 0);
+    vkDestroySemaphore(qvk.device, win->sem_frame_complete[i], 0);
     vkDestroyFence(qvk.device, win->fence[i], 0);
     vkDestroyFramebuffer(qvk.device, win->framebuffer[i], 0);
     win->command_buffer[i] = 0;
     win->command_pool[i] = 0;
     win->sem_image_acquired[i] = 0;
     win->sem_render_complete[i] = 0;
+    win->sem_frame_complete[i] = 0;
     win->fence[i] = 0;
     win->framebuffer[i] = 0;
   }
@@ -640,6 +644,7 @@ static inline VkResult
 dt_gui_win_render(struct nk_context *ctx, dt_gui_win_t *win)
 {
   VkSemaphore render_complete_semaphore = win->sem_render_complete[win->sem_index];
+  VkSemaphore frame_complete_semaphore  = win->sem_frame_complete [win->sem_index];
   VkSemaphore image_acquired_semaphore  = win->sem_image_acquired [win->sem_index];
   QVKR(vkWaitForFences(qvk.device, 1, win->fence+win->sem_fence[win->sem_index], VK_TRUE, UINT64_MAX)); // make sure the semaphore is free
   // timeout is in nanoseconds (these are ~2sec)
@@ -680,16 +685,16 @@ dt_gui_win_render(struct nk_context *ctx, dt_gui_win_t *win)
   if(len > 1) // we are adding one more command list reading the current double buf
     vkdt.graph_dev.display_dbuffer[vkdt.graph_dev.double_buffer] = MAX(vkdt.graph_dev.display_dbuffer[0], vkdt.graph_dev.display_dbuffer[1]) + 1;
   uint64_t value_wait  [] = { 0, vkdt.graph_dev.process_dbuffer[vkdt.graph_dev.double_buffer] };
-  uint64_t value_signal[] = { ++win->frame_global, vkdt.graph_dev.display_dbuffer[vkdt.graph_dev.double_buffer] };
+  uint64_t value_signal[] = { ++win->frame_global, 0, vkdt.graph_dev.display_dbuffer[vkdt.graph_dev.double_buffer] };
   VkTimelineSemaphoreSubmitInfo timeline_info = {
     .sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
     .waitSemaphoreValueCount   = len,
     .pWaitSemaphoreValues      = value_wait,
-    .signalSemaphoreValueCount = len,
+    .signalSemaphoreValueCount = len+1,
     .pSignalSemaphoreValues    = value_signal,
   };
   VkSemaphore sem_wait  [] = { image_acquired_semaphore,  vkdt.graph_dev.semaphore_process };
-  VkSemaphore sem_signal[] = { render_complete_semaphore, vkdt.graph_dev.semaphore_display };
+  VkSemaphore sem_signal[] = { frame_complete_semaphore, render_complete_semaphore, vkdt.graph_dev.semaphore_display };
   VkSubmitInfo submit = {
     .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
     .pNext                = &timeline_info,
@@ -698,7 +703,7 @@ dt_gui_win_render(struct nk_context *ctx, dt_gui_win_t *win)
     .pWaitDstStageMask    = wait_stage,
     .commandBufferCount   = 1,
     .pCommandBuffers      = win->command_buffer+i,
-    .signalSemaphoreCount = len,
+    .signalSemaphoreCount = len+1,
     .pSignalSemaphores    = sem_signal,
   };
 
