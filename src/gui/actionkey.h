@@ -121,7 +121,6 @@ dt_actionkeys_init(dt_actionkeys_t *ak)
 					inbase ? dt_pipe.basedir : dt_pipe.homedir, basename);
 			if(!dt_actionkey_load_file(ak->ak + ak->cnt, path, basename))
 			{
-				dt_log(s_log_gui, "[actionkey] loaded '%s' key=%d", basename, ak->ak[ak->cnt].key);
 				ak->cnt++;
 			}
 		}
