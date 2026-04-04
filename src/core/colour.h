@@ -343,11 +343,7 @@ hsluv_to_rec2020(const float hsl[], float rgb[])
   lch2luv(tmp);
   luv2xyz(tmp);
   const float xyz_to_rec2020[] = matrix_xyz_to_rec2020;
-  rgb[0] = rgb[1] = rgb[2] = 0.0f;
-  for(int k=0;k<3;k++)
-    for(int i=0;i<3;i++)
-      rgb[k] += xyz_to_rec2020[3*i+k] * tmp[i];
-  for(int i=0;i<3;i++) rgb[i] = CLAMP(rgb[i], 0.0f, 1.0f);
+  mat3mulv(rgb, xyz_to_rec2020, tmp);
 }
 
 static inline void
@@ -355,15 +351,13 @@ rec2020_to_hsluv(const float rgb[], float hsl[])
 {
   float tmp[3] = {0.0f};
   const float rec2020_to_xyz[] = matrix_rec2020_to_xyz;
-  for(int k=0;k<3;k++)
-    for(int i=0;i<3;i++)
-      tmp[k] += rec2020_to_xyz[3*k+i] * rgb[i];
+  mat3mulv(tmp, rec2020_to_xyz, rgb);
   xyz2luv(tmp);
   luv2lch(tmp);
   lch2hsluv(tmp);
-  hsl[0] = CLAMP(tmp[0]/360.0f, 0.0, 1.0f);
-  hsl[1] = CLAMP(tmp[1]/100.0f, 0.0, 1.0f);
-  hsl[2] = CLAMP(tmp[2]/100.0f, 0.0, 1.0f);
+  hsl[0] = tmp[0]/360.0f;
+  hsl[1] = tmp[1]/100.0f;
+  hsl[2] = tmp[2]/100.0f;
 }
 
 #if 0
