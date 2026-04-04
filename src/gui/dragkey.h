@@ -277,7 +277,6 @@ dt_dragkeys_exit(dt_dragkeys_t *dk, int commit)
   dk->click_down_time  = 0.0;
   dk->pending_runflags = 0;
   vkdt.wstate.dragkey_latched = 0;
-  vkdt.wstate.grabbed = 0;
 }
 
 static inline void
@@ -342,7 +341,6 @@ dt_dragkey_activate_dk(dt_dragkeys_t *dk, dt_dragkey_t *d)
   dk->click_down_time  = 0.0;
   glfwSetInputMode(vkdt.win.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   vkdt.wstate.dragkey_latched = 1;
-  vkdt.wstate.grabbed = 1;
   return 0;
 }
 

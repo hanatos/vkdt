@@ -416,7 +416,6 @@ void render_darkroom()
 		return;
 	}
 
-	dt_gui_set_lod(dragkeys.latched ? vkdt.wstate.lod_interact : vkdt.wstate.lod_fine);
 	dt_radial_menu_dr(&vkdt.wstate.radial_menu_dr, bounds);
 
 	static int resize_panel = 0;
@@ -767,6 +766,7 @@ void render_darkroom()
 				dt_tooltip("level of detail: 1 means full res, any higher number will render on reduced resolution.");
 				nk_tab_property(int, ctx, "#", 1, &vkdt.wstate.lod_fine, 16, 1, 1);
 				dt_gui_set_lod(vkdt.wstate.lod_fine);
+				vkdt.graph_dev.runflags = s_graph_run_all;
 				nk_label(ctx, "level of detail", NK_TEXT_LEFT);
 
 				dt_tooltip("level of detail while dragging a slider, for instance. you can set this to higher/coarser than the lod above.");
@@ -894,6 +894,13 @@ void render_darkroom()
 		else
 			dt_darkroom_activate_module(vkdt.wstate.pending_modid);
 		vkdt.wstate.pending_modid = -1;
+	}
+	{ // LOD switching: arm→interact, disarm→fine; async path renders into non-display buffer so s_graph_run_all is safe
+		int target_lod = dragkeys.latched ? vkdt.wstate.lod_interact : vkdt.wstate.lod_fine;
+		int lod_changed = (target_lod != vkdt.wstate.lod);
+		dt_gui_set_lod(target_lod);
+		if(lod_changed)
+			vkdt.graph_dev.runflags |= s_graph_run_all;
 	}
 	gui.pgupdn = 0;  // reset rotary encoder knob counter
 	gui.hotkey = -1; // reset hotkey, we worked on all we could
@@ -1361,6 +1368,7 @@ darkroom_enter()
 	}
 
 	dt_gui_set_lod(vkdt.wstate.lod_fine);
+	vkdt.graph_dev.runflags = s_graph_run_all;
 	vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
 	vkdt.graph_dev.double_buffer = 0; // graph_init does this too, but let's be explicit
 	if((vkdt.graph_res[vkdt.graph_dev.double_buffer] =
