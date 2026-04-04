@@ -895,13 +895,7 @@ void render_darkroom()
 			dt_darkroom_activate_module(vkdt.wstate.pending_modid);
 		vkdt.wstate.pending_modid = -1;
 	}
-	{ // LOD switching: arm→interact, disarm→fine; async path renders into non-display buffer so s_graph_run_all is safe
-		int target_lod = dragkeys.latched ? vkdt.wstate.lod_interact : vkdt.wstate.lod_fine;
-		int lod_changed = (target_lod != vkdt.wstate.lod);
-		dt_gui_set_lod(target_lod);
-		if(lod_changed)
-			vkdt.graph_dev.runflags |= s_graph_run_all;
-	}
+	dt_gui_set_lod(dragkeys.latched ? vkdt.wstate.lod_interact : vkdt.wstate.lod_fine);
 	gui.pgupdn = 0;  // reset rotary encoder knob counter
 	gui.hotkey = -1; // reset hotkey, we worked on all we could
 	dt_log(s_log_perf, "render_darkroom cpu:\t%8.3f ms", 1000.0*(dt_time() - clock_beg));
