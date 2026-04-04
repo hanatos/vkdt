@@ -161,9 +161,11 @@ typedef struct dt_gui_win_t
   VkCommandBuffer    command_buffer[DT_GUI_MAX_IMAGES];
   VkFramebuffer      framebuffer   [DT_GUI_MAX_IMAGES];
 
+  uint64_t           frame_global;
   uint32_t           sem_index;
   VkSemaphore        sem_image_acquired [DT_GUI_MAX_IMAGES];
   VkSemaphore        sem_render_complete[DT_GUI_MAX_IMAGES];
+  VkSemaphore        sem_frame_complete [DT_GUI_MAX_IMAGES];
   uint32_t           sem_fence[DT_GUI_MAX_IMAGES];
 
   uint32_t           fullscreen;

@@ -244,12 +244,7 @@ static inline void *
 read_file(const char *filename, size_t *len)
 {
   FILE *f = dt_graph_open_resource(0, 0, filename, "rb");
-  if(!f)
-  {
-    dt_log(s_log_qvk|s_log_err, "failed to read shader '%s': %s!",
-        filename, strerror(errno));
-    return 0;
-  }
+  if(!f) return 0;
   fseek(f, 0, SEEK_END);
   const size_t filesize = ftell(f);
   fseek(f, 0, SEEK_SET);

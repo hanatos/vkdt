@@ -51,7 +51,7 @@ void evaluate_f(double *p, double *f, int m, int n, void *data)
   dat->graph.frame = frame;
   dt_graph_apply_keyframes(&dat->graph);
   VkResult res = dt_graph_run(&dat->graph,
-      s_graph_run_all |
+      s_graph_run_download_sink | s_graph_run_record_cmd_buf |
       s_graph_run_wait_done);
   
   if(res)

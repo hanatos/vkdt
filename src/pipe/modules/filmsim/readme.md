@@ -129,7 +129,7 @@ source agx/bin/activate
 cd agx-emulsion
 pip install -r requirements.txt
 pip install -e .
-cd agx_emulsion/data/profiles
+cd src/spektrafilm/data/profiles
 wget https://raw.githubusercontent.com/hanatos/vkdt/refs/heads/master/src/pipe/modules/filmsim/mklut-profiles.py
 python ./mklut-profiles.py
 mkdir -p ~/.config/vkdt/data
