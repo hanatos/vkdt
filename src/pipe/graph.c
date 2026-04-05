@@ -131,6 +131,10 @@ dt_graph_cleanup(dt_graph_t *g)
     dt_log(s_log_pipe|s_log_err, "[graph_cleanup] lost device while waiting for semaphores!");
     return;
   }
+#ifdef __APPLE__
+  // MoltenVK: semaphore fires before finishQueries() completes; drain queue before freeing pools.
+  vkQueueWaitIdle(qvk.queue[qvk.qid[g->queue_name]].queue);
+#endif
 
   for(int i=0;i<g->num_modules;i++)
     if(g->module[i].name && g->module[i].so->cleanup)
