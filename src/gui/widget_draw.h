@@ -3,7 +3,7 @@
 // TODO: add transformations on vertices before tessellation
 #include "nk.h"
 
-static const float dt_draw_cmd_marker = -0.0f/0.0f;
+static const float dt_draw_cmd_marker = -NAN;
 enum dt_draw_cmd_t
 {
   dt_draw_moveto    = 1,
