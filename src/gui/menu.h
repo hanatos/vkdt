@@ -42,7 +42,8 @@ typedef struct dt_menu_entry_t
   int16_t     parent;         // index of parent, -1 = root level
   int16_t     first_child;    // index of first child, -1 = leaf
   int16_t     next_sibling;   // next entry at same level, -1 = last
-  const char *label;          // display text (from stringpool)
+  const char *label;          // display text (null-terminated); if NULL, check label_tkn
+  dt_token_t  label_tkn;     // non-zero: display token as label
   const char *tooltip;        // hover tooltip, or NULL (from stringpool)
   int         hotkey_index;   // for leaves: index into view's hk[] array, -1 = provider action
   char        action_buf[64]; // for provider leaves: action string copy (stable storage)
@@ -321,12 +322,30 @@ dt_menu_cleanup(dt_menu_t *m)
   dt_menu_set_depth(m, 0);
 }
 
+// returns label if set, else null-terminates label_tkn into buf[9]
+static inline const char *
+dt_menu_entry_label(const dt_menu_entry_t *e, char buf[9])
+{
+  if(e->label) return e->label;
+  if(e->label_tkn) { memcpy(buf, dt_token_str(e->label_tkn), 8); buf[8] = 0; return buf; }
+  return NULL;
+}
+
+// set label from string (if non-NULL) or token fallback
+static inline void
+dt_menu_set_label(dt_menu_entry_t *e, const char *str, dt_token_t tkn)
+{
+  if(str) e->label = str;
+  else    e->label_tkn = tkn;
+}
+
 // try label characters first, then first free slot; *used bitmask: a-z=0-25, 0-9=26-35
 static inline void
 dt_menu_assign_key(dt_menu_entry_t *e, uint64_t *used)
 {
   if(e->key) return;
-  const char *l = e->label;
+  char buf[9];
+  const char *l = dt_menu_entry_label(e, buf);
   if(!l || !l[0]) return;
   int assigned = 0;
   for(int j = 0; l[j] && !assigned; j++)
@@ -373,11 +392,14 @@ dt_menu_assign_stable_keys(dt_menu_entry_t *entries, int cnt, uint64_t *used)
   for(int i = 1; i < cnt && i < DT_MENU_MAX_DYNAMIC; i++)
   {
     int tmp = idx[i];
-    const char *la = entries[tmp].label ? entries[tmp].label : "";
+    char la_buf[9], lb_buf[9];
+    const char *la = dt_menu_entry_label(entries + tmp, la_buf);
+    if(!la) la = "";
     int j = i - 1;
     for(; j >= 0; j--)
     {
-      const char *lb = entries[idx[j]].label ? entries[idx[j]].label : "";
+      const char *lb = dt_menu_entry_label(entries + idx[j], lb_buf);
+      if(!lb) lb = "";
       if(strcmp(lb, la) <= 0) break;
       idx[j + 1] = idx[j];
     }
@@ -707,7 +729,7 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
 
     if(is_slider)
     {
-      const char *base = param->long_name ? param->long_name : dt_token_str(param->name);
+      const char *base = param->long_name;
       for(int c = 0; c < param->cnt && cnt < max; c++)
       {
         dt_menu_entry_init(buf + cnt);
@@ -716,12 +738,18 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
         if(param->cnt > 1)
         { // pack "name N" label after action string for multi-component sliders
           int alen = strlen(buf[cnt].action_buf);
-          snprintf(buf[cnt].action_buf + alen + 1,
-              sizeof(buf[cnt].action_buf) - alen - 1, "%s %d", base, c);
+          if(base)
+            snprintf(buf[cnt].action_buf + alen + 1,
+                sizeof(buf[cnt].action_buf) - alen - 1, "%s %d", base, c);
+          else
+            snprintf(buf[cnt].action_buf + alen + 1,
+                sizeof(buf[cnt].action_buf) - alen - 1, "%.8s %d", dt_token_str(param->name), c);
           buf[cnt].label = buf[cnt].action_buf + alen + 1;
         }
-        else
+        else if(base)
           buf[cnt].label = base;
+        else
+          buf[cnt].label_tkn = param->name;
         buf[cnt].key = 0;
         if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
         cnt++;
@@ -730,15 +758,19 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
     else if(is_rgb)
     {
       static const char *suffix[3] = {" r", " g", " b"};
-      const char *base = param->long_name ? param->long_name : dt_token_str(param->name);
+      const char *base = param->long_name;
       for(int c = 0; c < 3 && cnt < max; c++)
       {
         dt_menu_entry_init(buf + cnt);
         dt_dragkey_format_action(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
             mod->name, mod->inst, param->name, c);
         int alen = strlen(buf[cnt].action_buf);
-        snprintf(buf[cnt].action_buf + alen + 1,
-            sizeof(buf[cnt].action_buf) - alen - 1, "%s%s", base, suffix[c]);
+        if(base)
+          snprintf(buf[cnt].action_buf + alen + 1,
+              sizeof(buf[cnt].action_buf) - alen - 1, "%s%s", base, suffix[c]);
+        else
+          snprintf(buf[cnt].action_buf + alen + 1,
+              sizeof(buf[cnt].action_buf) - alen - 1, "%.8s%s", dt_token_str(param->name), suffix[c]);
         buf[cnt].label = buf[cnt].action_buf + alen + 1;
         buf[cnt].key = 0;
         if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
@@ -748,7 +780,7 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
     else if(is_combo)
     {
       dt_menu_entry_init(buf + cnt);
-      buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
+      dt_menu_set_label(buf + cnt, param->long_name, param->name);
       buf[cnt].key = 0;
       buf[cnt].provider = dt_menu_prov_combo_opts;
       if(modid >= 0x10000 || p >= 0x10000) { dt_log(s_log_err, "[menu] modid/param index exceeds encoding limit, skipping"); continue; }
@@ -761,7 +793,7 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
       dt_menu_entry_init(buf + cnt);
       dt_menu_format_callback_action(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
           mod->name, mod->inst, param->name);
-      buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
+      dt_menu_set_label(buf + cnt, param->long_name, param->name);
       buf[cnt].key = 0;
       if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
       cnt++;
@@ -771,7 +803,7 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
       dt_menu_entry_init(buf + cnt);
       dt_menu_format_widget(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
           mod->name, mod->inst, param->name);
-      buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
+      dt_menu_set_label(buf + cnt, param->long_name, param->name);
       buf[cnt].key = 0;
       if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
       cnt++;
@@ -781,7 +813,7 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
       dt_menu_entry_init(buf + cnt);
       dt_dragkey_format_action(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
           mod->name, mod->inst, param->name, 0);
-      buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
+      dt_menu_set_label(buf + cnt, param->long_name, param->name);
       buf[cnt].key = 0;
       if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
       cnt++;
@@ -792,9 +824,12 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
             mod->name, mod->inst, param->name);
         // pack label "paramname tool" after action string
         int alen = strlen(buf[cnt].action_buf);
-        const char *base = param->long_name ? param->long_name : dt_token_str(param->name);
-        snprintf(buf[cnt].action_buf + alen + 1,
-            sizeof(buf[cnt].action_buf) - alen - 1, "%s tool", base);
+        if(param->long_name)
+          snprintf(buf[cnt].action_buf + alen + 1,
+              sizeof(buf[cnt].action_buf) - alen - 1, "%s tool", param->long_name);
+        else
+          snprintf(buf[cnt].action_buf + alen + 1,
+              sizeof(buf[cnt].action_buf) - alen - 1, "%.8s tool", dt_token_str(param->name));
         buf[cnt].label = buf[cnt].action_buf + alen + 1;
         buf[cnt].key = 0;
         if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
@@ -808,7 +843,7 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
       dt_menu_entry_init(buf + cnt);
       dt_menu_format_activate(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
           mod->name, mod->inst);
-      buf[cnt].label = param->long_name ? param->long_name : dt_token_str(param->name);
+      dt_menu_set_label(buf + cnt, param->long_name, param->name);
       buf[cnt].key = 0;
       if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
       cnt++;
@@ -1219,7 +1254,9 @@ dt_menu_render(dt_menu_t *m, struct nk_context *ctx)
 
       char label_display[192], clean_lbl[128];
       const char *kname = m->children[i].key ? dt_menu_glfw_to_name(m->children[i].key) : "";
-      const char *lbl = m->children[i].label ? m->children[i].label : "?";
+      char lbl_tkn_buf[9];
+      const char *lbl = dt_menu_entry_label(m->children + i, lbl_tkn_buf);
+      if(!lbl) lbl = "?";
       snprintf(clean_lbl, sizeof(clean_lbl), "%s", lbl);
       size_t ll = strlen(clean_lbl);
       if(ll > 4 && !strcmp(clean_lbl + ll - 4, ".pst")) clean_lbl[ll - 4] = 0; // strip .pst
