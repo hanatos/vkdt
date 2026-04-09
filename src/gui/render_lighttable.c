@@ -93,7 +93,7 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
   if(dt_gui_input_blocked()) return; // includes other popups
 
   { // chord menu
-    int mr = dt_menu_keyboard(&lighttable_menu, hk_lighttable, NK_LEN(hk_lighttable), key, action);
+    int mr = dt_menu_keyboard(&lighttable_menu, hk_lighttable, NK_LEN(hk_lighttable), key, action, mods);
     if(mr == 1) return;
     // note: menu-triggered hotkeys not yet wired for lighttable
   }

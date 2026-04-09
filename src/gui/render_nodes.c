@@ -316,7 +316,7 @@ void nodes_keyboard(GLFWwindow *window, int key, int scancode, int action, int m
     return hk_keyboard(hk_nodes, window, key, scancode, action, mods);
   if(dt_gui_input_blocked()) return;
   { // chord menu
-    int mr = dt_menu_keyboard(&nodes_menu, hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]), key, action);
+    int mr = dt_menu_keyboard(&nodes_menu, hk_nodes, sizeof(hk_nodes)/sizeof(hk_nodes[0]), key, action, mods);
     if(mr == 1) return;
   }
   if(action == GLFW_PRESS && key == GLFW_KEY_ESCAPE)
