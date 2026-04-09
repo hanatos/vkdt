@@ -295,6 +295,23 @@ hk_edit(hk_t *hk, size_t num)
   return ret;
 }
 
+// accept either left or right variant of a modifier key
+static inline int
+hk_modifier_pressed(int mod_key)
+{
+  if(glfwGetKey(vkdt.win.window, mod_key) == GLFW_PRESS) return 1;
+  int pair = 0;
+  if(mod_key == GLFW_KEY_LEFT_SHIFT)   pair = GLFW_KEY_RIGHT_SHIFT;
+  if(mod_key == GLFW_KEY_RIGHT_SHIFT)  pair = GLFW_KEY_LEFT_SHIFT;
+  if(mod_key == GLFW_KEY_LEFT_CONTROL) pair = GLFW_KEY_RIGHT_CONTROL;
+  if(mod_key == GLFW_KEY_RIGHT_CONTROL)pair = GLFW_KEY_LEFT_CONTROL;
+  if(mod_key == GLFW_KEY_LEFT_ALT)     pair = GLFW_KEY_RIGHT_ALT;
+  if(mod_key == GLFW_KEY_RIGHT_ALT)    pair = GLFW_KEY_LEFT_ALT;
+  if(mod_key == GLFW_KEY_LEFT_SUPER)   pair = GLFW_KEY_RIGHT_SUPER;
+  if(mod_key == GLFW_KEY_RIGHT_SUPER)  pair = GLFW_KEY_LEFT_SUPER;
+  return pair && glfwGetKey(vkdt.win.window, pair) == GLFW_PRESS;
+}
+
 static inline int
 hk_get_hotkey(hk_t *hotkey, size_t num, int key)
 {
@@ -306,7 +323,7 @@ hk_get_hotkey(hk_t *hotkey, size_t num, int key)
     int cnt = 0;
     for(int k=0;k<4&&hotkey[i].key[k];k++,cnt++);
     if(key != hotkey[i].key[cnt-1]) goto next;
-    for(int k=0;k<cnt-1;k++) if(glfwGetKey(vkdt.win.window, hotkey[i].key[k]) != GLFW_PRESS) goto next;
+    for(int k=0;k<cnt-1;k++) if(!hk_modifier_pressed(hotkey[i].key[k])) goto next;
     if(cnt > max_cnt)
     {
       max_cnt = cnt;
