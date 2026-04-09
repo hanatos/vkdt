@@ -24,7 +24,6 @@ jobs:
           - { package: glfw3.4 }
         raw:
           - { backend: rawler }
-          - { backend: rawspeed }
         compiler:
           - {
               compiler: clang,
