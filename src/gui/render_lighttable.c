@@ -567,7 +567,7 @@ void export_job_work(uint32_t item, void *arg)
   if(j->graph.gui_msg)
     dt_gui_notification(j->graph.gui_msg);
 out:
-  dt_graph_reset(&j->graph);
+  dt_graph_repurpose(&j->graph);
   glfwPostEmptyEvent(); // redraw status bar
 }
 int export_job(
