@@ -766,7 +766,6 @@ void render_darkroom()
         dt_tooltip("level of detail: 1 means full res, any higher number will render on reduced resolution.");
         nk_tab_property(int, ctx, "#", 1, &vkdt.wstate.lod_fine, 16, 1, 1);
         dt_gui_set_lod(vkdt.wstate.lod_fine);
-        vkdt.graph_dev.runflags = s_graph_run_all;
         nk_label(ctx, "level of detail", NK_TEXT_LEFT);
 
         dt_tooltip("level of detail while dragging a slider, for instance. you can set this to higher/coarser than the lod above.");
