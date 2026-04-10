@@ -232,7 +232,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     return;
   }
 
-  int mr = dt_menu_keyboard(&darkroom_menu, hk_darkroom, hk_darkroom_cnt, key, action);
+  int mr = dt_menu_keyboard(&darkroom_menu, hk_darkroom, hk_darkroom_cnt, key, action, mods);
   if(mr == 1) return;
   if(mr < -1) { gui.hotkey = -(mr + 2); goto hotkey_dispatch; }
   if(dt_dragkey_keyboard(&dragkeys, key, action, mods)) return; // keyboard arm

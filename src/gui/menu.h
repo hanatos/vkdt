@@ -1049,7 +1049,8 @@ dt_menu_keyboard(
     hk_t      *hk,
     int        hk_cnt,
     int        key,
-    int        action)
+    int        action,
+    int        mods)
 {
   if(action != GLFW_PRESS && action != GLFW_REPEAT) return m->depth > 0 ? 1 : 0;
   // REPEAT only for navigation keys, not for selection/leader keys
@@ -1058,6 +1059,7 @@ dt_menu_keyboard(
   if(m->depth == 0)
   {
     if(is_repeat) return 0; // don't open menus on repeat
+    if(mods) return 0; // don't steal modified keys (e.g. ctrl+p)
     if(dt_gui_input_blocked()) return 0;
     for(int i = 0; i < m->cnt; i++)
     {

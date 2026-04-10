@@ -415,7 +415,7 @@ files_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
     return hk_keyboard(hk_files, window, key, scancode, action, mods);
   if(dt_gui_input_blocked()) return;
   { // chord menu
-    int mr = dt_menu_keyboard(&files_menu, hk_files, sizeof(hk_files)/sizeof(hk_files[0]), key, action);
+    int mr = dt_menu_keyboard(&files_menu, hk_files, sizeof(hk_files)/sizeof(hk_files[0]), key, action, mods);
     if(mr == 1) return;
   }
   dt_filebrowser_widget_t *w = &filebrowser;
