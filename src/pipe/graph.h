@@ -137,7 +137,7 @@ dt_graph_t;
 
 void dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname); // init
 void dt_graph_cleanup(dt_graph_t *g);                      // cleanup, free memory
-void dt_graph_reset(dt_graph_t *g);                        // lightweight reset, keep allocations
+void dt_graph_repurpose(dt_graph_t *g);                    // reset logical state, keep Vulkan objects
 
 dt_node_t *dt_graph_get_display(dt_graph_t *g, dt_token_t  which);
 

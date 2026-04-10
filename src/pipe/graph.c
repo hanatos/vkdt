@@ -100,54 +100,12 @@ dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
   g->active_module = -1;
 }
 
-void
-dt_graph_cleanup(dt_graph_t *g)
+// Destroy per-image/per-graph-structure Vulkan resources: connector images,
+// staging buffers, pipelines, layouts, framebuffers.  Does NOT touch the
+// stable Vulkan objects (command pool, semaphores, query pools, device memory).
+static void
+graph_destroy_per_image_resources(dt_graph_t *g)
 {
-  if(!g->module) return; // already cleaned up
-#ifdef DEBUG_MARKERS
-  dt_stringpool_cleanup(&g->debug_markers);
-#endif
-  g->active_module = -1;
-  // need to wait on pending commands for graph processing and potential gui display
-  // in case no gui is attached, the display indices should stay at 0 so the wait is a no-op
-  const uint64_t wait_value[] = {
-    MAX(g->display_dbuffer[0], g->display_dbuffer[1]),
-    MAX(g->process_dbuffer[0], g->process_dbuffer[1]),
-  };
-  VkSemaphore sem[] = {
-    g->semaphore_display,
-    g->semaphore_process,
-  };
-  VkSemaphoreWaitInfo wait_info = {
-    .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
-    .semaphoreCount = 2,
-    .pSemaphores    = sem,
-    .pValues        = wait_value,
-  };
-  VkResult res = vkWaitSemaphores(qvk.device, &wait_info, UINT64_MAX);
-  // this can only return all good or DEVICE LOST which would be really bad
-  if(res != VK_SUCCESS)
-  {
-    dt_log(s_log_pipe|s_log_err, "[graph_cleanup] lost device while waiting for semaphores!");
-    return;
-  }
-#ifdef __APPLE__
-  // MoltenVK: semaphore fires before finishQueries() completes; drain queue before freeing pools.
-  vkQueueWaitIdle(qvk.queue[qvk.qid[g->queue_name]].queue);
-#endif
-
-  for(int i=0;i<g->num_modules;i++)
-    if(g->module[i].name && g->module[i].so->cleanup)
-      g->module[i].so->cleanup(g->module+i);
-  for(int i=0;i<g->num_modules;i++)
-  {
-    free(g->module[i].keyframe);
-    g->module[i].keyframe_size = 0;
-    g->module[i].keyframe_cnt = 0;
-    g->module[i].keyframe = 0;
-  }
-  dt_vkalloc_cleanup(&g->heap);
-  dt_vkalloc_cleanup(&g->heap_staging);
   for(int i=0;i<g->num_nodes;i++)
   {
     for(int j=0;j<g->node[i].num_connectors;j++)
@@ -162,7 +120,6 @@ dt_graph_cleanup(dt_graph_t *g)
           if(!img0 || !img1) continue;
           if(img0->buffer == img1->buffer && img0->image == img1->image)
           { // it's enough to clean up one replicant, the rest will shut down cleanly later:
-            // if(img0->image) fprintf(stderr, "discarding img %lx -- %lx\n", img0->image, img1 ? img1->image : 0);
             *img0 = (dt_connector_image_t){0};
           }
         }
@@ -171,13 +128,10 @@ dt_graph_cleanup(dt_graph_t *g)
   }
   for(int i=0;i<g->conn_image_end;i++)
   {
-    if(g->conn_image_pool[i].buffer)     vkDestroyBuffer(qvk.device,    g->conn_image_pool[i].buffer, VK_NULL_HANDLE);
+    if(g->conn_image_pool[i].buffer)     vkDestroyBuffer   (qvk.device, g->conn_image_pool[i].buffer,     VK_NULL_HANDLE);
     if(g->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, g->conn_image_pool[i].image_view, VK_NULL_HANDLE);
-    if(g->conn_image_pool[i].image)      vkDestroyImage(qvk.device,     g->conn_image_pool[i].image,  VK_NULL_HANDLE);
-    g->conn_image_pool[i].buffer = 0;
-    g->conn_image_pool[i].image = 0;
-    g->conn_image_pool[i].image_view = 0;
-    g->conn_image_pool[i].mem = 0;
+    if(g->conn_image_pool[i].image)      vkDestroyImage    (qvk.device, g->conn_image_pool[i].image,      VK_NULL_HANDLE);
+    g->conn_image_pool[i] = (dt_connector_image_t){0};
   }
   for(int i=0;i<g->num_nodes;i++)
   {
@@ -201,14 +155,74 @@ dt_graph_cleanup(dt_graph_t *g)
     vkDestroyDescriptorSetLayout(qvk.device, g->node[i].dset_layout,      0);
     vkDestroyFramebuffer        (qvk.device, g->node[i].draw_framebuffer, 0);
     vkDestroyRenderPass         (qvk.device, g->node[i].draw_render_pass, 0);
-    g->node[i].pipeline_layout = 0;
-    g->node[i].pipeline = 0;
-    g->node[i].dset_layout = 0;
+    g->node[i].pipeline_layout  = 0;
+    g->node[i].pipeline         = 0;
+    g->node[i].dset_layout      = 0;
     g->node[i].draw_framebuffer = 0;
     g->node[i].draw_render_pass = 0;
     dt_raytrace_node_cleanup(g->node + i);
   }
   dt_raytrace_graph_cleanup(g);
+}
+
+// Wait for all in-flight GPU work on this graph to complete.
+// Returns VK_SUCCESS or VK_ERROR_DEVICE_LOST.
+static VkResult
+graph_wait_gpu(dt_graph_t *g, const char *caller)
+{
+  // if no gui is attached, display indices stay at 0, so this is a no-op
+  const uint64_t wait_value[] = {
+    MAX(g->display_dbuffer[0], g->display_dbuffer[1]),
+    MAX(g->process_dbuffer[0], g->process_dbuffer[1]),
+  };
+  VkSemaphore sem[] = { g->semaphore_display, g->semaphore_process };
+  VkSemaphoreWaitInfo wait_info = {
+    .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+    .semaphoreCount = 2,
+    .pSemaphores    = sem,
+    .pValues        = wait_value,
+  };
+  VkResult res = vkWaitSemaphores(qvk.device, &wait_info, UINT64_MAX);
+  if(res != VK_SUCCESS)
+  {
+    dt_log(s_log_pipe|s_log_err, "[%s] lost device while waiting for semaphores!", caller);
+    return res;
+  }
+#ifdef __APPLE__
+  // MoltenVK: semaphore fires before finishQueries() completes; drain queue before freeing pools.
+  vkQueueWaitIdle(qvk.queue[qvk.qid[g->queue_name]].queue);
+#endif
+  return VK_SUCCESS;
+}
+
+// Run module so->cleanup() and free keyframes for all loaded modules.
+static void
+graph_teardown_modules(dt_graph_t *g)
+{
+  for(int i=0;i<g->num_modules;i++)
+  {
+    if(g->module[i].name && g->module[i].so->cleanup)
+      g->module[i].so->cleanup(g->module+i);
+    free(g->module[i].keyframe);
+    g->module[i].keyframe_size = 0;
+    g->module[i].keyframe_cnt  = 0;
+    g->module[i].keyframe      = 0;
+  }
+}
+
+void
+dt_graph_cleanup(dt_graph_t *g)
+{
+  if(!g->module) return; // already cleaned up
+#ifdef DEBUG_MARKERS
+  dt_stringpool_cleanup(&g->debug_markers);
+#endif
+  g->active_module = -1;
+  if(graph_wait_gpu(g, "graph_cleanup") != VK_SUCCESS) return;
+  graph_teardown_modules(g);
+  dt_vkalloc_cleanup(&g->heap);
+  dt_vkalloc_cleanup(&g->heap_staging);
+  graph_destroy_per_image_resources(g);
   vkDestroyDescriptorPool(qvk.device, g->dset_pool, 0);
   vkDestroyDescriptorSetLayout(qvk.device, g->uniform_dset_layout, 0);
   vkDestroyBuffer(qvk.device, g->uniform_buffer, 0);
@@ -574,11 +588,41 @@ dt_graph_connector_image(
     graph->node[nid].conn_image[cid] + MAX(1,graph->node[nid].connector[cid].array_length) * frame + array;
 }
 
-void dt_graph_reset(dt_graph_t *g)
+void
+dt_graph_repurpose(dt_graph_t *g)
 {
-  qvk_queue_name_t qname = g->queue_name;
-  dt_graph_cleanup(g);
-  dt_graph_init(g, qname);
+  if(!g->module) return;
+#ifdef DEBUG_MARKERS
+  dt_stringpool_reset(&g->debug_markers);
+#endif
+  if(graph_wait_gpu(g, "graph_repurpose") != VK_SUCCESS) return;
+  graph_teardown_modules(g);
+  // clear logical allocators (keep vkmem — allocate path handles growth)
+  dt_vkalloc_nuke(&g->heap);
+  dt_vkalloc_nuke(&g->heap_staging);
+  graph_destroy_per_image_resources(g);
+  // reset command pool (reuse buffers, skip destroy/recreate)
+  vkResetCommandPool(qvk.device, g->command_pool, 0);
+  // reset query pool software counters; hardware reset is done inline via vkCmdResetQueryPool
+  for(int i=0;i<2;i++)
+    g->query[i].cnt = 0;
+  // reset logical state; keep Vulkan handles (semaphores, command pool, query pools, vkmem)
+  memset(g->module, 0, sizeof(dt_module_t) * g->num_modules);
+  memset(g->node,   0, sizeof(dt_node_t)   * g->num_nodes);
+  g->num_modules    = 0;
+  g->num_nodes      = 0;
+  g->params_end     = 0;
+  g->conn_image_end = 0;
+  g->frame_cnt      = 1;
+  g->lod_scale      = 1;
+  g->active_module  = -1;
+  g->double_buffer  = 0;  // write-side selector, independent of semaphore timeline
+  g->gui_attached   = 0;
+  g->thumbnail_image = 0; // owned externally
+  g->history_item_cur = 0;
+  g->history_item_end = 0;
+  // keep display_dbuffer/process_dbuffer: semaphore signal values must be
+  // strictly increasing, so the next run must continue from the current values
 }
 
 void

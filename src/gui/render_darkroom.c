@@ -1298,7 +1298,8 @@ darkroom_enter()
     load_default = 1;
   }
 
-  dt_graph_init(&vkdt.graph_dev, s_queue_compute);
+  if(!vkdt.graph_dev.module)
+    dt_graph_init(&vkdt.graph_dev, s_queue_compute);
   vkdt.graph_dev.gui_attached = 1;
   vkdt.graph_dev.gui_colour[0] = vkdt.style.colour[NK_COLOR_DT_ACCENT].r/255.0f;
   vkdt.graph_dev.gui_colour[1] = vkdt.style.colour[NK_COLOR_DT_ACCENT].g/255.0f;
@@ -1446,8 +1447,7 @@ darkroom_leave()
       &imgid, 1,
       &glfwPostEmptyEvent);
 
-  // TODO: repurpose instead of cleanup!
-  dt_graph_cleanup(&vkdt.graph_dev);
+  dt_graph_repurpose(&vkdt.graph_dev);
   dt_graph_history_cleanup(&vkdt.graph_dev);
   vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
   dt_dragkeys_cancel(&dragkeys);
