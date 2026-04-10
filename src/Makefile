@@ -78,7 +78,7 @@ distclean: clean
 	rm -f core/version.h
 
 # GNU_SOURCE for sched_affinity
-CFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c23
+CFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c11
 CXXFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c++17
 EXE_CFLAGS?=-fPIC
 # LDFLAGS=

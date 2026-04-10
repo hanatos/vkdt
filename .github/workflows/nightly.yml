@@ -291,7 +291,7 @@ jobs:
     steps:
       - name: install dependencies
         run: |
-          brew install pkgconf cmake jpeg-turbo ffmpeg make glfw3 vulkan-validationlayers vulkan-headers rust vulkan-tools llvm
+          brew install pkgconf cmake jpeg-turbo ffmpeg make glfw3 vulkan-validationlayers vulkan-headers rust vulkan-tools
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -301,9 +301,6 @@ jobs:
           cd ${SRC_DIR}
           echo "OPT_LDFLAGS=\"-Wl,-rpath,@executable_path/../Frameworks\"" > bin/config.mk
           echo "export OPT_LDLFAGS" >> bin/config.mk
-          echo "CC=$(brew --prefix llvm)/bin/clang" >> bin/config.mk
-          echo "CC=/opt/homebrew/Cellar/llvm@21/21.1.8/bin/clang" >> bin/config.mk
-          echo "export CC" >> bin/config.mk
       - name: compile
         run: |
           make -C ${SRC_DIR} -j20
