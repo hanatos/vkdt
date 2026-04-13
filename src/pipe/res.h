@@ -11,6 +11,18 @@
 #endif
 // simple resource location indirection management
 
+static inline int // return 0 on success
+dt_graph_append_external_resource(
+    dt_graph_t *graph,    // XXX not const!
+    const char *filename)
+{
+  int size = graph->ext_file_max - graph->ext_file_end;
+  int res = snprintf(graph->ext_file_buf + graph->ext_file_end, size, "%s", filename);
+  if(res < 0 || res >= size) return 1;
+  graph->ext_file_end += res + 1; // plus null byte
+  return 0;
+}
+
 // open a file pointer, consider search paths specific to this graph
 // if the path is relative, searches in this order:
 // * graph basedir
