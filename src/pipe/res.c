@@ -60,6 +60,7 @@ dt_graph_open_resource(
     strncpy(filename, fname, sizeof(filename)-1);
     if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
     FILE *f = fopen(filename, mode);  // absolute path or relative to current dir
+    dt_graph_append_external_resource(graph, filename);
     return f; // this was an absolute path, continuing the game is hopeless.
   }
   if(graph && graph->searchpath[0])
@@ -67,21 +68,25 @@ dt_graph_open_resource(
     snprintf(filename, sizeof(filename), "%s/%s", graph->searchpath, fname);
     if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
     FILE *f = fopen(filename, mode);
+    if(f) dt_graph_append_external_resource(graph, filename);
     if(f) return f;
   }
   // if we can't open it in the graph specific search path, try the home directory:
   snprintf(filename, sizeof(filename), "%s/%s", dt_pipe.homedir, fname);
   if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
   FILE *f = fopen(filename, mode);
+  if(f) dt_graph_append_external_resource(graph, filename);
   if(f) return f;
   // global basedir/apk
 #ifdef __ANDROID__
   snprintf(filename, sizeof(filename), "%s", fname);
   if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
-  return android_fopen(filename, mode);
+  f = android_fopen(filename, mode);
 #else
   snprintf(filename, sizeof(filename), "%s/%s", dt_pipe.basedir, fname);
   if((c = strstr(filename, "%04d"))) memcpy(c, fstr, 4);
-  return fopen(filename, mode);
+  f = fopen(filename, mode);
 #endif
+  if(f) dt_graph_append_external_resource(graph, filename);
+  return f;
 }

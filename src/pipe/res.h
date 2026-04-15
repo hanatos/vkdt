@@ -1,6 +1,7 @@
 #pragma once
 #include "pipe/global.h"
 #include "core/fs.h"
+#include "db/stringpool.h"
 #include <dirent.h>
 #ifdef __ANDROID__
 #include "modules/modlist.h"
@@ -11,15 +12,51 @@
 #endif
 // simple resource location indirection management
 
+static inline void
+dt_graph_alloc_external_resources(
+    dt_graph_t *graph)
+{
+  graph->ext_files = (dt_stringpool_t *)malloc(sizeof(dt_stringpool_t));
+  dt_stringpool_init(graph->ext_files, 20, 80);
+}
+
+static inline void
+dt_graph_free_external_resources(
+    dt_graph_t *graph)
+{
+  if(!graph->ext_files) return;
+  dt_stringpool_cleanup(graph->ext_files);
+  free(graph->ext_files);
+  graph->ext_files = 0;
+}
+
+static inline void
+dt_graph_print_external_resources(
+    const dt_graph_t *graph)
+{
+  if(!graph || !graph->ext_files) return;
+  dt_stringpool_t *sp = graph->ext_files;
+  for(int i=0;i<sp->buf_max;)
+  {
+    int len = strlen(sp->buf+i);
+    if(len)
+    {
+      uint32_t pos = dt_stringpool_get(sp, sp->buf+i, len, -1u, 0);
+      if(pos != -1u)
+        fprintf(stderr, "%s\n", sp->buf+i);
+    }
+    i += len+1; // eat terminating 0, too
+  }
+}
+
 static inline int // return 0 on success
 dt_graph_append_external_resource(
-    dt_graph_t *graph,    // XXX not const!
-    const char *filename)
+    const dt_graph_t *graph,
+    const char       *filename)
 {
-  int size = graph->ext_file_max - graph->ext_file_end;
-  int res = snprintf(graph->ext_file_buf + graph->ext_file_end, size, "%s", filename);
-  if(res < 0 || res >= size) return 1;
-  graph->ext_file_end += res + 1; // plus null byte
+  if(!graph || !graph->ext_files) return 0;
+  dt_stringpool_t *sp = (dt_stringpool_t *)graph->ext_files;
+  dt_stringpool_get(sp, filename, strlen(filename), 0, 0);
   return 0;
 }
 
@@ -56,6 +93,7 @@ dt_graph_get_resource_filename(
     snprintf(ret, ret_size, tmp, frame);
     FILE *f = fopen(ret, "rb");
     if(!f) return 1;
+    dt_graph_append_external_resource(mod->graph, ret);
     fclose(f);
   }
   else
@@ -63,6 +101,7 @@ dt_graph_get_resource_filename(
     snprintf(ret, ret_size, fname, frame);
     FILE *f = fopen(ret, "rb");
     if(!f) return 1;
+    dt_graph_append_external_resource(mod->graph, ret);
     fclose(f);
   }
   return 0;

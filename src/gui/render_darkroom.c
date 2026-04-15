@@ -1364,6 +1364,7 @@ darkroom_enter()
     else vkdt.graph_dev.active_module = -1;
   }
 
+  dt_graph_alloc_external_resources(&vkdt.graph_dev);
   dt_gui_set_lod(vkdt.wstate.lod_fine);
   vkdt.graph_dev.runflags = s_graph_run_all;
   vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
@@ -1375,6 +1376,8 @@ darkroom_enter()
   if(vkdt.graph_res[vkdt.graph_dev.double_buffer] == VK_SUCCESS)
     vkdt.graph_res[vkdt.graph_dev.double_buffer] = -1;
   vkdt.graph_dev.double_buffer = 1; // we are rendering to 0, make sure the display code uses this dset after swapping
+  dt_graph_print_external_resources(&vkdt.graph_dev);
+  dt_graph_free_external_resources(&vkdt.graph_dev);
 
   // nodes are only constructed after running once
   // (could run up to s_graph_run_create_nodes)

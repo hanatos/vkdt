@@ -3,9 +3,7 @@
 #include "module.h"
 #include "alloc.h"
 #include "raytrace.h"
-#ifdef DEBUG_MARKERS
-#include "db/db.h"         // for string pool type
-#endif
+#include "db/stringpool-fwd.h"
 
 // create nodes requires roi requires alloc requires upload source
 typedef uint32_t dt_graph_run_t;
@@ -130,9 +128,7 @@ typedef struct dt_graph_t
   uint32_t              main_img_hash;
   dt_image_params_t     main_img_param;// will be copied over from the i-*:main module after modify_roi_out
 
-  char                 *ext_file_buf;  // track external file usage: set this to a non-zero buffer
-  size_t                ext_file_max;  // also set this to the size of above buffer
-  size_t                ext_file_end;  // and this to zero
+  dt_stringpool_t      *ext_files;     // track external file usage: point this to a stringpool
 
 #ifdef DEBUG_MARKERS
   dt_stringpool_t       debug_markers; // store string names of vk objects here
