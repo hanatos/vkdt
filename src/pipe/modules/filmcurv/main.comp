@@ -17,16 +17,12 @@ layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 float lerp_chromaticity_angle(float h1, float h2, float t)
 {
   float delta = h2 - h1;
-  if (delta > M_PI)
-  {
-    h2 -= 2.0 * M_PI;  // Go the reverse direction
-  }
-  else if (delta < -M_PI)
-  {
-    h2 += 2.0 * M_PI;  // Go the reverse direction
-  }
+  if (delta > 0.5)
+    h2 -= 1.0;  // go the reverse direction
+  else if (delta < -0.5)
+    h2 += 1.0;  // go the reverse direction
   float lerped = h1 + t * (h2 - h1);
-  return mod(lerped, 2.0 * M_PI);  // Wrap around at 2*pi
+  return mod(lerped, 1.0);  // wrap around modulus
 }
 
 vec3 
