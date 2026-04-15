@@ -1364,7 +1364,8 @@ darkroom_enter()
     else vkdt.graph_dev.active_module = -1;
   }
 
-  dt_graph_alloc_external_resources(&vkdt.graph_dev);
+  // do this to track usage of external files. not sure how to best wire it in the ui:
+  // dt_graph_alloc_external_resources(&vkdt.graph_dev);
   dt_gui_set_lod(vkdt.wstate.lod_fine);
   vkdt.graph_dev.runflags = s_graph_run_all;
   vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
