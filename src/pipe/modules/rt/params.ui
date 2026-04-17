@@ -14,3 +14,4 @@ cam_mod:filename
 cam_inst:filename
 group:-1:-1
 sampler:combo:path tracing:mcpg
+speedmod:slider:-4:4

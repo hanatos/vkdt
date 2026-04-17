@@ -138,7 +138,9 @@ void commit_params(dt_graph_t *graph, dt_module_t *mod)
   float fwd[] = {p_cam[4], p_cam[5], p_cam[6]};
   float top[] = {0, 0, 1};
   float rgt[3]; cross(top, fwd, rgt);
-  float vel = 0.05f;
+  float p_spd = dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("speedmod")))[0]
+;
+  float vel = 0.5f * pow(2.0f, p_spd);
   if(rt->move & (1<<0)) for(int k=0;k<3;k++) p_cam[k] += vel * fwd[k];
   if(rt->move & (1<<1)) for(int k=0;k<3;k++) p_cam[k] -= vel * fwd[k];
   if(rt->move & (1<<2)) for(int k=0;k<3;k++) p_cam[k] += vel * rgt[k];

@@ -11,3 +11,4 @@ cam_inst:string:8:
 envmap:string:256:env.hdr
 startid:int:1:0
 sampler:int:1:0
+speedmod:float:1:0
