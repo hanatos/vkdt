@@ -25,3 +25,9 @@ playstation button in the center:
 <source src="gamepad.webm" type="video/webm">
 no video
 </video>
+
+## adding support for new gamepads
+
+vkdt will read custom `gamecontrollerdb.txt` files in your working directory.
+if your device doesn't have an entry, it is possible to create just the ones
+you need via [`controllermap`](https://aur.archlinux.org/packages/controllermap).
