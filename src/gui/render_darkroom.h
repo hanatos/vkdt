@@ -869,8 +869,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         // coordinates of the module!
         // the output is the anticipated output while we switched off crop
         // first convert these v[] from input w/h to output w/h of the module:
-        const float iwd = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.wd;
-        const float iht = vkdt.graph_dev.module[vkdt.wstate.active_widget_modid].connector[0].roi.ht;
         const float owd = portrait ? iht : iwd;
         const float oht = portrait ? iwd : iht;
         // reset module params so the image will not appear cropped:
