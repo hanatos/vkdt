@@ -25,8 +25,6 @@ typedef struct dt_graph_export_output_t
 dt_graph_export_output_t;
 
 // parameter struct for export.
-// 0 is default
-// TODO: support live graph, so we can drop in without re-alloc..?
 typedef struct dt_graph_export_t
 {
   const char  *p_cfgfile;      // if not NULL, read this config file (or the default)
@@ -44,6 +42,8 @@ typedef struct dt_graph_export_t
   int          last_frame_only;// only write the very last frame of an animation
   int          print_progress; // print progress (for long animations)
   atomic_uint *p_abort;        // if non-zero, the will watch this place to flag early abortion
+
+  void       (*progress)(void);// if non-zero, call after progress has been made
 }
 dt_graph_export_t;
 

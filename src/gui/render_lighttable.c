@@ -546,6 +546,7 @@ void export_job_work(uint32_t item, void *arg)
   param.last_frame_only      = j->last_frame_only;
   param.p_cfgfile            = infilename;
   param.p_abort              = &j->abort;
+  param.progress             = &glfwPostEmptyEvent;
   if(j->output_module == dt_token("o-web"))
   { // if module is o-web, also generate thumbnails at reduced size.
     param.output_cnt = 2;

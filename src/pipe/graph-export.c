@@ -309,6 +309,7 @@ dt_graph_export(
           audio_cnt -= delta; audio_pos += delta;
         }
       }
+      if(param->progress) param->progress();
       if(param->print_progress)
         fprintf(stderr, "\r[export] processing frame %d/%d", graph->frame, graph->frame_cnt-1);
     }
