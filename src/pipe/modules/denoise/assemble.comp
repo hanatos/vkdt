@@ -3,6 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
+#include "noise.glsl"
 #include "matrices.h"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
@@ -74,9 +75,8 @@ main()
     // this means we have to re-scale our normalised value to the previous white level.
     // const float scale = 65535.0*(push.white.g-push.black.g);
     // const float sigma = max(1e-8, 5.0 * sqrt(push.noise_a + scale*max(down2.x, 0.0)*push.noise_b)/scale);
-    const float scale = 65535.0;
     // keep this in sync with down.comp!
-    const float sigma = max(1e-8, 20.0 * sqrt(push.noise_a + scale*max(down2.g, 0.0)*push.noise_b)/scale);
+    const float sigma = noise_sigma(push.noise_a, push.noise_b, push.black.g, push.white.g, max(down2.x, 0));
     // Var(aX) = a^2 * Var(X), so the factors of our filter taps come in squared here:
     // var band = 
     //  (t*t + (1.0-t)*(1.0-t)*4.0/16.0*(

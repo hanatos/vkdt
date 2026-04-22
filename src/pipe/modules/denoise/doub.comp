@@ -3,6 +3,7 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 
 #include "shared.glsl"
+#include "noise.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -84,8 +85,7 @@ main()
       // T /= upsm.w;
     }
   }
-  const float scale = 65535.0;
-  const float sigma = 10.0*sqrt(push.noise_a + scale*max(crs, 0.0)*push.noise_b)/scale;
+  const float sigma = noise_sigma(push.noise_a, push.noise_b, black, white, crs);
   float val = texture(img_in, (ipos+push.crop.xy+.5)/vec2(textureSize(img_in, 0))).r;
 
   blendw = 0.5 * (blendw + 1.0);

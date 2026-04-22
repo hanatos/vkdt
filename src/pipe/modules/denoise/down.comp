@@ -4,6 +4,7 @@
 
 #include "shared.glsl"
 #include "cov.glsl"
+#include "noise.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -76,10 +77,9 @@ main()
     vec3 sum = t * rgb;
     float wgt = t;
     // const float scale = /*push.level == 0 ? 1.0 : */ 65535.0*(push.white.g-push.black.g);
-    const float scale = 65535.0;
     const float block = (push.block == 3) ? 2.23607 : (push.block == 2 ? 1.414213 : 1.0);
 
-    const float sigma = pow(0.7, push.level) * 20.0 * sqrt(push.noise_a + scale*max(rgb.x, 0.0)*push.noise_b)/scale / block;
+    const float sigma = pow(0.7, push.level) * noise_sigma(push.noise_a, push.noise_b, push.black.g, push.white.g, rgb.r)/block;
     vec3 wc = vec3(1./sigma);
 #define lookup(O) \
     do { \
