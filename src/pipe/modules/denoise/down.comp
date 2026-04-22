@@ -13,6 +13,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float strength;
   float luma;
   float detail;
+  float edges;
   int   gainmap;
 } params;
 
@@ -79,7 +80,7 @@ main()
     // const float scale = /*push.level == 0 ? 1.0 : */ 65535.0*(push.white.g-push.black.g);
     const float block = (push.block == 3) ? 2.23607 : (push.block == 2 ? 1.414213 : 1.0);
 
-    const float sigma = pow(0.7, push.level) * noise_sigma(push.noise_a, push.noise_b, push.black.g, push.white.g, rgb.r)/block;
+    const float sigma = pow(0.7, push.level) * noise_sigma(push.noise_a, push.noise_b, push.black.g, push.white.g, params.edges, rgb.r)/block;
     vec3 wc = vec3(1./sigma);
 #define lookup(O) \
     do { \

@@ -3,7 +3,8 @@ float noise_sigma(
     float noise_b, // poissonian part of the noise
     float black,
     float white,
+    float edges,
     float val)     // pixel value in [0, 1]
 {
-  return 2.0*sqrt(noise_a + max(0, (val-black)/(white-black))*noise_b);
+  return (1.0/edges)*sqrt(noise_a + max(0, (val-black)/(white-black))*noise_b);
 }

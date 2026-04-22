@@ -13,6 +13,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float strength;
   float luma;
   float detail;
+  float edges;
   int   gainmap;
 } params;
 
@@ -76,7 +77,7 @@ main()
     // const float scale = 65535.0*(push.white.g-push.black.g);
     // const float sigma = max(1e-8, 5.0 * sqrt(push.noise_a + scale*max(down2.x, 0.0)*push.noise_b)/scale);
     // keep this in sync with down.comp!
-    const float sigma = noise_sigma(push.noise_a, push.noise_b, push.black.g, push.white.g, max(down2.x, 0));
+    const float sigma = noise_sigma(push.noise_a, push.noise_b, push.black.g, push.white.g, params.edges, max(down2.x, 0));
     // Var(aX) = a^2 * Var(X), so the factors of our filter taps come in squared here:
     // var band = 
     //  (t*t + (1.0-t)*(1.0-t)*4.0/16.0*(
@@ -136,10 +137,10 @@ main()
     // we assume sigma_noise = frac * sigma_signal and cancel the two.
     // since we rescaled the bands to unit noise variance, the threshold is
     // just a (user) constant and the edge shielding term:
-    vec3 thrs0 = vec3(params.strength);
+    vec3 thrs0 = vec3(pow(params.strength, 4.0));
     vec3 thrs;
     vec3 tt = vec3(0.0);
-    const float ht = 2.0;
+    const float ht = 10.0;
     thrs = mix(thrs0, vec3(10000.0), bvec3(abs(down3.x) > ht));
     tt = min(vec3(1.0), abs(down3)/(2*thrs));
     down4 += sigma * b3 * sign(down3) * mix(max(abs(down3) - thrs, vec3(0.0)), abs(down3), tt);

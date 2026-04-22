@@ -12,6 +12,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float strength;
   float luma;
   float detail;
+  float edges;
   int   gainmap;
 } params;
 
@@ -85,7 +86,7 @@ main()
       // T /= upsm.w;
     }
   }
-  const float sigma = noise_sigma(push.noise_a, push.noise_b, black, white, crs);
+  const float sigma = noise_sigma(push.noise_a, push.noise_b, black, white, params.edges, crs);
   float val = texture(img_in, (ipos+push.crop.xy+.5)/vec2(textureSize(img_in, 0))).r;
 
   blendw = 0.5 * (blendw + 1.0);
