@@ -29,6 +29,10 @@ void ui_callback(
       module->img_param.maker,
       module->img_param.model,
       (int)module->img_param.iso);
+  if(!module->img_param.maker[0]) // just make sure we don't start filnames with a '-', that's rude
+    snprintf(filename, sizeof(filename), "unknown-%s-%d.nprof",
+        module->img_param.model,
+        (int)module->img_param.iso);
   if(param == dt_token("test"))
   { // transfer new noise profile parameters to i-raw:main for a test
     FILE *f = fopen(filename, "rb");
@@ -109,15 +113,14 @@ void write_sink(
         if(c < fk*64) continue;
         double m1 = p32[i + 1*wd];
         double m2 = p32[i + 2*wd];
-        const double bk = module->img_param.black[1];
-        double x1 = m1/c - bk;
+        double x1 = m1/c;
         double y1 = m2/c - (m1/c)*(m1/c);
 
         c  = p32[j + 0*wd];
         if(c < fk*64) continue;
         m1 = p32[j + 1*wd];
         m2 = p32[j + 2*wd];
-        double x2 = m1/c - bk;
+        double x2 = m1/c;
         double y2 = m2/c - (m1/c)*(m1/c);
 
         if(y1 <= 0 || y2 <= 0) continue;
@@ -125,7 +128,6 @@ void write_sink(
         double ea  = y1 - x1 * eb;
         if(!(eb > 0.0)) continue;
         if(!(ea > 0.0)) continue;
-        if(!(ea < 35000.0)) continue; // half the range noise? that would be extraordinary
 
         if(++score > fk*32) // count a valid sample for this i
         {
@@ -146,35 +148,29 @@ void write_sink(
 
   // incredibly simplistic linear regression from stack overflow.
   // compute covariance matrix and from that the parameters a, b:
-  // FILE *d = fopen("test.dat", "wb");
   double sx = 0.0, sx2 = 0.0, sy = 0.0, sxy = 0.0;
   double cnt = 0.0;
-  // double white = log2(module->img_param.white[1])/16.0f;
-  // double black = log2(module->img_param.black[1])/16.0f;
   for(int ii=0;ii<valid_cnt;ii++)
   {
     int i = valid[ii];
     double c  = p32[i + 0*wd];
     // brightness from bin index:
-    // double x = exp2((i / (double)wd * (white - black) + black) * 16.0) - module->img_param.black[1];
     double m1 = p32[i + 1*wd];
-    double x = m1/c - module->img_param.black[1]; // brightness from mean, agrees with x as above
+    double x = m1/c;
     double m2 = p32[i + 2*wd];
-    double y = m2/c - m1/c*m1/c;
+    double y = MAX(0.0f, m2/c - m1/c*m1/c);
     cnt += c;
     sx  += x * c;
     sx2 += x*x * c;
     sy  += y * c;
     sxy += x*y * c;
-    // fprintf(d, "%g %g\n", x, y);
   }
-  // fclose(d);
 
   float denom = cnt * sx2 - sx*sx;
   if(fabs(denom) > 1e-10f)
   {
-    b = (cnt * sxy - sx * sy) / denom;
-    a = (sy * sx2 - sx * sxy) / denom;
+    b = MAX(0.0f, (cnt * sxy - sx * sy) / denom);
+    a = MAX(0.0f, (sy * sx2 - sx * sxy) / denom);
   }
   if(valid_cnt <= 0)
   { // catch / 0 or overflows
@@ -187,6 +183,10 @@ void write_sink(
       module->img_param.maker,
       module->img_param.model,
       (int)module->img_param.iso);
+  if(!module->img_param.maker[0]) // just make sure we don't start filnames with a '-', that's rude
+    snprintf(filename, sizeof(filename), "unknown-%s-%d.nprof",
+        module->img_param.model,
+        (int)module->img_param.iso);
   fprintf(stdout, "[nprof] writing '%s'\n", filename);
   FILE* f = fopen(filename, "wb");
   if(f)

@@ -18,9 +18,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
-// display histogram, runs on output dimensions==output
-void
-main()
+void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
@@ -36,19 +34,16 @@ main()
   const vec3 col_var = vec3(1.0, 0.2, 0.2);
   vec3 rgb = vec3(0);
   float y = float(imageSize(img_out).y - ipos.y - 1) / float(imageSize(img_out).y);
-  const float c1 = 0.04;
-  const float c2 = 0.05;
+  const float c1 = 20.0; // scale variance
+  const float c2 = 0.05; // scale count
 
-  float white = log2(params.white)/16.0;
-  float black = log2(params.black)/16.0;
-  float linear_x = mean/cnt - params.black;//exp2(x / float(textureSize(img_in, 0).x * (white - black) + black) * 16.0) - params.black;
+  float linear_x = mean/cnt;
   float fit = params.c + params.dx * linear_x;
-  if(abs(y - log2(var) * c1) < 0.015)
+  if(abs(y - sqrt(var) * c1) < 0.015)
     rgb = .5*(rgb + col_var);
   if(y < log2(cnt) * c2)
     rgb += col_cnt;
-  if(abs(y - log2(fit) * c1) < 0.005)
-    rgb += smoothstep(0.0, 1.0, 1.0-abs(y - log2(fit) * c1)/0.005);
+  if(abs(y - sqrt(fit) * c1) < 0.005)
+    rgb += smoothstep(0.0, 1.0, 1.0-abs(y - sqrt(fit) * c1)/0.005);
   imageStore(img_out, ipos, vec4(rgb, 1.0));
 }
-
