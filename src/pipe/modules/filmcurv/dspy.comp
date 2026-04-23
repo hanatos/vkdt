@@ -3,7 +3,13 @@
 #extension GL_EXT_nonuniform_qualifier    : enable
 #include "shared.glsl"
 #include "params.glsl"
+#include "shared/oetf.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  int frame, frame_cnt, hash, pad;
+  vec4 col, hov;
+} global;
 layout(set = 1, binding = 0, std430) buffer buf_hist { uint  histogram[]; };
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 void main()
@@ -13,18 +19,25 @@ void main()
 
   vec4 col_crv = vec4(vec3(0.05), 1); // background colour
 
+
+  float il = max(5e-3, params.brightness);
+  float k  = max(1e-4, params.contrast);
+  float x = oetf_filmlight_tlog(ipos.x/float(imageSize(img_out).x));
+  float y = weibull_cdf(x, il, k);
+  y += params.bias;
+  float ddx = weibull_pdf(x, il, k);
+  ddx *= oetf_filmlight_tlog_ddx(ipos.x/float(imageSize(img_out).x));
+  if(x < 0) ddx = 0;
+
   { // draw histogram
+    if(ipos.y > imageSize(img_out).y*0.9) col_crv.rgb = vec3(x);
     const uint hist_size = 256;
     vec2 tc = (ipos+0.5) / vec2(imageSize(img_out));
     const float h = 0.25*log(1.0+100000.0*histogram[int(clamp(tc.x*hist_size, 0, hist_size-1))]/float(histogram[hist_size]))-1.0;
     if(1.0-tc.y < h) col_crv.rgb = vec3(0.3);
+    if(abs(x-1.0) <= 0.02) col_crv.rgb = global.hov.rgb;
   }
 
-  float il = max(5e-3, params.brightness);
-  float k  = max(1e-4, params.contrast);
-  float x = ipos.x/float(imageSize(img_out).x);
-  float y = weibull_cdf(x, il, k);
-  float ddx = weibull_pdf(x, il, k);
   if(params.colourmode == 5)
   {
     ddx *= 1.0 + params.rolloff * y * (2.0 - 3.0 * y); // chain rule through rolloff
@@ -41,8 +54,8 @@ void main()
       y = mix(y, yt, s);
     }
   }
-  const float w = 7.0; // stroke width
-  float t = w * sqrt(1.0 + ddx*ddx); // line thickness along const y
+  const float w = 4.0; // stroke width
+  float t = w * clamp(sqrt(1.0 + ddx*ddx), 0, 10); // line thickness along const y
   float d = abs((1.0-y) * imageSize(img_out).y - ipos.y);
   col_crv.rgb = mix(col_crv.rgb, vec3(0.9), vec3(smoothstep(t, 0.0, d)));
   imageStore(img_out, ipos, col_crv);

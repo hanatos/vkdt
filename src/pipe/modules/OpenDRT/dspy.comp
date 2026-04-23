@@ -5,6 +5,11 @@
 #include "params.glsl"
 #include "opendrt.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  int frame, frame_cnt, hash, pad;
+  vec4 col, hov;
+} global;
 layout(set = 1, binding = 0, std430) buffer buf_hist { uint  histogram[]; };
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 void main()
@@ -14,16 +19,21 @@ void main()
 
   vec3 rgb = vec3(0.05); // background colour
 
+  vec2 pos = ipos;
+  vec2 res = imageSize(img_out);
+  float crv_tsn = 0.0;
+  crv_tsn = oetf_filmlight_tlog(pos.x/res.x);
+
   { // draw histogram
+    if(ipos.y > imageSize(img_out).y*0.9)
+      rgb = vec3(crv_tsn);
     const uint hist_size = 256;
     vec2 tc = (ipos+0.5) / vec2(imageSize(img_out));
     const float h = 0.25*log(1.0+100000.0*histogram[int(clamp(tc.x*hist_size, 0, hist_size-1))]/float(histogram[hist_size]))-1.0;
     if(1.0-tc.y < h) rgb = vec3(0.3);
+    if(abs(crv_tsn-1.0) <= 0.02) rgb = global.hov.rgb;
   }
 
-  vec2 pos = ipos;
-  vec2 res = imageSize(img_out);
-  float crv_tsn = 0.0;
   const float ts_x1 = pow(2.0f, 6.0f*params.tn_sh + 4.0f);
   const float ts_y1 = params.tn_Lp/100.0f;
   const float ts_x0 = 0.18f + params.tn_off;
@@ -36,7 +46,6 @@ void main()
   const float ts_s = ts_x0*(pow(ts_s0/ts_m2, -1.0f/params.tn_con) - 1.0f);
   const float ts_dsc = params.eotf==4 ? 0.01 : params.eotf==5 ? 0.1 : 100.0f/params.tn_Lp;
   const float s_Lp100 = ts_x0*(pow((params.tn_Lg/100.0f), -1.0f/params.tn_con) - 1.0f);
-  crv_tsn = oetf_filmlight_tlog(pos.x/res.x);
   crv_tsn += params.tn_off;
   if(params.tn_lc_en == 1)
   {

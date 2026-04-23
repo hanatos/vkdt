@@ -3,8 +3,15 @@ vec3 oetf_davinci_intermediate(vec3 x) {
     return mix(x/10.44426855, exp2(x/0.07329248 - 7.0) - 0.0075, greaterThan(x, vec3(0.02740668)));
 }
 // histogram uses this for single channel:
-float oetf_filmlight_tlog(float x) {
+float oetf_filmlight_tlog(float x) { // log to linear
   return mix(exp((x - 0.5520126568606655)/0.09232902596577353) - 0.0057048244042473785, (x-0.075)/16.184376489665897, x < 0.075);
+}
+float oetf_filmlight_tlog_ddx(float x)
+{
+  return mix(1.0/0.09232902596577353*exp((x - 0.5520126568606655)/0.09232902596577353), 1.0/16.184376489665897, x < 0.075);
+}
+float eotf_filmlight_tlog(float v) { // linear to log
+  return mix(log(v + 0.0057048244042473785) * 0.09232902596577353 + 0.5520126568606655, v*16.184376489665897 + 0.075, v < 0.0);
 }
 vec3 oetf_filmlight_tlog(vec3 x) {
   return mix(exp((x - 0.5520126568606655)/0.09232902596577353) - 0.0057048244042473785, (x-0.075)/16.184376489665897, lessThan(x, vec3(0.075)));
