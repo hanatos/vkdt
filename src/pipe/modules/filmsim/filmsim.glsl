@@ -6,6 +6,14 @@
 // number of spectral samples/wavelengths when integrating
 #define SN 40
 
+vec3 get_sensitivity(vec2 tc)
+{
+  vec3 log_sensitivity = texture(img_filmsim, tc).rgb;
+  // vec3 log_sensitivity = sample_catmull_rom_1d(img_filmsim, tc).rgb;
+  vec3 sensitivity = pow(vec3(10.0), log_sensitivity);
+  return mix(sensitivity, vec3(0.0), isnan(sensitivity));
+}
+
 int binom(inout uint seed, int n, float p)
 { // gaussian approximation, good for large n*p
   float u = n*p;
@@ -16,7 +24,7 @@ int binom(inout uint seed, int n, float p)
 
 float envelope(float w)
 {
-  return smoothstep(380.0, 400.0, w)*(1.0-smoothstep(700.0, 730.0, w));
+  return 1000.0*smoothstep(380.0, 400.0, w)*(1.0-smoothstep(700.0, 730.0, w));
 }
 
 vec3 thorlabs_filters(float w)
@@ -150,10 +158,7 @@ expose_film(vec3 rgb, int film)
     // not sure if needed: cuts off wavelength ranges that the spectral
     // upsampling doesn't care about since it is outside the XYZ support
     float env = envelope(lambda);
-    vec3 log_sensitivity = texture(img_filmsim, tc).rgb;
-    // vec3 log_sensitivity = sample_catmull_rom_1d(img_filmsim, tc).rgb;
-    vec3 sensitivity = pow(vec3(10.0), log_sensitivity);
-    sensitivity = mix(sensitivity, vec3(0.0), isnan(sensitivity));
+    vec3 sensitivity = get_sensitivity(tc);
     raw += sensitivity * val * env / pdf;
   }
   const float one_log10 = 0.43429448190325176, log2_log10 = 0.30102999566398114;
@@ -285,10 +290,7 @@ enlarger_expose_negative_to_paper(vec3 rgb)
     float lambda = 380.0 + l*400.0/SN;
     vec2 tc = vec2(0.0, get_tcy(s_sensitivity, paper));
     tc.x = (l*(80.0/SN)+0.5)/256.0;
-    vec3 log_sensitivity = texture(img_filmsim, tc).rgb;
-    vec3 sensitivity = pow(vec3(10.0), log_sensitivity);
-    sensitivity = mix(sensitivity, vec3(0.0), isnan(sensitivity));
-
+    vec3 sensitivity = get_sensitivity(tc);
     float transmittance = sigmoid_eval(coeff, lambda);
 
     float illuminant = (0.002*40.0/SN)*colour_blackbody(vec4(lambda), 2856.0).x;
@@ -335,10 +337,7 @@ enlarger_expose_film_to_paper(vec3 density_cmy)
     float lambda = 380.0 + l*400.0/SN;
     vec2 tc = vec2(0.0, get_tcy(s_sensitivity, paper));
     tc.x = (l*(80.0/SN)+0.5)/256.0;
-    vec3 log_sensitivity = texture(img_filmsim, tc).rgb;
-    vec3 sensitivity = pow(vec3(10.0), log_sensitivity);
-    sensitivity = mix(sensitivity, vec3(0.0), isnan(sensitivity));
-
+    vec3 sensitivity = get_sensitivity(tc);
     tc.y = get_tcy(s_dye_density, film);
     vec4 dye_density = texture(img_filmsim, tc);
     dye_density = mix(dye_density, vec4(1000000.0), isnan(dye_density));
