@@ -459,6 +459,193 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       }
     }
   }
+  else if(param->widget.type == dt_token("colwheel"))
+  { // color wheel trackball + master slider. works for float count == 4
+    // wheel shows displacement from default; uses screen coords (y-down)
+    // layout: 2 wheels per row using nk_layout_space for absolute positioning
+    if((num % 4) == 0 && num+4 <= count)
+    {
+      float *val = (float *)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+      const float *def = (const float *)param->val + num;
+      float oldval[4]; memcpy(oldval, val, sizeof(oldval));
+      // window canvas clips to the panel; global_cmd has clipping off
+      struct nk_command_buffer *cmd = nk_window_get_canvas(ctx);
+      float disp[3] = { val[0] - def[0], val[1] - def[1], val[2] - def[2] };
+
+      // determine column: count preceding colwheel params in this module
+      int cw_idx = 0;
+      for(int p = 0; p < parid; p++)
+        if(vkdt.graph_dev.module[modid].so->param[p]->widget.type == dt_token("colwheel"))
+          cw_idx++;
+      const int cw_col = cw_idx & 1; // 0=left, 1=right
+
+      const float half_pw = pwd * 0.5f - ctx->style.window.spacing.x * 0.5f;
+      const float wheel_d = half_pw * 0.8f; // wheel diameter
+      const float cell_ht = wheel_d + 1.6f * row_height;
+
+      // HACK: this static is used to position the right colour wheel next to the
+      // left one. it is reset per module by checking the modid to avoid leaking
+      // layout state between modules.
+      static struct nk_rect cw_left_row = {0};
+      static int cw_last_modid = -1;
+      if(modid != cw_last_modid)
+      {
+        cw_left_row.h = 0;
+        cw_last_modid = modid;
+      }
+      float bx, by;
+      if(cw_col == 0)
+      { // left column: reserve full row height
+        nk_layout_row_dynamic(ctx, cell_ht, 1);
+        cw_left_row = nk_widget_bounds(ctx);
+        nk_spacing(ctx, 1);
+        bx = cw_left_row.x;
+        by = cw_left_row.y;
+      }
+      else
+      { // right column: draw into right half of previous row
+        bx = cw_left_row.x + half_pw + ctx->style.window.spacing.x;
+        by = cw_left_row.y;
+        cw_left_row.h = 0; // invalidate, the row is complete
+      }
+
+      // shared wheel drawing + interaction
+      float ccx = bx + half_pw * 0.5f;
+      float ccy = by + wheel_d * 0.5f;
+      float radius = wheel_d * 0.45f;
+
+      // DaVinci orientation: R at 12, G at 8, B at 4 o'clock
+      for(int i = 0; i < 48; i++)
+      {
+        float a0 = 2.0f * M_PI * i / 48.0f;
+        float a1 = 2.0f * M_PI * (i + 1) / 48.0f;
+        float h  = -(a0 + a1) * 0.5f - (float)M_PI * 0.5f;
+        nk_fill_arc(cmd, ccx, ccy, radius, a0, a1, nk_rgba_f(
+              0.5f + 0.5f * cosf(h),
+              0.5f + 0.5f * cosf(h - 2.0f*M_PI/3.0f),
+              0.5f + 0.5f * cosf(h + 2.0f*M_PI/3.0f), 1.0f));
+      }
+      float ir = radius * 0.78f;
+      nk_fill_circle(cmd, (struct nk_rect){ccx-ir, ccy-ir, ir*2, ir*2}, nk_rgba(30, 30, 30, 220));
+
+      const float sc   = radius * 0.7f;
+      const float rt32 = 0.8660254f; // sqrt(3)/2
+      float wx = rt32 * (disp[2] - disp[1]);
+      float wy = -disp[0] + 0.5f * (disp[1] + disp[2]);
+      float dpx = ccx + wx * sc * 3.0f;
+      float dpy = ccy + wy * sc * 3.0f;
+      nk_stroke_line(cmd, ccx-6, ccy, ccx+6, ccy, 1.0f, nk_rgba(100,100,100,180));
+      nk_stroke_line(cmd, ccx, ccy-6, ccx, ccy+6, 1.0f, nk_rgba(100,100,100,180));
+      float dr = 6.0f;
+      nk_fill_circle(cmd, (struct nk_rect){dpx-dr, dpy-dr, dr*2, dr*2}, nk_rgba(220,220,220,255));
+      nk_stroke_circle(cmd, (struct nk_rect){dpx-dr, dpy-dr, dr*2, dr*2}, 1.5f, nk_rgba(0,0,0,255));
+
+      // wheel interaction
+      struct nk_rect warea = {bx, by, half_pw, wheel_d};
+      int already_active = vkdt.wstate.active_widget_modid == modid &&
+                           vkdt.wstate.active_widget_parid == parid &&
+                           vkdt.wstate.active_widget_parnm == num;
+      // double-click resets to default (like other sliders)
+      if(!vkdt.wstate.dragkey_latched &&
+         nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, warea))
+      { val[0] = def[0]; val[1] = def[1]; val[2] = def[2]; val[3] = def[3]; change = 1;
+        if(already_active) widget_end(); }
+      // right-click contextual menu
+      { struct nk_vec2 csize = {warea.w, warea.w};
+        if(nk_contextual_begin(ctx, 0, csize, warea))
+        {
+          nk_layout_row_dynamic(ctx, row_height, 1);
+          if(is_fav_menu)
+          {
+            if(nk_contextual_item_label(ctx, "remove from favs", NK_TEXT_LEFT))
+              dt_gui_remove_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name);
+            if(nk_contextual_item_label(ctx, "move up", NK_TEXT_LEFT))
+              dt_gui_move_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name, 1);
+            if(nk_contextual_item_label(ctx, "move down", NK_TEXT_LEFT))
+              dt_gui_move_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name, 0);
+          }
+          else if(nk_contextual_item_label(ctx, "add to favs", NK_TEXT_LEFT))
+            dt_gui_add_fav(vkdt.graph_dev.module[modid].name, vkdt.graph_dev.module[modid].inst, param->name);
+          if(vkdt.graph_dev.frame_cnt != 1 && param->type == dt_token("float") && nk_contextual_item_label(ctx, "add keyframe", NK_TEXT_LEFT))
+            dt_gui_keyframe_add(modid, parid);
+          nk_contextual_end(ctx);
+        }}
+      int fresh_press = !vkdt.wstate.dragkey_latched &&
+                        nk_input_is_mouse_click_down_in_rect(&ctx->input, NK_BUTTON_LEFT, warea, nk_true);
+      if(fresh_press && !already_active)
+      { // activate without changing values
+        dt_gui_set_lod(vkdt.wstate.lod_interact);
+        vkdt.wstate.active_widget_modid = modid;
+        vkdt.wstate.active_widget_parid = parid;
+        vkdt.wstate.active_widget_parnm = num;
+        vkdt.wstate.active_widget_parsz = 0;
+      }
+      else if(already_active && ctx->input.mouse.buttons[NK_BUTTON_LEFT].down)
+      { // pure delta dragging
+        float dx = ctx->input.mouse.pos.x - ctx->input.mouse.prev.x;
+        float dy = ctx->input.mouse.pos.y - ctx->input.mouse.prev.y;
+        int shift = nk_input_is_key_down(&ctx->input, NK_KEY_SHIFT);
+        float sens = shift ? 0.15f : 0.02f;
+        float sx = dx / (radius * 2.0f) * sens;
+        float sy = dy / (radius * 2.0f) * sens;
+        // constrained so sum of R+G+B deltas stays 0 (chromaticity only)
+        const float inv_rt3 = 0.5773503f; // 1/sqrt(3)
+        disp[0] += -2.0f/3.0f * sy;
+        disp[1] +=  1.0f/3.0f * sy - inv_rt3 * sx;
+        disp[2] +=  1.0f/3.0f * sy + inv_rt3 * sx;
+        float lo = param->widget.min, hi = param->widget.max;
+        if(lo < hi) for(int k = 0; k < 3; k++) disp[k] = CLAMP(def[k] + disp[k], lo, hi) - def[k];
+        val[0] = def[0] + disp[0];
+        val[1] = def[1] + disp[1];
+        val[2] = def[2] + disp[2];
+      }
+      else if(already_active) widget_end();
+
+      // master slider bar below wheel
+      struct nk_rect sbar = {bx + 4, by + wheel_d + 2, half_pw - 8, row_height - 2};
+      {
+        const float m_min = param->widget.master_min;
+        const float m_max = param->widget.master_max;
+        const float m_rng = m_max - m_min;
+        float t = m_rng > 0 ? (val[3] - m_min) / m_rng : 0.5f;
+        nk_fill_rect(cmd, sbar, 3, nk_rgba(50,50,50,200));
+        struct nk_rect fill = sbar;
+        fill.w = sbar.w * CLAMP(t, 0, 1);
+        nk_fill_rect(cmd, fill, 3, nk_rgba(140,140,140,200));
+        int sib = NK_INBOX(ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos.x,
+                           ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos.y,
+                           sbar.x, sbar.y, sbar.w, sbar.h);
+        if(ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && sib)
+        {
+          float mo = val[3];
+          float dx = ctx->input.mouse.pos.x - ctx->input.mouse.prev.x;
+          int shift = nk_input_is_key_down(&ctx->input, NK_KEY_SHIFT);
+          float sens = m_rng * (shift ? 0.002f : 0.0002f);
+          val[3] = CLAMP(val[3] + dx * sens, m_min, m_max);
+          if(val[3] != mo) change = 1;
+        }
+        if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, sbar))
+        { val[3] = def[3]; change = 1; }
+      }
+
+      // label
+      struct nk_rect lbl = {bx, by + wheel_d + row_height + 2, half_pw, row_height};
+      nk_draw_text(cmd, lbl, str, strlen(str), nk_glfw3_font(0),
+          nk_rgba(0,0,0,0), nk_rgba(200,200,200,255));
+
+      if(memcmp(oldval, val, sizeof(float)*4)) change = 1;
+      if(change)
+      {
+        dt_graph_run_t flags = s_graph_run_none;
+        if(vkdt.graph_dev.module[modid].so->check_params)
+          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, oldval);
+        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.active_module = modid;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      }
+      num += 3;
+    }
+  }
   else if(param->widget.type == dt_token("coledit"))
   { // only works for param->type == float and count == 3
     if((num % 3) == 0)

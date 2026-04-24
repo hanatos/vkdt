@@ -1,3 +1,8 @@
-lift:rgbknobs
-gamma:rgbknobs
-gain:rgbknobs
+lift:colwheel:-0.5:0.5:-0.2:0.2
+gamma:colwheel:0.5:1.5:-0.1:0.1
+gain:colwheel:0.5:1.5:-0.1:0.1
+offset:colwheel:-0.5:0.5:-0.2:0.2
+mode:combo:classic:zoned log
+group:mode:1
+sh_pivot:slider:0.0:1.0
+hi_pivot:slider:0.0:1.0

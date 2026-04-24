@@ -914,6 +914,14 @@ static void darkroom_menu_action(const char *action)
       dt_gui_notification("click and drag to adjust -- right-click or any key to confirm, esc to cancel");
     return;
   }
+  if(!strncmp(action, "dragkey2d:", 10))
+  {
+    if(dt_dragkey_parse_and_activate_2d(&dragkeys, action))
+      dt_gui_notification("cannot activate dragkey: %s", action + 10);
+    else
+      dt_gui_notification("%s: drag to adjust -- right-click or any key to confirm, esc to cancel", dragkeys.menu_dk.name);
+    return;
+  }
   if(!strncmp(action, "dragkey_named:", 14))
   {
     if(dt_dragkey_activate_named(&dragkeys, action + 14))
@@ -1089,7 +1097,7 @@ darkroom_mouse_scrolled(GLFWwindow* window, double xoff, double yoff)
 void
 darkroom_mouse_position(GLFWwindow* window, double x, double y)
 {
-  if(dt_dragkey_mouse_move(&dragkeys, x)) return;
+  if(dt_dragkey_mouse_move(&dragkeys, x, y)) return;
   dt_gui_darkroom_dspy_mouse_position(window, x, y);
   if(vkdt.wstate.grabbed)
   {

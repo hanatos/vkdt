@@ -37,6 +37,7 @@
 #define DT_DRAGKEY_DBLCLICK_WIN  0.4  // seconds: window for double-click reset after commit
 #define DT_DRAGKEY_ARROW_STEP   10.0f // pixels equivalent per arrow key press
 #define DT_DRAGKEY_SHIFT_MULT   5.0f  // sensitivity multiplier while shift is held
+#define DT_DRAGKEY_2D_SCALE     4.0f  // sensitivity reduction for 2D (multi-axis) drags
 
 typedef struct dt_dragkey_comp_t
 {
@@ -72,6 +73,7 @@ typedef struct dt_dragkeys_t
   int    cnt;
   int    latched;           // 1 = armed: mouse-move adjusts, release confirms, esc cancels
   double start_x;           // mouse x at arm time
+  double start_y;           // mouse y at arm time (for axis=1 components)
   double click_down_time;   // time of first left-press while latched; 0 = no pending click
   int    shift;             // 1 = shift held, coarse adjustment active
   int    key_xdec[2];      // x-axis step-decrease: [0]=primary (LEFT),  [1]=alt (H)
@@ -300,6 +302,7 @@ dt_dragkeys_reanchor(dt_dragkeys_t *dk)
   double mx, my;
   dt_view_get_cursor_pos(vkdt.win.window, &mx, &my);
   dk->start_x = mx;
+  dk->start_y = my;
   for(int j = 0; j < dk->menu_dk.comp_cnt; j++)
   {
     dt_dragkey_comp_t *c = dk->menu_dk.comp + j;
@@ -336,6 +339,7 @@ dt_dragkey_activate_dk(dt_dragkeys_t *dk, dt_dragkey_t *d)
   double mx, my;
   dt_view_get_cursor_pos(vkdt.win.window, &mx, &my);
   dk->start_x = mx;
+  dk->start_y = my;
   dk->latched          = 1;
   dk->shift            = 0;
   dk->click_down_time  = 0.0;
@@ -439,7 +443,7 @@ dt_dragkey_keyboard(dt_dragkeys_t *dk, int key, int action, int mods)
 
 // called from darkroom_mouse_position. returns 1 if armed (consuming mouse events).
 static inline int
-dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x)
+dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x, double y)
 {
   if(!dk->latched) return 0;
   // if a click is pending, we only check for timeout and do not move.
@@ -456,25 +460,27 @@ dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x)
   }
   dt_dragkey_t *d = &dk->menu_dk;
   float dx = (float)(x - dk->start_x);
-  if(dk->shift) dx *= DT_DRAGKEY_SHIFT_MULT;
-  float delta;
-  if(d->use_exp)
-  { // exponential: linear feel for small movements, accelerates for large ones
-    // so the full parameter range is always reachable without requiring huge drags
-    float scale = vkdt.state.center_wd > 0 ? vkdt.state.center_wd * 0.5f : 500.0f;
-    float adx = fminf(fabsf(dx), 20.0f * scale); // cap to prevent expf overflow
-    delta = (dx >= 0 ? 1.0f : -1.0f) * scale * (expf(adx / scale) - 1.0f);
-  }
-  else delta = dx;
+  float dy = (float)(y - dk->start_y);
+  if(dk->shift) { dx *= DT_DRAGKEY_SHIFT_MULT; dy *= DT_DRAGKEY_SHIFT_MULT; }
   char msg[128];
   int off = 0;
   off += snprintf(msg + off, sizeof(msg) - off, "%s:", d->name);
   dt_graph_run_t runflags = s_graph_run_record_cmd_buf;
+  float scale = vkdt.state.center_wd > 0 ? vkdt.state.center_wd * 0.5f : 500.0f;
+  float delta_x, delta_y;
+  if(d->use_exp)
+  {
+    float adx = fminf(fabsf(dx), 20.0f * scale);
+    float ady = fminf(fabsf(dy), 20.0f * scale);
+    delta_x = (dx >= 0 ? 1.0f : -1.0f) * scale * (expf(adx / scale) - 1.0f);
+    delta_y = (dy >= 0 ? 1.0f : -1.0f) * scale * (expf(ady / scale) - 1.0f);
+  }
+  else { delta_x = dx; delta_y = dy; }
   for(int j = 0; j < d->comp_cnt; j++)
   {
     dt_dragkey_comp_t *c = d->comp + j;
     if(c->modid < 0 || c->parid < 0) continue;
-    if(c->axis != 0) continue; // mouse_move is horizontal; y-axis components are step-key only
+    float delta = (c->axis == 1) ? delta_y : delta_x;
     float new_val = c->arm_val + delta * c->sensitivity;
     if(c->min_val < c->max_val)
     {
@@ -534,38 +540,45 @@ dt_dragkey_mouse_button(dt_dragkeys_t *dk, int button, int action, int mods)
   return 1; // consume all other mouse events while latched
 }
 
-// programmatically activate a drag for a single parameter component.
-// arms immediate mode: mouse-move adjusts, click or any key confirms, esc cancels.
+// programmatically activate a drag for ncomps components of a param.
+// ncomps=1: single 1D drag on the x-axis (component given by first_comp).
+// ncomps=2: 2D drag; component first_comp on x-axis, first_comp+1 on y-axis.
 // sensitivity is auto-computed from the slider range and current image width.
 // note: modid/parid are looked up here to compute sensitivity, then looked up again
 // inside dt_dragkey_activate_dk via dt_dragkey_resolve. the double lookup is cheap
 // and avoids threading resolved ids through the dt_dragkey_t config-level interface.
 static inline int
-dt_dragkey_activate(
+dt_dragkey_activate_n(
     dt_dragkeys_t *dk,
     dt_token_t     mod,
     dt_token_t     inst,
     dt_token_t     param,
-    int            component)
+    int            first_comp,
+    int            ncomps)
 {
-  // validate before building the struct so activate_dk doesn't see half-initialised data
   int modid = dt_module_get(&vkdt.graph_dev, mod, inst);
   if(modid < 0) return 1;
   int parid = dt_module_get_param(vkdt.graph_dev.module[modid].so, param);
   if(parid < 0) return 1;
-  if(component < 0 || component >= vkdt.graph_dev.module[modid].so->param[parid]->cnt) return 1;
+  int cnt = vkdt.graph_dev.module[modid].so->param[parid]->cnt;
+  if(first_comp < 0 || first_comp + ncomps > cnt) return 1;
   const dt_ui_param_t *pp = vkdt.graph_dev.module[modid].so->param[parid];
   float range = pp->widget.max - pp->widget.min;
   if(range <= 0) range = 1.0f;
   float width = vkdt.state.center_wd > 0 ? vkdt.state.center_wd : 1000.0f;
+  float sens = range / width / (ncomps > 1 ? DT_DRAGKEY_2D_SCALE : 1.0f);
   dt_dragkey_t d = {0};
-  d.comp_cnt            = 1;
-  d.comp[0].module      = mod;
-  d.comp[0].instance    = inst;
-  d.comp[0].param       = param;
-  d.comp[0].component   = component;
-  d.comp[0].sensitivity = range / width;
-  d.use_exp             = 1;
+  d.use_exp  = 1;
+  d.comp_cnt = ncomps;
+  for(int i = 0; i < ncomps; i++)
+  {
+    d.comp[i].module      = mod;
+    d.comp[i].instance    = inst;
+    d.comp[i].param       = param;
+    d.comp[i].component   = first_comp + i;
+    d.comp[i].axis        = i; // comp 0 → x-axis, comp 1 → y-axis
+    d.comp[i].sensitivity = sens;
+  }
   snprintf(d.name, sizeof(d.name), "%.8s:%.8s", dt_token_str(mod), dt_token_str(param));
   return dt_dragkey_activate_dk(dk, &d);
 }
@@ -588,5 +601,15 @@ dt_dragkey_parse_and_activate(dt_dragkeys_t *dk, const char *action)
   int comp = 0;
   if(sscanf(action + sizeof("dragkey:") - 1, "%8[^:]:%8[^:]:%8[^:]:%d", mod, inst, par, &comp) < 4)
     return 1;
-  return dt_dragkey_activate(dk, dt_token(mod), dt_token(inst), dt_token(par), comp);
+  return dt_dragkey_activate_n(dk, dt_token(mod), dt_token(inst), dt_token(par), comp, 1);
+}
+
+// parse "dragkey2d:mod:inst:param" and activate a 2D drag (comp 0 on x, comp 1 on y).
+static inline int
+dt_dragkey_parse_and_activate_2d(dt_dragkeys_t *dk, const char *action)
+{
+  char mod[9] = {0}, inst[9] = {0}, par[9] = {0};
+  if(sscanf(action + sizeof("dragkey2d:") - 1, "%8[^:]:%8[^:]:%8[^:]", mod, inst, par) < 3)
+    return 1;
+  return dt_dragkey_activate_n(dk, dt_token(mod), dt_token(inst), dt_token(par), 0, 2);
 }
