@@ -32,7 +32,7 @@
 #include <limits.h>
 
 #define DT_MENU_MAX_ENTRIES   256
-#define DT_MENU_MAX_DYNAMIC    64
+#define DT_MENU_MAX_DYNAMIC   128 
 #define DT_MENU_MAX_DEPTH       4
 typedef enum { DT_MENU_SK_ENTRY=0, DT_MENU_SK_DYN_PARENT=1, DT_MENU_SK_GAMEPAD_ROOT=2 } dt_menu_sk_t;
 typedef struct { int16_t idx; uint8_t kind; } dt_menu_stack_entry_t;

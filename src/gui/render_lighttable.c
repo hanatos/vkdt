@@ -1530,11 +1530,23 @@ void render_lighttable()
   dt_menu_process_clicks(&lighttable_menu, hk_lighttable, NK_LEN(hk_lighttable));
 }
 
+
+static void lighttable_menu_action(const char *action)
+{
+  size_t len = strlen(action);
+  if(len > 4 && !strcmp(action + len - 4, ".pst"))
+  {
+    uint32_t err = dt_gui_lt_append_preset(action);
+    if(!err) dt_gui_notification("appended preset %s", action);
+  }
+}
+
 void render_lighttable_init()
 {
   vkdt.wstate.copied_imgid = -1u; // reset to invalid
   hk_deserialise("lighttable", hk_lighttable, NK_LEN(hk_lighttable));
   dt_menu_load(&lighttable_menu, "lighttable");
+  lighttable_menu.action_cb = lighttable_menu_action;
 }
 
 void render_lighttable_cleanup()
