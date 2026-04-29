@@ -1539,7 +1539,7 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
   dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
   if(out_main)
   {
-    const float sensitivity = 0.002;
+    const float sensitivity = 0.001 * dt_rc_get_float(&vkdt.rc, "gui/joystick_sensitivity", 1.0f);
 #define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
     float wd  = (float)out_main->connector[0].roi.wd;
     float ht  = (float)out_main->connector[0].roi.ht;
