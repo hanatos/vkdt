@@ -521,17 +521,22 @@ fs_expand_import_filename(
 
 static inline void
 fs_expand_export_filename(
-    const char *pattern, size_t pattern_size, // input pattern with ${home} ${yyyy} ${date} ${seq} ${fdir} ${fbase}
+    const char *pattern, size_t pattern_size, // input pattern with ${home} ${yyyy} ${date} ${seq} ${fdir} ${fbase} ${rating} ${labels}
     char       *dst,     size_t dst_size,     // return expanded string here
     char       *filename,                     // source image filename
-    int         seq)                          // sequence number for ${seq}
+    int         seq,                          // sequence number for ${seq}
+    uint16_t    labels,                       // colour labels
+    uint16_t    rating)                       // star rating
 {
   char *filebase = fs_basename(filename);
   size_t len = strlen(filebase);
-  if(len > 4) filebase[len-4] = 0; // cut away .cfg
-  if(len > 8 && filebase[len- 8] == '.') filebase[len- 8] = 0; // cut .xxx
-  if(len > 9 && filebase[len- 9] == '.') filebase[len- 9] = 0; // cut .xxxx
-  if(len >10 && filebase[len-10] == '.') filebase[len-10] = 0; // cut .xxxxx
+  if(len > 4) filebase[len-=4] = 0; // cut away .cfg
+  if(len > 3 && filebase[len-3] == '_' &&
+     filebase[len-2] >= '0' && filebase[len-2] <= '9' &&
+     filebase[len-1] >= '0' && filebase[len-1] <= '9') filebase[len-=3] = 0; // cut away dupes
+  if(len > 4 && filebase[len-4] == '.') filebase[len-4] = 0; // cut .xxx
+  if(len > 5 && filebase[len-5] == '.') filebase[len-5] = 0; // cut .xxxx
+  if(len > 6 && filebase[len-6] == '.') filebase[len-6] = 0; // cut .xxxxx
   fs_dirname(filename);
   char date[10] = {0}, yyyy[5] = {0}, istr[5] = {0};
 #ifdef _WIN64
@@ -551,8 +556,14 @@ fs_expand_export_filename(
   strftime(yyyy, sizeof(yyyy), "%Y", tm);
 #endif
   snprintf(istr, sizeof(istr), "%04d", seq);
-  const char *key[] = { "home", "yyyy", "date", "seq", "fdir", "fbase", 0};
-  const char *val[] = { home, yyyy, date, istr, filename, filebase, 0};
+  char srating[3] = {0};
+  char slabels[6] = {0};
+  snprintf(srating, sizeof(srating), "%d", rating);
+  snprintf(slabels, sizeof(slabels), "%s%s%s%s%s",
+      labels & 1 ? "r" : "", labels &  2 ? "g" : "", labels & 4 ? "b" : "",
+      labels & 8 ? "y" : "", labels & 16 ? "m" : "");
+  const char *key[] = { "home", "yyyy", "date", "seq", "fdir", "fbase", "rating", "labels", 0};
+  const char *val[] = { home, yyyy, date, istr, filename, filebase, srating, slabels, 0};
   dt_strexpand(pattern, pattern_size, dst, dst_size, key, val);
 }
 

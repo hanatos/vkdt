@@ -489,17 +489,23 @@ render_lighttable_header()
 
 
 // export bg job stuff. put into api.hh?
+typedef struct export_job_image_t
+{
+  uint16_t rating;
+  uint16_t labels;
+  char filename[PATH_MAX];
+} export_job_image_t;
 typedef struct export_job_t
 { // this memory belongs to the export thread and will not change behind its back.
-  uint32_t *sel;
+  export_job_image_t *img;
   dt_token_t output_module;
+  char basename[1000];
   int wd, ht;
   float quality;
   int colour_prim, colour_trc;
   uint32_t cnt;
   uint32_t overwrite;
   uint32_t last_frame_only;
-  char basename[1000];
   uint8_t *pdata;
   atomic_uint abort;
   atomic_uint state; // 0 idle, 1 started, 2 cleaned
@@ -509,7 +515,7 @@ typedef struct export_job_t
 void export_job_cleanup(void *arg)
 { // task is done, every thread will call this (but we put only one)
   export_job_t *j = (export_job_t *)arg;
-  free(j->sel);
+  free(j->img);
   free(j->pdata);
   dt_graph_cleanup(&j->graph);
   j->state = 2;
@@ -522,8 +528,10 @@ void export_job_work(uint32_t item, void *arg)
   export_job_t *j = (export_job_t *)arg;
   if(j->abort) goto out;
 
-  dt_db_image_path(&vkdt.db, j->sel[item], filedir, sizeof(filedir));
-  fs_expand_export_filename(j->basename, sizeof(j->basename), filename, sizeof(filename), filedir, item);
+  snprintf(filedir, sizeof(filedir), "%s", j->img[item].filename);
+  fs_expand_export_filename(j->basename, sizeof(j->basename),
+      filename, sizeof(filename),
+      filedir, item, j->img[item].labels, j->img[item].rating);
   if(snprintf(dir, sizeof(dir), "%s", filename) >= (int)sizeof(dir))
   {
     dt_gui_notification("expanded filename too long!");
@@ -533,7 +541,7 @@ void export_job_work(uint32_t item, void *arg)
 
   dt_gui_notification("exporting to %s", filename);
 
-  dt_db_image_path(&vkdt.db, j->sel[item], infilename, sizeof(infilename));
+  snprintf(infilename, sizeof(infilename), "%s", j->img[item].filename);
   param.output_cnt = 1;
   param.output[0].p_filename = filename;
   param.output[0].max_width  = j->wd;
@@ -584,8 +592,14 @@ int export_job(
     return -1;
   }
   j->cnt = vkdt.db.selection_cnt;
-  j->sel = (uint32_t *)malloc(sizeof(uint32_t)*j->cnt);
-  memcpy(j->sel, dt_db_selection_get(&vkdt.db), sizeof(uint32_t)*j->cnt);
+  const uint32_t *sel = dt_db_selection_get(&vkdt.db);
+  j->img = malloc(sizeof(*j->img)*j->cnt);
+  for(int i=0;i<j->cnt;i++)
+  {
+    j->img[i].rating = vkdt.db.image[sel[i]].rating;
+    j->img[i].labels = vkdt.db.image[sel[i]].labels;
+    dt_db_image_path(&vkdt.db, sel[i], j->img[i].filename, sizeof(j->img[i].filename));
+  }
   snprintf(j->basename, sizeof(j->basename), "%.*s", (int)sizeof(j->basename)-1, w->basename);
   j->wd = w->wd;
   j->ht = w->ht;

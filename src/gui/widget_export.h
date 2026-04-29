@@ -181,7 +181,9 @@ dt_export(
       "${date} -- today's date\n"
       "${seq} -- sequence number\n"
       "${fdir} -- directory of input file\n"
-      "${fbase} -- basename of input file");
+      "${fbase} -- basename of input file\n"
+      "${rating} -- number of stars\n"
+      "${labels} -- colour labels rgbym");
   if(nk_tab_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, w->basename, sizeof(w->basename), nk_filter_default))
     dt_rc_set(&vkdt.rc, "gui/export/basename", w->basename);
   nk_label(ctx, "filename", NK_TEXT_LEFT);
