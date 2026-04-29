@@ -112,6 +112,13 @@ dt_gui_paste_history()
       if(len > 4)
       {
         fn[len-=4] = 0; // cut off .cfg
+        if(len > 3 && fn[len-3] == '_' &&
+            fn[len-2] >= '0' && fn[len-2] <= '9' && 
+            fn[len-1] >= '0' && fn[len-1] <= '9')
+        { // cut off duplicate postfix
+          fn[len-3] = 0;
+          len -= 3;
+        }
         if(len > 4 && !strncasecmp(fn+len-4, ".mlv", 4))
           fprintf(fout, "param:i-mlv:main:filename:%s\n", fn);
         else if(len > 6 && !strncasecmp(fn+len-6, ".mcraw", 6))
