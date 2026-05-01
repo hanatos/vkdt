@@ -1,0 +1,7 @@
+lift:lift
+gamma:gamma
+gain:gain
+offset:offset
+mode:blending mode
+sh_pivot:shadow pivot
+hi_pivot:highlight pivot

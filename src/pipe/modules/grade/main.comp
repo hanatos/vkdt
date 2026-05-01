@@ -7,11 +7,11 @@
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  vec4  lift;
-  vec4  gamma;
-  vec4  gain;
-  vec4  offset;
-  int   mode;            // 0 = classic, 1 = zoned log
+  vec4 lift;
+  vec4 gamma;
+  vec4 gain;
+  vec4 offset;
+  int mode;              // 0 = classic, 1 = zoned log
   float sh_pivot;
   float hi_pivot;
 } params;

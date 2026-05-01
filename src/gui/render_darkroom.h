@@ -487,29 +487,25 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       const float wheel_d = half_pw * 0.8f; // wheel diameter
       const float cell_ht = wheel_d + 2.0f * row_height;
 
-      // HACK: this static is used to position the right colour wheel next to the
-      // left one. it is reset per module by checking the modid to avoid leaking
-      // layout state between modules.
-      static struct nk_rect cw_left_row = {0};
-      static int cw_last_modid = -1;
-      if(modid != cw_last_modid)
-      {
-        cw_left_row.h = 0;
-        cw_last_modid = modid;
-      }
+      // place colwheels 2-per-row: left uses layout row, right reuses it manually
+      static struct nk_rect cw_row = {0};
+      static int cw_row_modid = -1;
+      if(modid != cw_row_modid)
+        cw_row.h = 0;  // reset when module changes
+
       float bx, by;
       if(cw_col == 0)
-      { // left column: reserve row height; right wheel reuses this row
+      {
         nk_layout_row_dynamic(ctx, cell_ht, 1);
-        cw_left_row = nk_widget_bounds(ctx);
-        bx = cw_left_row.x;
-        by = cw_left_row.y;
+        cw_row = nk_widget_bounds(ctx);
+        cw_row_modid = modid;
+        bx = cw_row.x;
+        by = cw_row.y;
       }
       else
-      { // right column: draw into right half of previous row
-        bx = cw_left_row.x + half_pw + ctx->style.window.spacing.x;
-        by = cw_left_row.y;
-        cw_left_row.h = 0; // invalidate, the row is complete
+      {
+        bx = cw_row.x + half_pw + ctx->style.window.spacing.x;
+        by = cw_row.y;
       }
 
       // shared wheel drawing + interaction
@@ -567,10 +563,11 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       }
       else if(already_active && ctx->input.mouse.buttons[NK_BUTTON_LEFT].down)
       { // pure delta dragging
+        ctx->input.mouse.grabbed = 1;
         float dx = ctx->input.mouse.pos.x - ctx->input.mouse.prev.x;
         float dy = ctx->input.mouse.pos.y - ctx->input.mouse.prev.y;
         int shift = nk_input_is_key_down(&ctx->input, NK_KEY_SHIFT);
-        float sens = shift ? 0.15f : 0.02f;
+        float sens = shift ? 0.15f : 0.005f;
         float sx = dx / (radius * 2.0f) * sens;
         float sy = dy / (radius * 2.0f) * sens;
         // constrained so sum of R+G+B deltas stays 0 (chromaticity only)
@@ -580,6 +577,18 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         disp[2] +=  1.0f/3.0f * sy + inv_rt3 * sx;
         float lo = param->widget.min, hi = param->widget.max;
         if(lo < hi) for(int k = 0; k < 3; k++) disp[k] = CLAMP(def[k] + disp[k], lo, hi) - def[k];
+        // constrain displacement to keep visual dot within wheel boundary
+        float wx = rt32 * (disp[2] - disp[1]);
+        float wy = -disp[0] + 0.5f * (disp[1] + disp[2]);
+        float dist_sq = wx * wx + wy * wy;
+        float max_dist_sq = (radius / (sc * 3.0f)) * (radius / (sc * 3.0f));
+        if(dist_sq > max_dist_sq)
+        {
+          float scale = sqrtf(max_dist_sq / dist_sq);
+          disp[0] *= scale;
+          disp[1] *= scale;
+          disp[2] *= scale;
+        }
         val[0] = def[0] + disp[0];
         val[1] = def[1] + disp[1];
         val[2] = def[2] + disp[2];
@@ -597,18 +606,30 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         struct nk_rect fill = sbar;
         fill.w = sbar.w * CLAMP(t, 0, 1);
         nk_fill_rect(cmd, fill, 3, nk_rgba(140,140,140,200));
-        int sib = NK_INBOX(ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos.x,
-                           ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos.y,
-                           sbar.x, sbar.y, sbar.w, sbar.h);
-        if(ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && sib)
+        int sbar_active = vkdt.wstate.active_widget_modid == modid &&
+                          vkdt.wstate.active_widget_parid == parid &&
+                          vkdt.wstate.active_widget_parnm == num + 3;
+        int sbar_press  = !vkdt.wstate.dragkey_latched &&
+                          nk_input_is_mouse_click_down_in_rect(&ctx->input, NK_BUTTON_LEFT, sbar, nk_true);
+        if(sbar_press && !sbar_active && !already_active)
         {
-          float mo = val[3];
-          float dx = ctx->input.mouse.pos.x - ctx->input.mouse.prev.x;
+          dt_gui_set_lod(vkdt.wstate.lod_interact);
+          vkdt.wstate.active_widget_modid = modid;
+          vkdt.wstate.active_widget_parid = parid;
+          vkdt.wstate.active_widget_parnm = num + 3;
+          vkdt.wstate.active_widget_parsz = 0;
+        }
+        else if(sbar_active && ctx->input.mouse.buttons[NK_BUTTON_LEFT].down)
+        {
+          ctx->input.mouse.grabbed = 1;
+          float mo  = val[3];
+          float dx  = ctx->input.mouse.pos.x - ctx->input.mouse.prev.x;
           int shift = nk_input_is_key_down(&ctx->input, NK_KEY_SHIFT);
           float sens = m_rng * (shift ? 0.002f : 0.0002f);
           val[3] = CLAMP(val[3] + dx * sens, m_min, m_max);
           if(val[3] != mo) change = 1;
         }
+        else if(sbar_active) widget_end();
         if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, sbar))
         { val[3] = def[3]; change = 1; }
       }
@@ -617,6 +638,9 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       struct nk_rect lbl = {bx, by + wheel_d + row_height + 2, half_pw, row_height};
       nk_draw_text(cmd, lbl, str, strlen(str), nk_glfw3_font(0),
           nk_rgba(0,0,0,0), nk_rgba(200,200,200,255));
+
+      if(param->tooltip && nk_input_is_mouse_hovering_rect(&ctx->input, lbl))
+        dt_tooltip(param->tooltip);
 
       if(memcmp(oldval, val, sizeof(float)*4)) change = 1;
       if(change)

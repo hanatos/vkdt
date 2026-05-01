@@ -476,26 +476,88 @@ dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x, double y)
     delta_y = (dy >= 0 ? 1.0f : -1.0f) * scale * (expf(ady / scale) - 1.0f);
   }
   else { delta_x = dx; delta_y = dy; }
-  for(int j = 0; j < d->comp_cnt; j++)
+
+  // check if this is a colwheel (2D widget with special barycentric math)
+  int is_colwheel = 0;
+  if(d->comp_cnt >= 2)
   {
-    dt_dragkey_comp_t *c = d->comp + j;
-    if(c->modid < 0 || c->parid < 0) continue;
-    float delta = (c->axis == 1) ? delta_y : delta_x;
-    float new_val = c->arm_val + delta * c->sensitivity;
-    if(c->min_val < c->max_val)
+    const dt_ui_param_t *pp = vkdt.graph_dev.module[d->comp[0].modid].so->param[d->comp[0].parid];
+    is_colwheel = (pp && pp->widget.type == dt_token("colwheel"));
+  }
+
+  if(is_colwheel && d->comp_cnt >= 2 && d->comp[0].modid >= 0 && d->comp[0].parid >= 0)
+  {
+    // apply barycentric math like mouse drag does for correct color mapping
+    float sx = delta_x * d->comp[0].sensitivity;
+    float sy = delta_y * d->comp[1].sensitivity;
+
+    // barycentric projection (same as in colwheel widget rendering)
+    const float inv_rt3 = 0.5773503f; // 1/sqrt(3)
+    float disp[3];
+    disp[0] = -2.0f/3.0f * sy;
+    disp[1] = 1.0f/3.0f * sy - inv_rt3 * sx;
+    disp[2] = 1.0f/3.0f * sy + inv_rt3 * sx;
+
+    // clamp displacement to enforce limits, matching mouse drag behavior exactly
+    float lo = d->comp[0].min_val, hi = d->comp[0].max_val;
+    if(lo < hi) for(int k = 0; k < 3; k++)
+      disp[k] = CLAMP(d->comp[k].arm_val + disp[k], lo, hi) - d->comp[k].arm_val;
+
+    // constrain displacement to keep visual dot within wheel boundary
+    float rt32 = 0.8660254f; // sqrt(3)/2
+    float wx = rt32 * (disp[2] - disp[1]);
+    float wy = -disp[0] + 0.5f * (disp[1] + disp[2]);
+    float dist_sq = wx * wx + wy * wy;
+    float max_dist_sq = (1.0f / 2.1f) * (1.0f / 2.1f); // matches wheel boundary: sqrt(wx^2+wy^2) <= 1/2.1
+    if(dist_sq > max_dist_sq)
     {
-      if(new_val < c->min_val) new_val = c->min_val;
-      if(new_val > c->max_val) new_val = c->max_val;
+      float scale = sqrtf(max_dist_sq / dist_sq);
+      disp[0] *= scale;
+      disp[1] *= scale;
+      disp[2] *= scale;
     }
-    float *val = (float *)dt_module_param_float(vkdt.graph_dev.module + c->modid, c->parid);
-    if(!val) continue;
-    float oldval = val[c->component];
-    val[c->component] = new_val;
-    if(vkdt.graph_dev.module[c->modid].so->check_params)
-      runflags |= vkdt.graph_dev.module[c->modid].so->check_params(
-          vkdt.graph_dev.module + c->modid, c->parid, c->component, &oldval);
-    if(off < (int)sizeof(msg) - 20)
-      off += snprintf(msg + off, sizeof(msg) - off, " %.3f", new_val);
+
+    // apply to R, G, B (first 3 components)
+    float *val = (float *)dt_module_param_float(vkdt.graph_dev.module + d->comp[0].modid, d->comp[0].parid);
+    if(val)
+    {
+      for(int k = 0; k < 3; k++)
+      {
+        float new_val = d->comp[k].arm_val + disp[k];
+        float oldval = val[k];
+        val[k] = new_val;
+        if(vkdt.graph_dev.module[d->comp[0].modid].so->check_params)
+          runflags |= vkdt.graph_dev.module[d->comp[0].modid].so->check_params(
+              vkdt.graph_dev.module + d->comp[0].modid, d->comp[0].parid, k, &oldval);
+        if(off < (int)sizeof(msg) - 20)
+          off += snprintf(msg + off, sizeof(msg) - off, " %.3f", new_val);
+      }
+    }
+  }
+  else
+  {
+    // standard component-wise delta application for other widgets
+    for(int j = 0; j < d->comp_cnt; j++)
+    {
+      dt_dragkey_comp_t *c = d->comp + j;
+      if(c->modid < 0 || c->parid < 0) continue;
+      float delta = (c->axis == 1) ? delta_y : delta_x;
+      float new_val = c->arm_val + delta * c->sensitivity;
+      if(c->min_val < c->max_val)
+      {
+        if(new_val < c->min_val) new_val = c->min_val;
+        if(new_val > c->max_val) new_val = c->max_val;
+      }
+      float *val = (float *)dt_module_param_float(vkdt.graph_dev.module + c->modid, c->parid);
+      if(!val) continue;
+      float oldval = val[c->component];
+      val[c->component] = new_val;
+      if(vkdt.graph_dev.module[c->modid].so->check_params)
+        runflags |= vkdt.graph_dev.module[c->modid].so->check_params(
+            vkdt.graph_dev.module + c->modid, c->parid, c->component, &oldval);
+      if(off < (int)sizeof(msg) - 20)
+        off += snprintf(msg + off, sizeof(msg) - off, " %.3f", new_val);
+    }
   }
   vkdt.graph_dev.runflags |= runflags;
   dt_gui_notification("%s", msg);
@@ -605,11 +667,24 @@ dt_dragkey_parse_and_activate(dt_dragkeys_t *dk, const char *action)
 }
 
 // parse "dragkey2d:mod:inst:param" and activate a 2D drag (comp 0 on x, comp 1 on y).
+// for colwheel widgets, activate all 3 RGB components since barycentric math modifies all 3.
 static inline int
 dt_dragkey_parse_and_activate_2d(dt_dragkeys_t *dk, const char *action)
 {
   char mod[9] = {0}, inst[9] = {0}, par[9] = {0};
   if(sscanf(action + sizeof("dragkey2d:") - 1, "%8[^:]:%8[^:]:%8[^:]", mod, inst, par) < 3)
     return 1;
-  return dt_dragkey_activate_n(dk, dt_token(mod), dt_token(inst), dt_token(par), 0, 2);
+  // check if this is a colwheel parameter
+  int modid = dt_module_get(&vkdt.graph_dev, dt_token(mod), dt_token(inst));
+  int parid = modid >= 0 ? dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token(par)) : -1;
+  int is_colwheel = 0;
+  if(modid >= 0 && parid >= 0)
+  {
+    const dt_ui_param_t *pp = vkdt.graph_dev.module[modid].so->param[parid];
+    is_colwheel = (pp && pp->widget.type == dt_token("colwheel"));
+  }
+  // colwheel uses barycentric math on all 3 RGB components, so we need 3 components.
+  // normal 2D parameters only need 2.
+  int ncomps = is_colwheel ? 3 : 2;
+  return dt_dragkey_activate_n(dk, dt_token(mod), dt_token(inst), dt_token(par), 0, ncomps);
 }
