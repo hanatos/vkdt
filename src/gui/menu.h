@@ -836,6 +836,36 @@ dt_menu_prov_params(dt_menu_entry_t *buf, int max, void *data)
         cnt++;
       }
     }
+    else if(wtype == dt_token("colwheel"))
+    {
+      const char *base = param->long_name ? param->long_name : dt_token_str(param->name);
+      // 2D colour entry (components 0+1 on x+y axes)
+      if(cnt < max)
+      {
+        dt_menu_entry_init(buf + cnt);
+        snprintf(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
+            "dragkey2d:%.8s:%.8s:%.8s",
+            dt_token_str(mod->name), dt_token_str(mod->inst), dt_token_str(param->name));
+        dt_menu_set_label(buf + cnt, param->long_name, param->name);
+        buf[cnt].key = 0;
+        if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
+        cnt++;
+      }
+      // brightness entry (component 3, master slider)
+      if(cnt < max && param->cnt > 3)
+      {
+        dt_menu_entry_init(buf + cnt);
+        dt_dragkey_format_action(buf[cnt].action_buf, sizeof(buf[cnt].action_buf),
+            mod->name, mod->inst, param->name, 3);
+        int alen = strlen(buf[cnt].action_buf);
+        snprintf(buf[cnt].action_buf + alen + 1,
+            sizeof(buf[cnt].action_buf) - alen - 1, "%s brightness", base);
+        buf[cnt].label = buf[cnt].action_buf + alen + 1;
+        buf[cnt].key = 0;
+        if(cnt > 0) buf[cnt - 1].next_sibling = cnt;
+        cnt++;
+      }
+    }
     else if(wtype == dt_token("colour") || wtype == dt_token("print"))
       continue; // display-only, no useful menu action
     else // tool/interactive widget: activate module

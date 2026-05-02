@@ -10,6 +10,10 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4 lift;
   vec4 gamma;
   vec4 gain;
+  vec4 offset;
+  int mode;              // 0 = classic, 1 = zoned log
+  float sh_pivot;
+  float hi_pivot;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
@@ -20,12 +24,39 @@ main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
-  vec3 lift  = max(params.lift.rgb,  vec3(0));
-  vec3 gamma = max(params.gamma.rgb, vec3(0));
-  vec3 gain  = max(params.gain.rgb,  vec3(0));
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
-  rgb = gain * rgb + lift;
-  rgb = pow(max(rgb, vec3(0)), 1.0/max(vec3(1e-6),gamma));
+
+  vec3 lift   = params.lift.rgb  + params.lift.a;
+  vec3 gamma  = max(params.gamma.rgb + params.gamma.a, vec3(1e-6));
+  vec3 gain   = max(params.gain.rgb  + params.gain.a,  vec3(0));
+  vec3 offset = params.offset.rgb + params.offset.a;
+
+  if(params.mode == 0)
+  {
+    rgb = gain * rgb;
+    rgb = rgb * (1.0 - lift) + lift;
+    rgb = pow(max(rgb, vec3(0)), 1.0 / gamma);
+    rgb = rgb + offset;
+  }
+  else
+  {
+    float L = dot(max(rgb, vec3(0)), vec3(0.2126, 0.7152, 0.0722));
+    L = clamp(0.67 + log2(max(L, 1e-6)) * 0.11, 0.0, 1.0); // 0.18 -> ~0.4, 1.0 -> 0.67
+    float sp = clamp(params.sh_pivot, 1e-3, 1.0 - 1e-3);
+    float hp = clamp(params.hi_pivot, sp + 1e-3, 1.0);
+    float w_s = 1.0 - smoothstep(0.0, sp, L);
+    float w_h = smoothstep(hp, 1.0, L);
+    float w_m = 1.0 - w_s - w_h;
+
+    vec3 gain_eff  = mix(vec3(1.0), gain,  w_h);
+    vec3 lift_eff  = lift * w_s;
+    vec3 gamma_eff = mix(vec3(1.0), gamma, w_m);
+
+    rgb = gain_eff * rgb;
+    rgb = rgb * (1.0 - lift_eff) + lift_eff;
+    rgb = pow(max(rgb, vec3(0)), 1.0 / gamma_eff);
+    rgb = rgb + offset;
+  }
+
   imageStore(img_out, ipos, vec4(rgb, 1));
 }
-

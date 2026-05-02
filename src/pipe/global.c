@@ -159,6 +159,8 @@ dt_module_so_load(
       .type = dt_token("slider"),
       .min  = 0.0f,
       .max  = 1.0f,
+      .master_min = -0.2f,
+      .master_max = 0.2f,
       .grpid = -1,
       .mode  = 0,
       .cntid = -1,
@@ -196,7 +198,7 @@ dt_module_so_load(
         have_sep = 1;
         continue;
       }
-      float min = 0.0f, max = 0.0f;
+      float min = 0.0f, max = 0.0f, master_min = -0.2f, master_max = 0.2f;
       void *data = 0;
       if(parm == dt_token("group"))
       {
@@ -239,6 +241,16 @@ dt_module_so_load(
       else if(type == dt_token("rbmap"))   {}
       else if(type == dt_token("callback")){}
       else if(type == dt_token("coledit")) {}
+      else if(type == dt_token("colwheel"))
+      { // read range, same as slider
+        min = dt_read_float(b, &b);
+        max = dt_read_float(b, &b);
+        if(*b)
+        {
+          master_min = dt_read_float(b, &b);
+          master_max = dt_read_float(b, &b);
+        }
+      }
       else if(type == dt_token("rgbknobs")){}
       else dt_log(s_log_err, "unknown widget type %"PRItkn" in %s!", dt_token_str(type), filename);
       int pid = dt_module_get_param(mod, parm);
@@ -260,6 +272,8 @@ dt_module_so_load(
         .type  = type,
         .min   = min,
         .max   = max,
+        .master_min = master_min,
+        .master_max = master_max,
         .grpid = grpid,
         .mode  = mode,
         .cntid = cntid,

@@ -5,6 +5,7 @@ module:demosaic:01:568:400
 module:colour:01:931:400
 module:filmcurv:01:1094:400
 module:llap:01:1269:400
+module:grade:01:1444:400
 module:hist:01:1418:634
 module:zones:01:219:800
 module:crop:01:743:400
@@ -20,8 +21,9 @@ connect:crop:01:output:colour:01:input
 connect:colour:01:output:filmcurv:01:input
 # apply llap after curve
 connect:filmcurv:01:output:llap:01:input
-connect:llap:01:output:display:main:input
-connect:llap:01:output:hist:01:input
+connect:llap:01:output:grade:01:input
+connect:grade:01:output:display:main:input
+connect:grade:01:output:hist:01:input
 connect:hist:01:output:display:hist:input
 param:colour:01:exposure:0
 param:llap:01:sigma:0.12
