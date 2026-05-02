@@ -266,8 +266,11 @@ int dt_gui_init()
 
   if(dt_gui_win_init_vk(&vkdt.win)) return 1;
 
-  // joystick detection: find first gamepad.
-  FILE *f = fopen("gamecontrollerdb.txt", "rb");
+  { // joystick detection: find first gamepad.
+  char filename[PATH_MAX];
+  snprintf(filename, sizeof(filename), "%s/gamecontrollerdb.txt", dt_pipe.homedir);
+  FILE *f = fopen(filename, "rb");
+  if(!f) f = fopen("gamecontrollerdb.txt", "rb");
   if(!f) f = fopen("/usr/share/sdl/gamecontrollerdb.txt", "rb");
   if(f)
   { // load additional controller descriptions from file above if present
@@ -281,6 +284,7 @@ int dt_gui_init()
     dt_log(s_log_gui, "loading additional gamepad maps from gamecontrollerdb");
     glfwUpdateGamepadMappings(buf);
     free(buf);
+  }
   }
   vkdt.wstate.have_joystick = 0;
   for(int js=GLFW_JOYSTICK_1;!vkdt.wstate.have_joystick&&js<GLFW_JOYSTICK_LAST;js++)
