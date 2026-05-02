@@ -425,6 +425,8 @@ void dt_gamepadhelp()
 
 int dt_gui_input_blocked()
 {
-  return vkdt.wstate.popup || vkdt.wstate.grabbed || vkdt.wstate.nk_active ||
+  int ret = glfwGetInputMode(vkdt.win.window, GLFW_CURSOR);
+  return (ret == GLFW_CURSOR_DISABLED) ||
+    vkdt.wstate.popup || vkdt.wstate.grabbed || vkdt.wstate.nk_active ||
     dt_radial_menu_dr_active(&vkdt.wstate.radial_menu_dr);
 }

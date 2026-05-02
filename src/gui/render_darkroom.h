@@ -563,7 +563,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       }
       else if(already_active && ctx->input.mouse.buttons[NK_BUTTON_LEFT].down)
       { // pure delta dragging
-        ctx->input.mouse.grabbed = 1;
+        ctx->input.mouse.grab = 1;
         float dx = ctx->input.mouse.pos.x - ctx->input.mouse.prev.x;
         float dy = ctx->input.mouse.pos.y - ctx->input.mouse.prev.y;
         int shift = nk_input_is_key_down(&ctx->input, NK_KEY_SHIFT);
@@ -621,7 +621,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         }
         else if(sbar_active && ctx->input.mouse.buttons[NK_BUTTON_LEFT].down)
         {
-          ctx->input.mouse.grabbed = 1;
+          ctx->input.mouse.grab = 1;
           float mo  = val[3];
           float dx  = ctx->input.mouse.pos.x - ctx->input.mouse.prev.x;
           int shift = nk_input_is_key_down(&ctx->input, NK_KEY_SHIFT);

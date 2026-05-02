@@ -3,6 +3,8 @@ static inline void
 dt_tooltip(const char *fmt, ...)
 {
   char text[512];
+  int ret = glfwGetInputMode(vkdt.win.window, GLFW_CURSOR);
+  if(ret == GLFW_CURSOR_DISABLED) return;
   if(fmt && fmt[0] && nk_widget_is_hovered(&vkdt.ctx))
   {
     nk_style_push_font(&vkdt.ctx, nk_glfw3_font(0));
