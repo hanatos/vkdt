@@ -329,15 +329,15 @@ int main(int argc, char *argv[])
     if(vkdt.win1.window)
       nk_glfw3_input_end(&vkdt.ctx1, vkdt.win1.window, vkdt.session_type == 1);
 
-    double t0 = dt_time();
+    // double t0 = dt_time();
     dt_view_process(); // process before render/preset because this might swap the output image backbuffers
     if(vkdt.graph_dev.gui_msg && vkdt.graph_dev.gui_msg[0]) dt_gui_notification(vkdt.graph_dev.gui_msg);
-    double t1 = dt_time();
+    // double t1 = dt_time();
 
     if(dt_gui_render() == VK_SUCCESS)
       dt_gui_present();
-    double t2 = dt_time();
-    dt_log(s_log_perf, "frame cpu: process\t%8.3f ms  render\t%8.3f ms", 1000.0*(t1-t0), 1000.0*(t2-t1));
+    // double t2 = dt_time();
+    // dt_log(s_log_perf, "frame cpu: process\t%8.3f ms  render\t%8.3f ms", 1000.0*(t1-t0), 1000.0*(t2-t1));
 
     static int bs = 1;
     if(bs) { dt_gui_toggle_fullscreen(); bs = 0; }
