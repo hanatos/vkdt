@@ -1652,6 +1652,7 @@ render_darkroom_apply_preset(
     for(int m=0;m<vkdt.graph_dev.num_modules;m++) dt_module_keyframe_post_update(vkdt.graph_dev.module+m);
     vkdt.graph_dev.runflags = s_graph_run_all;
     dt_image_reset_zoom(&vkdt.wstate.img_widget);
+    dt_gui_read_favs("darkroom.ui");
     return 0u;
   }
   else
