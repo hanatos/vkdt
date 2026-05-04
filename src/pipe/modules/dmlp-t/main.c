@@ -71,7 +71,7 @@ modify_roi_in(
   { // request in full
     module->connector[i].roi.wd = module->connector[i].roi.full_wd;
     module->connector[i].roi.ht = module->connector[i].roi.full_ht;
-    module->connector[i].roi.scale = 1;
+    module->connector[i].roi.marker = s_roi_mark_hard_fwd;
   }
   // sorry, we insist:
   module->connector[2].roi = module->connector[0].roi;

@@ -12,7 +12,7 @@ void modify_roi_out(
   const int ht = dt_module_param_int(module, 1)[0];
   if(!wd || !ht)
   { // if not explicitly set, be soft about roi:
-    module->connector[1].roi.scale = -1.0f;
+    module->connector[1].roi.marker = s_roi_mark_soft_fwd;
     return;
   }
   double scale = MIN(1.0, MIN(
@@ -31,12 +31,9 @@ void modify_roi_in(
 { // request the full thing, we'll rescale
   module->connector[0].roi.wd = module->connector[0].roi.full_wd;
   module->connector[0].roi.ht = module->connector[0].roi.full_ht;
-  // we *don't* set the scale factor. this is used internally as
-  // proof that the roi is initialised, but the only use is disambiguation
-  // when one output is connected to several chains. by *not* setting the scale
   // here, we suggest a new resolution but if any other chain is more opinionated
   // than us, we let them override our numbers.
-  // module->connector[0].roi.scale = 1.0f;
+  module->connector[0].roi.marker = (module->connector[1].roi.marker & ~s_roi_mark_hard)|s_roi_mark_soft;
 }
 
 dt_graph_run_t

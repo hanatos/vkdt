@@ -20,10 +20,10 @@ modify_roi_in(
 {
   module->connector[0].roi.wd = module->connector[0].roi.full_wd;
   module->connector[0].roi.ht = module->connector[0].roi.full_ht;
-  module->connector[0].roi.scale = 1;
+  module->connector[0].roi.marker = s_roi_mark_hard_bck;
   module->connector[1].roi.wd = module->connector[1].roi.full_wd;
   module->connector[1].roi.ht = module->connector[1].roi.full_ht;
-  module->connector[1].roi.scale = 1;
+  module->connector[1].roi.marker = s_roi_mark_hard_bck;
 }
 
 void

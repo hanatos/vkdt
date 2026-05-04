@@ -45,7 +45,7 @@ void modify_roi_in(
     dt_module_t *module)
 {
   // we're not in a place to ask for full buffers, we just want to use whatever the others say!
-  module->connector[0].roi.scale = -1;
+  module->connector[0].roi.marker = s_roi_mark_uninited;
 }
 
 void modify_roi_out(

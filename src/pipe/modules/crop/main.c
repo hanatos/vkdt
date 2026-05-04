@@ -250,7 +250,7 @@ void modify_roi_in(
     module->connector[0].roi.wd = module->connector[1].roi.wd / wd;
     module->connector[0].roi.ht = module->connector[1].roi.ht / ht;
   }
-  module->connector[0].roi.scale = module->connector[1].roi.scale;
+  module->connector[0].roi.marker = module->connector[1].roi.marker;
 }
 
 void modify_roi_out(

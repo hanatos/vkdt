@@ -4,25 +4,14 @@ void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-  // always request constant histogram size:
-  module->connector[1].roi = module->connector[0].roi;
+  // request constant histogram size:
+  module->connector[1].roi.marker = s_roi_mark_soft_fwd;
+  module->connector[2].roi.marker = s_roi_mark_hard_fwd;
   // smaller sizes are slower (at least on intel), probably more atomic contention:
   module->connector[1].roi.full_wd = 1000;
   module->connector[1].roi.full_ht =  600;
   module->connector[2].roi.full_wd = 1000;
   module->connector[2].roi.full_ht =    5;
-}
-
-void modify_roi_in(
-    dt_graph_t  *graph,
-    dt_module_t *module)
-{
-  module->connector[1].roi.wd = module->connector[1].roi.full_wd;
-  module->connector[1].roi.ht = module->connector[1].roi.full_ht;
-  module->connector[1].roi.scale = 1.0f;
-  module->connector[2].roi.wd = module->connector[2].roi.full_wd;
-  module->connector[2].roi.ht = module->connector[2].roi.full_ht;
-  module->connector[2].roi.scale = 1.0f;
 }
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)

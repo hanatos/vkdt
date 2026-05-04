@@ -10,11 +10,12 @@ void modify_roi_out(
   const int block  = module->img_param.filters == 9u ? 3 : 2;
   const float scale = ro->full_wd > 0 ? (float)ri->full_wd/(float)ro->full_wd : 1.0f;
   const int halfsize = scale >= block;
+  ro->marker = ri->marker;
   if(halfsize)
   {
     ro->full_wd = (ri->full_wd+1)/2;
     ro->full_ht = (ri->full_ht+1)/2;
-    if(scale >= block) ro->scale = -1.0f; // this might be overwritten
+    if(scale >= block) ro->marker = s_roi_mark_soft_fwd; // this might be overwritten
   }
   else
   {
@@ -31,7 +32,6 @@ void modify_roi_in(
   dt_roi_t *ri = &module->connector[0].roi;
   ri->wd = ri->full_wd;
   ri->ht = ri->full_ht;
-  ri->scale = 1.0f;
 }
 
 dt_graph_run_t
@@ -255,7 +255,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   // fprintf(stderr, "weights %lu bytes\n", sizeof(uint16_t)*index_weights_buffer);
 
   // wire weights from file
-  dt_roi_t roi_weights = { .wd = index_weights_buffer, .ht = 1, .full_wd = index_weights_buffer, .full_ht = 1, .scale = 1 };
+  dt_roi_t roi_weights = { .wd = index_weights_buffer, .ht = 1, .full_wd = index_weights_buffer, .full_ht = 1 };
   const int id_lut = dt_node_add(graph, module, "jddcnn", "weights", 1, 1, 1, 0, 0, 1,
       "weights", "source", "ssbo", "f16", &roi_weights);
   graph->module[id_lut].flags = s_module_request_read_source; // read once
@@ -299,7 +299,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
   //     module->connector[1].roi.full_wd,
   //     module->connector[1].roi.full_ht);
   dt_connector_copy(graph, module, 0, id_input,  0);
-  if(module->connector[1].roi.scale != 1.0)
+  if(module->connector[1].roi.marker & s_roi_mark_hard)
   { // add resample node to graph, copy its output instead:
     const int id_resample = dt_node_add(graph, module, "shared", "resample",
         module->connector[1].roi.wd, module->connector[1].roi.ht, 1, 0, 0, 2,

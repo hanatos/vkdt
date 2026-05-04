@@ -106,7 +106,7 @@ dt_connector_copy(
     c1->frames = MAX(c1->frames,c0->frames); // keep feedback connectors
     c1->flags  = c0->flags;
     c1->format = c0->format; // modules may be rigged from the outside, for export etc
-    if(!(c1->type == dt_token("write") && c1->roi.scale > 0 && c0->roi.scale == -1))
+    if(!(c1->type == dt_token("write") && c1->roi.marker != s_roi_mark_uninited && c0->roi.marker == s_roi_mark_uninited))
       c1->roi = c0->roi; // don't overwrite node roi if writing node is inited and module is not
     c1->connected = c0->connected;
     c1->array_length = c0->array_length;

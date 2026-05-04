@@ -23,23 +23,22 @@ void modify_roi_in(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-  module->connector[5].roi.wd = module->connector[5].roi.full_wd;
-  module->connector[5].roi.ht = module->connector[5].roi.full_ht;
-  module->connector[5].roi.scale = 1.0f;
-  module->connector[6].roi.wd = module->connector[6].roi.full_wd;
-  module->connector[6].roi.ht = module->connector[6].roi.full_ht;
-  module->connector[6].roi.scale = 1.0f;
-  module->connector[0].roi = module->connector[1].roi;
+  module->connector[0].roi    = module->connector[1].roi;
+  module->connector[0].chan   = module->connector[1].chan;
+  module->connector[0].format = module->connector[1].format;
   module->connector[2].roi = module->connector[1].roi;
+  module->connector[2].roi.marker = s_roi_mark_soft_bck;
   module->connector[3].roi = module->connector[1].roi;
-  module->connector[4].roi = module->connector[1].roi;
+  module->connector[3].roi.marker = s_roi_mark_soft_bck;
 }
 
 void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-  module->connector[1].roi = module->connector[0].roi;
+  module->connector[1].roi    = module->connector[0].roi;
+  module->connector[1].chan   = module->connector[0].chan;
+  module->connector[1].format = module->connector[0].format;
   module->connector[4].roi = module->connector[0].roi;
   module->connector[5].roi = module->connector[0].roi;
   module->connector[6].roi = module->connector[0].roi;

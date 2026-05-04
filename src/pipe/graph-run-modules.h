@@ -224,6 +224,9 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
       {
         if(module->connector[j].name == tmp)
         {
+          // fprintf(stderr, "input ref %"PRItkn" format %"PRItkn" <- %"PRItkn"\n",
+          //     dt_token_str(module->name), dt_token_str(c->chan),
+          //     dt_token_str(module->connector[j].chan));
           c->chan = module->connector[j].chan;
           break;
         }
@@ -242,11 +245,18 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
   // execute callback if present, or run default
   if(!module->disabled && module->so->modify_roi_out)
   {
-    module->so->modify_roi_out(graph, module);
     // mark roi in of all outputs as uninitialised:
     for(int i=0;i<module->num_connectors;i++)
       if(dt_connector_owner(module->connector+i))
-        module->connector[i].roi.scale = -1.0f;
+        module->connector[i].roi.marker = s_roi_mark_uninited;
+    module->so->modify_roi_out(graph, module);
+    for(int i=0;i<module->num_connectors;i++)
+    {
+      if(module->connector[i].type == dt_token("source") && module->connector[i].roi.marker == s_roi_mark_uninited)
+        module->connector[i].roi.marker = s_roi_mark_hard_fwd;
+      else if(module->connector[i].roi.marker == s_roi_mark_uninited)
+        module->connector[i].roi.marker = s_roi_mark_soft_fwd;
+    }
 
     // if this is the main input of the graph, remember the img_param
     // globally, so others can pick up maker/model:
@@ -265,12 +275,12 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
     // mark roi in of all outputs as uninitialised:
     for(int i=0;i<module->num_connectors;i++)
       if(dt_connector_owner(module->connector+i))
-        module->connector[i].roi.scale = -1.0f;
+        module->connector[i].roi.marker = s_roi_mark_uninited;
     // remember instance name if [0] is a source connector
     if(module->connector[0].type == dt_token("source"))
       module->img_param.input_name = module->inst;
     // copy over roi from connector named "input" to all outputs ("write")
-    dt_roi_t roi = {0};
+    dt_roi_t roi = { .marker = s_roi_mark_soft_fwd };
     if(input < 0)
     {
       // minimal default output size (for generator nodes with no callback)
@@ -292,7 +302,17 @@ modify_roi_out(dt_graph_t *graph, dt_module_t *module)
       {
         module->connector[i].roi.full_wd = roi.full_wd;
         module->connector[i].roi.full_ht = roi.full_ht;
+        module->connector[i].roi.marker = s_roi_mark_soft_fwd;
       }
+    }
+  }
+  for(int i=0;i<module->num_connectors;i++)
+  { // tentatively init wd and ht to full res (dspy bck pass can overwrite later)
+    dt_connector_t *c = module->connector+i;
+    if(dt_connector_owner(c))
+    {
+      c->roi.wd = c->roi.full_wd;
+      c->roi.ht = c->roi.full_ht;
     }
   }
   if(module->name == dt_token("bvh")) module->flags |= s_module_request_build_bvh;
@@ -325,28 +345,35 @@ propagate_roi_in(dt_graph_t *graph, dt_module_t *module)
           if(roi->full_ht == 0) roi->full_ht = 2;
           roi->wd = roi->full_wd;
           roi->ht = roi->full_ht;
-          roi->scale = 1.0f;
+          if(roi->marker == s_roi_mark_uninited) roi->marker = s_roi_mark_soft_fwd;
         }
 
-        if(graph->module[c->connected.i].connector[c->connected.c].type == dt_token("source"))
-        { // sources don't negotiate their size, they just give what they have
-          roi->wd = roi->full_wd;
-          roi->ht = roi->full_ht;
-          if(roi->scale <= 0) roi->scale = 1.0;
+        if(!dt_roi_stronger(&c->roi, roi))
+        { // the buffer we're reading has stronger roi marker than us?
+          // fprintf(stderr, "prop roi %u %u in %"PRItkn":%"PRItkn" <= %"PRItkn":%"PRItkn"\n",
+          //     c->roi.marker, roi->marker,
+          //     dt_token_str(module->name),
+          //     dt_token_str(c->name),
+          //     dt_token_str(graph->module[c->connected.i].name),
+          //     dt_token_str(graph->module[c->connected.i].connector[c->connected.c].name));
           c->roi = *roi;
+          c->format = graph->module[c->connected.i].connector[c->connected.c].format;
+          c->chan   = graph->module[c->connected.i].connector[c->connected.c].chan;
         }
-        else if(c->roi.scale < 0.0f && roi->scale > 0.0f)
-          c->roi = *roi;
-        else if(c->roi.scale > 0.0f && roi->scale < 0.0f)
-          *roi = c->roi;
         else
-          c->roi = *roi;
+        { 
+          // fprintf(stderr, "prop roi %u %u in %"PRItkn":%"PRItkn" => %"PRItkn":%"PRItkn"\n",
+          //     c->roi.marker, roi->marker,
+          //     dt_token_str(module->name),
+          //     dt_token_str(c->name),
+          //     dt_token_str(graph->module[c->connected.i].name),
+          //     dt_token_str(graph->module[c->connected.i].connector[c->connected.c].name));
+          *roi = c->roi; // we have a stronger constraint
+          graph->module[c->connected.i].connector[c->connected.c].format = c->format;
+          graph->module[c->connected.i].connector[c->connected.c].chan   = c->chan;
+        }
         // make sure we use the same array size as the data source. this is when the array_length depends on roi_out
         c->array_length = graph->module[c->connected.i].connector[c->connected.c].array_length;
-        // now the output is sure about the exact type of data it wants to allocate. so we
-        // propagate that the other direction output->our input
-        c->format = graph->module[c->connected.i].connector[c->connected.c].format;
-        c->chan   = graph->module[c->connected.i].connector[c->connected.c].chan;
       }
     }
   }
@@ -378,7 +405,7 @@ propagate_roi_in(dt_graph_t *graph, dt_module_t *module)
       {
         module->connector[i].roi.wd = tmp.connector[i].roi.full_wd;
         module->connector[i].roi.ht = tmp.connector[i].roi.full_ht;
-        module->connector[i].roi.scale = tmp.connector[i].roi.scale;
+        module->connector[i].roi.marker = tmp.connector[i].roi.marker;
       }
     }
   }
@@ -418,16 +445,19 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
     { // by default ask for it all:
       output = 0;
       dt_roi_t *r = &module->connector[0].roi;
-      r->scale = 1.0f;
       // this is the performance/LOD switch for faster processing
       // on low end computers. needs to be wired somehow in gui/config.
       // scale to fit into requested roi
       float max_wd = module->connector[0].max_wd, max_ht = module->connector[0].max_ht;
       float scalex = max_wd > 0 ? r->full_wd / (float) max_wd : 1.0f;
       float scaley = max_ht > 0 ? r->full_ht / (float) max_ht : 1.0f;
-      r->scale = MAX(scalex, scaley);
-      r->wd = (r->full_wd/r->scale + 0.5f);
-      r->ht = (r->full_ht/r->scale + 0.5f);
+      float scale = MAX(scalex, scaley);
+      r->wd = (r->full_wd/scale + 0.5f);
+      r->ht = (r->full_ht/scale + 0.5f);
+      if(module->inst == dt_token("main"))
+        r->marker = s_roi_mark_hard_bck;
+      else
+        r->marker = s_roi_mark_soft_bck;
     }
     if(output < 0)
     {
@@ -459,24 +489,41 @@ modify_roi_in(dt_graph_t *graph, dt_module_t *module)
         { // sources don't negotiate their size, they just give what they have
           roi->wd = roi->full_wd;
           roi->ht = roi->full_ht;
-          if(roi->scale <= 0) roi->scale = 1.0; // mark as initialised, we force the resolution now
+          if(roi->marker == s_roi_mark_uninited) roi->marker = s_roi_mark_hard_bck; // we force the resolution now
           c->roi = *roi;
         }
-        else if(c->roi.scale < 0.0f) {} // this says it doesn't want to propagate
-        // if roi->scale > 0 it has been inited before and we're late to the party!
-        // in this case, reverse the process:
-        else if(roi->scale > 0.0f)
+        if(!dt_roi_stronger(&c->roi, roi))
+        {
+          // fprintf(stderr, "modify roi in %u %u %"PRItkn":%"PRItkn" chan %"PRItkn" <= %"PRItkn":%"PRItkn" %"PRItkn"\n",
+          //     c->roi.marker, roi->marker,
+          //     dt_token_str(module->name),
+          //     dt_token_str(c->name),
+          //     dt_token_str(c->chan),
+          //     dt_token_str(graph->module[c->connected.i].name),
+          //     dt_token_str(graph->module[c->connected.i].connector[c->connected.c].name),
+          //     dt_token_str(graph->module[c->connected.i].connector[c->connected.c].chan));
           c->roi = *roi;
+          c->format = graph->module[c->connected.i].connector[c->connected.c].format;
+          c->chan   = graph->module[c->connected.i].connector[c->connected.c].chan;
+        }
         else
+        {
+          // fprintf(stderr, "modify roi in %u %u %"PRItkn":%"PRItkn" chan %"PRItkn" => %"PRItkn":%"PRItkn" %"PRItkn"\n",
+          //     c->roi.marker, roi->marker,
+          //     dt_token_str(module->name),
+          //     dt_token_str(c->name),
+          //     dt_token_str(c->chan),
+          //     dt_token_str(graph->module[c->connected.i].name),
+          //     dt_token_str(graph->module[c->connected.i].connector[c->connected.c].name),
+          //     dt_token_str(graph->module[c->connected.i].connector[c->connected.c].chan));
           *roi = c->roi;
+          graph->module[c->connected.i].connector[c->connected.c].format = c->format;
+          graph->module[c->connected.i].connector[c->connected.c].chan   = c->chan;
+        }
         // propagate flags:
         graph->module[c->connected.i].connector[c->connected.c].flags |= c->flags;
         // make sure we use the same array size as the data source. this is when the array_length depends on roi_out
         c->array_length = graph->module[c->connected.i].connector[c->connected.c].array_length;
-        // now the output is sure about the exact type of data it wants to allocate. so we
-        // propagate that the other direction output->our input
-        c->format = graph->module[c->connected.i].connector[c->connected.c].format;
-        c->chan   = graph->module[c->connected.i].connector[c->connected.c].chan;
       }
     }
   }

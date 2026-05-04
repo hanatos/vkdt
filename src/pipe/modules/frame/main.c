@@ -8,9 +8,9 @@ void modify_roi_in(
   const float *p_border = dt_module_param_float(module, 2);
   const float bx = CLAMP(p_border[0], 0.0, 1.0);
   const float by = CLAMP(p_border[1], 0.0, 1.0);
+  module->connector[0].roi = module->connector[1].roi;
   module->connector[0].roi.wd = module->connector[1].roi.wd / (1.0 + bx);
   module->connector[0].roi.ht = module->connector[1].roi.ht - module->connector[0].roi.wd * by;
-  module->connector[0].roi.scale = module->connector[1].roi.scale;
 }
 
 void modify_roi_out(

@@ -28,7 +28,6 @@ void modify_roi_in(
   {
     mod->connector[k].roi.wd = mod->connector[k].roi.full_wd;
     mod->connector[k].roi.ht = mod->connector[k].roi.full_ht;
-    mod->connector[k].roi.scale = 1.0f;
   }
 }
 

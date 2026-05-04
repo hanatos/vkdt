@@ -774,12 +774,11 @@ void modify_roi_out(
   // const int p_wd = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("wd")))[0];
   // const int p_ht = dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("ht")))[0];
   int wd = 1920, ht = 1080;
-  mod->connector[0].roi.scale   = 1.0;
   mod->connector[0].roi.full_wd = wd;
   mod->connector[0].roi.full_ht = ht;
   mod->connector[3].roi = (dt_roi_t){ .wd = d->tex_maxw, .ht = d->tex_maxh, .full_wd = d->tex_maxw, .full_ht = d->tex_maxh };
   const int tri_cnt = MAX_VTX_CNT/3;
-  dt_roi_t roi_geo = { .scale=1.0, .wd=tri_cnt, .ht=1, .full_wd=tri_cnt, .full_ht=1 };
+  dt_roi_t roi_geo = { .wd=tri_cnt, .ht=1, .full_wd=tri_cnt, .full_ht=1 };
   // will be inited on node and written to module on copy
   mod->connector[1].roi = roi_geo;
   mod->connector[2].roi = roi_geo;
@@ -984,7 +983,7 @@ create_nodes(
   // i suppose the core allocator might need support for incremental additions otherwise.
   tri_cnt = MAX_VTX_CNT/3;
 
-  dt_roi_t roi_geo = { .scale=1.0, .wd=tri_cnt, .ht=1, .full_wd=tri_cnt, .full_ht=1 };
+  dt_roi_t roi_geo = { .wd=tri_cnt, .ht=1, .full_wd=tri_cnt, .full_ht=1 };
   const uint32_t id_dyngeo = dt_node_add(graph, module, "quake", "dyngeo", 1, 1, 1, 0, 0, 1,
     "dyngeo", "source", "ssbo", "tri", &roi_geo);
   graph->node[id_dyngeo].flags = s_module_request_read_source;
@@ -995,7 +994,7 @@ create_nodes(
   // fprintf(stderr, "[create_nodes] static tri count %u\n", tri_cnt);
   tri_cnt = MAX(1, tri_cnt); // avoid crash for not initialised model
 
-  roi_geo = (dt_roi_t){ .scale=1.0, .wd=tri_cnt, .ht=1, .full_wd=tri_cnt, .full_ht=1 };
+  roi_geo = (dt_roi_t){ .wd=tri_cnt, .ht=1, .full_wd=tri_cnt, .full_ht=1 };
   const uint32_t id_stcgeo = dt_node_add(graph, module, "quake", "stcgeo", 1, 1, 1, 0, 0, 1,
     "stcgeo", "source", "ssbo", "tri", &roi_geo);
 

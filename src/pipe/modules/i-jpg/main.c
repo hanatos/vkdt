@@ -489,7 +489,6 @@ void modify_roi_out(
     mod->connector[0].roi.full_ht = max_ht;
     mod->connector[0].roi.wd = max_wd;
     mod->connector[0].roi.ht = max_ht;
-    mod->connector[0].roi.scale = 1;
     mod->connector[0].array_length = cnt;
     // instruct the connector that we have an array with different image resolution for every element:
     mod->connector[0].array_dim = jpg->lst_dim;

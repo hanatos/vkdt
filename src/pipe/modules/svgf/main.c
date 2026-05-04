@@ -21,9 +21,7 @@ void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *mod)
 { // grab output dimensions from albedo image
-  mod->connector[3].roi.scale = 1;
-  mod->connector[3].roi.full_wd = mod->connector[2].roi.full_wd;
-  mod->connector[3].roi.full_ht = mod->connector[2].roi.full_ht;
+  mod->connector[3].roi = mod->connector[2].roi;
 }
 
 void modify_roi_in(

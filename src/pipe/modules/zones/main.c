@@ -55,13 +55,9 @@ void modify_roi_in(
   dt_roi_t *ri = &module->connector[0].roi;
   dt_roi_t *r1 = &module->connector[1].roi;
   dt_roi_t *r2 = &module->connector[2].roi;
-  ri->wd = r1->wd;
-  ri->ht = r1->ht;
-  ri->scale = r1->scale;
-  // not listening to what the others say, this is just dspy
-  r2->wd = r1->wd;
-  r2->ht = r1->ht;
-  r2->scale = r1->scale;
+  *ri = *r1;
+  r2->wd = r2->full_wd;
+  r2->ht = r2->full_ht;
 }
 
 void modify_roi_out(

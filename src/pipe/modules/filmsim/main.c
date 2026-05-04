@@ -31,7 +31,6 @@ void modify_roi_in(
   const int par = dt_module_param_int(module, pid)[0];
   int s = par == 0 ? 1 : par == 1 ? 2 : 4;
 
-  module->connector[1].roi.scale = module->connector[1].roi.full_wd/(float)module->connector[1].roi.wd;
   module->connector[0].roi = module->connector[1].roi;
   module->connector[0].roi.wd /= s;
   module->connector[0].roi.ht /= s;

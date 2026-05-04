@@ -1,5 +1,5 @@
 input:read:*:*
-output:write:&input:f16
+output:write:*:*
 alignsrc:read:*:*
 aligndst:read:*:*
 mask:write:y:f16

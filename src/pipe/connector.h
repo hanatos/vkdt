@@ -8,13 +8,35 @@
 #include <vulkan/vulkan.h>
 
 // info about a region of interest.
+typedef enum dt_roi_mark_t
+{
+  s_roi_mark_uninited  =  0,
+  s_roi_mark_soft      =  1,
+  s_roi_mark_hard      =  2,
+  s_roi_mark_bck       =  4,
+  s_roi_mark_fwd       =  8,
+  s_roi_mark_soft_bck  = s_roi_mark_soft | s_roi_mark_bck,
+  s_roi_mark_hard_bck  = s_roi_mark_hard | s_roi_mark_bck,
+  s_roi_mark_soft_fwd  = s_roi_mark_soft | s_roi_mark_fwd,
+  s_roi_mark_hard_fwd  = s_roi_mark_hard | s_roi_mark_fwd,
+  s_roi_mark_dontcare  = 0xff,
+} dt_roi_mark_t;
 typedef struct dt_roi_t
 {
   uint32_t full_wd, full_ht; // full input size
   uint32_t wd, ht;           // dimensions of scaled region
-  float scale;               // scale: wd * scale is on input scale
+  uint32_t marker;           // see dt_roi_mark_t
 }
 dt_roi_t;
+
+static inline int dt_roi_stronger(const dt_roi_t *a, const dt_roi_t *b)
+{ // returns non-zero if the roi marker of a has a stronger constraint than the one of b
+  if(a->marker == s_roi_mark_dontcare) return 0;
+  if(b->marker == s_roi_mark_dontcare) return 1;
+  int mark = (int)(a->marker & 3u) - (int)(b->marker & 3u);   // uninited < soft < hard
+  if(mark == 0) return (a->marker & 12u) > (b->marker & 12u); // tiebreak: bck < fwd 
+  else return mark > 0;
+}
 
 // identifying a connector
 typedef struct dt_cid_t
