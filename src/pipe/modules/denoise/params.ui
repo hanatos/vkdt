@@ -1,5 +1,6 @@
 strength:slider:0:1
 luma:slider:0:1
 detail:slider:0:1
-edges:slider:0:20
+pad:hidden
+edges:colwheel:-1:1:-10:10
 gainmap:combo:ignore:apply if present

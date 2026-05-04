@@ -13,7 +13,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float strength;
   float luma;
   float detail;
-  float edges;
+  float pad;
+  vec4  edges;
   int   gainmap;
 } params;
 
@@ -46,12 +47,13 @@ vec3 gamma(vec3 f)
 }
 
 
-float edge(vec3 s, vec3 c0, vec3 c1)
+vec3 edge(vec3 s, vec3 c0, vec3 c1)
 {
     /* float w = exp(-dot(wc*(col-rgb),wc*(col-rgb))) * (1.0-t)/4.0; */ \
     /* float w = exp(-dot(wc*abs(col-rgb),vec3(1.0))) * (1.0-t)/4.0; */ \
   // return exp(-dot(s*abs(gamma(c0)-gamma(c1)),vec3(1.0)));
-  return clamp(1.0-0.5*dot(s*abs(gamma(c0)-gamma(c1)), vec3(1.0)), 0.0, 1.0);
+  // return clamp(1.0-0.5*dot(s*abs(gamma(c0)-gamma(c1)), vec3(1.0)), 0.0, 1.0);
+  return clamp(1.0-0.5*(s*abs(gamma(c0)-gamma(c1))), 0.0, 1.0);
 }
 
 void
@@ -76,16 +78,16 @@ main()
   {
     rgb = texture(img_in, (ipos + 0.5 + push.crop.xy)/vec2(sz)).rgb;
     vec3 sum = t * rgb;
-    float wgt = t;
+    vec3 wgt = vec3(t);
     // const float scale = /*push.level == 0 ? 1.0 : */ 65535.0*(push.white.g-push.black.g);
     const float block = (push.block == 3) ? 2.23607 : (push.block == 2 ? 1.414213 : 1.0);
 
-    const float sigma = pow(0.7, push.level) * noise_sigma(push.noise_a, push.noise_b, push.black.g, push.white.g, params.edges, rgb.r)/block;
+    const vec3 sigma = pow(0.7, push.level) * noise_sigma(push.noise_a, push.noise_b, push.black.g, push.white.g, params.edges, rgb.r)/block;
     vec3 wc = vec3(1./sigma);
 #define lookup(O) \
     do { \
     vec3 col = texture(img_in, (ipos + push.crop.xy + O)/vec2(sz)).rgb; \
-    float w = edge(wc, col, rgb) * (1.0-t)/4.0; \
+    vec3 w = edge(wc, col, rgb) * (1.0-t)/4.0; \
     sum += w * col; \
     wgt += w; \
     } while(false)

@@ -84,11 +84,10 @@ void modify_roi_in(
   const dt_image_params_t *img_param = dt_module_get_input_img_param(graph, module, dt_token("input"));
   if(!img_param) return; // input chain disconnected
   if(img_param->filters)
-  {
-    // request the full uncropped thing, we want the borders
+  { // request the full uncropped thing, we want the borders
     module->connector[0].roi.wd = module->connector[0].roi.full_wd;
     module->connector[0].roi.ht = module->connector[0].roi.full_ht;
-    module->connector[0].roi.scale = 1.0f;
+    module->connector[0].roi.marker = s_roi_mark_hard_bck;
   }
   else
   {

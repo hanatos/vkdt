@@ -1,5 +1,6 @@
 strength:float:1:0.0
 luma:float:1:0.6
 detail:float:1:1.0
-edges:float:1:1.0
+pad:float:1:0
+edges:float:4:0:0:0:0
 gainmap:int:1:1
