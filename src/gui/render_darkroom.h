@@ -567,7 +567,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         float dx = ctx->input.mouse.pos.x - ctx->input.mouse.prev.x;
         float dy = ctx->input.mouse.pos.y - ctx->input.mouse.prev.y;
         int shift = nk_input_is_key_down(&ctx->input, NK_KEY_SHIFT);
-        float sens = shift ? 0.15f : 0.005f;
+        float sens = shift ? 0.1f : 0.01f;
         float sx = dx / (radius * 2.0f) * sens;
         float sy = dy / (radius * 2.0f) * sens;
         // constrained so sum of R+G+B deltas stays 0 (chromaticity only)
@@ -995,7 +995,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
 
     // full manual control over parameter using the slider:
     RESETBLOCK
-    nk_tab_property(float, ctx, "#", -360.0f, val, 360.0f, 
+    nk_tab_property(float, ctx, "#", -360.0f, val, 360.0f,
           (360.0f)/100.0,
           (360.0f)/(0.6*vkdt.state.center_wd));
     if(*val != oldval) change = 1;
@@ -1503,7 +1503,7 @@ static inline void render_darkroom_widgets(
     ((struct nk_user_font *)ctx->style.font)->height = vkdt.style.fontsize;
     // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
     const struct nk_input *in = (ctx->current->layout->flags & NK_WINDOW_ROM) ? 0 : &ctx->input;
-    if(in && nk_input_is_mouse_hovering_rect(in, box) && 
+    if(in && nk_input_is_mouse_hovering_rect(in, box) &&
         nk_input_has_mouse_click_in_button_rect(in, NK_BUTTON_LEFT, box) &&
         nk_input_is_mouse_pressed(in, NK_BUTTON_LEFT))
     {
@@ -1546,7 +1546,7 @@ static inline void render_darkroom_widgets(
   if(active) nk_style_pop_color(&vkdt.ctx);
   // bit of a crazy dance to avoid double accounting for clicks on combo boxes that just closed above us:
   const struct nk_input *in = (vkdt.ctx.current->layout->flags & NK_WINDOW_ROM) ? 0 : &ctx->input;
-  if(in && nk_input_is_mouse_hovering_rect(in, bound) && 
+  if(in && nk_input_is_mouse_hovering_rect(in, bound) &&
       nk_input_has_mouse_click_in_button_rect(in, NK_BUTTON_LEFT, bound) &&
       nk_input_is_mouse_pressed(in, NK_BUTTON_LEFT))
   {
@@ -1757,7 +1757,7 @@ render_darkroom_modals()
         }
         if(buf[s-1] == '\n') buf[s-1] = 0;
       }
-    
+
       const float row_height = vkdt.ctx.style.font->height + 2 * vkdt.ctx.style.tab.padding.y;
       if(ok == 0)
       {

@@ -26,10 +26,11 @@ main()
 
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
 
-  vec3 lift   = params.lift.rgb  + params.lift.a;
-  vec3 gamma  = max(params.gamma.rgb + params.gamma.a, vec3(1e-6));
-  vec3 gain   = max(params.gain.rgb  + params.gain.a,  vec3(0));
-  vec3 off    = params.off.rgb + params.off.a;
+  const float effect_scale = 0.01;
+  vec3 lift   = (params.lift.rgb  + params.lift.a) * effect_scale;
+  vec3 gamma  = max((params.gamma.rgb + params.gamma.a - 1.0) * effect_scale + 1.0, vec3(1e-6));
+  vec3 gain   = max((params.gain.rgb  + params.gain.a - 1.0) * effect_scale + 1.0, vec3(0));
+  vec3 off    = (params.off.rgb + params.off.a) * effect_scale;
 
   if(params.mode == 0)
   {
