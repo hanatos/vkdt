@@ -448,37 +448,38 @@ void modify_roi_out(
   if(len > 4 && !strncmp(c-4, ".txt", 4))
   { // this is not an image but in fact a list of texture filenames as text.
     // load list of images, keep number of files and the dimension of their images.
-    if(jpg && !strcmp(jpg->filename, filename))
-      return; // already loaded
-    jpg->filename[0] = 0;
-    FILE *f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
-    if(!f) return;
-    fseek(f, 0, SEEK_END);
-    uint64_t size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    if(jpg->lst_data)     free(jpg->lst_data);
-    if(jpg->lst_dim)      free(jpg->lst_dim);
-    if(jpg->lst_filename) free(jpg->lst_filename);
-    jpg->lst_data = malloc(size);
-    fread(jpg->lst_data, size, 1, f);
-    fclose(f);
-    int cnt = 0;
-    for(int i=0;i<size;i++)
-      if(jpg->lst_data[i] == '\n') { jpg->lst_data[i] = 0; cnt++; }
+    if(!jpg || strcmp(jpg->filename, filename))
+    { // not loaded yet
+      jpg->filename[0] = 0;
+      FILE *f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
+      if(!f) return;
+      fseek(f, 0, SEEK_END);
+      uint64_t size = ftell(f);
+      fseek(f, 0, SEEK_SET);
+      if(jpg->lst_data)     free(jpg->lst_data);
+      if(jpg->lst_dim)      free(jpg->lst_dim);
+      if(jpg->lst_filename) free(jpg->lst_filename);
+      jpg->lst_data = malloc(size);
+      fread(jpg->lst_data, size, 1, f);
+      fclose(f);
+      int cnt = 0;
+      for(int i=0;i<size;i++)
+        if(jpg->lst_data[i] == '\n') { jpg->lst_data[i] = 0; cnt++; }
 
-    jpg->lst_cnt = cnt;
-    jpg->lst_dim = calloc(2*sizeof(uint32_t), cnt);
-    jpg->lst_filename = calloc(sizeof(const char*), cnt+1);
-    jpg->lst_filename[0] = jpg->lst_data;
-    cnt = 0;
-    for(int i=0;i<size;i++)
-      if(jpg->lst_data[i] == 0)
-        jpg->lst_filename[++cnt] = jpg->lst_data + i + 1;
+      jpg->lst_cnt = cnt;
+      jpg->lst_dim = calloc(2*sizeof(uint32_t), cnt);
+      jpg->lst_filename = calloc(sizeof(const char*), cnt+1);
+      jpg->lst_filename[0] = jpg->lst_data;
+      cnt = 0;
+      for(int i=0;i<size;i++)
+        if(jpg->lst_data[i] == 0)
+          jpg->lst_filename[++cnt] = jpg->lst_data + i + 1;
 
-    // for each one image, open the header and find the size of the image
-    for(int i=0;i<jpg->lst_cnt;i++)
-      read_header(mod, 0, jpg->lst_filename[i], jpg->lst_dim + 2*i);
-
+      // for each one image, open the header and find the size of the image
+      for(int i=0;i<jpg->lst_cnt;i++)
+        read_header(mod, 0, jpg->lst_filename[i], jpg->lst_dim + 2*i);
+    }
+    // in any case, update info on connector
     uint32_t max_wd = 0, max_ht = 0;
     for(int i=0;i<jpg->lst_cnt;i++)
     {
@@ -489,7 +490,7 @@ void modify_roi_out(
     mod->connector[0].roi.full_ht = max_ht;
     mod->connector[0].roi.wd = max_wd;
     mod->connector[0].roi.ht = max_ht;
-    mod->connector[0].array_length = cnt;
+    mod->connector[0].array_length = jpg->lst_cnt;
     // instruct the connector that we have an array with different image resolution for every element:
     mod->connector[0].array_dim = jpg->lst_dim;
     snprintf(jpg->filename, sizeof(jpg->filename), "%s", filename);

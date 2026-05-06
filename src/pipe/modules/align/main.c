@@ -166,6 +166,7 @@ create_nodes(
       "output", "write", img_param->filters == 0 ? "rgba" : "rggb", "f16", roi+0,
       "visn",   "write", "rgba", "ui8", roi+0,
       "mv", "write", "rg", "f16", roi+0);
+  graph->node[id_warp].connector[4].flags |= s_conn_clear_once;
   dt_connector_copy(graph, module, 0, id_warp, 0);
   CONN(dt_node_connect(graph, id_offset, 2, id_warp, 1));
   dt_connector_copy(graph, module, 1, id_warp, 2);

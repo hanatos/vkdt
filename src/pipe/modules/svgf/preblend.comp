@@ -7,6 +7,10 @@
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  uint frame;
+} global;
 layout(std140, set = 0, binding = 1) uniform params_t
 { 
   float alpha;
@@ -60,6 +64,7 @@ main()
   alpha *= smoothstep(0.8, 1.0, dot(nc, np));
   alpha *= smoothstep(0.02*max(gbufc.x, gbufp.x), 0.0, abs(gbufc.x - gbufp.x));
 
+  if(global.frame == 0) alpha = 0.0;
   L = mix(L, Lo, alpha);
   // L = vec3(gbufc.z, sigmac, sigmap); // visualise mean and variance
 

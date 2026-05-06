@@ -28,7 +28,7 @@ read_header(
     uint32_t    *dim,
     const char  *pattern)
 {
-  if(dim) dim[0] = dim[1] = 0;
+  if(dim) dim[0] = dim[1] = 4;
   lutinput_buf_t *lut = mod->data;
 
   char filename[PATH_MAX], flen[10];
@@ -46,9 +46,10 @@ read_header(
   lut->f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
   if(!lut->f) goto error;
 
-  if(fread(&lut->header, sizeof(dt_lut_header_t), 1, lut->f) != 1 || lut->header.version != 2)
+  if(fread(&lut->header, sizeof(dt_lut_header_t), 1, lut->f) != 1 || lut->header.version != dt_lut_header_version)
   {
     fclose(lut->f);
+    lut->f = 0;
     goto error;
   }
 
@@ -75,6 +76,9 @@ error:
     fprintf(stderr, "\n"); // fuck you gcc
   mod->graph->gui_msg = lut->errormsg;
   lut->filename[0] = 0;
+  if(lut->f) fclose(lut->f);
+  lut->f = 0;
+  lut->header = (dt_lut_header_t){};
   return 1;
 }
 
@@ -142,37 +146,38 @@ void modify_roi_out(
   if(len > 4 && !strncmp(c-4, ".txt", 4))
   { // this is not a lut but in fact a list of texture filenames as text.
     // load list of images, keep number of files and the dimension of their images.
-    if(lut && !strcmp(lut->filename, filename))
-      return; // already loaded
-    lut->filename[0] = 0;
-    FILE *f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
-    if(!f) return;
-    fseek(f, 0, SEEK_END);
-    uint64_t size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    if(lut->lst_data)     free(lut->lst_data);
-    if(lut->lst_dim)      free(lut->lst_dim);
-    if(lut->lst_filename) free(lut->lst_filename);
-    lut->lst_data = malloc(size);
-    fread(lut->lst_data, size, 1, f);
-    fclose(f);
-    int cnt = 0;
-    for(int i=0;i<size;i++)
-      if(lut->lst_data[i] == '\n') { lut->lst_data[i] = 0; cnt++; }
+    if(!lut || strcmp(lut->filename, filename))
+    { // not loaded yet
+      lut->filename[0] = 0;
+      FILE *f = dt_graph_open_resource(mod->graph, 0, filename, "rb");
+      if(!f) return;
+      fseek(f, 0, SEEK_END);
+      uint64_t size = ftell(f);
+      fseek(f, 0, SEEK_SET);
+      if(lut->lst_data)     free(lut->lst_data);
+      if(lut->lst_dim)      free(lut->lst_dim);
+      if(lut->lst_filename) free(lut->lst_filename);
+      lut->lst_data = malloc(size);
+      fread(lut->lst_data, size, 1, f);
+      fclose(f);
+      int cnt = 0;
+      for(int i=0;i<size;i++)
+        if(lut->lst_data[i] == '\n') { lut->lst_data[i] = 0; cnt++; }
 
-    lut->lst_cnt = cnt;
-    lut->lst_dim = calloc(2*sizeof(uint32_t), cnt);
-    lut->lst_filename = calloc(sizeof(const char*), cnt+1);
-    lut->lst_filename[0] = lut->lst_data;
-    cnt = 0;
-    for(int i=0;i<size;i++)
-      if(lut->lst_data[i] == 0)
-        lut->lst_filename[++cnt] = lut->lst_data + i + 1;
+      lut->lst_cnt = cnt;
+      lut->lst_dim = calloc(2*sizeof(uint32_t), cnt);
+      lut->lst_filename = calloc(sizeof(const char*), cnt+1);
+      lut->lst_filename[0] = lut->lst_data;
+      cnt = 0;
+      for(int i=0;i<size;i++)
+        if(lut->lst_data[i] == 0)
+          lut->lst_filename[++cnt] = lut->lst_data + i + 1;
 
-    // for each one image, open the header and find the size of the image
-    for(int i=0;i<lut->lst_cnt;i++)
-      read_header(mod, lut->lst_dim + 2*i, lut->lst_filename[i]);
-
+      // for each one image, open the header and find the size of the image
+      for(int i=0;i<lut->lst_cnt;i++)
+        read_header(mod, lut->lst_dim + 2*i, lut->lst_filename[i]);
+    }
+    // in any case need to update info on the connector that might have been zeroed:
     uint32_t max_wd = 0, max_ht = 0;
     for(int i=0;i<lut->lst_cnt;i++)
     {
@@ -184,7 +189,7 @@ void modify_roi_out(
     mod->connector[0].roi.full_ht = max_ht;
     mod->connector[0].roi.wd = max_wd;
     mod->connector[0].roi.ht = max_ht;
-    mod->connector[0].array_length = cnt;
+    mod->connector[0].array_length = lut->lst_cnt;
     // instruct the connector that we have an array with different image resolution for every element:
     mod->connector[0].array_dim = lut->lst_dim;
     snprintf(lut->filename, sizeof(lut->filename), "%s", filename);
@@ -195,10 +200,18 @@ void modify_roi_out(
     {
       mod->connector[0].roi.full_wd = 32;
       mod->connector[0].roi.full_ht = 32;
-      return;
     }
-    mod->connector[0].roi.full_wd = lut->header.wd;
-    mod->connector[0].roi.full_ht = lut->header.ht;
+    else
+    {
+      mod->connector[0].roi.full_wd = lut->header.wd;
+      mod->connector[0].roi.full_ht = lut->header.ht;
+    }
+  }
+  if(lut->header.version == 0)
+  { // defaults for missing files:
+    fprintf(stderr, "setting defaults\n");
+    lut->header.channels = 4;
+    lut->header.datatype = dt_lut_header_ui8;
   }
   // adjust output connector channels:
   if(lut->header.channels == 1) mod->connector[0].chan = dt_token("r");
@@ -232,6 +245,7 @@ int read_source(
     dt_read_source_params_t *p)
 {
   lutinput_buf_t *lut = mod->data;
+  if(lut->errormsg[0]) return 1;
   if(lut->lst_filename)
   {
     if(read_header(mod, 0, lut->lst_filename[p->a])) return 1;

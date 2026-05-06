@@ -40,7 +40,6 @@ void modify_roi_in(
   mod->connector[5].roi.ht = mod->connector[3].roi.ht;
 }
 
-// XXX go through this and do stuff in 32 or in 16 bits please!
 void
 create_nodes(
     dt_graph_t  *graph,
