@@ -567,7 +567,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         float dx = ctx->input.mouse.pos.x - ctx->input.mouse.prev.x;
         float dy = ctx->input.mouse.pos.y - ctx->input.mouse.prev.y;
         int shift = nk_input_is_key_down(&ctx->input, NK_KEY_SHIFT);
-        float sens = shift ? 0.1f : 0.01f;
+        float sens = shift ? 0.15f : 0.005f;
         float sx = dx / (radius * 2.0f) * sens;
         float sy = dy / (radius * 2.0f) * sens;
         // constrained so sum of R+G+B deltas stays 0 (chromaticity only)
@@ -577,7 +577,11 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         disp[2] +=  1.0f/3.0f * sy + inv_rt3 * sx;
         float lo = param->widget.min, hi = param->widget.max;
         if(lo < hi) for(int k = 0; k < 3; k++) disp[k] = CLAMP(def[k] + disp[k], lo, hi) - def[k];
-        // constrain displacement to keep visual dot within wheel boundary
+        // constrain displacement to keep visual dot within wheel boundary.
+        // the color wheel enforces R+G+B = const (pure chromaticity, no luminance).
+        // for an equilateral triangle in RGB space, max per-component displacement is ~0.31-0.47
+        // depending on direction. this is enforced in (wx,wy) hexagonal space with max_dist ≈ 0.476.
+        // params.ui ranges must not clip this geometric limit (keep min/max wider than ±0.31).
         float wx = rt32 * (disp[2] - disp[1]);
         float wy = -disp[0] + 0.5f * (disp[1] + disp[2]);
         float dist_sq = wx * wx + wy * wy;

@@ -29,6 +29,14 @@ see: ACES S-2016-001 : ACEScct --- A Quasi-Logarithmic Encoding of ACES Data for
   
 * `hi_pivot` in mode 1: controls midtone-to-highlight transition point. must be > sh_pivot.
 
+## color wheel constraints
+
+the GUI uses a color wheel widget for lift, gamma, gain, and offset. the wheel enforces a zero-sum constraint on RGB deltas: R + G + B = 0 (pure chromaticity, no luminance change). this constraint creates an equilateral triangle in RGB space.
+
+the maximum displacement any single component can achieve is **±0.317**, which occurs when one component is maximized and the other two balance it symmetrically. this geometric limit comes from the circular boundary of the wheel visualization in hexagonal coordinates.
+
+the parameter ranges are set to exactly this geometric maximum (±0.317 for lift/offset, ±0.683–1.317 for gamma/gain). this ensures the visual wheel range matches the achievable parameter range with no clipping or wasted space.
+
 ## connectors
 
 * `input` the display referred input image in zero/one range
