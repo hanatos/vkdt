@@ -79,6 +79,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [kpn: kernel prediction neural network for denoising](./kpn/readme.md)
 * [lens: lens distortion correction](./lens/readme.md)
 * [negative: invert film negatives](./negative/readme.md)
+* [oidn: open image denoise](./oidn/readme.md)
 * [usm: unsharp masking sharpening](./usm/readme.md)
 
 **tone**
