@@ -13,11 +13,8 @@ patterns. for full colour denoising, please use the [`oidn`](../oidn/readme.md) 
 </div>
 image by piratenpanda (pixls.us), CC-BY-SA
 
-the weights are read from `~/.config/vkdt/data/jddcnn-bayer.dat` or
-from `~/.config/vkdt/data/jddcnn-xtrans.dat`.
-download links:
-* [bayer](https://github.com/hanatos/vkdt/releases/download/1.1.0/jddcnn-bayer.dat)
-* [xtrans](https://github.com/hanatos/vkdt/releases/download/1.1.0/jddcnn-xtrans.dat)
+the weights are read from `~/.config/vkdt/data/jddcnn-*.dat` for a couple of network variants.
+you can [download the weights package here](https://codeberg.org/hanatos/vkdt-nn/releases/download/0.0.1/weights.tar.xz).
 
 in the pipeline it replaces denoising and demosaicing. the input is scene
 referred mosaic data. that is, the input should be *after* the `denoise` module

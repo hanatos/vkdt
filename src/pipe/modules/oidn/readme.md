@@ -2,8 +2,10 @@
 
 the spir-v here is automatically generated from the oidn onnx.
 
-this module requires a `data/oidn-weights.dat` file containing
-the pre-trained weights for the oidn light ldr network.
+this module requires a `.dat` weights file in `~/.config/vkdt/data` containing
+the pre-trained weights for the oidn ldr network variant.
+
+these can be downloaded [from here](https://codeberg.org/hanatos/vkdt-nn/releases/download/0.0.1/weights.tar.xz).
 
 if the input exposes some kind of inter-pixel correlation (such as from a
 preceeding demosaicing operation) this module will not do anything at all. oidn
