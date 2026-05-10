@@ -9,8 +9,6 @@ typedef struct dt_widget_descriptor_t
   dt_token_t type;  // such as "slider"
   float      min;   // min slider value
   float      max;   // max slider value
-  float      master_min; // min slider value for master component of colwheel
-  float      master_max; // max slider value for master component of colwheel
   int        grpid; // param id: group this widget belongs to, or -1
   int        mode;  // widget only shows if int group param is in this mode
   int        cntid; // param id: this integer param holds the multiplicity of this widget, or -1

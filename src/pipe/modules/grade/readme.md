@@ -16,18 +16,12 @@ see: ACES S-2016-001 : ACEScct --- A Quasi-Logarithmic Encoding of ACES Data for
 ## parameters
 
 * `lift` blend towards a color in shadows: `rgb * (1 - lift) + lift`. preserves white point.
-  
 * `gamma` power function for midtones: `rgb ^ (1 / gamma)`. gamma > 1 brightens, < 1 darkens.
-
 * `gain` per-channel multiplication applied first. brightens midtones/shadows more than highlights.
-
 * `offset` uniform addition to all channels, applied last. linear brightness adjustment.
-
-* `mode` 0 = apply to all tones uniformly. 1 = apply selectively to shadows/midtones/highlights.
-  
-* `sh_pivot` in mode 1: controls shadow-to-midtone transition point. range 0-1.
-  
-* `hi_pivot` in mode 1: controls midtone-to-highlight transition point. must be > sh_pivot.
+* `mode` apply to all tones uniformly, or apply selectively to shadows/midtones/highlights.
+* `sh_pivot` controls shadow-to-midtone transition point. range 0-1.
+* `hi_pivot` controls midtone-to-highlight transition point. must be > `sh_pivot`.
 
 ## connectors
 

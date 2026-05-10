@@ -565,8 +565,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       // master slider bar below wheel
       struct nk_rect sbar = {cw_row.x + 4, cw_row.y + wheel_d + 2, half_pw - 8, row_height - 2};
       {
-        const float m_min = param->widget.master_min;
-        const float m_max = param->widget.master_max;
+        const float m_min = param->widget.min;
+        const float m_max = param->widget.max;
         const float m_rng = m_max - m_min;
         float t = m_rng > 0 ? (val[3] - m_min) / m_rng : 0.5f;
         nk_fill_rect(cmd, sbar, 3, nk_rgba(50,50,50,200));
