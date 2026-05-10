@@ -508,9 +508,9 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       float wy = (-disp[0] + 0.5f * (disp[1] + disp[2]))/rt32;
       float dpx = ccx + wx * radius;
       float dpy = ccy + wy * radius;
-      nk_stroke_line(cmd, ccx-6, ccy, ccx+6, ccy, 1.0f, nk_rgba(100,100,100,180));
-      nk_stroke_line(cmd, ccx, ccy-6, ccx, ccy+6, 1.0f, nk_rgba(100,100,100,180));
-      float dr = 6.0f;
+      float dr = row_height/6.0f;
+      nk_stroke_line(cmd, ccx-dr, ccy, ccx+dr, ccy, 1.0f, nk_rgba(100,100,100,180));
+      nk_stroke_line(cmd, ccx, ccy-dr, ccx, ccy+dr, 1.0f, nk_rgba(100,100,100,180));
       nk_fill_circle(cmd, (struct nk_rect){dpx-dr, dpy-dr, dr*2, dr*2}, nk_rgba(220,220,220,255));
       nk_stroke_circle(cmd, (struct nk_rect){dpx-dr, dpy-dr, dr*2, dr*2}, 1.5f, nk_rgba(0,0,0,255));
 
