@@ -466,52 +466,28 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   else if(param->widget.type == dt_token("colwheel"))
   { // color wheel trackball + master slider. works for float count == 4
     // wheel shows displacement from default; uses screen coords (y-down)
-    // layout: 2 wheels per row using nk_layout_space for absolute positioning
+    // layout: 2 wheels per row
     if((num % 4) == 0 && num+4 <= count)
     {
       float *val = (float *)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       const float *def = (const float *)param->val + num;
       float oldval[4]; memcpy(oldval, val, sizeof(oldval));
-      // window canvas clips to the panel; global_cmd has clipping off
       struct nk_command_buffer *cmd = nk_window_get_canvas(ctx);
       float disp[3] = { val[0] - def[0], val[1] - def[1], val[2] - def[2] };
-
-      // determine column: count preceding colwheel params in this module
-      int cw_idx = 0;
-      for(int p = 0; p < parid; p++)
-        if(vkdt.graph_dev.module[modid].so->param[p]->widget.type == dt_token("colwheel"))
-          cw_idx++;
-      const int cw_col = cw_idx & 1; // 0=left, 1=right
 
       const float half_pw = pwd * 0.5f - ctx->style.window.spacing.x * 0.5f;
       const float wheel_d = half_pw * 0.8f; // wheel diameter
       const float cell_ht = wheel_d + 2.0f * row_height;
-
-      // place colwheels 2-per-row: left uses layout row, right reuses it manually
-      static struct nk_rect cw_row = {0};
-      static int cw_row_modid = -1;
-      if(modid != cw_row_modid)
-        cw_row.h = 0;  // reset when module changes
-
-      float bx, by;
-      if(cw_col == 0)
-      {
-        nk_layout_row_dynamic(ctx, cell_ht, 1);
-        cw_row = nk_widget_bounds(ctx);
-        cw_row_modid = modid;
-        bx = cw_row.x;
-        by = cw_row.y;
-      }
-      else
-      {
-        bx = cw_row.x + half_pw + ctx->style.window.spacing.x;
-        by = cw_row.y;
-      }
+      if(num == 0 && (parid == 0 || // start new row
+         vkdt.graph_dev.module[modid].so->param[parid-1]->widget.type != dt_token("colwheel")))
+        nk_layout_row_dynamic(ctx, cell_ht, 2);
+      struct nk_rect cw_row = nk_widget_bounds(ctx);
+      nk_label(ctx, "", 0); // tell nuklear to step ahead
 
       // shared wheel drawing + interaction
-      float ccx = bx + half_pw * 0.5f;
-      float ccy = by + wheel_d * 0.5f;
-      float radius = wheel_d * 0.45f;
+      const float ccx = cw_row.x + half_pw * 0.5f;
+      const float ccy = cw_row.y + wheel_d * 0.5f;
+      const float radius = wheel_d * 0.45f;
 
       // DaVinci orientation: R at 12, G at 8, B at 4 o'clock
       for(int i = 0; i < 48; i++)
@@ -527,12 +503,11 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       float ir = radius * 0.78f;
       nk_fill_circle(cmd, (struct nk_rect){ccx-ir, ccy-ir, ir*2, ir*2}, nk_rgba(30, 30, 30, 220));
 
-      const float sc   = radius * 0.7f;
       const float rt32 = 0.8660254f; // sqrt(3)/2
-      float wx = rt32 * (disp[2] - disp[1]);
-      float wy = -disp[0] + 0.5f * (disp[1] + disp[2]);
-      float dpx = ccx + wx * sc * 3.0f;
-      float dpy = ccy + wy * sc * 3.0f;
+      float wx = disp[2] - disp[1];
+      float wy = (-disp[0] + 0.5f * (disp[1] + disp[2]))/rt32;
+      float dpx = ccx + wx * radius;
+      float dpy = ccy + wy * radius;
       nk_stroke_line(cmd, ccx-6, ccy, ccx+6, ccy, 1.0f, nk_rgba(100,100,100,180));
       nk_stroke_line(cmd, ccx, ccy-6, ccx, ccy+6, 1.0f, nk_rgba(100,100,100,180));
       float dr = 6.0f;
@@ -540,7 +515,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_stroke_circle(cmd, (struct nk_rect){dpx-dr, dpy-dr, dr*2, dr*2}, 1.5f, nk_rgba(0,0,0,255));
 
       // wheel interaction
-      struct nk_rect warea = {bx, by, half_pw, wheel_d};
+      struct nk_rect warea = {cw_row.x, cw_row.y, half_pw, wheel_d};
       int already_active = vkdt.wstate.active_widget_modid == modid &&
                            vkdt.wstate.active_widget_parid == parid &&
                            vkdt.wstate.active_widget_parnm == num;
@@ -575,28 +550,20 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         disp[0] += -2.0f/3.0f * sy;
         disp[1] +=  1.0f/3.0f * sy - inv_rt3 * sx;
         disp[2] +=  1.0f/3.0f * sy + inv_rt3 * sx;
-        float lo = param->widget.min, hi = param->widget.max;
-        if(lo < hi) for(int k = 0; k < 3; k++) disp[k] = CLAMP(def[k] + disp[k], lo, hi) - def[k];
-        // constrain displacement to keep visual dot within wheel boundary
-        float wx = rt32 * (disp[2] - disp[1]);
-        float wy = -disp[0] + 0.5f * (disp[1] + disp[2]);
+        float wx = disp[2] - disp[1];
+        float wy = (-disp[0] + 0.5f * (disp[1] + disp[2]))/rt32;
         float dist_sq = wx * wx + wy * wy;
-        float max_dist_sq = (radius / (sc * 3.0f)) * (radius / (sc * 3.0f));
-        if(dist_sq > max_dist_sq)
-        {
-          float scale = sqrtf(max_dist_sq / dist_sq);
-          disp[0] *= scale;
-          disp[1] *= scale;
-          disp[2] *= scale;
+        if(dist_sq > 1.0f)
+        { // limit to circle with radius 1
+          float scale = 1.0f/sqrtf(dist_sq);
+          for(int k=0;k<3;k++) disp[k] *= scale;
         }
-        val[0] = def[0] + disp[0];
-        val[1] = def[1] + disp[1];
-        val[2] = def[2] + disp[2];
+        for(int k=0;k<3;k++) val[k] = def[k] + disp[k];// * param->widget.max;
       }
       else if(already_active) widget_end();
 
       // master slider bar below wheel
-      struct nk_rect sbar = {bx + 4, by + wheel_d + 2, half_pw - 8, row_height - 2};
+      struct nk_rect sbar = {cw_row.x + 4, cw_row.y + wheel_d + 2, half_pw - 8, row_height - 2};
       {
         const float m_min = param->widget.master_min;
         const float m_max = param->widget.master_max;
@@ -635,7 +602,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       }
 
       // label
-      struct nk_rect lbl = {bx, by + wheel_d + row_height + 2, half_pw, row_height};
+      struct nk_rect lbl = {cw_row.x, cw_row.y + wheel_d + row_height + 2, half_pw, row_height};
       nk_draw_text(cmd, lbl, str, strlen(str), nk_glfw3_font(0),
           nk_rgba(0,0,0,0), nk_rgba(200,200,200,255));
 

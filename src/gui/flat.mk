@@ -8,6 +8,7 @@ GUI_O=gui/gui.o\
       gui/view.o
 GUI_H=gui/gui.h\
       gui/menu.h\
+      gui/dragkey.h\
       gui/render.h\
       gui/render_view.h\
       gui/render_darkroom.h\

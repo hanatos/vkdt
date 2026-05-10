@@ -467,8 +467,15 @@ dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x, double y)
   off += snprintf(msg + off, sizeof(msg) - off, "%s:", d->name);
   dt_graph_run_t runflags = s_graph_run_record_cmd_buf;
   float scale = vkdt.state.center_wd > 0 ? vkdt.state.center_wd * 0.5f : 500.0f;
+  // check if this is a colwheel (2D widget with special barycentric math)
+  int is_colwheel = 0;
+  if(d->comp_cnt >= 2)
+  {
+    const dt_ui_param_t *pp = vkdt.graph_dev.module[d->comp[0].modid].so->param[d->comp[0].parid];
+    is_colwheel = (pp && pp->widget.type == dt_token("colwheel"));
+  }
   float delta_x, delta_y;
-  if(d->use_exp)
+  if(!is_colwheel && d->use_exp)
   {
     float adx = fminf(fabsf(dx), 20.0f * scale);
     float ady = fminf(fabsf(dy), 20.0f * scale);
@@ -477,60 +484,53 @@ dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x, double y)
   }
   else { delta_x = dx; delta_y = dy; }
 
-  // check if this is a colwheel (2D widget with special barycentric math)
-  int is_colwheel = 0;
-  if(d->comp_cnt >= 2)
+  if(is_colwheel && d->comp_cnt > 2 && d->comp[0].modid >= 0 && d->comp[0].parid >= 0)
   {
-    const dt_ui_param_t *pp = vkdt.graph_dev.module[d->comp[0].modid].so->param[d->comp[0].parid];
-    is_colwheel = (pp && pp->widget.type == dt_token("colwheel"));
-  }
-
-  if(is_colwheel && d->comp_cnt >= 2 && d->comp[0].modid >= 0 && d->comp[0].parid >= 0)
-  {
-    // apply barycentric math like mouse drag does for correct color mapping
-    float sx = delta_x * d->comp[0].sensitivity;
-    float sy = delta_y * d->comp[1].sensitivity;
-
-    // barycentric projection (same as in colwheel widget rendering)
+    float *def = vkdt.graph_dev.module[d->comp[0].modid].so->param[d->comp[0].parid]->val;
+    float dif[3] = {
+      d->comp[0].arm_val - def[0],
+      d->comp[1].arm_val - def[1],
+      d->comp[2].arm_val - def[2]};
     const float inv_rt3 = 0.5773503f; // 1/sqrt(3)
-    float disp[3];
+    const float rt32    = 0.8660254f; // sqrt(3)/2
+    const float cx = (dif[2] - dif[1])*rt32;
+    const float cy = -dif[0] + 0.5f * (dif[1] + dif[2]);
+    const float sx = cx + delta_x * d->comp[0].sensitivity;
+    const float sy = cy + delta_y * d->comp[1].sensitivity;
+
+    float disp[3]; // barycentric projection (same as in colwheel widget rendering)
     disp[0] = -2.0f/3.0f * sy;
     disp[1] = 1.0f/3.0f * sy - inv_rt3 * sx;
     disp[2] = 1.0f/3.0f * sy + inv_rt3 * sx;
-
-    // clamp displacement to enforce limits, matching mouse drag behavior exactly
-    float lo = d->comp[0].min_val, hi = d->comp[0].max_val;
-    if(lo < hi) for(int k = 0; k < 3; k++)
-      disp[k] = CLAMP(d->comp[k].arm_val + disp[k], lo, hi) - d->comp[k].arm_val;
-
-    // constrain displacement to keep visual dot within wheel boundary
-    float rt32 = 0.8660254f; // sqrt(3)/2
-    float wx = rt32 * (disp[2] - disp[1]);
-    float wy = -disp[0] + 0.5f * (disp[1] + disp[2]);
+    
+    float wx = disp[2] - disp[1];
+    float wy = (-disp[0] + 0.5f * (disp[1] + disp[2]))/rt32;
     float dist_sq = wx * wx + wy * wy;
-    float max_dist_sq = (1.0f / 2.1f) * (1.0f / 2.1f); // matches wheel boundary: sqrt(wx^2+wy^2) <= 1/2.1
-    if(dist_sq > max_dist_sq)
-    {
-      float scale = sqrtf(max_dist_sq / dist_sq);
-      disp[0] *= scale;
-      disp[1] *= scale;
-      disp[2] *= scale;
+    if(dist_sq > 1.0f)
+    { // clip to radius 1
+      dist_sq = sqrtf(dist_sq);
+      float scale = 1.0f/dist_sq;
+      for(int k=0;k<3;k++) disp[k] *= scale;
+      float ox = (dist_sq - 1.0f) * wx;
+      float oy = (dist_sq - 1.0f) * wy;
+      if(dk->shift) ox /= DT_DRAGKEY_SHIFT_MULT;
+      if(dk->shift) oy /= DT_DRAGKEY_SHIFT_MULT;
+      dk->start_x += ox * rt32 / d->comp[0].sensitivity;
+      dk->start_y += oy * rt32 / d->comp[1].sensitivity;
     }
 
-    // apply to R, G, B (first 3 components)
     float *val = (float *)dt_module_param_float(vkdt.graph_dev.module + d->comp[0].modid, d->comp[0].parid);
     if(val)
     {
       for(int k = 0; k < 3; k++)
-      {
-        float new_val = d->comp[k].arm_val + disp[k];
+      { // copy rgb
         float oldval = val[k];
-        val[k] = new_val;
+        val[k] = def[k] + disp[k];
         if(vkdt.graph_dev.module[d->comp[0].modid].so->check_params)
           runflags |= vkdt.graph_dev.module[d->comp[0].modid].so->check_params(
               vkdt.graph_dev.module + d->comp[0].modid, d->comp[0].parid, k, &oldval);
         if(off < (int)sizeof(msg) - 20)
-          off += snprintf(msg + off, sizeof(msg) - off, " %.3f", new_val);
+          off += snprintf(msg + off, sizeof(msg) - off, " %.3f", val[k]);
       }
     }
   }
