@@ -82,8 +82,9 @@ void modify_roi_in(
 #endif
 
 int read_source(
-    dt_module_t *mod,
-    void *mapped)
+    dt_module_t             *mod,
+    void                    *mapped,
+    dt_read_source_params_t *p)
 {
   const int pi = dt_module_get_param(mod->so, dt_token("draw"));
   const uint32_t *p_draw = dt_module_param_uint32(mod, pi);
