@@ -138,7 +138,6 @@ write_descriptor_sets(
       { // dynamic arrays will only initialise the descriptor set necessary for the current frame
         // since the frames refer to the odd/even pipelines and not to feedback buffers used in the same
         // command buffer:
-        fprintf(stderr, "owner dynamic array write desc\n");
         for(int k=0;k<MAX(1,c->array_length);k++)
         {
           dt_connector_image_t *img = dt_graph_connector_image(graph,
@@ -589,7 +588,8 @@ alloc_descriptor_sets(dt_graph_t *graph, dt_node_t *node)
              node->connector[first].roi.ht);
 
       dt_connector_image_t *img  = dt_graph_connector_image(graph,
-          node - graph->node, i, 0, 0);
+          node - graph->node, i, 0, graph->double_buffer);
+      // XXX this cannot be mip mapped! (i.e. directly attached to a display)
       attachment[cnt++] = img->image_view;
     }
     VkFramebufferCreateInfo fb_create_info = {
@@ -1034,8 +1034,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_COLOR,
         .dstColorBlendFactor = VK_BLEND_FACTOR_DST_COLOR,
         .colorBlendOp        = VK_BLEND_OP_MAX,
-        .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+        .srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
         .alphaBlendOp        = VK_BLEND_OP_MAX,
       };
 

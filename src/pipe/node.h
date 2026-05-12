@@ -47,6 +47,8 @@ typedef struct dt_node_t
 
   uint32_t push_constant[64];  // GTX1080 has size == 256 as max anyways
   size_t   push_constant_size;
+
+  uint32_t vtx_cnt; // for graphics nodes with vertex and fragment shaders: number of vertices
 }
 dt_node_t;
 

@@ -27,6 +27,9 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
+#ifndef SVD_SIZE
+#define SVD_SIZE 81
+#endif
  
 static inline double PYTHAG(double a, double b)
 {
@@ -38,7 +41,7 @@ static inline double PYTHAG(double a, double b)
 
 
 static inline int
-dsvd(double (*a)[81], int m, int n, double *w, double (*v)[81])
+dsvd(double (*a)[SVD_SIZE], int m, int n, double *w, double (*v)[SVD_SIZE])
 {
     int flag, i, its, j, jj, k, l, nm;
     double c, f, h, s, x, y, z;

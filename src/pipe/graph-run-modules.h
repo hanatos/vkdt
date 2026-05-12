@@ -126,6 +126,7 @@ init_display_flags(dt_graph_t *graph, dt_module_t *module)
       int ni = c->associated.i;
       int nc = c->associated.c;
       c = graph->node[ni].connector + nc;
+      if(dt_cid_unset(c->connected)) return;
       int ni1 = c->connected.i;
       int nc1 = c->connected.c;
       graph->node[ni1].connector[nc1].flags |= extra_flag;

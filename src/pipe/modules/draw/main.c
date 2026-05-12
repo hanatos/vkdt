@@ -15,6 +15,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   const int pi = dt_module_get_param(module->so, dt_token("draw"));
   const uint32_t *p_draw = dt_module_param_uint32(module, pi);
   const int num_verts = p_draw[0];
+  int found_both = 0;
   for(int n=0;n<graph->num_nodes;n++)
   {
     if(graph->node[n].name == dt_token("draw") &&
@@ -23,8 +24,16 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     {
       dt_connector_t *c = graph->node[n].connector;
       c->roi.full_wd = 2+num_verts;
-      break;
+      found_both++;
     }
+    if(graph->node[n].name == dt_token("draw") &&
+       graph->node[n].kernel == dt_token("main") &&
+       graph->node[n].module->inst == module->inst)
+    {
+      graph->node[n].vtx_cnt = 18*num_verts;
+      found_both++;
+    }
+    if(found_both >= 2) break;
   }
 }
 
@@ -132,6 +141,7 @@ create_nodes(
       "input",  "read",  "ssbo", "ui32", dt_no_roi,
       "output", "write", "y",    "f16", &module->connector[0].roi);
   graph->node[id_draw].type = s_node_graphics; // mark for rasterisation via vert/geo/frag shaders
+  graph->node[id_draw].vtx_cnt = 18*num_verts;
   CONN(dt_node_connect(graph, id_source, 0, id_draw, 0));
   dt_connector_copy(graph, module, 0, id_draw, 1);
   dt_connector_copy(graph, module, 1, id_source, 0); // route out the raw stroke data

@@ -451,7 +451,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
 
   if(draw != -1)
   {
-    VkClearValue clear_color = { .color = { .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } } };
+    VkClearValue clear_color = { .color = { .float32 = { 0.0f, 0.0f, 0.0f, 0.0f } } };
     VkRenderPassBeginInfo render_pass_info = {
       .sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
       .renderPass        = node->draw_render_pass,
@@ -501,11 +501,11 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
   }
   else
   {
-    const int pi = dt_module_get_param(node->module->so, dt_token("draw"));
-    const int32_t *p_draw = dt_module_param_int(node->module, pi);
-
-    if(p_draw[0] > 0)
-      vkCmdDraw(cmd_buf, 18*p_draw[0], 1, 0, 0);
+    if(node->vtx_cnt > 0)
+    {
+      fprintf(stderr, "dispatch %u vertices\n", node->vtx_cnt);
+      vkCmdDraw(cmd_buf, node->vtx_cnt, 1, 0, 0);
+    }
     vkCmdEndRenderPass(cmd_buf);
   }
 
