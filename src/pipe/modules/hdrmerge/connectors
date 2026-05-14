@@ -1,0 +1,6 @@
+input:read:*:*
+input2:read:*:*
+input3:read:*:*
+input4:read:*:*
+output:write:&input:*
+dspy:write:rgba:f16
