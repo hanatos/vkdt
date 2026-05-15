@@ -1,0 +1,174 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float  plot_scale;    // scale factor for axis scale of module dspy
+  int    output_mode;   // output mode
+  float  ev_push;       // EV step to push the output towards
+  int    num_inputs;    // number of valid input images (1-4)
+  float  t1;            // exposure time for input
+  float  t2;            // exposure time for input2
+  float  t3;            // exposure time for input3
+  float  t4;            // exposure time for input4
+} params;
+layout(set = 1, binding = 0) uniform sampler2D img_in1;         // input
+layout(set = 1, binding = 1) uniform sampler2D img_in2;         // input2
+layout(set = 1, binding = 2) uniform sampler2D img_in3;         // input3
+layout(set = 1, binding = 3) uniform sampler2D img_in4;         // input4
+layout(set = 1, binding = 4) uniform writeonly image2D img_out; // output
+// layout(set = 1, binding = 5) uniform writeonly image2D img_dspy;
+layout(set = 1, binding = 5, r32ui) uniform uimage2D img_dspy;
+
+float triangular_weight(float z)
+{
+  float eps = 0.0001; // 1/pow(10, 4)
+  float zmin = 0.0 + eps;
+  float zmax = 1.0 - eps;
+  if(z <= zmin || z >= zmax) return 0.0;
+  return 1.0 - abs(2.0*z - 1.0);
+}
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  int n = clamp(params.num_inputs, 1, 4);
+
+  // create array of exposures and corresponding weights
+  float Z[4] = float[](0.0, 0.0, 0.0, 0.0);
+  for (int i = 0; i < n; i++)
+  {
+    if(i == 0) Z[i] = texelFetch(img_in1, ipos, 0).r;
+    else if(i == 1) Z[i] = texelFetch(img_in2, ipos, 0).r;
+    else if(i == 2) Z[i] = texelFetch(img_in3, ipos, 0).r;
+    else if(i == 3) Z[i] = texelFetch(img_in4, ipos, 0).r;
+  }
+  float t[4] = float[](params.t1, params.t2, params.t3, params.t4);
+  
+  // L = radiance (proportional to irradiance)
+  // Z = pixel digital value
+  // X = exposure
+  // E = irradiance (proportional to exposure for linear sensor response)
+  // t = exposure time
+  // w = weight
+
+  float num = 0.0;
+  float den = 0.0;
+
+  for (int i = 0; i < n; i++)
+  {
+    float X = Z[i];
+    float E = X / t[i]; // irradiance estimate from this exposure
+    float w = triangular_weight(Z[i]);
+    num += w * E;
+    den += w;
+  }
+  
+  float E;
+  if (den > 1e-6) {
+    E = num / den;
+  } else {
+    // fallback if all samples looked invalid
+    for (int i = 0; i < n; i++)
+    {
+      float X = Z[i];
+      float E = X / t[i]; // irradiance estimate from this exposure
+      num += E;
+      den += 1.0;
+    }
+    E = num / den;
+  }
+    
+  float E_ref = E;
+
+  // pass 2 to reduce bias
+  // similar alg as wjakob/hdrmerge
+  E = 0.0;
+  num = 0.0;
+  den = 0.0;
+  for (int i = 0; i < n; i++)
+  {
+    float predicted_Z = E_ref * t[i]; // predicted pixel value for this exposure based on reference radiance
+    if(predicted_Z >= 0.0 && predicted_Z <= 1.0)
+    {
+      float w = triangular_weight(predicted_Z);
+      float X = Z[i];
+      float E = X / t[i]; // irradiance estimate from this exposure
+      // num += w * (E_ref * t[i]);
+      num += w * E;
+      den += w;
+    }
+  }
+
+  if (den > 1e-6)
+    E = num / den;
+  else
+    E = E_ref; // fallback to reference radiance if all samples looked invalid in pass 2
+
+  // get middle exposure time
+  float t_ref;
+  if (n == 2)
+    t_ref = (params.t1 + params.t2) / 2.0;
+  else if (n == 3)
+    t_ref = (params.t1 + params.t2 + params.t3) / 3.0;
+  else if (n == 4)
+    t_ref = (params.t1 + params.t2 + params.t3 + params.t4) / 4.0;
+  else
+    t_ref = params.t1; // fallback to single exposure time
+  float t_push = 1/pow(2.0, params.ev_push); // convert EV step to exposure time multiplier
+  t_ref *= t_push;
+  
+  float X_out = E * t_ref;
+  
+  float rgb;
+  if (params.output_mode == 0)      // exposure
+    rgb = X_out;
+  else if (params.output_mode == 1) // radiance
+    rgb = E;
+
+  // // log display irradiance
+  // float dbg = log2(1.0 + max(0.0, E));
+  // dbg = clamp(dbg / params.plot_scale, 0.0, 1.0); // tweak scale if needed
+  // vec3 heatmap = vec3(dbg, 0.0, 1.0 - dbg); // convert to heatmap colorscale blue=dark, red=bright
+  // imageStore(img_dspy, ipos, vec4(heatmap, 1.0));
+
+  // dspy: graph of log exposure (X) vs output value
+  for (int i = 0; i < n; i++) {
+    float X = Z[i];
+    float E = X / t[i]; // irradiance estimate from this exposure
+    float x_value = log(1.0 + max(0.0, E  ))/params.plot_scale;
+    float y_value;
+    if (params.output_mode == 0)      // exposure
+      // y_value = rgb;
+      y_value = log(1.0 + max(0.0, rgb))/params.plot_scale;
+    else if (params.output_mode == 1) // radiance
+      y_value = log(1.0 + max(0.0, rgb))/params.plot_scale;
+
+    int x = clamp(int(x_value       * imageSize(img_dspy).x + 0.5), 0, imageSize(img_dspy).x-1);
+    int y = clamp(int((1.0-y_value) * imageSize(img_dspy).y + 0.5), 0, imageSize(img_dspy).y-1);
+
+    // use 10-bit rgb
+    uint id = uint(i + 1u); // exposure id 1..4
+    uint inc =
+        (( id        & 1u) <<  0) |  // red   -> bits 0..9
+        (((id >> 1u) & 1u) << 10) |  // green -> bits 10..19
+        (((id >> 2u) & 1u) << 20);   // blue  -> bits 20..29
+
+    if(inc != 0u) imageAtomicAdd(img_dspy, ivec2(x, y), inc);
+    
+    // // draw vertical line for ideal exposure of this pixel
+    // float log_X_ideal = log(1.0 + max(0.0, 0.5 / t[i]))/params.plot_scale;
+    // int x_ideal = clamp(int(log_X_ideal * imageSize(img_dspy).x + 0.5), 0, imageSize(img_dspy).x-1);
+    // if(inc != 0u) imageAtomicAdd(img_dspy, ivec2(x_ideal, y), inc);
+  }
+
+
+  imageStore(img_out, ipos, vec4(vec3(rgb), 1.0));
+}
+

@@ -1,0 +1,44 @@
+# merge multiple images taken at different exposures (shutter speeds)
+# to decrease noise and increase dynamic range
+# see the [hdrmerge module](../../../src/pipe/modules/hdrmerge/readme.md).
+module:i-raw:main:0:400
+module:i-raw:02:0:600
+module:i-raw:03:0:800
+module:i-raw:04:0:1000
+module:denoise:01:200:400
+module:denoise:02:200:600
+module:denoise:03:200:800
+module:denoise:04:200:1000
+module:hdrmerge:01:400:400
+module:colour:01:931:400
+module:reinhard:01:1230:400
+module:filmcurv:01:1430:400
+module:llap:01:1630:400
+module:display:main:1830:400
+module:hist:01:1630:600
+module:display:hist:1830:600
+# move out of the way
+module:hilite:01:400:0
+module:zones:01:200:1200
+module:pick:01:400:1200
+module:lens:01:600:1200
+connect:i-raw:main:output:denoise:01:input
+connect:i-raw:02:output:denoise:02:input
+connect:i-raw:03:output:denoise:03:input
+connect:i-raw:04:output:denoise:04:input
+connect:denoise:01:output:hdrmerge:01:input
+connect:denoise:02:output:hdrmerge:01:input2
+connect:denoise:03:output:hdrmerge:01:input3
+connect:denoise:04:output:hdrmerge:01:input4
+connect:hdrmerge:01:output:demosaic:01:input
+connect:demosaic:01:output:crop:01:input
+connect:crop:01:output:colour:01:input
+connect:colour:01:output:reinhard:01:input
+connect:reinhard:01:output:filmcurv:01:input
+connect:filmcurv:01:output:llap:01:input
+connect:filmcurv:01:output:hist:01:input
+connect:llap:01:output:display:main:input
+connect:hist:01:output:display:hist:input
+param:filmcurv:01:light:0.1
+# set filmcurv colour mode to agx
+param:filmcurv:01:colour:3
