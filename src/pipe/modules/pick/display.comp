@@ -58,6 +58,14 @@ main()
     float val = sigmoid_eval(coeff, lambda);
     ddx *= coeff.w;
 
+#if 1
+    float L = dot(picked_rgb, vec3(1));
+    vec2 rb = picked_rgb.rb / L;
+    float skin_w   = skin_weight(rb);
+    float skin_val = L*skin_spectrum(rb, lambda);
+    val = mix(val, skin_val, skin_w);
+#endif
+
     const float w = 4.0; // stroke width
     const float t = w*max(1.0, imageSize(img_out).y*ddx);
     float d = abs((1.0-val) * imageSize(img_out).y - ipos.y);

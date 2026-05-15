@@ -4,6 +4,7 @@
 
 #include "shared.glsl"
 #include "matrices.h"
+#include "shared/skin.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 
@@ -73,6 +74,13 @@ main()
     spot = max(spot, mix(vec3(0), col, 0.9 * smoothstep(3*t, 0.0, d)));
   }
   if(spot.r > 0) rgb = spot;
+
+  { // vis skin colours
+    vec3 r2 = xyz_to_rec2020*xyz;
+    float b = dot(r2,vec3(1));
+    r2 /= b;
+    rgb += skin_weight(r2.rb)*r2;
+  }
 
   imageStore(img_out, ipos, vec4(rgb, 1.0));
 }

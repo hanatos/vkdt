@@ -1,4 +1,5 @@
 #include "matrices.h"
+#include "shared/skin.glsl"
 // a version of Jakob2019 sigmoid spectra, but for emission.
 void tri2quad(inout vec2 tc)
 {

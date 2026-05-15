@@ -209,7 +209,6 @@ void modify_roi_out(
   }
   if(lut->header.version == 0)
   { // defaults for missing files:
-    fprintf(stderr, "setting defaults\n");
     lut->header.channels = 4;
     lut->header.datatype = dt_lut_header_ui8;
   }
