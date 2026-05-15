@@ -204,7 +204,7 @@ parse_parameters(
     "NB: Not part of ABI",
   };
   fprintf(stderr, "[i-vid] trc %s\n", ctrc[color_trc]);
-  if(p_trc[0] == 4)
+  if(p_trc[0] == -1)
   {
     p_trc[0] = 1; // default to bt.709
     if(color_trc == 8)  p_trc[0] = 0; // linear
@@ -232,11 +232,11 @@ parse_parameters(
     "NB:  Not part of ABI",
   };
   fprintf(stderr, "[i-vid] colour space %s\n", cs[color_space]);
-  if(p_colour[0] == 2)
+  if(p_colour[0] == -1)
   {
-    p_colour[0] = 0; // default to bt.709
-    if(color_space == 1) p_colour[0] = 0; // bt.709
-    if(color_space == 9) p_colour[0] = 1; // bt.2020 non constant luminance
+    p_colour[0] = s_colour_primaries_srgb; // default to bt.709
+    if(color_space == 1) p_colour[0] = s_colour_primaries_srgb; // bt.709
+    if(color_space == 9) p_colour[0] = s_colour_primaries_2020; // bt.2020 non constant luminance
   }
 
   static const char* cl[] = {
@@ -416,6 +416,8 @@ void modify_roi_out(
   mod->connector[0].roi.full_ht = d->ht;
   // TODO: also init these correctly (as good as we can):
   float b = 0.0, w = 1.0f;
+  const int prim = dt_module_param_int(mod, 0)[0];
+  const int trc  = dt_module_param_int(mod, 1)[0];
   mod->img_param = (dt_image_params_t) {
     .black          = {b, b, b, b},
     .white          = {w, w, w, w},
@@ -429,6 +431,8 @@ void modify_roi_out(
     // .aperture       = dat->video.LENS.aperture * 0.01f,
     // .iso            = dat->video.EXPO.isoValue,
     // .focal_length   = dat->video.LENS.focalLength,
+    .colour_primaries = prim,
+    .colour_trc       = trc,
 
     .snd_samplerate = d->actx ? d->actx->sample_rate : 0,
     .snd_format     = av_sample_fmt_to_alsa(d->actx ? d->actx->sample_fmt : -1),
@@ -449,6 +453,24 @@ void modify_roi_out(
   // this first needs a robust way of doing frame drops.
   if(mod->graph->frame_rate == 0) // don't overwrite cfg
     mod->graph->frame_rate = frame_rate;
+}
+
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    uint32_t     num,
+    void        *oldval)
+{
+  if(parid == 0 || parid == 1) // colour space
+  {
+    const int prim = dt_module_param_int(module, 0)[0];
+    const int trc  = dt_module_param_int(module, 1)[0];
+    module->img_param.colour_primaries = prim;
+    module->img_param.colour_trc       = trc;
+    // return s_graph_run_all; // propagate image params and potentially different buffer sizes downwards
+  }
+  return s_graph_run_record_cmd_buf;
 }
 
 #if 0 // TODO

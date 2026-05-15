@@ -1,5 +1,5 @@
-colour:int:1:2
-trc:int:1:4
+colour:int:1:-1
+trc:int:1:-1
 bitdepth:int:1:4
 chroma:int:1:3
 colrange:int:1:2
