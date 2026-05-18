@@ -153,13 +153,9 @@ graph_destroy_per_image_resources(dt_graph_t *g)
     vkDestroyPipelineLayout     (qvk.device, g->node[i].pipeline_layout,  0);
     vkDestroyPipeline           (qvk.device, g->node[i].pipeline,         0);
     vkDestroyDescriptorSetLayout(qvk.device, g->node[i].dset_layout,      0);
-    vkDestroyFramebuffer        (qvk.device, g->node[i].draw_framebuffer, 0);
-    vkDestroyRenderPass         (qvk.device, g->node[i].draw_render_pass, 0);
     g->node[i].pipeline_layout  = 0;
     g->node[i].pipeline         = 0;
     g->node[i].dset_layout      = 0;
-    g->node[i].draw_framebuffer = 0;
-    g->node[i].draw_render_pass = 0;
     dt_raytrace_node_cleanup(g->node + i);
   }
   dt_raytrace_graph_cleanup(g);

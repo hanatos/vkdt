@@ -714,13 +714,9 @@ dt_graph_run_modules(
       vkDestroyPipelineLayout     (qvk.device, graph->node[i].pipeline_layout,  0);
       vkDestroyPipeline           (qvk.device, graph->node[i].pipeline,         0);
       vkDestroyDescriptorSetLayout(qvk.device, graph->node[i].dset_layout,      0);
-      vkDestroyFramebuffer        (qvk.device, graph->node[i].draw_framebuffer, 0);
-      vkDestroyRenderPass         (qvk.device, graph->node[i].draw_render_pass, 0);
       graph->node[i].pipeline_layout = 0;
       graph->node[i].pipeline = 0;
       graph->node[i].dset_layout = 0;
-      graph->node[i].draw_framebuffer = 0;
-      graph->node[i].draw_render_pass = 0;
       dt_raytrace_node_cleanup    (graph->node + i);
     }
     dt_raytrace_graph_cleanup(graph);

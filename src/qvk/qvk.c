@@ -381,19 +381,19 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     .pNext                  = qvk.float_atomics_supported ? (void *)&atomic_features : (void *)&v12f,
     // .pNext                  = &sub_features,
   };
-  // VkPhysicalDeviceMaintenance4Features maintenance4 = {
-  //   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES,
-  //   .pNext = &v11f,
-  // };
+  VkPhysicalDeviceDynamicRenderingFeatures dyn_render = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
+    .pNext = &v11f,
+    .dynamicRendering = VK_TRUE,
+  };
   VkPhysicalDeviceCooperativeMatrixFeaturesKHR coopmat = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR,
-    // .pNext = &maintenance4, // VK 1.3 only so it seems
-    .pNext = &v11f,
+    .pNext = &dyn_render,
   };
   VkPhysicalDeviceFeatures2 device_features = {
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
     .features = dev_features,
-    .pNext    = qvk.coopmat_supported ? (void*)&coopmat : (void*)&v11f,
+    .pNext    = qvk.coopmat_supported ? (void*)&coopmat : (void*)&dyn_render,
   };
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
   // now find out whether we *really* support 32-bit floating point atomic adds:
@@ -409,8 +409,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       qvk.coopmat_supported       ? "with" : "without");
 
   const char *requested_device_extensions[30] = {
-    // ray tracing
     VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // intel doesn't have it pre 2015 (hd 520)
+    // ray tracing
     VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
     VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
     VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,

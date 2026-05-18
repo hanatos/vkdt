@@ -449,22 +449,6 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     for(int k=0;k<node->num_connectors;k++)
       if(dt_connector_output(node->connector+k)) { draw = k; break; }
 
-  if(draw != -1)
-  {
-    VkClearValue clear_color = { .color = { .float32 = { 0.0f, 0.0f, 0.0f, 0.0f } } };
-    VkRenderPassBeginInfo render_pass_info = {
-      .sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-      .renderPass        = node->draw_render_pass,
-      .framebuffer       = node->draw_framebuffer,
-      .renderArea.offset = { 0, 0 },
-      .renderArea.extent = {
-        .width  = node->connector[draw].roi.wd,
-        .height = node->connector[draw].roi.ht },
-      .clearValueCount   = 1,
-      .pClearValues      = &clear_color
-    };
-    vkCmdBeginRenderPass(cmd_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-  }
 
   // combine all descriptor sets:
   VkDescriptorSet desc_sets[] = {
@@ -499,14 +483,31 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         (node->ht + DT_LOCAL_SIZE_Y - 1) / DT_LOCAL_SIZE_Y,
          node->dp);
   }
-  else
+  else if(node->vtx_cnt > 0)
   {
-    if(node->vtx_cnt > 0)
-    {
-      fprintf(stderr, "dispatch %u vertices\n", node->vtx_cnt);
-      vkCmdDraw(cmd_buf, node->vtx_cnt, 1, 0, 0);
-    }
-    vkCmdEndRenderPass(cmd_buf);
+    VkRenderingAttachmentInfo color_attachment = {
+      .sType         = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView     = dt_graph_connector_image(graph, node-graph->node, draw, 0, graph->double_buffer)->image_view,
+      .imageLayout   = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      .resolveMode   = VK_RESOLVE_MODE_NONE,
+      .loadOp        = VK_ATTACHMENT_LOAD_OP_CLEAR,
+      .storeOp       = VK_ATTACHMENT_STORE_OP_STORE,
+      .clearValue    = {.color = { .float32 = { 0.0f, 0.0f, 0.0f, 0.0f }}},
+    };
+
+    VkRenderingInfo render_info = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+      .renderArea = { {0,0}, {
+        .width  = node->connector[draw].roi.wd,
+        .height = node->connector[draw].roi.ht }},
+      .layerCount = 1,
+      .colorAttachmentCount = 1,
+      .pColorAttachments = &color_attachment,
+    };
+
+    vkCmdBeginRendering(cmd_buf, &render_info);
+    vkCmdDraw(cmd_buf, node->vtx_cnt, 1, 0, 0);
+    vkCmdEndRendering(cmd_buf);
   }
 
   // get a profiler timestamp:

@@ -33,9 +33,6 @@ typedef struct dt_node_t
   VkDescriptorSet       dset[DT_GRAPH_MAX_FRAMES];         // one descriptor set for every frame
   VkDescriptorSetLayout dset_layout;                       // they all share the same layout
 
-  VkRenderPass          draw_render_pass; // needed for raster kernels
-  VkFramebuffer         draw_framebuffer; // 
-
   dt_raytrace_node_t    rt;
 
   dt_node_type_t        type;             // indicates whether we need a render pass and framebuffer

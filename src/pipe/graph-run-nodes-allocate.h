@@ -573,36 +573,6 @@ alloc_descriptor_sets(dt_graph_t *graph, dt_node_t *node)
     }};
     vkUpdateDescriptorSets(qvk.device, 4, buf_dset, 0, NULL);
   }
-
-  if(node->type == s_node_graphics)
-  { // create framebuffer for draw connectors
-    VkImageView attachment[DT_MAX_CONNECTORS];
-    int cnt = 0, first = -1;
-    for(int i=0;i<node->num_connectors;i++) if(dt_connector_owner(node->connector+i))
-    { // make sure there is no array and make sure they are same res!
-      if(first == -1) first = i;
-      assert(node->connector[i].array_length <= 1);
-      assert(node->connector[i].roi.wd == 
-             node->connector[first].roi.wd);
-      assert(node->connector[i].roi.ht == 
-             node->connector[first].roi.ht);
-
-      dt_connector_image_t *img  = dt_graph_connector_image(graph,
-          node - graph->node, i, 0, graph->double_buffer);
-      // XXX this cannot be mip mapped! (i.e. directly attached to a display)
-      attachment[cnt++] = img->image_view;
-    }
-    VkFramebufferCreateInfo fb_create_info = {
-      .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-      .renderPass      = node->draw_render_pass,
-      .attachmentCount = cnt,
-      .pAttachments    = attachment,
-      .width           = node->connector[first].roi.wd,
-      .height          = node->connector[first].roi.ht,
-      .layers          = 1,
-    };
-    if(cnt) QVKR(vkCreateFramebuffer(qvk.device, &fb_create_info, NULL, &node->draw_framebuffer));
-  }
   return VK_SUCCESS;
 }
 
@@ -865,44 +835,6 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       &qvk.tex_sampler_yuv : 0;
   }
 
-  // create render pass in case we need rasterised output:
-  if(drawn_connector_cnt)
-  {
-    VkAttachmentDescription attachment_desc[DT_MAX_CONNECTORS];
-    VkAttachmentReference color_attachment[DT_MAX_CONNECTORS];
-    for(int i=0;i<drawn_connector_cnt;i++)
-    {
-      int k = drawn_connector[i];
-      attachment_desc[i] = (VkAttachmentDescription) {
-        .format         = dt_connector_vkformat(node->connector+k),
-        .samples        = VK_SAMPLE_COUNT_1_BIT,
-        .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR, // VK_ATTACHMENT_LOAD_OP_DONT_CARE, // select on s_conn_clear flag?
-        .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
-        .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-        .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
-        .finalLayout    = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      };
-      color_attachment[i] = (VkAttachmentReference) {
-        .attachment = i,
-        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      };
-    }
-    VkSubpassDescription subpass = {
-      .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-      .colorAttachmentCount = drawn_connector_cnt,
-      .pColorAttachments = color_attachment,
-    };
-    VkRenderPassCreateInfo info = {
-      .sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-      .attachmentCount = drawn_connector_cnt,
-      .pAttachments    = attachment_desc,
-      .subpassCount    = 1,
-      .pSubpasses      = &subpass,
-    };
-    QVK(vkCreateRenderPass(qvk.device, &info, 0, &node->draw_render_pass));
-  }
-
   // a sink needs a descriptor set (for display via gui)
   if(!dt_node_source(node))
   { // create a descriptor set layout
@@ -1048,8 +980,16 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .blendConstants  = { 0.0f, 0.0f, 0.0f, 0.0f },
       };
 
+      VkFormat attachment_fmt = dt_connector_vkformat(node->connector+drawn_connector[0]);
+      VkPipelineRenderingCreateInfo pipeline_create = {
+        .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+        .colorAttachmentCount    = 1,
+        .pColorAttachmentFormats = &attachment_fmt,
+      };
+
       VkGraphicsPipelineCreateInfo pipeline_info = {
         .sType      = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .pNext      = &pipeline_create,
         .stageCount = LENGTH(shader_info),
         .pStages    = shader_info,
 
@@ -1061,11 +1001,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .pDepthStencilState  = NULL,
         .pColorBlendState    = &color_blend_state,
         .pDynamicState       = NULL,
-
         .layout              = node->pipeline_layout,
-        .renderPass          = node->draw_render_pass,
-        .subpass             = 0,
-
         .basePipelineHandle  = VK_NULL_HANDLE,
         .basePipelineIndex   = -1,
       };
