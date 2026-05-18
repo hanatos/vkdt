@@ -73,6 +73,7 @@ dt_font_read(dt_font_t *f, FILE *s)
   { // also need to init fake-font metrics:
 hell:
     header.wd = 255;
+    free(data);
     data = malloc(sizeof(dt_font_metrics_t)*255);
     for(int i=0;i<255;i++)
     {
@@ -112,6 +113,7 @@ hell:
     }
     memcpy(&f->glyph[g++], &data[i-1].g, sizeof(dt_font_glyph_t));
   }
+  free(data);
 }
 
 static inline int
