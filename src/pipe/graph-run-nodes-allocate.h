@@ -464,7 +464,7 @@ alloc_alias_memory(dt_graph_t *graph, dt_node_t *node)
       c->mem_staging       = dt_vkalloc(&graph->heap_staging, staging_size, mem_req.alignment);
       c->offset_staging[0] = c->mem_staging->offset;
       c->offset_staging[1] = need_dbuf ? c->mem_staging->offset + mem_req.size : c->mem_staging->offset;
-      // fprintf(stderr, "allocing staging dbuf %d %"PRItkn"_%"PRItkn"_%"PRItkn"@%d [%lx,%lx)\n",
+      // fprintf(stderr, "allocing staging dbuf %d %"PRItkn"_%"PRItkn"_%"PRItkn"@%d [%ld,%ld)\n",
       //     need_dbuf, dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name),
       //     0, c->mem_staging->offset, c->mem_staging->offset + staging_size);
     }
@@ -788,8 +788,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
 {
   // create descriptor bindings and pipeline:
   // we'll bind our buffers in the same order as in the connectors file.
-  uint32_t drawn_connector_cnt = 0;
-  uint32_t drawn_connector[DT_MAX_CONNECTORS];
+  int drawn_connector = -1;
   VkDescriptorSetLayoutBinding bindings[DT_MAX_CONNECTORS] = {{0}};
   const int nid = node - graph->node;
   for(int cid=0;cid<node->num_connectors;cid++)
@@ -826,8 +825,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     {
       graph->dset_cnt_image_write += MAX(1, node->connector[cid].array_length);
       bindings[cid].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-      if(node->type == s_node_graphics)
-        drawn_connector[drawn_connector_cnt++] = cid;
+      if(node->type == s_node_graphics && drawn_connector == -1)
+        drawn_connector = cid;
     }
     bindings[cid].descriptorCount = MAX(1, node->connector[cid].array_length);
     bindings[cid].stageFlags = VK_SHADER_STAGE_ALL;//COMPUTE_BIT;
@@ -872,10 +871,10 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     };
     QVKR(vkCreatePipelineLayout(qvk.device, &layout_info, 0, &node->pipeline_layout));
 
-    if(drawn_connector_cnt)
+    if(drawn_connector > -1)
     { // create rasterisation pipeline
-      const int wd = node->connector[drawn_connector[0]].roi.wd;
-      const int ht = node->connector[drawn_connector[0]].roi.ht;
+      const int wd = node->connector[drawn_connector].roi.wd;
+      const int ht = node->connector[drawn_connector].roi.ht;
       VkShaderModule shader_module_vert, shader_module_frag;
       QVKR(dt_graph_create_shader_module(graph, node->name, node->kernel, "vert", &shader_module_vert));
       QVKR(dt_graph_create_shader_module(graph, node->name, node->kernel, "frag", &shader_module_frag));
@@ -932,6 +931,12 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .scissorCount  = 1,
         .pScissors     = &scissor,
       };
+      VkPipelineDepthStencilStateCreateInfo depth_state = {
+        .sType             = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .depthTestEnable   = VK_FALSE,
+        .depthWriteEnable  = VK_FALSE,
+        .stencilTestEnable = VK_FALSE,
+      };
 
       VkPipelineRasterizationStateCreateInfo rasterizer_state = {
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
@@ -980,7 +985,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .blendConstants  = { 0.0f, 0.0f, 0.0f, 0.0f },
       };
 
-      VkFormat attachment_fmt = dt_connector_vkformat(node->connector+drawn_connector[0]);
+      VkFormat attachment_fmt = dt_connector_vkformat(node->connector+drawn_connector);
       VkPipelineRenderingCreateInfo pipeline_create = {
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
         .colorAttachmentCount    = 1,
@@ -998,7 +1003,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .pViewportState      = &viewport_state,
         .pRasterizationState = &rasterizer_state,
         .pMultisampleState   = &multisample_state,
-        .pDepthStencilState  = NULL,
+        .pDepthStencilState  = &depth_state,
         .pColorBlendState    = &color_blend_state,
         .pDynamicState       = NULL,
         .layout              = node->pipeline_layout,

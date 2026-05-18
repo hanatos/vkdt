@@ -94,13 +94,14 @@ read_plain(
   size_t sz =
     datatype == dt_lut_header_f16 ? sizeof(uint16_t) :
     datatype == dt_lut_header_ui8 ? sizeof(uint8_t) : sizeof(float);
+
   if(lut->header.channels == 3)
   { // need to pad to 4
     for(int k=0;k<lut->header.wd*lut->header.ht;k++)
     {
-      // TODO: do that for f16 and float too:
-      memset(((uint8_t*)out) + 4*sz*k, 255, 4*sz);
       fread(((uint8_t*)out) + 4*sz*k, 3, sz, lut->f);
+      // TODO: do that for f16 and float too:
+      memset(((uint8_t*)out) + sz*(4*k+3), 255, sz);
     }
   }
   else fread(out, lut->header.wd*(uint64_t)lut->header.ht*(uint64_t)lut->header.channels, sz, lut->f);
@@ -122,6 +123,7 @@ void cleanup(dt_module_t *mod)
   if(lut->filename[0])
   {
     if(lut->f) fclose(lut->f);
+    lut->f = 0;
     lut->filename[0] = 0;
   }
   if(lut->lst_filename) free(lut->lst_filename);
@@ -198,6 +200,7 @@ void modify_roi_out(
   { // regular single lut file
     if(read_header(mod, 0, filename))
     {
+      lut->header.version = 0;
       mod->connector[0].roi.full_wd = 32;
       mod->connector[0].roi.full_ht = 32;
     }

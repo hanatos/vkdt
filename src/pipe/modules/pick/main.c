@@ -1,6 +1,7 @@
 #include "modules/api.h"
 #include <math.h>
 #include "graph-history.h"
+#include "modules/matrices.h"
 
 void ui_callback(
     dt_module_t *mod,
@@ -45,7 +46,12 @@ void modify_roi_in(
     dt_module_t *module)
 {
   // we're not in a place to ask for full buffers, we just want to use whatever the others say!
-  module->connector[0].roi.marker = s_roi_mark_uninited;
+  module->connector[0].roi.wd = module->connector[0].roi.full_wd;
+  module->connector[0].roi.ht = module->connector[0].roi.full_ht;
+  module->connector[0].roi.marker = s_roi_mark_dontcare;
+  module->connector[1].roi.wd = module->connector[1].roi.full_wd;
+  module->connector[1].roi.ht = module->connector[1].roi.full_ht;
+  module->connector[1].roi.marker = s_roi_mark_dontcare;
 }
 
 void modify_roi_out(
@@ -89,7 +95,7 @@ create_nodes(
     const int id_dspy = dt_node_add(graph, module, "pick", "display",
         module->connector[2].roi.wd, module->connector[2].roi.ht, 1, 0, 0, 3,
         "input", "read",  "r",    "atom", dt_no_roi,
-        "lut",   "read",  "*",    "*",    dt_no_roi,
+        "lut",   "read",  "rgba", "f32",  dt_no_roi,
         "dspy",  "write", "rgba", "f16",  &module->connector[2].roi);
     dt_node_connect  (graph, id_collect, 1, id_dspy, 0);
     dt_connector_copy(graph, module, 1, id_dspy, 1);
@@ -132,10 +138,7 @@ _rec2020_to_lab(
     float *rgb,
     float *Lab)
 {
-  const float rec2020_to_xyz[] = {
-    6.36958048e-01, 2.62700212e-01, 4.20575872e-11,
-    1.44616904e-01, 6.77998072e-01, 2.80726931e-02,
-    1.68880975e-01, 5.93017165e-02, 1.06098506e+00};
+  const float rec2020_to_xyz[] = matrix_rec2020_to_xyz;
   float xyz[3] = {0.0f};
   for(int j=0;j<3;j++)
     for(int i=0;i<3;i++)

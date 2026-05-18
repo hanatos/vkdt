@@ -2,21 +2,14 @@
 #extension GL_EXT_shader_16bit_storage             : enable
 #extension GL_EXT_shader_8bit_storage              : enable
 #extension GL_EXT_shader_explicit_arithmetic_types : enable
-struct vtx_t
-{
-  f16vec2 p;
-  f16vec2 uv;
-  u8vec4  col;
-};
-layout(set = 1, binding = 0) buffer ssbo_t { vtx_t v[]; } ssbo;
 layout(set = 1, binding = 1) uniform sampler2D img;
 layout(location = 0) in  vec4 in_colour;
 layout(location = 1) in  vec2 in_uv;
 layout(location = 0) out vec4 out_colour;
-layout(push_constant) uniform push_t
-{
-  float strength;
-} pc;
+// layout(push_constant) uniform push_t
+// {
+//   float strength;
+// } pc;
 float median(vec3 v)
 {
   return max(min(v.r, v.g), min(max(v.r, v.g), v.b));
@@ -24,9 +17,10 @@ float median(vec3 v)
 void main()
 {
   vec4 tex = texture(img, in_uv);
-  if(pc.strength > 0)
+  float strength = 0.6; // pc.strength;
+  if(strength > 0)
   { // render msdf font
-    float dist = median(tex.rgb) - 1.0 + pc.strength;
+    float dist = median(tex.rgb) - 1.0 + strength;
     //
     // dist = dist / fwidth(dist);
     // float opacity = clamp(dist + 0.5, 0.0, 1.0);
@@ -43,7 +37,7 @@ void main()
     if(opacity < 1.0/256.0) opacity = 0.0; // pull down to straight zero to avoid stupid rounding/fog artifacts
     tex = mix(vec4(in_colour.rgb, 0.0), in_colour, opacity);
   }
-  else if(pc.strength < 0) tex = in_colour;
+  else if(strength < 0) tex = in_colour;
   else tex = in_colour * tex;
 
   out_colour = tex;

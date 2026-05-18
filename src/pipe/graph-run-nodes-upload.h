@@ -45,8 +45,9 @@ dt_graph_run_nodes_upload(
     double upload_beg = dt_time();
     uint8_t *mapped = 0;
     QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
-    for(int n=0;n<graph->num_nodes;n++)
-    { // for all source nodes:
+    for(int ni=0;ni<cnt;ni++)
+    { // for all source nodes on the active graph:
+      int n = nodeid[ni];
       dt_node_t *node = graph->node + n;
       if(dt_node_source(node))
       {
