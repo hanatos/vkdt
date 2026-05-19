@@ -127,13 +127,27 @@ check_params(
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
+  // grab latency
+  int64_t latency = 0;
+  int found = 0;
+  uint64_t pre = 0;
+  dt_graph_query_t *q = graph->query + 1-graph->double_buffer;
+  for(int i=0;i<q->cnt;i++)
+  {
+    if(q->name[i] == dt_token("filmsim")) // TODO make configurable
+    {
+      found = 1;
+      latency = q->pool_results[i] - pre;
+    }
+    else if(!found) pre = q->pool_results[i];
+  }
   overlay_t *ov = module->data;
-  // TODO replace text! overwrite text_len with utf-8 length!
+  // replace text and overwrite text_len with utf-8 length
   const int pid_txtl = dt_module_get_param(module->so, dt_token("text l"));
   const char *p_txtl = dt_module_param_string(module, pid_txtl);
   const int pid_txtr = dt_module_get_param(module->so, dt_token("text r"));
   const char *p_txtr = dt_module_param_string(module, pid_txtr);
-  snprintf(ov->textl, sizeof(ov->textl), "%s", p_txtl);
+  snprintf(ov->textl, sizeof(ov->textl), "%s %.1f ms", p_txtl, 1e-6 * qvk.ticks_to_nanoseconds * latency);
   snprintf(ov->textr, sizeof(ov->textr), "%s", p_txtr);
   ov->textl_len = nk_utf_len(ov->textl, strlen(ov->textl));
   ov->textr_len = nk_utf_len(ov->textr, strlen(ov->textr));
