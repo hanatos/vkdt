@@ -1,2 +1,3 @@
 font:string:256:data/font
-text:string:256:hello world
+text l:string:256:hello
+text r:string:256:world

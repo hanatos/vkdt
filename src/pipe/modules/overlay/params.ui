@@ -1,2 +1,3 @@
 font:filename
-text:filename
+text l:filename
+text r:filename
