@@ -29,4 +29,4 @@ through the `prim` and `trc` parameters.
 
 ## connectors
 
-* `output`: the 8-bit rgba srgb data read from the jpeg image.
+* `output` the 8-bit rgba srgb data read from the jpeg image.

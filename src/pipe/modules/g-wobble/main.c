@@ -32,7 +32,7 @@ create_nodes(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  int pc[] = { module->connector[0].roi.full_wd };
+  int pc[] = { module->connector[0].roi.wd };
   int id_geo = dt_node_add(graph, module, "g-wobble", "main", 
       (module->connector[0].roi.wd+31)/32*DT_LOCAL_SIZE_X, 1, 1, sizeof(pc), pc, 2,
       "input",  "read",  "ssbo", "tri", dt_no_roi,

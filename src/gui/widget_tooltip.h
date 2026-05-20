@@ -42,6 +42,7 @@ dt_tooltip(const char *fmt, ...)
         }
         if(*bp == '\n') *bp = 0;
         nk_label(&vkdt.ctx, c, NK_TEXT_LEFT);
+        while(*(bp+1) == '\n') { bp++; *bp=0; } // jump over double newlines
         c = bp+1;
       }
       nk_tooltip_end(&vkdt.ctx);

@@ -576,7 +576,10 @@ dt_node_editor(
             module->connector[c].roi.ht,
             !dt_cid_unset(module->connector[c].associated) &&
             graph->node[module->connector[c].associated.i].connector[module->connector[c].associated.c].frames > 1 ?
-            "double buffered" : "");
+            "double buffered" : (
+            !dt_cid_unset(module->connector[c].associated) &&
+            graph->node[module->connector[c].associated.i].connector[module->connector[c].associated.c].flags & s_conn_protected ?
+            "protected" : ""));
         snprintf(str, sizeof(str), "%"PRItkn, dt_token_str(module->connector[c].name));
         STYLE_LARGE;
         nk_label(ctx, str, dt_connector_output(module->connector+c) ? NK_TEXT_RIGHT : NK_TEXT_LEFT);

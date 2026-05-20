@@ -322,6 +322,11 @@ bind_buffers_to_memory(
   if(!dt_connector_owner(c)) return VK_SUCCESS;
   if(f > 0 && c->frames < 2) return VK_SUCCESS; // this is just a copy, not a real double buffer
   dt_connector_image_t *img = dt_graph_connector_image(graph, node - graph->node, c - node->connector, k, f);
+  // fprintf(stderr, "conn %"PRItkn" %"PRItkn" %"PRItkn" off %ld..%ld\n",
+  //     dt_token_str(node->module->name),
+  //     dt_token_str(node->module->inst),
+  //     dt_token_str(node->kernel),
+  //     img->offset, img->offset + img->size);
   if(dt_connector_ssbo(c))
   { // storage buffer
     if(img->image_view) vkDestroyImageView(qvk.device, img->image_view, VK_NULL_HANDLE);

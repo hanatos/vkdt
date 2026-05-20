@@ -1,6 +1,13 @@
 #include "modules/api.h"
 #include <stdio.h>
 
+void modify_roi_out(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{
+  module->connector[3].roi = module->connector[0].roi;
+}
+
 dt_graph_run_t
 check_params(
     dt_module_t *module,

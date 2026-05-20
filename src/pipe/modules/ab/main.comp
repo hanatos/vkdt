@@ -9,6 +9,7 @@ layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_siz
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float split;
+  float line;
 } params;
 
 
@@ -27,6 +28,11 @@ main()
     rgb = texture(img_a, (ipos+0.5)/vec2(imageSize(img_out)));
   else
     rgb = texture(img_b, (ipos+0.5)/vec2(imageSize(img_out)));
+  if(params.line > 0)
+  {
+    float d = abs(ipos.x/float(imageSize(img_out).x) - params.split);
+    if(d < params.line) rgb = mix(vec4(1), rgb, smoothstep(0, params.line, d));
+  }
 
   imageStore(img_out, ipos, rgb);
 }

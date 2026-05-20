@@ -127,30 +127,9 @@ check_params(
 
 void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
-  // grab latency
-  int64_t latency = 0;
-  int found = 0;
-  uint64_t pre = 0;
-  dt_graph_query_t *q = graph->query + 1-graph->double_buffer;
-  for(int i=0;i<q->cnt;i++)
-  {
-    if(q->name[i] == dt_token("filmsim")) // TODO make configurable
-    {
-      found = 1;
-      latency = q->pool_results[i] - pre;
-    }
-    else if(!found) pre = q->pool_results[i];
-  }
   overlay_t *ov = module->data;
-  // replace text and overwrite text_len with utf-8 length
-  const int pid_txtl = dt_module_get_param(module->so, dt_token("text l"));
-  const char *p_txtl = dt_module_param_string(module, pid_txtl);
-  const int pid_txtr = dt_module_get_param(module->so, dt_token("text r"));
-  const char *p_txtr = dt_module_param_string(module, pid_txtr);
-  snprintf(ov->textl, sizeof(ov->textl), "%s %.1f ms", p_txtl, 1e-6 * qvk.ticks_to_nanoseconds * latency);
-  snprintf(ov->textr, sizeof(ov->textr), "%s", p_txtr);
-  ov->textl_len = nk_utf_len(ov->textl, strlen(ov->textl));
-  ov->textr_len = nk_utf_len(ov->textr, strlen(ov->textr));
+  // commit_params is called after read_source, so we need
+  // to stay consistent with last frame's data:
   for(int n=0;n<graph->num_nodes;n++)
   {
     if(graph->node[n].name == dt_token("overlay") &&
@@ -161,13 +140,35 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
       break;
     }
   }
+  // now grab latency of last frame and update text:
+  int64_t latency = 0;
+  int found = 0;
+  uint64_t pre = 0;
+  dt_graph_query_t *q = graph->query + 1-graph->double_buffer;
+  for(int i=0;i<q->cnt;i++)
+  {
+    if(q->name[i] == dt_token("oidn")) // TODO make configurable
+    {
+      found = 1;
+      latency = q->pool_results[i] - pre;
+    }
+    else if(!found) pre = q->pool_results[i];
+  }
+  // replace text and overwrite text_len with utf-8 length
+  const int pid_txtl = dt_module_get_param(module->so, dt_token("text l"));
+  const char *p_txtl = dt_module_param_string(module, pid_txtl);
+  const int pid_txtr = dt_module_get_param(module->so, dt_token("text r"));
+  const char *p_txtr = dt_module_param_string(module, pid_txtr);
+  snprintf(ov->textl, sizeof(ov->textl), "%s %.1f ms", p_txtl, 1e-6 * qvk.ticks_to_nanoseconds * latency);
+  snprintf(ov->textr, sizeof(ov->textr), "%s", p_txtr);
+  ov->textl_len = nk_utf_len(ov->textl, strlen(ov->textl));
+  ov->textr_len = nk_utf_len(ov->textr, strlen(ov->textr));
 }
 
 void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *module)
 {
-  module->flags |= s_module_request_read_source;
   module->connector[0].roi = (dt_roi_t){ .full_wd = 1024, .full_ht = 1024, .marker = s_roi_mark_dontcare };
   overlay_t *ov = module->data;
   const int pid_font = dt_module_get_param(module->so, dt_token("font"));
@@ -264,14 +265,15 @@ int read_source(
     uint8_t col[] = {0xff, 0xff, 0xff, 0xff}; // TODO
     int vidx = 0;
     const float font_height = 0.1f;
+    const float aspect = mod->connector[0].roi.ht / (float)mod->connector[0].roi.wd;
     for(int i=0;i<2;i++)
     {
       uint32_t unicode, next;
       int text_len = 0, len = strlen(i ? ov->textr : ov->textl);
       len = MIN(len, i ? ov->textr_len : ov->textl_len);
       len = MIN(len, i ? sizeof(ov->textr) : sizeof(ov->textl));
-      float x = i ? 0.9f-len*font_height*0.333 : -0.9f; // positioning: 0,0 is center of image
-      float y = -0.8f;
+      float x = i ? 0.95f/aspect-len*font_height*0.5: -0.95f/aspect; // positioning: 0,0 is center of image
+      float y = -0.9f;
       int glyph_len = nk_utf_decode(i ? ov->textr : ov->textl, &unicode, len);
       while(text_len < len && glyph_len)
       {
@@ -287,12 +289,12 @@ int read_source(
         float char_width = scale * gg->advance;
         float u0 = gg->tbox_x, v0 = gg->tbox_y, u1 = u0 + gg->tbox_w, v1 = v0 + gg->tbox_h;
         // push 6 vertices/2 triangles
-        vert[vidx++] = genv(gx,    gy,    u0, v0, col);
-        vert[vidx++] = genv(gx+gw, gy,    u1, v0, col);
-        vert[vidx++] = genv(gx+gw, gy+gh, u1, v1, col);
-        vert[vidx++] = genv(gx,    gy,    u0, v0, col);
-        vert[vidx++] = genv(gx+gw, gy+gh, u1, v1, col);
-        vert[vidx++] = genv(gx   , gy+gh, u0, v1, col);
+        vert[vidx++] = genv(aspect*(gx   ), gy,    u0, v0, col);
+        vert[vidx++] = genv(aspect*(gx+gw), gy,    u1, v0, col);
+        vert[vidx++] = genv(aspect*(gx+gw), gy+gh, u1, v1, col);
+        vert[vidx++] = genv(aspect*(gx   ), gy,    u0, v0, col);
+        vert[vidx++] = genv(aspect*(gx+gw), gy+gh, u1, v1, col);
+        vert[vidx++] = genv(aspect*(gx   ), gy+gh, u0, v1, col);
         if(vidx >= p->node->connector[0].roi.wd) break;
 
         text_len += glyph_len;
@@ -328,4 +330,5 @@ create_nodes(
   CONN(dt_node_connect_named(graph, id_vtx,  "vtx",  id_overlay, "vtx"));
   CONN(dt_node_connect_named(graph, id_font, "font", id_overlay, "font"));
   dt_connector_copy(graph, module, 0, id_overlay, 2);
+  graph->node[id_vtx].flags |= s_module_request_read_source;
 }

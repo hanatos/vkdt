@@ -85,15 +85,15 @@ typedef struct dt_graph_t
 
   VkBuffer              uniform_buffer;      // uniform buffer shared between all nodes
   VkDeviceMemory        vkmem_uniform;
-  uint32_t              uniform_size;        // size of the total uniform buffer
-  uint32_t              uniform_global_size; // size of the global section
+  VkDeviceSize          uniform_size;        // size of the total uniform buffer
+  VkDeviceSize          uniform_global_size; // size of the global section
   VkDescriptorSetLayout uniform_dset_layout; // same layout for all nodes
 
   dt_raytrace_graph_t   rt;
 
-  size_t                vkmem_size;          // allocation sizes to tell whether we need to re-alloc
-  size_t                vkmem_staging_size;
-  size_t                vkmem_uniform_size;
+  VkDeviceSize          vkmem_size;          // allocation sizes to tell whether we need to re-alloc
+  VkDeviceSize          vkmem_staging_size;
+  VkDeviceSize          vkmem_uniform_size;
 
   dt_graph_query_t      query[2];            // for odd and even command buffers, starting at half query_max
 

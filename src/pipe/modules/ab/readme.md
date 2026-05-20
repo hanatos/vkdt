@@ -5,5 +5,6 @@ another right, in split screen mode. the parameter `split` controls the border.
 
 ## parameters
 
-* `split` the fraction determining the location of the split.
+* `split` the fraction determining the location of the split
+* `line` thickness of a line rendered at the split location
 
