@@ -572,7 +572,7 @@ void export_job_work(uint32_t item, void *arg)
     param.output[1].colour_trc       = j->colour_trc;
   }
   if(dt_graph_export(&j->graph, &param))
-    dt_gui_notification("export %s failed!\n", infilename);
+    dt_gui_notification("export %s failed!", infilename);
   if(j->graph.gui_msg)
     dt_gui_notification(j->graph.gui_msg);
 out:

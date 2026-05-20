@@ -145,24 +145,20 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     }
   }
   // now grab latency of last frame and update text:
-  int64_t latencyl = 0, latencyr = 0;
-  int foundl = 0, foundr = 0;
-  uint64_t prel = 0, prer = 0;
+  uint64_t latencyl = 0, latencyr = 0, prel = 0, prer = 0;
   dt_graph_query_t *q = graph->query + 1-graph->double_buffer;
   for(int i=0;i<q->cnt;i+=2)
   {
     if(q->name[i] == dt_token(p_pl))
     {
-      foundl = 1;
-      latencyl = q->pool_results[i+1] - (prel ? prel : q->pool_results[i]);
+      if(!prel) prel = q->pool_results[i];
+      latencyl = q->pool_results[i+1] - prel;
     }
-    else if(!foundl) prel = q->pool_results[i+1];
     if(q->name[i] == dt_token(p_pr))
     {
-      foundr = 1;
-      latencyr = q->pool_results[i+1] - (prer ? prer : q->pool_results[i]);
+      if(!prer) prer = q->pool_results[i];
+      latencyr = q->pool_results[i+1] - prer;
     }
-    else if(!foundr) prer = q->pool_results[i+1];
   }
   // replace text and overwrite text_len with utf-8 length
   const int pid_txtl = dt_module_get_param(module->so, dt_token("text l"));

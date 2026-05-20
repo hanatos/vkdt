@@ -107,10 +107,10 @@ struct DistanceMCVertex {
 #define MC_STATIC_GRID_WIDTH 25.3
 
 // mcpg
-#define MAX_PATH_LENGTH 10
+#define MAX_PATH_LENGTH 2
 #define MC_SAMPLES 5
 #define MC_SAMPLES_ADAPTIVE_PROB 0.7
 #define SURF_BSDF_P 0.1
-#define USE_LIGHT_CACHE_TAIL 1
+#define USE_LIGHT_CACHE_TAIL 0
 #define MCPG_REFERENCE_MODE 0
 #define MC_FAST_RECOVERY 1

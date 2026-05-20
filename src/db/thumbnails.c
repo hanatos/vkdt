@@ -301,6 +301,7 @@ dt_thumbnails_cache_one(
   }
   clock_t end = clock();
   dt_log(s_log_perf, "[thm] ran graph in %3.0fms", 1000.0*(end-beg)/CLOCKS_PER_SEC);
+  dt_graph_repurpose(graph); // free possibly large memory allocations
 
   return VK_SUCCESS;
 }

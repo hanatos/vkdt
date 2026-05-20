@@ -593,10 +593,16 @@ dt_graph_repurpose(dt_graph_t *g)
 #endif
   if(graph_wait_gpu(g, "graph_repurpose") != VK_SUCCESS) return;
   graph_teardown_modules(g);
-  // clear logical allocators (keep vkmem — allocate path handles growth)
+  // clear logical allocators
   dt_vkalloc_nuke(&g->heap);
   dt_vkalloc_nuke(&g->heap_staging);
   graph_destroy_per_image_resources(g);
+  // free memory because this can be sizable:
+  vkFreeMemory(qvk.device, g->vkmem, 0);
+  vkFreeMemory(qvk.device, g->vkmem_staging, 0);
+  vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
+  g->vkmem = g->vkmem_staging = g->vkmem_uniform = 0;
+  g->vkmem_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
   // reset command pool (reuse buffers, skip destroy/recreate)
   vkResetCommandPool(qvk.device, g->command_pool, 0);
   // reset query pool software counters; hardware reset is done inline via vkCmdResetQueryPool

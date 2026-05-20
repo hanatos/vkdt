@@ -323,4 +323,3 @@ done:
     return dt_graph_run(graph, s_graph_run_all);
   }
 }
-
