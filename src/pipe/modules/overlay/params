@@ -1,3 +1,5 @@
 font:string:256:data/font
 text l:string:256:hello
 text r:string:256:world
+perf l:string:8:
+perf r:string:8:

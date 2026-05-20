@@ -128,6 +128,10 @@ check_params(
 void commit_params(dt_graph_t *graph, dt_module_t *module)
 {
   overlay_t *ov = module->data;
+  const int pid_pl = dt_module_get_param(module->so, dt_token("perf l"));
+  const int pid_pr = dt_module_get_param(module->so, dt_token("perf r"));
+  const char *p_pl = dt_module_param_string(module, pid_pl);
+  const char *p_pr = dt_module_param_string(module, pid_pr);
   // commit_params is called after read_source, so we need
   // to stay consistent with last frame's data:
   for(int n=0;n<graph->num_nodes;n++)
@@ -141,26 +145,34 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
     }
   }
   // now grab latency of last frame and update text:
-  int64_t latency = 0;
-  int found = 0;
-  uint64_t pre = 0;
+  int64_t latencyl = 0, latencyr = 0;
+  int foundl = 0, foundr = 0;
+  uint64_t prel = 0, prer = 0;
   dt_graph_query_t *q = graph->query + 1-graph->double_buffer;
-  for(int i=0;i<q->cnt;i++)
+  for(int i=0;i<q->cnt;i+=2)
   {
-    if(q->name[i] == dt_token("oidn")) // TODO make configurable
+    if(q->name[i] == dt_token(p_pl))
     {
-      found = 1;
-      latency = q->pool_results[i] - pre;
+      foundl = 1;
+      latencyl = q->pool_results[i+1] - (prel ? prel : q->pool_results[i]);
     }
-    else if(!found) pre = q->pool_results[i];
+    else if(!foundl) prel = q->pool_results[i+1];
+    if(q->name[i] == dt_token(p_pr))
+    {
+      foundr = 1;
+      latencyr = q->pool_results[i+1] - (prer ? prer : q->pool_results[i]);
+    }
+    else if(!foundr) prer = q->pool_results[i+1];
   }
   // replace text and overwrite text_len with utf-8 length
   const int pid_txtl = dt_module_get_param(module->so, dt_token("text l"));
-  const char *p_txtl = dt_module_param_string(module, pid_txtl);
   const int pid_txtr = dt_module_get_param(module->so, dt_token("text r"));
+  const char *p_txtl = dt_module_param_string(module, pid_txtl);
   const char *p_txtr = dt_module_param_string(module, pid_txtr);
-  snprintf(ov->textl, sizeof(ov->textl), "%s %.1f ms", p_txtl, 1e-6 * qvk.ticks_to_nanoseconds * latency);
-  snprintf(ov->textr, sizeof(ov->textr), "%s", p_txtr);
+  if(latencyl) snprintf(ov->textl, sizeof(ov->textl), "%s %.1f ms", p_txtl, 1e-6 * qvk.ticks_to_nanoseconds * latencyl);
+  else         snprintf(ov->textl, sizeof(ov->textl), "%s", p_txtl);
+  if(latencyr) snprintf(ov->textr, sizeof(ov->textr), "%s %.1f ms", p_txtr, 1e-6 * qvk.ticks_to_nanoseconds * latencyr);
+  else         snprintf(ov->textr, sizeof(ov->textr), "%s", p_txtr);
   ov->textl_len = nk_utf_len(ov->textl, strlen(ov->textl));
   ov->textr_len = nk_utf_len(ov->textr, strlen(ov->textr));
 }

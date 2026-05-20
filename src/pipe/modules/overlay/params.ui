@@ -1,3 +1,5 @@
 font:filename
-text l:filename
-text r:filename
+text l:text
+text r:text
+perf l:text
+perf r:text

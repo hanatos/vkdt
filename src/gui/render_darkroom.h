@@ -1345,7 +1345,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     }
     num = count;
   }
-  else if(param->widget.type == dt_token("filename"))
+  else if(param->widget.type == dt_token("filename") ||
+          param->widget.type == dt_token("text"))
   {
     if(num == 0)
     { // only show first, cnt refers to allocation length of string param
