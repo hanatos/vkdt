@@ -89,7 +89,6 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [exposure: simple exposure correction, useful for dodging/burning](./exposure/readme.md)
 * [grad: linear gradient density filter](./grad/readme.md)
 * [llap: local contrast, shadow lifting, and highligh compression via local laplacian pyramids](./llap/readme.md)
-* [vignette: add/remove parametric vignette](./vignette/readme.md)
 * [zones: zone system-like tone manipulation tool](./zones/readme.md)
 
 **retouching**
@@ -100,10 +99,12 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [mask: create parametric masks from colour images for use with blending](./mask/readme.md)
 * [wavelet: skin retouching](./wavelet/readme.md)
 
-**effects**
+**effects/decoration**
 
 * [frame: postcard-style decor border around the image](./frame/readme.md)
 * [grain: simulate analog film grain](./grain/readme.md)
+* [overlay: render transparent text](./overlay/readme.md)
+* [vignette: add/remove parametric vignette](./vignette/readme.md)
 
 **technical**
 
