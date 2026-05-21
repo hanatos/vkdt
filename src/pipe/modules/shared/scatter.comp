@@ -41,5 +41,3 @@ void main()
   for(int j=1;j<push.stride;j++) // drag along payload portion of element array
     o.v[push.stride * pos + j] = i.v[push.stride * id + j];
 }
-
-
