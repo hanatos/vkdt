@@ -115,7 +115,6 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [kpn-t: kernel prediction neural network for denoising, training](./kpn-t/readme.md)
 * [mv2rot: estimate rotation + translation from motion vectors](./mv2rot/readme.md)
 * [resize: add ability to resize buffers](./resize/readme.md)
-* [resnet: gmic convolutional neural network](./resnet/readme.md)
 
 **3d/rendering**
 
