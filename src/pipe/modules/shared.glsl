@@ -1,3 +1,4 @@
+#extension GL_EXT_shader_64bit_indexing : enable
 #include "localsize.h"
 #define M_PI   3.14159265358979323846
 

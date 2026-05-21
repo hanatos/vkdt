@@ -2,6 +2,8 @@
 #extension GL_EXT_shader_16bit_storage             : enable
 #extension GL_EXT_shader_8bit_storage              : enable
 #extension GL_EXT_shader_explicit_arithmetic_types : enable
+#extension GL_GOOGLE_include_directive             : enable
+#include "shared.glsl"
 layout(set = 1, binding = 1) uniform sampler2D img;
 layout(location = 0) in  vec4 in_colour;
 layout(location = 1) in  vec2 in_uv;

@@ -58,7 +58,7 @@ static const VkApplicationInfo vk_app_info = {
   .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
   .pEngineName        = "vkdt",
   .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
-  .apiVersion         = VK_API_VERSION_1_3,
+  .apiVersion         = VK_API_VERSION_1_4,
 };
 
 static void
@@ -390,10 +390,15 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR,
     .pNext = &dyn_render,
   };
+  VkPhysicalDeviceShader64BitIndexingFeaturesEXT devsize = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_64_BIT_INDEXING_FEATURES_EXT,
+    .pNext = qvk.coopmat_supported ? (void*)&coopmat : (void*)&dyn_render,
+    .shader64BitIndexing = VK_TRUE,
+  };
   VkPhysicalDeviceFeatures2 device_features = {
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
     .features = dev_features,
-    .pNext    = qvk.coopmat_supported ? (void*)&coopmat : (void*)&dyn_render,
+    .pNext    = &devsize,
   };
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
   // now find out whether we *really* support 32-bit floating point atomic adds:
@@ -409,7 +414,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       qvk.coopmat_supported       ? "with" : "without");
 
   const char *requested_device_extensions[30] = {
-    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // intel doesn't have it pre 2015 (hd 520)
+    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,   // intel doesn't have it pre 2015 (hd 520)
+    VK_EXT_SHADER_64BIT_INDEXING_EXTENSION_NAME, // 64 bit ssbo addresses
     // ray tracing
     VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
     VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
@@ -420,7 +426,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     // VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME, // to bring intel + amd in line with our 32-wide code..
     // end of ray tracing
   };
-  int len = (qvk.raytracing_supported ? 7 : 1);
+  int len = (qvk.raytracing_supported ? 8 : 2);
   if(qvk.float_atomics_supported) requested_device_extensions[len++] = VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME;
   if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME;
 #ifdef QVK_ENABLE_VALIDATION

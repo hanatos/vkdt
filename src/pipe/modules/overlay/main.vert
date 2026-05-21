@@ -2,6 +2,8 @@
 #extension GL_EXT_shader_16bit_storage             : enable
 #extension GL_EXT_shader_8bit_storage              : enable
 #extension GL_EXT_shader_explicit_arithmetic_types : enable
+#extension GL_GOOGLE_include_directive             : enable
+#include "shared.glsl"
 struct vtx_t
 {
   f16vec2 p;
