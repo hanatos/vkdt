@@ -6,8 +6,8 @@
 
 ## connectors
 
-* `input`
-* `output`
+* `input` scene referred and debayered data, works in-place or before a display transform
+* `output` histogram compressed image data
 
 ## technical
 

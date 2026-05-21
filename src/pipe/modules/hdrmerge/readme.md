@@ -26,3 +26,7 @@ filmcurv and adjust the light param on the filmcurv module to the desired value
 * `dspy` a log-log plot of log irradiance (lnE) vs the pixel output (Z)
 
 ## technical
+
+This module is partly a re-implementation of https://github.com/wjakob/hdrmerge
+which is licensed under the GNU General Public License (Version 3), which can be 
+retrieved at the following address: http://www.gnu.org/licenses/gpl-3.0.txt
