@@ -9,11 +9,9 @@
 #extension GL_KHR_shader_subgroup_clustered        : enable
 #extension GL_KHR_shader_subgroup_vote             : enable
 #extension GL_KHR_shader_subgroup_shuffle_relative : enable
-
 #include "shared.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
-
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   uvec4 nspots;
@@ -21,14 +19,8 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float picked[72]; // actually 3-strided colours
 } params;
 
-
-layout( // input buffer
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output picked colour buffer
-    set = 1, binding = 1, r32ui
-) uniform uimage2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1, r32ui) uniform uimage2D img_out;
 
 void imgAtomicAdd(ivec2 tc, float a)
 {
@@ -82,4 +74,3 @@ main()
     }
   }
 }
-

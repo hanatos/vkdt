@@ -1,34 +1,21 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
-
 #include "shared.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
-
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float thrs;
   float amount;
 } params;
-
 layout(push_constant, std140) uniform push_t
 {
   uint level;
 } push;
-
-layout( // input f16 buffer, original input at fine level
-    set = 1, binding = 0
-) uniform sampler2D img_input;
-
-layout( // coarse f16 buffer
-    set = 1, binding = 1
-) uniform sampler2D img_coarse;
-
-layout( // output fine resolution
-    set = 1, binding = 2
-) uniform writeonly image2D img_out;
-
+layout(set = 1, binding = 0) uniform sampler2D img_input;
+layout(set = 1, binding = 1) uniform sampler2D img_coarse;
+layout(set = 1, binding = 2) uniform writeonly image2D img_out;
 
 vec4 gauss_expand(sampler2D img_in, ivec2 opos)
 {
@@ -65,10 +52,8 @@ vec4 gauss_expand(sampler2D img_in, ivec2 opos)
   return c / s;
 }
 
-// assemble
-void
-main()
-{
+void main()
+{ // assemble
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
@@ -86,4 +71,3 @@ main()
 
   imageStore(img_out, opos, vec4(fine.rgb, upsm.a));
 }
-
