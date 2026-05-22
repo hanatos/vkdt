@@ -1,3 +1,4 @@
+#extension GL_EXT_buffer_reference : require
 // #extension GL_EXT_shader_64bit_indexing : enable
 // #pragma shader_64bit_indexing
 // #pragma promote_uint32_indices

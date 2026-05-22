@@ -556,7 +556,7 @@ alloc_descriptor_sets(dt_graph_t *graph, dt_node_t *node)
     },{
       .buffer      = graph->uniform_buffer,
       .offset      = node->bref_offset ? node->bref_offset : 0,
-      .range       = node->bref_size   ? node->bref_size/2 : graph->uniform_global_size,
+      .range       = node->bref_size   ? node->bref_size   : graph->uniform_global_size,
     },{
       .buffer      = graph->uniform_buffer,
       .offset      = graph->uniform_size,
@@ -567,8 +567,8 @@ alloc_descriptor_sets(dt_graph_t *graph, dt_node_t *node)
       .range       = node->module->uniform_size ? node->module->uniform_size : graph->uniform_global_size,
     },{
       .buffer      = graph->uniform_buffer,
-      .offset      = node->bref_offset ? node->bref_offset + node->bref_size/2 : 0,
-      .range       = node->bref_size   ? node->bref_size/2 : graph->uniform_global_size,
+      .offset      = graph->uniform_size + node->bref_offset ? node->bref_offset : 0,
+      .range       = node->bref_size ? node->bref_size : graph->uniform_global_size,
     }};
     VkWriteDescriptorSet buf_dset[] = {{
       .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -867,8 +867,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       graph->dset_cnt_buffer += MAX(1, node->connector[cid].array_length);
       bindings[cid].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
       // ssbo are handed down via buffer references
-      graph->uniform_size += sizeof(uint64_t)*2; // for both frames
-      node->bref_size     += sizeof(uint64_t)*2;
+      graph->uniform_size += sizeof(uint64_t);
+      node->bref_size     += sizeof(uint64_t);
     }
     else if(node->connector[cid].type == dt_token("read") ||
             node->connector[cid].type == dt_token("sink"))
@@ -888,7 +888,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     bindings[cid].pImmutableSamplers = node->connector[cid].format == dt_token("yuv") ?
       &qvk.tex_sampler_yuv : 0;
   }
-  node->bref_size = 2*uniform_alignment*((node->bref_size + 2*uniform_alignment-1)/(2*uniform_alignment));
+  node->bref_size = uniform_alignment*((node->bref_size + uniform_alignment-1)/uniform_alignment);
 
   // a sink needs a descriptor set (for display via gui)
   if(!dt_node_source(node))
@@ -1480,7 +1480,7 @@ dt_graph_run_nodes_allocate(
             .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
             .buffer = img->buffer,
           };
-          int idx = (graph->node[nid].bref_offset + f * graph->node[nid].bref_size / 2)/sizeof(uint64_t) + j++;
+          int idx = (f*graph->uniform_size + graph->node[nid].bref_offset)/sizeof(uint64_t) + j++;
           map[idx] = vkGetBufferDeviceAddress(qvk.device, &address_info);
         }
       }

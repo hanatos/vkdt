@@ -33,7 +33,7 @@ typedef struct dt_node_t
   VkDescriptorSet       dset[DT_GRAPH_MAX_FRAMES];         // one descriptor set for every frame
   VkDescriptorSetLayout dset_layout;                       // they all share the same layout
   VkDeviceSize          bref_offset;                       // offset into buffer reference uniform block
-  VkDeviceSize          bref_size;                         // size of the buffer reference block (total for both frames)
+  VkDeviceSize          bref_size;                         // size of the buffer reference block (one frame)
 
   dt_raytrace_node_t    rt;
 
