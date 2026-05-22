@@ -839,6 +839,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   int drawn_connector = -1;
   VkDescriptorSetLayoutBinding bindings[DT_MAX_CONNECTORS] = {{0}};
   const int nid = node - graph->node;
+  const size_t uniform_alignment = 64;
+  graph->uniform_size = uniform_alignment*((graph->uniform_size + uniform_alignment-1)/uniform_alignment);
   node->bref_offset = graph->uniform_size;
   node->bref_size   = 0;
   for(int cid=0;cid<node->num_connectors;cid++)
@@ -886,6 +888,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     bindings[cid].pImmutableSamplers = node->connector[cid].format == dt_token("yuv") ?
       &qvk.tex_sampler_yuv : 0;
   }
+  node->bref_size = 2*uniform_alignment*((node->bref_size + 2*uniform_alignment-1)/(2*uniform_alignment));
 
   // a sink needs a descriptor set (for display via gui)
   if(!dt_node_source(node))
@@ -1460,7 +1463,30 @@ dt_graph_run_nodes_allocate(
     }
   }
 
-  // TODO write buffer device addresses to uniform memory!
+  if(*run & s_graph_run_alloc)
+  { // write buffer device addresses to uniform memory
+    uint64_t *map = 0;
+    QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, 0, VK_WHOLE_SIZE, 0, (void**)&map));
+    for(int i=0;i<cnt;i++)
+    {
+      const int nid = nodeid[i];
+      for(int f=0;f<2;f++) for(int cid=0;cid<graph->node[nid].num_connectors;cid++)
+      { // don't support ssbo arrays
+        int j = 0;
+        if(dt_connector_ssbo(graph->node[nid].connector+cid))
+        {
+          dt_connector_image_t *img = dt_graph_connector_image(graph, nid, cid, 0, f);
+          VkBufferDeviceAddressInfo address_info = {
+            .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+            .buffer = img->buffer,
+          };
+          int idx = (graph->node[nid].bref_offset + f * graph->node[nid].bref_size / 2)/sizeof(uint64_t) + j++;
+          map[idx] = vkGetBufferDeviceAddress(qvk.device, &address_info);
+        }
+      }
+    }
+    vkUnmapMemory(qvk.device, graph->vkmem_uniform);
+  }
 
   return VK_SUCCESS;
 }
