@@ -25,7 +25,7 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   const dt_image_params_t *img6_param = have_input6 ? dt_module_get_input_img_param(graph, module, dt_token("input6")) : 0;
 
   int num_inputs = 0;
-  for(int i=0;i<4;i++)
+  for(int i=0;i<6;i++)
     if(module->connector[i].connected.i >= 0)
       num_inputs++;
 

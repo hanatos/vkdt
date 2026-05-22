@@ -22,6 +22,8 @@ filmcurv and adjust the light param on the filmcurv module to the desired value
 * `input2` the secondary input to merge with
 * `input3` (optional) the third input to merge with
 * `input4` (optional) the fourth input to merge with
+* `input5` (optional) the fifth input to merge with
+* `input6` (optional) the sixth input to merge with
 * `output` output of the merged images. either exposure or radiance
 * `dspy` a log-log plot of log irradiance (lnE) vs the pixel output (Z)
 
