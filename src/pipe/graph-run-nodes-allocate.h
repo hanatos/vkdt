@@ -555,12 +555,20 @@ alloc_descriptor_sets(dt_graph_t *graph, dt_node_t *node)
       .range       = node->module->uniform_size ? node->module->uniform_size : graph->uniform_global_size,
     },{
       .buffer      = graph->uniform_buffer,
+      .offset      = node->bref_offset ? node->bref_offset : 0,
+      .range       = node->bref_size   ? node->bref_size/2 : graph->uniform_global_size,
+    },{
+      .buffer      = graph->uniform_buffer,
       .offset      = graph->uniform_size,
       .range       = graph->uniform_global_size,
     },{
       .buffer      = graph->uniform_buffer,
       .offset      = graph->uniform_size + (node->module->uniform_size ? node->module->uniform_offset : 0),
       .range       = node->module->uniform_size ? node->module->uniform_size : graph->uniform_global_size,
+    },{
+      .buffer      = graph->uniform_buffer,
+      .offset      = node->bref_offset ? node->bref_offset + node->bref_size/2 : 0,
+      .range       = node->bref_size   ? node->bref_size/2 : graph->uniform_global_size,
     }};
     VkWriteDescriptorSet buf_dset[] = {{
       .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -580,8 +588,8 @@ alloc_descriptor_sets(dt_graph_t *graph, dt_node_t *node)
       .pBufferInfo     = uniform_info+1,
     },{
       .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet          = node->uniform_dset[1],
-      .dstBinding      = 0,
+      .dstSet          = node->uniform_dset[0],
+      .dstBinding      = 2,
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -589,13 +597,29 @@ alloc_descriptor_sets(dt_graph_t *graph, dt_node_t *node)
     },{
       .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet          = node->uniform_dset[1],
-      .dstBinding      = 1,
+      .dstBinding      = 0,
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo     = uniform_info+3,
+    },{
+      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet          = node->uniform_dset[1],
+      .dstBinding      = 1,
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pBufferInfo     = uniform_info+4,
+    },{
+      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet          = node->uniform_dset[1],
+      .dstBinding      = 2,
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pBufferInfo     = uniform_info+5,
     }};
-    vkUpdateDescriptorSets(qvk.device, 4, buf_dset, 0, NULL);
+    vkUpdateDescriptorSets(qvk.device, 6, buf_dset, 0, NULL);
   }
   return VK_SUCCESS;
 }
@@ -815,6 +839,8 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   int drawn_connector = -1;
   VkDescriptorSetLayoutBinding bindings[DT_MAX_CONNECTORS] = {{0}};
   const int nid = node - graph->node;
+  node->bref_offset = graph->uniform_size;
+  node->bref_size   = 0;
   for(int cid=0;cid<node->num_connectors;cid++)
   {
     dt_connector_t *c = node->connector+cid;
@@ -838,6 +864,9 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     { // might be "read"|"write"|"sink"|"source"|"modify" we don't care
       graph->dset_cnt_buffer += MAX(1, node->connector[cid].array_length);
       bindings[cid].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+      // ssbo are handed down via buffer references
+      graph->uniform_size += sizeof(uint64_t)*2; // for both frames
+      node->bref_size     += sizeof(uint64_t)*2;
     }
     else if(node->connector[cid].type == dt_token("read") ||
             node->connector[cid].type == dt_token("sink"))
@@ -1311,7 +1340,7 @@ dt_graph_run_nodes_allocate(
         .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*graph->dset_cnt_buffer,
       }, {
         .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*2*graph->num_nodes,
+        .descriptorCount = 1+DT_GRAPH_MAX_FRAMES*3*graph->num_nodes,
       }, {
         .type            = qvk.raytracing_supported ?
           VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR :
@@ -1430,5 +1459,8 @@ dt_graph_run_nodes_allocate(
         QVKR(write_descriptor_sets(graph, graph->node+nid, graph->node[nid].connector+cid));
     }
   }
+
+  // TODO write buffer device addresses to uniform memory!
+
   return VK_SUCCESS;
 }
