@@ -30,15 +30,18 @@ layout(std140, set = 0, binding = 0) uniform global_t
 #include "params.glsl"
 #include "config.h"
 
-layout(set = 1, binding = 0) buffer buf_fb_t { float v[]; } buf_fb;
 layout(set = 1, binding = 1) uniform sampler2D img_tex[];
 layout(set = 1, binding = 2) uniform sampler2D img_blue;
 layout(set = 1, binding = 3) uniform writeonly image2D img_aov;
 layout(set = 1, binding = 4) uniform sampler2D img_env;
 layout(set = 1, binding = 5) uniform sampler2D img_dn;
-layout(set = 1, binding = 6) buffer buf_mat_t { gbuf_t v[]; } buf_mat; // material+st
-layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
-layout(set = 2, binding = 1) buffer buf_vtx_t { rtgeo_vtx_t v[]; } buf_vtx[];
+layout(std430, buffer_reference, buffer_reference_align = 8) readonly buffer bref_fb_t  { float v[]; };
+layout(std430, buffer_reference, buffer_reference_align = 8) readonly buffer bref_mat_t { gbuf_t v[]; };
+layout(set = 0, binding = 2) uniform bref_t
+{
+  bref_fb_t  fb;
+  bref_mat_t mat;
+} bref;
 
 #include "shared/fb.glsl" // depends on buf_fb
 #include "raytrace.glsl"  // depends on rt_accel and buf_vtx
@@ -117,14 +120,14 @@ main()
         vec2 dn = texelFetch(img_dn, ipos, 0).rg;// TODO with camera jitter as above?
         dist = dn.x;
         n  = geo_decode_normal(floatBitsToUint(dn.y));
-        ng = geo_decode_normal(buf_mat.v[ipos.x+fbdim.x*ipos.y].ng);
-        uint inside = (buf_mat.v[ipos.x+fbdim.x*ipos.y].m2 & 0x80000000) > 0 ? 1 : 0;
+        ng = geo_decode_normal(bref.mat.v[ipos.x+fbdim.x*ipos.y].ng);
+        uint inside = (bref.mat.v[ipos.x+fbdim.x*ipos.y].m2 & 0x80000000) > 0 ? 1 : 0;
         mat = uvec4(
-            buf_mat.v[ipos.x+fbdim.x*ipos.y].m0,
-            buf_mat.v[ipos.x+fbdim.x*ipos.y].m1,
-            buf_mat.v[ipos.x+fbdim.x*ipos.y].m2 & 0x7fffffff,
+            bref.mat.v[ipos.x+fbdim.x*ipos.y].m0,
+            bref.mat.v[ipos.x+fbdim.x*ipos.y].m1,
+            bref.mat.v[ipos.x+fbdim.x*ipos.y].m2 & 0x7fffffff,
             inside);
-        uint stui = buf_mat.v[ipos.x+fbdim.x*ipos.y].st;
+        uint stui = bref.mat.v[ipos.x+fbdim.x*ipos.y].st;
         if(stui == -1u) n = vec3(0);
         st = unpackUnorm2x16(stui);
         if(dist < tmax) flags = 0;

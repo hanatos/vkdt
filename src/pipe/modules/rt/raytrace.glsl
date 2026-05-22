@@ -1,6 +1,10 @@
-// assume we have bound:
-// rt_accel
-// buf_vtx
+layout(std430, buffer_reference, buffer_reference_align = 8) readonly buffer bref_vtx_t { rtgeo_vtx_t v[]; };
+layout(std430, buffer_reference, buffer_reference_align = 8) readonly buffer bref_geo_t { bref_vtx_t vtx[]; };
+layout(set = 2, binding = 0) uniform accelerationStructureEXT rt_accel;
+layout(set = 2, binding = 1) uniform bref_rt_t
+{
+  bref_geo_t geo;
+} rt;
 
 // scattermode flags
 const uint s_reflect  =   1u;
@@ -39,15 +43,24 @@ void prepare_intersection(
 { // access and unpack geometry data
   uint pi = 3*rayQueryGetIntersectionPrimitiveIndexEXT(rq, true);
   uint it = rayQueryGetIntersectionInstanceIdEXT(rq, true);
-  mat = uvec4(buf_vtx[it].v[pi+0].tex,
-              buf_vtx[it].v[pi+1].tex,
-              buf_vtx[it].v[pi+2].tex, 0);
-  vec3 v0 = vec3(buf_vtx[it].v[pi+0].x, buf_vtx[it].v[pi+0].y, buf_vtx[it].v[pi+0].z);
-  vec3 v1 = vec3(buf_vtx[it].v[pi+1].x, buf_vtx[it].v[pi+1].y, buf_vtx[it].v[pi+1].z);
-  vec3 v2 = vec3(buf_vtx[it].v[pi+2].x, buf_vtx[it].v[pi+2].y, buf_vtx[it].v[pi+2].z);
-  vec3 n0 = geo_decode_normal(buf_vtx[it].v[pi+0].n);
-  vec3 n1 = geo_decode_normal(buf_vtx[it].v[pi+1].n);
-  vec3 n2 = geo_decode_normal(buf_vtx[it].v[pi+2].n);
+  mat = uvec4(rt.geo.vtx[it].v[pi+0].tex,
+              rt.geo.vtx[it].v[pi+1].tex,
+              rt.geo.vtx[it].v[pi+2].tex, 0);
+  vec3 v0 = vec3(rt.geo.vtx[it].v[pi+0].x, rt.geo.vtx[it].v[pi+0].y, rt.geo.vtx[it].v[pi+0].z);
+  vec3 v1 = vec3(rt.geo.vtx[it].v[pi+1].x, rt.geo.vtx[it].v[pi+1].y, rt.geo.vtx[it].v[pi+1].z);
+  vec3 v2 = vec3(rt.geo.vtx[it].v[pi+2].x, rt.geo.vtx[it].v[pi+2].y, rt.geo.vtx[it].v[pi+2].z);
+  vec3 n0 = geo_decode_normal(rt.geo.vtx[it].v[pi+0].n);
+  vec3 n1 = geo_decode_normal(rt.geo.vtx[it].v[pi+1].n);
+  vec3 n2 = geo_decode_normal(rt.geo.vtx[it].v[pi+2].n);
+  // mat = uvec4(buf_vtx[it].v[pi+0].tex,
+  //             buf_vtx[it].v[pi+1].tex,
+  //             buf_vtx[it].v[pi+2].tex, 0);
+  // vec3 v0 = vec3(buf_vtx[it].v[pi+0].x, buf_vtx[it].v[pi+0].y, buf_vtx[it].v[pi+0].z);
+  // vec3 v1 = vec3(buf_vtx[it].v[pi+1].x, buf_vtx[it].v[pi+1].y, buf_vtx[it].v[pi+1].z);
+  // vec3 v2 = vec3(buf_vtx[it].v[pi+2].x, buf_vtx[it].v[pi+2].y, buf_vtx[it].v[pi+2].z);
+  // vec3 n0 = geo_decode_normal(buf_vtx[it].v[pi+0].n);
+  // vec3 n1 = geo_decode_normal(buf_vtx[it].v[pi+1].n);
+  // vec3 n2 = geo_decode_normal(buf_vtx[it].v[pi+2].n);
   vec3 b;
   b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, true);
   b.x = 1.0-b.z-b.y;
@@ -65,9 +78,9 @@ void prepare_intersection(
   if(geo_flags == s_geo_sky)
   { // sky box, extract cube map textures from n and mark as sky:
     n = ng = vec3(0);
-    mat.x = buf_vtx[it].v[pi+0].n;
-    mat.y = buf_vtx[it].v[pi+1].n;
-    mat.z = buf_vtx[it].v[pi+2].n;
+    mat.x = rt.geo.vtx[it].v[pi+0].n;
+    mat.y = rt.geo.vtx[it].v[pi+1].n;
+    mat.z = rt.geo.vtx[it].v[pi+2].n;
     return;
   }
 
@@ -77,9 +90,9 @@ void prepare_intersection(
     mat.w = 1;
     ng = -ng;
   }
-  vec2 st0 = unpackHalf2x16(buf_vtx[it].v[pi+0].st);
-  vec2 st1 = unpackHalf2x16(buf_vtx[it].v[pi+1].st);
-  vec2 st2 = unpackHalf2x16(buf_vtx[it].v[pi+2].st);
+  vec2 st0 = unpackHalf2x16(rt.geo.vtx[it].v[pi+0].st);
+  vec2 st1 = unpackHalf2x16(rt.geo.vtx[it].v[pi+1].st);
+  vec2 st2 = unpackHalf2x16(rt.geo.vtx[it].v[pi+2].st);
   st = fract(mat3x2(st0, st1, st2) * b);
 
   uint tex_n = mat.z & 0xffff;
@@ -139,9 +152,9 @@ bool cast_ray(
       // TODO: skip this step if the whole instance is sure to not have transparency?
       nonuniformEXT int it = rayQueryGetIntersectionInstanceIdEXT(rq, false); // which of our ssbo
       nonuniformEXT int pi = 3*rayQueryGetIntersectionPrimitiveIndexEXT(rq, false); // primitive inside instance
-      mat = uvec4(buf_vtx[it].v[pi+0].tex,
-                  buf_vtx[it].v[pi+1].tex,
-                  buf_vtx[it].v[pi+2].tex, 0);
+      mat = uvec4(rt.geo.vtx[it].v[pi+0].tex,
+                  rt.geo.vtx[it].v[pi+1].tex,
+                  rt.geo.vtx[it].v[pi+2].tex, 0);
       uint tex_b = mat.x & 0xffff;
       if(tex_b == 0)
       {
@@ -152,9 +165,9 @@ bool cast_ray(
         uint flags = mat.x >> 16; // extract surface flags;
         if((flags & s_geo_opaque) == 0)
         {
-          vec2 st0 = unpackHalf2x16(buf_vtx[it].v[pi+0].st);
-          vec2 st1 = unpackHalf2x16(buf_vtx[it].v[pi+1].st);
-          vec2 st2 = unpackHalf2x16(buf_vtx[it].v[pi+2].st);
+          vec2 st0 = unpackHalf2x16(rt.geo.vtx[it].v[pi+0].st);
+          vec2 st1 = unpackHalf2x16(rt.geo.vtx[it].v[pi+1].st);
+          vec2 st2 = unpackHalf2x16(rt.geo.vtx[it].v[pi+2].st);
           vec3 b;
           b.yz = rayQueryGetIntersectionBarycentricsEXT(rq, false);
           b.x = 1.0-b.z-b.y;

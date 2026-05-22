@@ -138,7 +138,7 @@ float get_tcy(int type, int stock)
 vec3 // returns log_raw
 expose_film(vec3 rgb, int film)
 { // film exposure in camera and chemical development
-  vec4 d65cf = fetch_coeff(vec3(1));
+  // vec4 d65cf = fetch_coeff(vec3(1));
   vec4 coeff = fetch_coeff(rgb);
   // const mat3 M = mat3(
   //      1.66022677, -0.12455334, -0.01815514,
@@ -152,11 +152,12 @@ expose_film(vec3 rgb, int film)
     float pdf = 2.0*(SN+1.0); // our integration is off by -1ev from agx, so 2.0 here
     float lambda = 380.0 + l*400.0/SN;
     tc.x = (l*80.0/SN+0.5)/256.0;
+    // TODO this shall include skin spectra! * scene illuminant, D65 say
     float val = sigmoid_eval(coeff, lambda);
     // this upsamples *reflectances*, i.e. 111 is equal energy not D65
     // float val = colour_upsample(srgb, vec4(lambda)).x * sigmoid_eval(d65cf, lambda);
-    // not sure if needed: cuts off wavelength ranges that the spectral
-    // upsampling doesn't care about since it is outside the XYZ support
+    // avoid some metameric madness film vs cie cmf: cut off wavelength ranges
+    // that the spectral upsampling doesn't care about (outside the XYZ support)
     float env = envelope(lambda);
     vec3 sensitivity = get_sensitivity(tc);
     raw += sensitivity * val * env / pdf;
@@ -291,6 +292,8 @@ enlarger_expose_negative_to_paper(vec3 rgb)
     vec2 tc = vec2(0.0, get_tcy(s_sensitivity, paper));
     tc.x = (l*(80.0/SN)+0.5)/256.0;
     vec3 sensitivity = get_sensitivity(tc);
+    // TODO should this use reflectances and then multiply the illuminant?
+    // XXX does it contain D65??
     float transmittance = sigmoid_eval(coeff, lambda);
 
     float illuminant = (0.002*40.0/SN)*colour_blackbody(vec4(lambda), 2856.0).x;

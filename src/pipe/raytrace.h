@@ -11,9 +11,13 @@ typedef struct dt_raytrace_graph_t
   VkBuffer                                    buf_accel;      // memory for actual accel
   VkBuffer                                    buf_scratch;    // scratch memory for accel build
   VkBuffer                                    buf_staging;    // the buffer that goes with the rt_instances
+  VkBuffer                                    buf_staging_bref;
+  VkBuffer                                    buf_bref;       // store buffer references to geo (in scratch memory allocation)
   VkDeviceSize                                buf_accel_offset;
   VkDeviceSize                                buf_scratch_offset;
+  VkDeviceSize                                buf_bref_offset;
   VkDeviceSize                                buf_staging_offset;
+  VkDeviceSize                                buf_staging_bref_offset;
 	VkAccelerationStructureGeometryKHR          geometry;
   VkAccelerationStructureBuildGeometryInfoKHR build_info;
   VkDeviceMemory                              vkmem_scratch;
@@ -29,7 +33,7 @@ typedef struct dt_raytrace_graph_t
   uint32_t                                    nid_cnt, nid_max;
   VkDescriptorSet                             dset[2];           // one descriptor set for every frame
   VkDescriptorSetLayout                       dset_layout;       // they all share the same layout
-  VkDeviceSize                                bref_offset;       // points into ubo buffer references
+  VkDeviceSize                                bref_offset;       // points to buffer reference in ubo
   VkDeviceSize                                bref_size;
 }
 dt_raytrace_graph_t;
