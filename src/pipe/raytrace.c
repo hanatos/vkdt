@@ -196,6 +196,7 @@ dt_raytrace_graph_init(
       graph->rt.nid[graph->rt.nid_cnt++] = nid[i];
   }
 
+  // TODO don't bind vtx buf, but increase graph->uniform_size by some (64-aligned) block to refs!
   VkDescriptorSetLayoutBinding bindings[] = {{
     .binding         = 0,
     .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
@@ -216,8 +217,16 @@ dt_raytrace_graph_init(
   if(graph->rt.dset_layout) vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
   QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->rt.dset_layout));
 
+  size_t uniform_alignment = 64;
+  graph->uniform_size = uniform_alignment*((graph->uniform_size + uniform_alignment-1)/uniform_alignment);
+  graph->rt.bref_offset = graph->uniform_size;
   for(int i=0;i<graph->rt.nid_cnt;i++)
+  {
+    graph->uniform_size += sizeof(uint64_t); // buffer reference for vertices
     dt_raytrace_node_init(graph, graph->node + graph->rt.nid[i]);
+  }
+  graph->uniform_size = uniform_alignment*((graph->uniform_size + uniform_alignment-1)/uniform_alignment);
+  graph->rt.bref_size = graph->uniform_size - graph->rt.bref_offset;
   return VK_SUCCESS;
 }
 
@@ -330,6 +339,21 @@ dt_raytrace_graph_alloc(
     .accelerationStructureCount = 1,
     .pAccelerationStructures    = &graph->rt.accel,
   };
+  uint64_t *map = 0;
+  QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, 0, VK_WHOLE_SIZE, 0, (void**)&map));
+  for(int f=0;f<2;f++)
+  { // write buffer references to ubo
+    for(int i=0;i<graph->rt.nid_cnt;i++)
+    {
+      VkBufferDeviceAddressInfo address_info = {
+        .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+        .buffer = dt_graph_connector_image(graph, graph->rt.nid[i], 0, 0, 0)->buffer,
+      };
+      int idx = (f*graph->uniform_size + graph->rt.bref_offset)/sizeof(uint64_t) + i;
+      map[idx] = vkGetBufferDeviceAddress(qvk.device, &address_info);
+    }
+  }
+  vkUnmapMemory(qvk.device, graph->vkmem_uniform);
   VkDescriptorBufferInfo *bvtx0 = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt.nid_cnt);
   VkDescriptorBufferInfo *bvtx1 = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt.nid_cnt);
   for(int i=0;i<graph->rt.nid_cnt;i++)

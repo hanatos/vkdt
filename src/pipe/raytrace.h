@@ -11,9 +11,9 @@ typedef struct dt_raytrace_graph_t
   VkBuffer                                    buf_accel;      // memory for actual accel
   VkBuffer                                    buf_scratch;    // scratch memory for accel build
   VkBuffer                                    buf_staging;    // the buffer that goes with the rt_instances
-  off_t                                       buf_accel_offset;
-  off_t                                       buf_scratch_offset;
-  off_t                                       buf_staging_offset;
+  VkDeviceSize                                buf_accel_offset;
+  VkDeviceSize                                buf_scratch_offset;
+  VkDeviceSize                                buf_staging_offset;
 	VkAccelerationStructureGeometryKHR          geometry;
   VkAccelerationStructureBuildGeometryInfoKHR build_info;
   VkDeviceMemory                              vkmem_scratch;
@@ -29,6 +29,8 @@ typedef struct dt_raytrace_graph_t
   uint32_t                                    nid_cnt, nid_max;
   VkDescriptorSet                             dset[2];           // one descriptor set for every frame
   VkDescriptorSetLayout                       dset_layout;       // they all share the same layout
+  VkDeviceSize                                bref_offset;       // points into ubo buffer references
+  VkDeviceSize                                bref_size;
 }
 dt_raytrace_graph_t;
 
@@ -40,8 +42,8 @@ typedef struct dt_raytrace_node_t
   VkAccelerationStructureBuildGeometryInfoKHR build_info;     // geometry info
   VkBuffer                                    buf_accel;      // buffer to hold accel struct
   VkBuffer                                    buf_scratch;    // scratch memory for accel build
-  off_t                                       buf_accel_offset;
-  off_t                                       buf_scratch_offset;
+  VkDeviceSize                                buf_accel_offset;
+  VkDeviceSize                                buf_scratch_offset;
   uint32_t                                    tri_cnt;        // number of triangles provided by this node, i.e. number of vertices / 3
 }
 dt_raytrace_node_t;

@@ -10,6 +10,7 @@ struct vtx_t
   f16vec2 uv;
   u8vec4  col;
 };
+// BUFFER_REF_DECLARE_ARRAY(bref_vtx_t, vtx_t, readonly, 8)
 layout(std430, buffer_reference, buffer_reference_align = 8) readonly buffer bref_vtx_t
 {
   vtx_t v[];
