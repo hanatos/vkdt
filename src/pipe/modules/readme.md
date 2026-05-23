@@ -115,7 +115,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [mv2rot: estimate rotation + translation from motion vectors](./mv2rot/readme.md)
 * [resize: add ability to resize buffers](./resize/readme.md)
 * [resnet: gmic convolutional neural network](./resnet/readme.md)
-* [hdrmerge: merge images to form hdr radiance map](./resnet/hdrmerge.md)
+* [hdrmerge: merge images to form hdr radiance map](./hdrmerge/readme.md)
 
 **3d/rendering**
 
