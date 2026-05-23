@@ -98,7 +98,6 @@ void create_nodes(
   for (int i=1;i<6;i++) {
     if(dt_connected(module->connector+i) && (roi.wd != module->connector[i].roi.wd ||
                                             roi.ht != module->connector[i].roi.ht)) {
-      printf("hdrmerge: input %d has different dimensions, bypassing\n", i+1);
       snprintf(module->graph->gui_msg_buf, sizeof(module->graph->gui_msg_buf),
           "hdrmerge: input %d has different dimensions, bypassing", i+1);
       module->graph->gui_msg = module->graph->gui_msg_buf;
@@ -114,14 +113,14 @@ void create_nodes(
       "input4", "read",  "rgba", "f16",  dt_no_roi,
       "input5", "read",  "rgba", "f16",  dt_no_roi,
       "input6", "read",  "rgba", "f16",  dt_no_roi,
-      "output", "write", "rgba", "f16",  &module->connector[6].roi,
-      "output", "write", "r",    "ui32", &roi_out);
+      "output", "write", "rgba", "f16",  &roi_out,
+      "output", "write", "r",    "ui32", &module->connector[7].roi);
     graph->node[id_main].connector[7].flags = s_conn_clear;
 
     const int id_map = dt_node_add(graph, module, "hdrmerge", "map", 
-    roi_out.wd, roi_out.ht, 1, 0, 0, 2,
+    module->connector[7].roi.wd, module->connector[7].roi.ht, 1, 0, 0, 2,
     "input",  "read",  "r",    "ui32", dt_no_roi,
-    "output", "write", "rgba", "f16",  &roi_out);
+    "output", "write", "rgba", "f16",  &module->connector[7].roi);
 
   dt_connector_copy(graph, module,     0, id_main, 0); // input
   dt_connector_copy(graph, module,     1, id_main, 1); // input2

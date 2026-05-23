@@ -15,9 +15,22 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float  t2;            // exposure time for input2
   float  t3;            // exposure time for input3
   float  t4;            // exposure time for input4
+  float  t5;            // exposure time for input5
+  float  t6;            // exposure time for input6
 } params;
 layout(set = 1, binding = 0) uniform usampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+
+float t(int i) 
+{
+  if(i == 0) return params.t1;
+  else if(i == 1) return params.t2;
+  else if(i == 2) return params.t3;
+  else if(i == 3) return params.t4;
+  else if(i == 4) return params.t5;
+  else if(i == 5) return params.t6;
+  else return 1.0;
+}
 
 void main()
 {
@@ -31,17 +44,16 @@ void main()
        (cnt >> 20) & 1023);
   // rgb = pow(rgb, vec3(0.3));
 
-  float t[4] = float[](params.t1, params.t2, params.t3, params.t4);
-  int n = clamp(params.num_inputs, 1, 4);
+  int n = clamp(params.num_inputs, 1, 6);
   for (int i = 0; i < n; i++) {
     // use 10-bit rgb
-    uint id = uint(i + 1u); // exposure id 1..4
+    uint id = uint(i + 1u); // exposure id 1..6
     // convert id bits to rgb
     vec3 id_rgb = vec3(
         (id & 1) != 0 ? 1.0 : 0.0,
         (id & 2) != 0 ? 1.0 : 0.0,
         (id & 4) != 0 ? 1.0 : 0.0);
-    float log_X_ideal = log(1.0 + max(0.0, 0.5 / t[i]))/params.plot_scale;
+    float log_X_ideal = log(1.0 + max(0.0, 0.5 / t(i)))/params.plot_scale;
     // if log_X_ideal is equal to ipos.x, then plot line
     if (abs(float(ipos.x)/float(imageSize(img_out).x) - log_X_ideal) < 1.5/float(imageSize(img_out).x)) {
       // plot point for this exposure
