@@ -10,11 +10,14 @@ varying shutter speeds. keep the aperture and iso constant across shots.
 for radiance map output, it may be beneficial to put a reinhard tonemap before the 
 filmcurv and adjust the light param on the filmcurv module to the desired value
 
+in exposure mode, the output is radiance multiplied by average shutter speed 
+plus the ev push.
+
 ## parameters
 
 * `pltscale` axis scale of dspy plot
 * `output` either exposure or radiance
-* `ev_push` for exposure output mode
+* `exposure` for exposure output mode
 
 ## connectors
 

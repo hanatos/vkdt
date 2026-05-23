@@ -116,36 +116,36 @@ void main()
       den += w;
     }
   }
-
   if (den > 1e-6)
     E = num / den;
   else
     E = E_ref; // fallback to reference radiance if all samples looked invalid in pass 2
-
-  // get middle exposure time
-  float t_ref;
-  if (n == 2)
-    t_ref = (params.t1 + params.t2) / 2.0;
-  else if (n == 3)
-    t_ref = (params.t1 + params.t2 + params.t3) / 3.0;
-  else if (n == 4)
-    t_ref = (params.t1 + params.t2 + params.t3 + params.t4) / 4.0;
-  else if (n == 5)
-    t_ref = (params.t1 + params.t2 + params.t3 + params.t4 + params.t5) / 5.0;
-  else if (n == 6)
-    t_ref = (params.t1 + params.t2 + params.t3 + params.t4 + params.t5 + params.t6) / 6.0;
-  else
-    t_ref = params.t1; // fallback to single exposure time
-  float t_push = 1/pow(2.0, params.ev_push); // convert EV step to exposure time multiplier
-  t_ref *= t_push;
-  
-  float X_out = E * t_ref;
   
   float rgb;
-  if (params.output_mode == 0)      // exposure
+  if (params.output_mode == 0) {      // exposure
+    // get middle exposure time
+    float t_ref;
+    if (n == 2)
+      t_ref = (params.t1 + params.t2) / 2.0;
+    else if (n == 3)
+      t_ref = (params.t1 + params.t2 + params.t3) / 3.0;
+    else if (n == 4)
+      t_ref = (params.t1 + params.t2 + params.t3 + params.t4) / 4.0;
+    else if (n == 5)
+      t_ref = (params.t1 + params.t2 + params.t3 + params.t4 + params.t5) / 5.0;
+    else if (n == 6)
+      t_ref = (params.t1 + params.t2 + params.t3 + params.t4 + params.t5 + params.t6) / 6.0;
+    else
+      t_ref = params.t1; // fallback to single exposure time
+    float t_push = 1/pow(2.0, params.ev_push); // convert EV step to exposure time multiplier
+    t_ref *= t_push;
+    
+    float X_out = E * t_ref;
     rgb = X_out;
-  else if (params.output_mode == 1) // radiance
+  }
+  else if (params.output_mode == 1) { // radiance
     rgb = E;
+  }
 
   // dspy: graph of log exposure (X) vs output value
   for (int i = 0; i < n; i++) {
