@@ -1,0 +1,38 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  float  max_w; // maximum white point for extended Reinhard
+} params;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+
+vec3 change_luminance(vec3 c_in, float l_out)
+{
+    float l_in = luminance_rec2020(c_in);
+    return c_in * (l_out / l_in);
+}
+
+vec3 reinhard_extended_luminance(vec3 v, float max_white_l)
+{
+    float l_old = luminance_rec2020(v);
+    float numerator = l_old * (1.0 + (l_old / (max_white_l * max_white_l)));
+    float l_new = numerator / (1.0 + l_old);
+    return change_luminance(v, l_new);
+}
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  vec3 col0 = texelFetch(img_in, ipos, 0).rgb;
+  vec3 col1 = reinhard_extended_luminance(col0, pow(10.0, params.max_w));
+  imageStore(img_out, ipos, vec4(col1, 1));
+}

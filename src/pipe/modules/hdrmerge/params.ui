@@ -1,0 +1,4 @@
+pltscale:slider:0:22
+output:combo:exposure:radiance
+group:output:0
+ev_push:slider:-10:10
