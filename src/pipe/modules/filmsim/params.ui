@@ -4,6 +4,7 @@ group:process:102
 film:combo:kodak ektar 100:kodak portra 160:kodak portra 400:kodak portra 800:kodak portra 800 push 1:kodak portra 800 push 2:kodak gold 200:kodak ultramax 400:kodak vision3 50d:kodak vision3 250d:kodak vision3 200t:kodak vision3 500t:fujifilm pro 400h:fujifilm xtra 400:fujifilm c200:kodak ektachrome 100 (positive):kodak kodachrome 64 (positive):fujifilm provia 100f (positive):fujifilm velvia 100 (positive):kodak verita 200d
 ev film:slider:-5:5
 g film:slider:0:2
+upsample:combo:sigmoids:skin spectra
 couplers:slider:0.0:1.0
 group:couplers:100
 cp rad:slider:0.001:0.05
@@ -42,4 +43,3 @@ group:preflash:1
 pf ev:slider:-10:-3
 pf m:slider:-1:1
 pf y:slider:-1:1
-upsample:sigmoids:skin spectra

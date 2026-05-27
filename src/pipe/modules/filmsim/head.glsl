@@ -15,6 +15,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int   film;
   float ev_film;
   float gamma_film;
+  int   skin;
   float couplers;
   float couplers_radius;
   int   grain;
@@ -33,13 +34,12 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float halation_radius;
   float halation_scale;
   float halation_midtones;
-  float pad0, pad1;
+  float pad0;
   vec4  halation_strength;
   int   preflash;
   float pf_ev;
   float pf_m;
   float pf_y;
-  int   skin;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
@@ -51,4 +51,3 @@ const int s_paper_offset = 20; // first paper in data list/lut
 const float dye_density_min_factor_film  = 1.0;
 const float dye_density_min_factor_paper = 0.4;
 #include "filmsim.glsl"
-
