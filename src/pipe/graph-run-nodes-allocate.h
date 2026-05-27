@@ -471,12 +471,12 @@ alloc_alias_memory(dt_graph_t *graph, dt_node_t *node)
           }
           img->offset = img->mem->offset;
           img->size   = dt_connector_bufsize(c, c->roi.wd, c->roi.ht);
-          fprintf(stderr, "image offset [0x%zx, 0x%zx) %"PRItkn":%"PRItkn":%"PRItkn" (%.1f/%.1fMB) %s\n",
-              img->offset, img->offset + img->size,
-              dt_token_str(node->name), dt_token_str(node->module->inst), dt_token_str(c->name),
-              img->size / 1024.0/1024.0,
-              mem_req.size / 1024.0/1024.0,
-              (c->flags & s_conn_protected) ? "protected" : (img->mem->heap == &graph->heap_1) ? "overflow" : "");
+          // fprintf(stderr, "image offset [0x%zx, 0x%zx) %"PRItkn":%"PRItkn":%"PRItkn" (%.1f/%.1fMB) %s\n",
+          //     img->offset, img->offset + img->size,
+          //     dt_token_str(node->name), dt_token_str(node->module->inst), dt_token_str(c->name),
+          //     img->size / 1024.0/1024.0,
+          //     mem_req.size / 1024.0/1024.0,
+          //     (c->flags & s_conn_protected) ? "protected" : (img->mem->heap == &graph->heap_1) ? "overflow" : "");
         }
       }
     }
