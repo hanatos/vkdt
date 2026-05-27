@@ -10,6 +10,8 @@ float skin_weight(vec2 rb)
 }
 
 float inv(float v) { return 1./v; }
+// return spectral skin reflectance multiplied by d65 illuminant, such that it
+// matches the given bt2020 chromaticity coordinate rendition
 float skin_spectrum(vec2 rb, float lambda)
 {
   const float x0 = (lambda-400.0)/300.0, x1 = rb.x, x2 = rb.y;
