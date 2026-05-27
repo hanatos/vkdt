@@ -39,6 +39,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float pf_ev;
   float pf_m;
   float pf_y;
+  int   skin;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;

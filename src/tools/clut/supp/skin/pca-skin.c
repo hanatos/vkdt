@@ -1,5 +1,8 @@
 // construct pca basis from a few measured skin reflectance samples
 // CFLAGS=-I../../../ LDFLAGS=-lm make pca-skin
+#define NIST 1
+#define ISSA 2
+#define SOURCE NIST
 #define NIST_SC 100  // sample count
 #define NIST_WC 141  // wavelength count. we cropped the dataset to the visible domain.
 #define NIST_LO 382  // lowest wavelength in the data
@@ -15,11 +18,22 @@
 #include "../../../shared/cie1931.h"
 #include "pipe/modules/matrices.h"
 #include "core/mat3.h"
+#if SOURCE==ISSA
 #define SC ISSA_SC
 #define WC ISSA_WC
 #define LO ISSA_LO
 #define HI ISSA_HI
 #define PP ISSA_PP
+#define CIE_D65_NORM (1.0/9.67579)
+#endif
+#if SOURCE==NIST
+#define SC NIST_SC
+#define WC NIST_WC
+#define LO NIST_LO
+#define HI NIST_HI
+#define PP NIST_PP
+#define CIE_D65_NORM (1.0/2.9789)
+#endif
 #define SVD_SIZE WC
 #include "../svd.h"
 #include <stdlib.h>
@@ -31,40 +45,21 @@ static inline float inv(float x)
 }
 
 // from pysr:
-// static inline float model0(
-//     float x0, float x1, float x2)
-// {
-//   return (((x0 * 0.0005281622) + x2) + -0.4059381) * (cos(x0 * -0.02818263) + inv(x2 + -0.16066551));
-// }
-// static inline float model0(
-//     float x0, float x1, float x2)
-// {
-//     return (((x1 * 73.693) + -25.198) * cos(sqrt(cos(sqrt(x0) + (-1.2088 + cos((cos(sqrt(x0 * (x2 * 1.0464))) + (inv(x2) + cos(sqrt(x0) * 0.84716))) * -1.7138))) + sqrt(x0)))) + 1.139;
-// }
-// static inline float model0(
-//     float x0, float x1, float x2)
-// {
-//   return (((inv(x2 + -0.16396938) + -1.4226682) + cos(inv(cos((x0 * 0.0002451296) + cos((sqrt(x0 + 1.3435133) * 0.98599696) + x2))) + sqrt(x0 + -354.61697))) * (x1 + 1.2300199)) * ((x0 * 0.00035998685) + (x2 + -0.3569576));
-// }
-// static inline float model1(
-//     float x0, float x1, float x2)
-// {
-// return ((cos(sqrt(cos((cos(cos((x1 * sqrt(x0)) + -0.31618)) * -2.0409) + ((sqrt(x0 + cos(x2 * -74.983)) + 0.37491) + cos(((inv(x2) + cos(cos(cos(cos(sqrt(x0) * (cos(x2 * (cos(sqrt(x0) * -0.79734) * 1.7006)) * x1)))) * -1.8829)) * -1.7493) + (cos(sqrt(x0 * 0.92002)) + cos((sqrt(x0) * 1.4262) * (x2 + 0.20909)))))) + sqrt(x0))) * ((x1 * 73.769) + -25.089)) + 0.83845) + x2;
-// }
-#if 0
-// NIST
+#if SOURCE==NIST
 static inline float model0(
     float x0, float x1, float x2)
 {
-return (cos(sqrt(sqrt(x0) + cos((cos(((inv(x2) + cos(sqrt(x0) * 0.84688807)) + cos(sqrt((x2 * x0) * 1.0487038))) * -1.7175605) + sqrt(x0)) + 17.654617))) * ((x1 * 73.69266) + -25.19251)) + 1.1371331;
+  x0 = (x0-LO)/(HI-LO);
+  return (((cos(cos(((x0 + x0) + x0) * 6.9202)) * x2) + x2) + (cos(((x0 * (cos((x0 + -1.1346) * -13.611) + 3.0648)) * cos(x1 + 0.35698)) + -1.6666) * 1.2268)) + (((x0 * 13.899) * x0) * (x1 + -0.4608));
 }
 static inline float model1(
     float x0, float x1, float x2)
 {
-return (x2 + x2) + ((inv(x1 + -0.27487227) * (x2 + -0.265104)) + (((x1 * 73.78014) + -25.122435) * (cos(sqrt(sqrt(x0 * 0.93578607) + cos(sqrt(x0 + 0.78704065) + ((cos(cos((x2 * -1.5042135) + (sqrt(x0) * x1))) * -1.6661059) + cos((((cos(sqrt(((inv(x2) * -3.16674) + (x0 * x2)) * 1.2282598)) + cos(inv(x2))) * -1.672805) + cos((cos(sqrt(x2)) * sqrt(x0 + -0.5936513)) * 1.1182858)) + -1.7370629))))) + 0.3030856)));
+  x0 = (x0-LO)/(HI-LO);
+  return (((x1 + -0.5005) * ((x1 * x0) * 18.37)) + (cos((x1 + 1.092) * (((x0 * cos(x1 + x1)) * (cos((cos(((x1 * (x1 + ((cos((((x0 + -0.62395) * 0.7732) + 0.64947) * (((((x1 * ((cos((((x0 + -0.61711) * x0) + 0.66047) * ((x0 + 0.5115) + ((x0 + -0.95132) * -49.426))) + 1.0279) * (x1 + -0.90437))) + 0.45733) * 1.6656) + (x0 + 18.295)) * ((x0 + -0.96658) * -2.6947))) + 1.0261) * -1.2531))) + 0.45925) * 1.6786) + 0.57175) * ((x1 + (x1 + 1.0385)) * ((((x1 + x0) + -0.97967) * ((x0 + (x0 + -1.895)) * -2.6681)) + -0.81785))) + 2.9448)) + -1.2891)) + 0.5831)) * 1.2419;
 }
 #endif
-#if 1 // ISSA
+#if SOURCE==ISSA
 static inline float model0(
     float x0, float x1, float x2)
 {
@@ -81,7 +76,7 @@ static inline float model1(
 
 int main(int argc, char *argv[])
 {
-#if 0 // load NIST data
+#if SOURCE==NIST // load NIST data
   FILE *fin = fopen("nist-skin.csv", "rb");
   if(!fin) exit(4);
   double X[NIST_SC*NIST_WC]   = {0.0}; // raw data
@@ -99,7 +94,7 @@ int main(int argc, char *argv[])
     fgetc(fin); // \n
   }
 #endif
-#if 1 // load ISSA data
+#if SOURCE==ISSA // load ISSA data
   FILE *fin = fopen("issa-400-700.csv", "rb");
   if(!fin) exit(4);
   double *X = calloc(sizeof(double),ISSA_SC*ISSA_WC);
@@ -134,7 +129,7 @@ int main(int argc, char *argv[])
     for(int l=0;l<WC;l++)
     {
       double lambda = LO + PP*l;
-      double em = cie_interp(cie_d65, lambda)/9.67579; // d65 normalised such that y=1
+      double em = cie_interp(cie_d65, lambda)*CIE_D65_NORM; // d65 normalised such that y=1
       double val = em * X[WC*s + l]; // "emissive" spectrum
       double cfa[3];
       for(int c=0;c<3;c++)
@@ -145,6 +140,8 @@ int main(int argc, char *argv[])
       }
     }
     for(int c=0;c<3;c++) xyz[c] *= (HI-LO)*(double)PP/(double)WC;
+    // fprintf(stderr, "xyz %g %g %g\n", xyz[0], xyz[1], xyz[2]);
+    // exit(0); // find CIE_D65_NORM
     float M[] = matrix_xyz_to_rec2020;
     float bt2020[3] = {0.0f};
     mat3mulv(bt2020, M, xyz);
@@ -160,7 +157,7 @@ int main(int argc, char *argv[])
     for(int l=0;l<WC;l++)
     {
       double lambda = LO + PP*l;
-      double em = cie_interp(cie_d65, lambda)/9.67579; // d65 normalised such that y=1
+      double em = cie_interp(cie_d65, lambda)*CIE_D65_NORM; // d65 normalised such that y=1
       double val = em * X[WC*s + l];
         assert(val == val);
         assert(b > 0);
@@ -182,7 +179,7 @@ int main(int argc, char *argv[])
   for(int l=0;l<WC;l++)
   {
     double lambda = LO + PP*l;
-    double em = cie_interp(cie_d65, lambda)/9.67579; // d65 normalised such that y=1
+    double em = cie_interp(cie_d65, lambda)*CIE_D65_NORM; // d65 normalised such that y=1
     fprintf(ft, "%g ", lambda);
     for(int s=0;s<SC;s++)
     {

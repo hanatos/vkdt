@@ -26,3 +26,4 @@ preflash:int:1:0
 pf ev:float:1:-10.0
 pf m:float:1:0.0
 pf y:float:1:0.0
+upsample:int:1:0

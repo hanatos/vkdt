@@ -42,4 +42,4 @@ group:preflash:1
 pf ev:slider:-10:-3
 pf m:slider:-1:1
 pf y:slider:-1:1
-
+upsample:sigmoids:skin spectra

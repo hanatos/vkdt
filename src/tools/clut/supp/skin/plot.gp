@@ -3,8 +3,8 @@ set term pdf
 set output "eval.pdf"
 
 unset key
-a=3 # offset for model0
-# a=4 # offset for model1
+# a=3 # offset for model0
+a=4 # offset for model1
 
 plot for [i=0:4] 'test.dat' u 1:2+3*i w l lw 1 lc i t 'ref', \
      for [i=0:4] '' u 1:3+3*i w l lw 3 lc i t 'model0'
