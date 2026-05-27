@@ -41,6 +41,7 @@ dt_vkalloc_nuke(dt_vkalloc_t *a)
   a->peak_rss = a->rss = a->vmsize = 0ul;
 }
 
+#if 0
 // protected version of allocation:
 // these buffers will be persistent for the next frame, i.e. can't be freed
 // need memory that has no dual use (i.e. used before and then freed)
@@ -110,6 +111,7 @@ dt_vkalloc_protected(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
 
   return mem;
 }
+#endif
 
 dt_vkmem_t*
 dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
@@ -154,6 +156,7 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
       a->vmsize = MAX(a->vmsize, mem->offset + mem->size);
       a->used = DLIST_PREPEND(a->used, mem);
       mem->check = 1;
+      mem->heap = a;
       return mem;
     }
     l = l->next;
@@ -172,8 +175,7 @@ dt_vkfree(dt_vkalloc_t *a, dt_vkmem_t *mem)
   a->used = DLIST_REMOVE(a->used, mem);
   dt_vkmem_t *l = a->free;
   do
-  {
-    // keep sorted
+  { // keep sorted, l is after our entry
     if(!l || l->offset >= mem->offset + mem->size)
     {
       dt_vkmem_t *t = DLIST_PREPEND(l, mem);

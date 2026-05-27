@@ -69,11 +69,13 @@ typedef struct dt_graph_t
 
   dt_vkalloc_t          heap;           // allocator for device images
   dt_vkalloc_t          heap_staging;   // used for staging memory, which has different flags
+  dt_vkalloc_t          heap_protected; // protected memory is never freed so it has its own heap
 
   uint32_t              memory_type_bits;
   uint32_t              memory_type_bits_staging;
   VkDeviceMemory        vkmem;
   VkDeviceMemory        vkmem_staging;
+  VkDeviceMemory        vkmem_protected;
   VkDescriptorPool      dset_pool;
   VkCommandBuffer       command_buffer[2];   // two per graph, to interleave cpu load, uploads and gpu compute
   VkCommandPool         command_pool;
@@ -94,6 +96,7 @@ typedef struct dt_graph_t
   VkDeviceSize          vkmem_size;          // allocation sizes to tell whether we need to re-alloc
   VkDeviceSize          vkmem_staging_size;
   VkDeviceSize          vkmem_uniform_size;
+  VkDeviceSize          vkmem_protected_size;
 
   dt_graph_query_t      query[2];            // for odd and even command buffers, starting at half query_max
 
