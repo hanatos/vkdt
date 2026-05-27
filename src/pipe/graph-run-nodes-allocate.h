@@ -327,7 +327,12 @@ bind_buffers_to_memory(
   //     dt_token_str(node->module->inst),
   //     dt_token_str(node->kernel),
   //     img->offset, img->offset + img->size);
-  VkDeviceMemory mem = img->mem->heap == &(graph->heap) ? graph->vkmem : graph->vkmem_protected;
+  VkDeviceMemory mem = graph->vkmem;
+  if(img->mem->heap == &(graph->heap_protected))
+    mem = graph->vkmem_protected;
+  else if(img->mem->heap == &(graph->heap_1))
+    mem = graph->vkmem_1;
+  
   if(dt_connector_ssbo(c))
   { // storage buffer
     if(img->image_view) vkDestroyImageView(qvk.device, img->image_view, VK_NULL_HANDLE);
@@ -456,7 +461,14 @@ alloc_alias_memory(dt_graph_t *graph, dt_node_t *node)
           if(c->flags & s_conn_protected) // allocate protected memory
             img->mem = dt_vkalloc(&graph->heap_protected, mem_req.size, mem_req.alignment);
           else
+          {
             img->mem = dt_vkalloc(&graph->heap, mem_req.size, mem_req.alignment);
+            if(img->mem->offset + mem_req.size >= ((uint64_t)1)<<32)
+            { // vk will hate us for this. storage image bindings won't work. try overflow heap:
+              dt_vkfree(&graph->heap, img->mem);
+              img->mem = dt_vkalloc(&graph->heap_1, mem_req.size, mem_req.alignment);
+            }
+          }
           img->offset = img->mem->offset;
           img->size   = dt_connector_bufsize(c, c->roi.wd, c->roi.ht);
           fprintf(stderr, "image offset [0x%zx, 0x%zx) %"PRItkn":%"PRItkn":%"PRItkn" (%.1f/%.1fMB) %s\n",
@@ -464,7 +476,7 @@ alloc_alias_memory(dt_graph_t *graph, dt_node_t *node)
               dt_token_str(node->name), dt_token_str(node->module->inst), dt_token_str(c->name),
               img->size / 1024.0/1024.0,
               mem_req.size / 1024.0/1024.0,
-              (c->flags & s_conn_protected) ? "protected" : "");
+              (c->flags & s_conn_protected) ? "protected" : (img->mem->heap == &graph->heap_1) ? "overflow" : "");
         }
       }
     }
@@ -495,7 +507,7 @@ alloc_alias_memory(dt_graph_t *graph, dt_node_t *node)
         // this could logically happen on the connector, we don't have more fine grained access:
         if(img->nid_last_ref == nid) // free this buffer, be it output or input
         {
-          dt_vkfree(&graph->heap, img->mem);
+          dt_vkfree(img->mem->heap, img->mem);
           img->nid_last_ref = -1; // avoid double free
         }
       }
@@ -1141,6 +1153,30 @@ dt_graph_run_nodes_allocate(
     };
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem));
     graph->vkmem_size = graph->heap.vmsize;
+  }
+
+  if(graph->heap_1.vmsize > graph->vkmem_1_size)
+  {
+    *run |= s_graph_run_upload_source; // new mem means new source
+    if(graph->vkmem_1)
+    {
+      vkFreeMemory(qvk.device, graph->vkmem_1, 0);
+      graph->vkmem_1 = 0;
+    }
+    graph->vkmem_1_size = 0;
+    QVKR(dt_check_device_allocation(graph->heap_1.vmsize, 0));
+    VkMemoryAllocateFlagsInfo allocation_flags = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
+      .flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
+    };
+    VkMemoryAllocateInfo mem_alloc_info = {
+      .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .pNext           = &allocation_flags,
+      .allocationSize  = graph->heap_1.vmsize,
+      .memoryTypeIndex = qvk_memory_get_device(),
+    };
+    QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem_1));
+    graph->vkmem_1_size = graph->heap_1.vmsize;
   }
 
   if(graph->heap_protected.vmsize > graph->vkmem_protected_size)

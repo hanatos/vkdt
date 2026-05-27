@@ -68,12 +68,14 @@ typedef struct dt_graph_t
   uint32_t              conn_image_end, conn_image_max;
 
   dt_vkalloc_t          heap;           // allocator for device images
+  dt_vkalloc_t          heap_1;         // overflow allocator for >4G storage images
   dt_vkalloc_t          heap_staging;   // used for staging memory, which has different flags
   dt_vkalloc_t          heap_protected; // protected memory is never freed so it has its own heap
 
   uint32_t              memory_type_bits;
   uint32_t              memory_type_bits_staging;
   VkDeviceMemory        vkmem;
+  VkDeviceMemory        vkmem_1;
   VkDeviceMemory        vkmem_staging;
   VkDeviceMemory        vkmem_protected;
   VkDescriptorPool      dset_pool;
@@ -94,6 +96,7 @@ typedef struct dt_graph_t
   dt_raytrace_graph_t   rt;
 
   VkDeviceSize          vkmem_size;          // allocation sizes to tell whether we need to re-alloc
+  VkDeviceSize          vkmem_1_size;
   VkDeviceSize          vkmem_staging_size;
   VkDeviceSize          vkmem_uniform_size;
   VkDeviceSize          vkmem_protected_size;
