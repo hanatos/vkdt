@@ -83,6 +83,7 @@ typedef struct dt_gui_wstate_t
   int      active_widget_parid; // parameter id
   int      active_widget_parnm; // number of parameter (if multi count)
   int      active_widget_parsz; // size of parameter to copy
+  int      active_widget_is_slider;
   struct nk_rect active_dspy_bound;
   int      selected;
   float    aspect;
@@ -128,6 +129,7 @@ typedef struct dt_gui_wstate_t
   int   chord_menu_active;      // non-zero when a chord menu overlay is open (blocks view scroll)
   int   dragkey_latched;        // non-zero when a dragkey is armed (blocks image pan/zoom)
   float chord_menu_scroll;      // accumulated scroll delta while menu is open
+  int   scroll_busy;            // dynamic LOD countdown
   int   pending_modid;           // module to activate in right panel (-1 = none), set by menu/dragkey
   int   pending_widget_modid;   // module to start interactive widget for (-1 = none)
   int   pending_widget_parid;   // param index for pending widget start
