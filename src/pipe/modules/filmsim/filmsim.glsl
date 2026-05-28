@@ -14,14 +14,6 @@ vec3 get_sensitivity(vec2 tc)
   return mix(sensitivity, vec3(0.0), isnan(sensitivity));
 }
 
-int binom(inout uint seed, int n, float p)
-{ // gaussian approximation, good for large n*p
-  float u = n*p;
-  float s = sqrt(n*p*(1.0-p));
-  vec2 r = vec2(mrand(seed), mrand(seed));
-  return max(0, int(u + s * warp_gaussian(r).x));
-}
-
 float envelope(float w)
 {
   return 1000.0*smoothstep(380.0, 400.0, w)*(1.0-smoothstep(700.0, 730.0, w));
@@ -44,42 +36,89 @@ vec3 thorlabs_filters(float w)
   return vec3(cyan, magenta, yellow);
 }
 
-vec2 hash(in ivec2 p)
+float noise(in vec2 Rp)
 {
-  // Optimized PCG-style hash to minimize math instruction overhead
-  uvec2 q = uvec2(p);
-  q *= uvec2(1597334677U, 3812015801U);
-  q = (q.x ^ q.y) * uvec2(1597334677U, 3812015801U);
-  return -1.0 + 2.0 * vec2(q) * (1.0 / 4294967296.0);
-}
-
-float noise(in vec2 p)
-{
-  float c = 0.98006, s = 0.198669;
-  mat2 R = mat2(c,s,-s,c);
-  ivec2 i = ivec2(floor(R*p));
-  vec2 f = fract(R*p);
+  ivec2 i = ivec2(floor(Rp));
+  vec2 f = fract(Rp);
 
   // quintic interpolation
   vec2 u = f*f*f*(f*(f*6.0-15.0)+10.0);
-  vec2 du = 30.0*f*f*(f*(f-2.0)+1.0);
 
-  vec2 ga = hash(i + ivec2(0,0));
-  vec2 gb = hash(i + ivec2(1,0));
-  vec2 gc = hash(i + ivec2(0,1));
-  vec2 gd = hash(i + ivec2(1,1));
+  uint q1x = uint(i.x) * 1597334677U;
+  uint q1y = uint(i.y) * 3812015801U;
 
-  float va = dot(ga, f - vec2(0.0,0.0));
-  float vb = dot(gb, f - vec2(1.0,0.0));
-  float vc = dot(gc, f - vec2(0.0,1.0));
-  float vd = dot(gd, f - vec2(1.0,1.0));
+  uint q2x = q1x + 1597334677U;
+  uint q3y = q1y + 3812015801U;
 
-  return va + u.x*(vb-va) + u.y*(vc-va) + u.x*u.y*(va-vb-vc+vd);   // value
+  uint xor1 = q1x ^ q1y;
+  uint xor2 = q2x ^ q1y;
+  uint xor3 = q1x ^ q3y;
+  uint xor4 = q2x ^ q3y;
+
+  uvec4 xors = uvec4(xor1, xor2, xor3, xor4);
+  uvec4 h_x = xors * 1597334677U;
+  uvec4 h_y = xors * 3812015801U;
+
+  const float scale_factor = 2.0 / 4294967296.0;
+  vec4 hx_f = vec4(h_x) * scale_factor - 1.0;
+  vec4 hy_f = vec4(h_y) * scale_factor - 1.0;
+
+  vec4 dx = f.x - vec4(0.0, 1.0, 0.0, 1.0);
+  vec4 dy = f.y - vec4(0.0, 0.0, 1.0, 1.0);
+  vec4 v = hx_f * dx + hy_f * dy;
+
+  return mix(mix(v.x, v.y, u.x), mix(v.z, v.w, u.x), u.y);
 }
 
-float noisef(in vec2 p)
+vec3 noise_v3(in vec3 Rp_x, in vec3 Rp_y)
 {
-  return noise(p) + .57*noise(0.61*p);
+  ivec3 i_x = ivec3(floor(Rp_x));
+  ivec3 i_y = ivec3(floor(Rp_y));
+  vec3 f_x = fract(Rp_x);
+  vec3 f_y = fract(Rp_y);
+
+  // quintic interpolation
+  vec3 u_x = f_x*f_x*f_x*(f_x*(f_x*6.0-15.0)+10.0);
+  vec3 u_y = f_y*f_y*f_y*(f_y*(f_y*6.0-15.0)+10.0);
+
+  uvec3 q1x = uvec3(i_x) * 1597334677U;
+  uvec3 q1y = uvec3(i_y) * 3812015801U;
+
+  uvec3 q2x = q1x + 1597334677U;
+  uvec3 q3y = q1y + 3812015801U;
+
+  uvec3 xor1 = q1x ^ q1y;
+  uvec3 xor2 = q2x ^ q1y;
+  uvec3 xor3 = q1x ^ q3y;
+  uvec3 xor4 = q2x ^ q3y;
+
+  const float scale_factor = 2.0 / 4294967296.0;
+
+  uvec3 h1x = xor1 * 1597334677U;
+  uvec3 h1y = xor1 * 3812015801U;
+  uvec3 h2x = xor2 * 1597334677U;
+  uvec3 h2y = xor2 * 3812015801U;
+  uvec3 h3x = xor3 * 1597334677U;
+  uvec3 h3y = xor3 * 3812015801U;
+  uvec3 h4x = xor4 * 1597334677U;
+  uvec3 h4y = xor4 * 3812015801U;
+
+  vec3 v1 = (vec3(h1x) * scale_factor - 1.0) * f_x       + (vec3(h1y) * scale_factor - 1.0) * f_y;
+  vec3 v2 = (vec3(h2x) * scale_factor - 1.0) * (f_x-1.0) + (vec3(h2y) * scale_factor - 1.0) * f_y;
+  vec3 v3 = (vec3(h3x) * scale_factor - 1.0) * f_x       + (vec3(h3y) * scale_factor - 1.0) * (f_y-1.0);
+  vec3 v4 = (vec3(h4x) * scale_factor - 1.0) * (f_x-1.0) + (vec3(h4y) * scale_factor - 1.0) * (f_y-1.0);
+
+  return mix(mix(v1, v2, u_x), mix(v3, v4, u_x), u_y);
+}
+
+float noisef(in vec2 Rp)
+{
+  return noise(Rp) + .57*noise(0.61*Rp);
+}
+
+vec3 noisef_v3(in vec3 Rp_x, in vec3 Rp_y)
+{
+  return noise_v3(Rp_x, Rp_y) + 0.57 * noise_v3(0.61 * Rp_x, 0.61 * Rp_y);
 }
 
 // separate density into three layers of grains (coarse, mid, fine) that sum up
@@ -90,44 +129,52 @@ float noisef(in vec2 p)
 vec3 add_grain(ivec2 ipos, vec3 density, float scale)
 {
   ipos = ivec2(vec2(ipos)*scale); // if not processing full size (scale = 1), adjust here
-  int n_grains_per_pixel = 50; //1000; // from artic's python. starts to look very good!
-  int grain_non_uniformity = int((1.0-params.grain_uniformity)*n_grains_per_pixel);
   float grain_size = params.grain_size;
   float density_max = 3.3;
-  vec3 res = vec3(0.0);
-  uint seed = 123456789*ipos.x + 1333337*ipos.y + (global.frame+global.hash)*100000;
-  
-  // Precomputed 1.0 / (particle_scale_col[col] * particle_scale_lay[layer])
-  const float c_table[3][3] = {
-    {0.5, 1.25, 2.5},  // col = 0
-    {0.4, 1.0,  2.0},  // col = 1
-    {0.2, 0.5,  1.0}   // col = 2
-  };
 
-  for(int col=0;col<3;col++)
+  vec3 np = density / density_max;
+  vec3 sat = clamp(1.5 * np, 0.0, 1.0);
+  vec3 factor_base = (1.0 - params.grain_uniformity) * 4.0 * sat * (1.0 - sat) / (scale * scale);
+
+  // piecewise layer densities from coarse to fine layers; density_max folded in upfront
+  vec3 npl0 = density_max * clamp(np, 0.0, 0.1);
+  vec3 npl1 = density_max * clamp(np - 0.1, 0.0, 0.2);
+  vec3 npl2 = density_max * max(vec3(0.0), np - 0.3);
+
+  vec2 base_ipos = vec2(ipos) + global.hash*0.000001 + global.frame*133.7;
+  float rot_c = 0.98006, rot_s = 0.198669;
+  vec2 rot_base_ipos = vec2(rot_c*base_ipos.x + rot_s*base_ipos.y, -rot_s*base_ipos.x + rot_c*base_ipos.y);
+  float k = 0.3 / grain_size;
+
+  vec3 res = vec3(0.0);
+  vec3 base_pos_x = rot_base_ipos.x + vec3(0.0, 1000.0, 2000.0);
+  vec3 base_pos_y = rot_base_ipos.y + vec3(0.0, 1000.0, 2000.0);
+  vec3 c0 = vec3(0.5, 0.4, 0.2);
+
+  // Layer 0: Coarse
+  if (any(greaterThan(npl0, vec3(0.0))))
   {
-    float np = density[col] / density_max; // expectation of normalised number of developed grains
-    float sat = clamp(1.5*np, 0, 1);
-    vec3 doff = vec3(0.10, 0.20, 0.7);
-    for(int layer=0;layer<3;layer++)
-    { // from coarse to fine layers
-      float npl = min(doff[layer], np);
-      np -= npl;
-      float c = c_table[col][layer];
-      vec2 tc = c/grain_size * 0.3*vec2(ipos + global.hash*0.000001 + global.frame*133.7 + 1000*col);
-      int n = int(n_grains_per_pixel*c*scale*scale);
-      // float sat = clamp(npl / doff[layer], 0, 1);
-      // int r = int(grain_non_uniformity*c*noise(tc)*1*sat);
-      int r = int(grain_non_uniformity*c*noisef(tc)*4.0*sat*(1.0-sat));
-      // int nr = binom(seed, int(n/sat), sat);
-      int nr = max(0, n+r);
-      float p = npl;
-      // if(layer!=2) res[col] += density_max * npl; else
-      res[col] += density_max * nr*p/float(n); // this is using the expected value of developed grains directly
-      // now simulate whether these grains actually turn:
-      // res[col] += density_max * binom(seed, nr, p)/float(n);
-    }
+    vec3 c = c0 * 1.0;
+    vec3 n = noisef_v3(base_pos_x * (c * k), base_pos_y * (c * k));
+    res += npl0 * max(vec3(0.0), 1.0 + factor_base * n);
   }
+
+  // Layer 1: Mid
+  if (any(greaterThan(npl1, vec3(0.0))))
+  {
+    vec3 c = c0 * 2.5;
+    vec3 n = noisef_v3(base_pos_x * (c * k), base_pos_y * (c * k));
+    res += npl1 * max(vec3(0.0), 1.0 + factor_base * n);
+  }
+
+  // Layer 2: Fine
+  if (any(greaterThan(npl2, vec3(0.0))))
+  {
+    vec3 c = c0 * 5.0;
+    vec3 n = noisef_v3(base_pos_x * (c * k), base_pos_y * (c * k));
+    res += npl2 * max(vec3(0.0), 1.0 + factor_base * n);
+  }
+
   return res;
 }
 
@@ -142,17 +189,38 @@ float get_tcy(int type, int stock)
 }
 
 // --- Shared Memory Buffers for caching spectral integration inputs ---
-// Since spectral variables are uniform across all pixels, we load them once per workgroup
-// to bypass redundant texture lookups and transcendental function evaluation.
-shared vec3 shared_expose_factor[41];
-shared vec3 shared_enlarger_factor[41];
-shared vec4 shared_enlarger_dye_density[41];
-shared vec4 shared_scan_dye_density[41];
-shared vec3 shared_scan_illuminant_cmf[41];
+// Optimized for vectorized spectral loops (4 wavelengths at once)
+shared vec4 shared_expose_factor_r[11];
+shared vec4 shared_expose_factor_g[11];
+shared vec4 shared_expose_factor_b[11];
+
+shared vec4 shared_enlarger_dye_r[11];
+shared vec4 shared_enlarger_dye_g[11];
+shared vec4 shared_enlarger_dye_b[11];
+shared vec4 shared_enlarger_factor_r[11];
+shared vec4 shared_enlarger_factor_g[11];
+shared vec4 shared_enlarger_factor_b[11];
+
+shared vec4 shared_scan_dye_r[11];
+shared vec4 shared_scan_dye_g[11];
+shared vec4 shared_scan_dye_b[11];
+shared vec4 shared_scan_factor_r[11];
+shared vec4 shared_scan_factor_g[11];
+shared vec4 shared_scan_factor_b[11];
+
+shared mat3 shared_M;
+shared vec3 shared_M_sum;
 
 void init_expose_film_shared(int film)
 {
-  int tid = int(gl_LocalInvocationID.y * 8 + gl_LocalInvocationID.x);
+  int tid = int(gl_LocalInvocationIndex);
+  if (tid < 44)
+  {
+    shared_expose_factor_r[tid/4][tid%4] = 0.0;
+    shared_expose_factor_g[tid/4][tid%4] = 0.0;
+    shared_expose_factor_b[tid/4][tid%4] = 0.0;
+  }
+  barrier();
   if (tid <= 40)
   {
     float lambda = 380.0 + tid * 10.0;
@@ -160,14 +228,27 @@ void init_expose_film_shared(int film)
     vec3 sensitivity = get_sensitivity(tc);
     float env = envelope(lambda);
     float pdf = 2.0 * 41.0;
-    shared_expose_factor[tid] = sensitivity * env / pdf;
+    vec3 factor = sensitivity * env / pdf;
+    shared_expose_factor_r[tid/4][tid%4] = factor.r;
+    shared_expose_factor_g[tid/4][tid%4] = factor.g;
+    shared_expose_factor_b[tid/4][tid%4] = factor.b;
   }
   barrier();
 }
 
 void init_enlarger_shared(int film, int paper)
 {
-  int tid = int(gl_LocalInvocationID.y * 8 + gl_LocalInvocationID.x);
+  int tid = int(gl_LocalInvocationIndex);
+  if (tid < 44)
+  {
+    shared_enlarger_dye_r[tid/4][tid%4] = 0.0;
+    shared_enlarger_dye_g[tid/4][tid%4] = 0.0;
+    shared_enlarger_dye_b[tid/4][tid%4] = 0.0;
+    shared_enlarger_factor_r[tid/4][tid%4] = 0.0;
+    shared_enlarger_factor_g[tid/4][tid%4] = 0.0;
+    shared_enlarger_factor_b[tid/4][tid%4] = 0.0;
+  }
+  barrier();
   if (tid <= 40)
   {
     float lambda = 380.0 + tid * 10.0;
@@ -177,7 +258,7 @@ void init_enlarger_shared(int film, int paper)
     tc.y = get_tcy(s_dye_density, film);
     vec4 dye_density = texture(img_filmsim, tc);
     dye_density = mix(dye_density, vec4(1000000.0), isnan(dye_density));
-    shared_enlarger_dye_density[tid] = dye_density;
+    dye_density.xyz *= 3.32192809489;
 
     vec3 neutral = vec3(params.filter_c,
         clamp(params.filter_m, 0, 1) + 0.1*params.tune_m,
@@ -192,14 +273,28 @@ void init_enlarger_shared(int film, int paper)
     float print_illuminant = enlarger.x * enlarger.y * enlarger.z * illuminant;
     float base_density = dye_density.w * dye_density_min_factor_film;
     float base_light = exp2(-base_density * 3.32192809489);
-    shared_enlarger_factor[tid] = sensitivity * print_illuminant * exp2(params.ev_paper) * base_light;
+    vec3 factor = sensitivity * print_illuminant * exp2(params.ev_paper) * base_light;
+
+    shared_enlarger_dye_r[tid/4][tid%4] = dye_density.x;
+    shared_enlarger_dye_g[tid/4][tid%4] = dye_density.y;
+    shared_enlarger_dye_b[tid/4][tid%4] = dye_density.z;
+    shared_enlarger_factor_r[tid/4][tid%4] = factor.r;
+    shared_enlarger_factor_g[tid/4][tid%4] = factor.g;
+    shared_enlarger_factor_b[tid/4][tid%4] = factor.b;
   }
   barrier();
 }
 
 void init_enlarger_negative_shared(int paper)
 {
-  int tid = int(gl_LocalInvocationID.y * 8 + gl_LocalInvocationID.x);
+  int tid = int(gl_LocalInvocationIndex);
+  if (tid < 44)
+  {
+    shared_enlarger_factor_r[tid/4][tid%4] = 0.0;
+    shared_enlarger_factor_g[tid/4][tid%4] = 0.0;
+    shared_enlarger_factor_b[tid/4][tid%4] = 0.0;
+  }
+  barrier();
   if (tid <= 40)
   {
     float lambda = 380.0 + tid * 10.0;
@@ -217,14 +312,27 @@ void init_enlarger_negative_shared(int paper)
       thorlabs_filters(lambda),
       neutral);
     float print_illuminant = enlarger.x * enlarger.y * enlarger.z * illuminant;
-    shared_enlarger_factor[tid] = sensitivity * print_illuminant * exp2(params.ev_paper);
+    vec3 factor = sensitivity * print_illuminant * exp2(params.ev_paper);
+    shared_enlarger_factor_r[tid/4][tid%4] = factor.r;
+    shared_enlarger_factor_g[tid/4][tid%4] = factor.g;
+    shared_enlarger_factor_b[tid/4][tid%4] = factor.b;
   }
   barrier();
 }
 
 void init_scan_shared()
 {
-  int tid = int(gl_LocalInvocationID.y * 8 + gl_LocalInvocationID.x);
+  int tid = int(gl_LocalInvocationIndex);
+  if (tid < 44)
+  {
+    shared_scan_dye_r[tid/4][tid%4] = 0.0;
+    shared_scan_dye_g[tid/4][tid%4] = 0.0;
+    shared_scan_dye_b[tid/4][tid%4] = 0.0;
+    shared_scan_factor_r[tid/4][tid%4] = 0.0;
+    shared_scan_factor_g[tid/4][tid%4] = 0.0;
+    shared_scan_factor_b[tid/4][tid%4] = 0.0;
+  }
+  barrier();
   if (tid <= 40)
   {
     float lambda = 380.0 + tid * 10.0;
@@ -235,7 +343,7 @@ void init_scan_shared()
     vec2 tc = vec2((tid * 80.0 / 40.0 + 0.5) / 256.0, get_tcy(s_dye_density, dye_stock));
     vec4 dye_density = texture(img_filmsim, tc);
     dye_density = mix(dye_density, vec4(1000000.0), isnan(dye_density));
-    shared_scan_dye_density[tid] = dye_density;
+    dye_density.xyz *= 3.32192809489;
 
     vec3 d50 = vec3(0.9642, 1.0000, 0.8251);
     vec4 coeff = fetch_coeff(d50);
@@ -245,13 +353,17 @@ void init_scan_shared()
     float factor = (params.process != 1) ? dye_density_min_factor_paper : dye_density_min_factor_film;
     float base_density = dye_density.w * factor;
     float base_light = exp2(-base_density * 3.32192809489);
-    shared_scan_illuminant_cmf[tid] = scan_illuminant * cmf * base_light;
+    vec3 factor_vec = scan_illuminant * cmf * base_light;
+
+    shared_scan_dye_r[tid/4][tid%4] = dye_density.x;
+    shared_scan_dye_g[tid/4][tid%4] = dye_density.y;
+    shared_scan_dye_b[tid/4][tid%4] = dye_density.z;
+    shared_scan_factor_r[tid/4][tid%4] = factor_vec.r;
+    shared_scan_factor_g[tid/4][tid%4] = factor_vec.g;
+    shared_scan_factor_b[tid/4][tid%4] = factor_vec.b;
   }
   barrier();
 }
-
-shared mat3 shared_M;
-shared vec3 shared_M_sum;
 
 void init_coupler_matrix_shared()
 {
@@ -271,14 +383,19 @@ void init_coupler_matrix_shared()
 
 vec3 // returns log_raw
 expose_film(vec3 rgb, int film)
-{ // film exposure in camera and chemical development (Optimized to read precomputed shared_expose_factor)
+{ // film exposure in camera and chemical development (Vectorized spectral loop)
   vec4 coeff = fetch_coeff(rgb);
   vec3 raw = vec3(0.0);
-  for(int l=0;l<=SN;l++)
+  for(int i=0; i<11; i++)
   {
-    float lambda = 380.0 + l*400.0/SN;
-    float val = sigmoid_eval(coeff, lambda);
-    raw += shared_expose_factor[l] * val;
+    vec4 lambda = 380.0 + (vec4(i*4, i*4+1, i*4+2, i*4+3)) * 10.0;
+    // x = (coeff.x * lambda + coeff.y) * lambda + coeff.z
+    vec4 x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
+    vec4 y = inversesqrt(x * x + 1.0);
+    vec4 val = (0.5 * x * y + 0.5) * coeff.w;
+    raw.r += dot(val, shared_expose_factor_r[i]);
+    raw.g += dot(val, shared_expose_factor_g[i]);
+    raw.b += dot(val, shared_expose_factor_b[i]);
   }
   const float log2_log10 = 0.30102999566398114;
   return params.ev_film * log2_log10 + log2(raw+1e-10) * log2_log10;
@@ -295,6 +412,8 @@ vec3 sigmoid(vec3 x)
 
 void sigmoid_both(vec3 x, out vec3 sig, out vec3 sig_d)
 {
+  // Combined evaluation of sigmoid and its derivative.
+  // We reuse abs_x, x2, x4, and xb calculations.
   vec3 abs_x = abs(x);
   vec3 x2 = abs_x * abs_x;
   vec3 x4 = x2 * x2;
@@ -304,6 +423,7 @@ void sigmoid_both(vec3 x, out vec3 sig, out vec3 sig_d)
   sig = 0.5 + 0.5 * x * rcp_p1;
   sig_d = 0.5 * rcp_p1 / base;
 }
+
 
 vec3 // returns density_cmy;
 develop_film_compute_couplers(vec3 log_raw)
@@ -366,14 +486,18 @@ develop_film(vec3 log_raw, int film, ivec2 ipos, float scale)
 
 vec3 // returns log raw
 enlarger_expose_negative_to_paper(vec3 rgb)
-{ // enlarger: expose scanned transmittances of negative to print paper (Optimized to read precomputed shared_enlarger_factor)
+{ // enlarger: expose scanned transmittances of negative to print paper (Vectorized spectral loop)
   vec3 raw = vec3(0.0);
   vec4 coeff = fetch_coeff(rgb);
-  for(int l=0;l<=SN;l++)
+  for(int i=0; i<11; i++)
   {
-    float lambda = 380.0 + l*400.0/SN;
-    float transmittance = sigmoid_eval(coeff, lambda);
-    raw += shared_enlarger_factor[l] * transmittance;
+    vec4 lambda = 380.0 + (vec4(i*4, i*4+1, i*4+2, i*4+3)) * 10.0;
+    vec4 x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
+    vec4 y = inversesqrt(x * x + 1.0);
+    vec4 transmittance = (0.5 * x * y + 0.5) * coeff.w;
+    raw.r += dot(transmittance, shared_enlarger_factor_r[i]);
+    raw.g += dot(transmittance, shared_enlarger_factor_g[i]);
+    raw.b += dot(transmittance, shared_enlarger_factor_b[i]);
   }
   const float log2_log10 = 0.30102999566398114;
   return log2(raw + 1e-10)*log2_log10;
@@ -381,15 +505,17 @@ enlarger_expose_negative_to_paper(vec3 rgb)
 
 vec3 // returns log raw
 enlarger_expose_film_to_paper(vec3 density_cmy)
-{ // enlarger: expose film to print paper (Optimized to read precomputed shared_enlarger_* buffers)
+{ // enlarger: expose film to print paper (Vectorized spectral loop)
   vec3 raw = vec3(0.0);
-  for(int l=0;l<=SN;l++)
+  for(int i=0; i<11; i++)
   {
-    vec3 dye_density_xyz = shared_enlarger_dye_density[l].xyz;
-    float density_spectral = dot(density_cmy, dye_density_xyz);
-
-    float light = exp2(-density_spectral * 3.32192809489);
-    raw += shared_enlarger_factor[l] * light;
+    vec4 ds = density_cmy.x * shared_enlarger_dye_r[i] + 
+              density_cmy.y * shared_enlarger_dye_g[i] + 
+              density_cmy.z * shared_enlarger_dye_b[i];
+    vec4 light = exp2(-ds);
+    raw.r += dot(light, shared_enlarger_factor_r[i]);
+    raw.g += dot(light, shared_enlarger_factor_g[i]);
+    raw.b += dot(light, shared_enlarger_factor_b[i]);
   }
   const float log2_log10 = 0.30102999566398114;
   return log2(raw + 1e-10)*log2_log10;
@@ -411,14 +537,17 @@ develop_print(vec3 log_raw)
 
 vec3 // return rgb linear rec2020
 scan(vec3 density_cmy)
-{ // convert cmy density to spectral (Optimized to read precomputed shared_scan_* buffers)
+{ // convert cmy density to spectral (Vectorized spectral loop)
   vec3 raw = vec3(0.0);
-  for(int l=0;l<=SN;l++)
+  for(int i=0; i<11; i++)
   {
-    vec3 dye_density_xyz = shared_scan_dye_density[l].xyz;
-    float density_spectral = dot(density_cmy, dye_density_xyz);
-    float light = exp2(-density_spectral * 3.32192809489);
-    raw += light * shared_scan_illuminant_cmf[l];
+    vec4 ds = density_cmy.x * shared_scan_dye_r[i] + 
+              density_cmy.y * shared_scan_dye_g[i] + 
+              density_cmy.z * shared_scan_dye_b[i];
+    vec4 light = exp2(-ds);
+    raw.r += dot(light, shared_scan_factor_r[i]);
+    raw.g += dot(light, shared_scan_factor_g[i]);
+    raw.b += dot(light, shared_scan_factor_b[i]);
   }
   raw = clamp(raw, vec3(0.0), vec3(14.0));
   return XYZ_to_rec2020(raw);
