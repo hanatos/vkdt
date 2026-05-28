@@ -660,6 +660,25 @@ create_image(
   const uint32_t wd = MAX(1, c->array_dim ? c->array_dim[2*k+0] : c->roi.wd);
   const uint32_t ht = MAX(1, c->array_dim ? c->array_dim[2*k+1] : c->roi.ht);
   VkFormat format = dt_connector_vkformat(c);
+  uint32_t queue_indices[] = { qvk.queue_family_graphics, qvk.queue_family_compute };
+  int is_concurrent = 0;
+  if(qvk.queue_family_graphics != qvk.queue_family_compute)
+  {
+    for(int n2=0;n2<graph->num_nodes;n2++)
+    {
+      for(int i2=0;i2<graph->node[n2].num_connectors;i2++)
+      {
+        dt_connector_t *cin = graph->node[n2].connector + i2;
+        if(dt_connector_input(cin) &&
+           cin->connected.i == node - graph->node &&
+           cin->connected.c == c - node->connector)
+        {
+          if(graph->node[n2].name == dt_token("display")) is_concurrent = 1;
+        }
+      }
+    }
+  }
+
   VkImageCreateInfo images_create_info = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
     .flags = c->format == dt_token("yuv") ? VK_IMAGE_CREATE_DISJOINT_BIT : 0,
@@ -687,7 +706,9 @@ create_image(
       | VK_IMAGE_USAGE_TRANSFER_DST_BIT
       | VK_IMAGE_USAGE_SAMPLED_BIT
       | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
-    .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
+    .sharingMode           = is_concurrent ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE,
+    .queueFamilyIndexCount = is_concurrent ? 2 : 0,
+    .pQueueFamilyIndices   = is_concurrent ? queue_indices : 0,
     .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
   };
   // fprintf(stderr, "DEBUG allocating imag %"PRItkn":%"PRItkn":%"PRItkn":%"PRItkn" %d x %d\n", dt_token_str(node->name), dt_token_str(node->module->inst), dt_token_str(node->kernel), dt_token_str(c->name), wd, ht);

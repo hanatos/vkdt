@@ -96,6 +96,8 @@ dt_thumbnails_init(
 
   // alloc dummy image to get memory type bits and something to display
   VkFormat format = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+  uint32_t queue_indices[] = { qvk.queue_family_graphics, qvk.queue_family_compute };
+  int is_concurrent = qvk.queue_family_compute != qvk.queue_family_graphics;
   VkImageCreateInfo images_create_info = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
     .imageType = VK_IMAGE_TYPE_2D,
@@ -113,9 +115,9 @@ dt_thumbnails_init(
         VK_IMAGE_ASPECT_COLOR_BIT
       | VK_IMAGE_USAGE_TRANSFER_DST_BIT
       | VK_IMAGE_USAGE_SAMPLED_BIT,
-    .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
-    .queueFamilyIndexCount = 0,
-    .pQueueFamilyIndices   = 0,
+    .sharingMode           = is_concurrent ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE,
+    .queueFamilyIndexCount = is_concurrent ? 2 : 0,
+    .pQueueFamilyIndices   = is_concurrent ? queue_indices : 0,
     .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
   };
 
@@ -565,6 +567,8 @@ dt_thumbnails_load_one(
   th->ht = graph->module[m1].connector[0].roi.full_ht;
 
   VkFormat format = VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+  uint32_t queue_indices[] = { qvk.queue_family_graphics, qvk.queue_family_compute };
+  int is_concurrent = qvk.queue_family_compute != qvk.queue_family_graphics;
   VkImageCreateInfo images_create_info = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
     .imageType = VK_IMAGE_TYPE_2D,
@@ -582,9 +586,9 @@ dt_thumbnails_load_one(
         VK_IMAGE_ASPECT_COLOR_BIT
       | VK_IMAGE_USAGE_TRANSFER_DST_BIT
       | VK_IMAGE_USAGE_SAMPLED_BIT,
-    .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
-    .queueFamilyIndexCount = 0,
-    .pQueueFamilyIndices   = 0,
+    .sharingMode           = is_concurrent ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE,
+    .queueFamilyIndexCount = is_concurrent ? 2 : 0,
+    .pQueueFamilyIndices   = is_concurrent ? queue_indices : 0,
     .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
   };
 

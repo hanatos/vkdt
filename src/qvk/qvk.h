@@ -101,6 +101,8 @@ typedef struct qvk_t
   VkDevice                    device;
   int                         qid[s_queue_cnt];   // map queue names to actual indices in the queue array (they may be the same)
   qvk_queue_t                 queue[s_queue_cnt];
+  uint32_t                    queue_family_graphics;
+  uint32_t                    queue_family_compute;
 
   VkSampler                   tex_sampler;
   VkSampler                   tex_sampler_dspy;

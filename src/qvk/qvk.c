@@ -327,6 +327,19 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     }
   }
 
+  int compute_family_index = queue_family_index;
+  for(int i = 0; i < num_queue_families; i++)
+  {
+    if((queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT) &&
+      !(queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
+    {
+      compute_family_index = i;
+      break;
+    }
+  }
+  qvk.queue_family_graphics = queue_family_index;
+  qvk.queue_family_compute = compute_family_index;
+
   if(queue_family_index < 0)
   {
     dt_log(s_log_err|s_log_qvk, "could not find suitable queue family!");
@@ -432,11 +445,26 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   if(window) requested_device_extensions[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
   if(enable_hdr_wsi) requested_device_extensions[len++] = VK_EXT_HDR_METADATA_EXTENSION_NAME;
 
+  VkDeviceQueueCreateInfo queue_create_infos[2];
+  uint32_t num_queue_create_infos = 1;
+  queue_create_infos[0] = queue_create_info;
+  
+  if(qvk.queue_family_compute != qvk.queue_family_graphics)
+  {
+    queue_create_infos[1] = (VkDeviceQueueCreateInfo) {
+      .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+      .queueCount       = 1,
+      .pQueuePriorities = queue_priorities,
+      .queueFamilyIndex = qvk.queue_family_compute,
+    };
+    num_queue_create_infos = 2;
+  }
+
   VkDeviceCreateInfo dev_create_info = {
     .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
     .pNext                   = &device_features,
-    .pQueueCreateInfos       = &queue_create_info,
-    .queueCreateInfoCount    = 1,
+    .pQueueCreateInfos       = queue_create_infos,
+    .queueCreateInfoCount    = num_queue_create_infos,
     .enabledExtensionCount   = len,
     .ppEnabledExtensionNames = requested_device_extensions,
   };
@@ -446,16 +474,28 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
 
   for(int k=0;k<s_queue_cnt;k++)
   {
-    qvk.queue[k].idx = MIN(queue_cnt-1, k);
-    qvk.qid[k] = qvk.queue[k].idx;
-    if(k == qvk.queue[k].idx)
-    { // new unique index, need to construct all the things
-      dt_log(s_log_qvk, "queue %d is idx %d family %d", k, qvk.qid[k], queue_family_index);
-      vkGetDeviceQueue(qvk.device, queue_family_index, qvk.queue[k].idx, &qvk.queue[k].queue);
+    if(k == s_queue_compute && qvk.queue_family_compute != qvk.queue_family_graphics)
+    {
+      qvk.queue[k].idx = 0;
+      qvk.qid[k] = 1; // unique logical index for our internal tracking
+      vkGetDeviceQueue(qvk.device, qvk.queue_family_compute, 0, &qvk.queue[k].queue);
       threads_mutex_init(&qvk.queue[k].mutex, 0);
-      qvk.queue[k].family = queue_family_index;
+      qvk.queue[k].family = qvk.queue_family_compute;
+      dt_log(s_log_qvk, "queue %d is idx %d family %d (async compute)", k, qvk.qid[k], qvk.queue_family_compute);
     }
-    else qvk.queue[k].idx = -1; // mark as not initialised
+    else
+    {
+      qvk.queue[k].idx = MIN(queue_cnt-1, k);
+      qvk.qid[k] = qvk.queue[k].idx;
+      if(k == qvk.queue[k].idx)
+      { // new unique index, need to construct all the things
+        dt_log(s_log_qvk, "queue %d is idx %d family %d", k, qvk.qid[k], qvk.queue_family_graphics);
+        vkGetDeviceQueue(qvk.device, qvk.queue_family_graphics, qvk.queue[k].idx, &qvk.queue[k].queue);
+        threads_mutex_init(&qvk.queue[k].mutex, 0);
+        qvk.queue[k].family = qvk.queue_family_graphics;
+      }
+      else qvk.queue[k].idx = -1; // mark as not initialised
+    }
   }
 
 #define _VK_EXTENSION_DO(a) \
