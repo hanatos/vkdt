@@ -386,6 +386,7 @@ expose_film(vec3 rgb, int film)
 { // film exposure in camera and chemical development (Vectorized spectral loop)
   vec4 coeff = fetch_coeff(rgb);
   vec3 raw = vec3(0.0);
+  [[unroll]]
   for(int i=0; i<11; i++)
   {
     vec4 lambda = 380.0 + (vec4(i*4, i*4+1, i*4+2, i*4+3)) * 10.0;
@@ -489,6 +490,7 @@ enlarger_expose_negative_to_paper(vec3 rgb)
 { // enlarger: expose scanned transmittances of negative to print paper (Vectorized spectral loop)
   vec3 raw = vec3(0.0);
   vec4 coeff = fetch_coeff(rgb);
+  [[unroll]]
   for(int i=0; i<11; i++)
   {
     vec4 lambda = 380.0 + (vec4(i*4, i*4+1, i*4+2, i*4+3)) * 10.0;
@@ -507,6 +509,7 @@ vec3 // returns log raw
 enlarger_expose_film_to_paper(vec3 density_cmy)
 { // enlarger: expose film to print paper (Vectorized spectral loop)
   vec3 raw = vec3(0.0);
+  [[unroll]]
   for(int i=0; i<11; i++)
   {
     vec4 ds = density_cmy.x * shared_enlarger_dye_r[i] + 
@@ -539,6 +542,7 @@ vec3 // return rgb linear rec2020
 scan(vec3 density_cmy)
 { // convert cmy density to spectral (Vectorized spectral loop)
   vec3 raw = vec3(0.0);
+  [[unroll]]
   for(int i=0; i<11; i++)
   {
     vec4 ds = density_cmy.x * shared_scan_dye_r[i] + 
