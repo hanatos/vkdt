@@ -6,6 +6,10 @@ void modify_roi_out(
     dt_module_t *module)
 {
   module->connector[3].roi = module->connector[0].roi;
+  if(module->connector[3].roi.full_wd < module->connector[1].roi.full_wd)
+    module->connector[3].roi.full_wd = module->connector[1].roi.full_wd;
+  if(module->connector[3].roi.full_ht < module->connector[1].roi.full_ht)
+    module->connector[3].roi.full_ht = module->connector[1].roi.full_ht;
 }
 
 dt_graph_run_t
