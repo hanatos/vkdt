@@ -10,6 +10,13 @@ layout(push_constant, std140) uniform push_t
 
 void main()
 {
+  // Initialize shared memory buffers for all threads in the workgroup.
+  // Since params is uniform, control flow is uniform across the entire workgroup.
+  // We must initialize before the boundary check so all threads execute the barrier.
+  if(params.process == 0)
+    init_enlarger_shared(params.film, s_paper_offset + params.paper);
+  init_scan_shared();
+
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   // load halation + raw exposed film
@@ -19,10 +26,10 @@ void main()
   // mid-tone protection, based on blurred image (hal) for smoother blend
   float p = 3.0*params.halation_midtones;
   float x = max(0.0, dot(hal, vec3(1))/dot(params.halation_strength.rgb, vec3(1)));
-  float prot = exp(-p/(1e-3+0.01*x*x));
+  float prot = exp2(-p * 1.4426950408889634 / (1e-3+0.01*x*x));
   hs *= prot;
-  const float one_log10 = 0.43429448190325176;
-  vec3 log_raw = log((raw+hs*hal)/(1.0+hs))*one_log10;
+  const float log2_log10 = 0.30102999566398114; // log10(2) = log2(x)->log10(x) conversion
+  vec3 log_raw = log2((raw+hs*hal)/(1.0+hs))*log2_log10;
   vec3 density_cmy = develop_film(log_raw, params.film, ipos, push.scale);
   if(params.process == 0)
   {

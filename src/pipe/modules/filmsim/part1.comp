@@ -10,6 +10,14 @@ layout(push_constant, std140) uniform push_t
 
 void main()
 {
+  // Initialize shared memory buffers for all threads in the workgroup.
+  // Since params is uniform, control flow is uniform across the entire workgroup.
+  // We must initialize before the boundary check so all threads execute the barrier.
+  if(params.process == 0)
+    init_enlarger_shared(params.film, s_paper_offset + params.paper);
+  init_scan_shared();
+  init_coupler_matrix_shared();
+
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   vec3 coupler = texture(img_coupler, (ipos+0.5)/vec2(imageSize(img_out))).rgb;

@@ -1,3 +1,4 @@
+#extension GL_EXT_control_flow_attributes : enable
 #include "shared.glsl"
 #include "colourspaces.glsl"
 #include "../rt/colour.glsl"

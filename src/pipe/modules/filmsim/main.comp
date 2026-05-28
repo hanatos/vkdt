@@ -5,8 +5,21 @@
 
 void main()
 {
+  // Initialize shared memory buffers for all threads in the workgroup.
+  // Since params is uniform, control flow is uniform across the entire workgroup.
+  // We must initialize before the boundary check so all threads execute the barrier.
+  if(params.process != 2)
+    init_expose_film_shared(params.film);
+  if(params.process == 0)
+    init_enlarger_shared(params.film, s_paper_offset + params.paper);
+  else if(params.process == 2)
+    init_enlarger_negative_shared(s_paper_offset + params.paper);
+  init_scan_shared();
+  init_coupler_matrix_shared();
+
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
   vec3 density_cmy, log_raw;
   if(params.process != 2)

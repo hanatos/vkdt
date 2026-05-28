@@ -5,6 +5,11 @@
 layout(set = 1, binding = 4) uniform writeonly image2D img_exp;
 void main()
 {
+  // Initialize shared memory buffers for expose_film.
+  // All threads in the workgroup must participate before the boundary return to prevent GPU hangs.
+  init_expose_film_shared(params.film);
+  init_coupler_matrix_shared();
+
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
