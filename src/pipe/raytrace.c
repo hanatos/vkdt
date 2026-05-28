@@ -327,16 +327,14 @@ dt_raytrace_graph_alloc(
       .accelerationStructureReference = qvkGetAccelerationStructureDeviceAddressKHR(qvk.device, &address_request),
     };
   }
+  for(int i=0;i<graph->rt.nid_cnt;i++)
   { // write buffer references to staging memory
-    for(int i=0;i<graph->rt.nid_cnt;i++)
-    {
-      VkBufferDeviceAddressInfo address_info = {
-        .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
-        .buffer = dt_graph_connector_image(graph, graph->rt.nid[i], 0, 0, 0)->buffer,
-      };
-      uint64_t *map = (uint64_t*)(mapped_staging + graph->rt.buf_staging_bref_offset);
-      map[i] = vkGetBufferDeviceAddress(qvk.device, &address_info);
-    }
+    VkBufferDeviceAddressInfo address_info = {
+      .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+      .buffer = dt_graph_connector_image(graph, graph->rt.nid[i], 0, 0, 0)->buffer,
+    };
+    uint64_t *map = (uint64_t*)(mapped_staging + graph->rt.buf_staging_bref_offset);
+    map[i] = vkGetBufferDeviceAddress(qvk.device, &address_info);
   }
   vkUnmapMemory(qvk.device, graph->rt.vkmem_staging);
 
