@@ -255,7 +255,7 @@ write_descriptor_sets(
             (c->type == dt_token("sink") || c->format == dt_token("ui32") || c->format == dt_token("atom")) ? qvk.tex_sampler_nearest :
             qvk.tex_sampler,
           .imageView   = img->image_view,
-          .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+          .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
         };
       }
       VkWriteDescriptorSet img_dset = {
@@ -300,7 +300,7 @@ write_descriptor_sets(
               (c->type == dt_token("sink") || c->format == dt_token("ui32") || c->format == dt_token("atom")) ? qvk.tex_sampler_nearest :
               qvk.tex_sampler,
             .imageView   = img->image_view,
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
           };
         }
       }

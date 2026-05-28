@@ -3,8 +3,7 @@
 #define IMG_LAYOUT(img, oli, nli) do {\
   if(!img->image) break;\
   VkImageLayout nl = VK_IMAGE_LAYOUT_ ## nli;\
-  if(nl != img->layout)\
-    BARRIER_IMG_LAYOUT(img->image, img->layout, nl, img->mip_levels);\
+  BARRIER_IMG_LAYOUT(img->image, img->layout, nl, img->mip_levels);\
   img->layout = nl;\
 } while(0)
 
@@ -105,20 +104,14 @@ dt_graph_run_nodes_upload(
                 const int yuv = node->connector[c].format == dt_token("yuv");
                 VkCommandBuffer cmd_buf = graph->command_buffer[graph->double_buffer];
                 QVKR(vkBeginCommandBuffer(cmd_buf, &begin_info));
-                IMG_LAYOUT(
-                    img,
-                    UNDEFINED,
-                    TRANSFER_DST_OPTIMAL);
+                IMG_LAYOUT(img, UNDEFINED, GENERAL);
                 vkCmdCopyBufferToImage(
                     cmd_buf,
                     node->connector[c].staging[graph->double_buffer],
                     img->image,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    VK_IMAGE_LAYOUT_GENERAL,
                     yuv ? 2 : 1, yuv ? regions+1 : regions);
-                IMG_LAYOUT(
-                    img,
-                    TRANSFER_DST_OPTIMAL,
-                    SHADER_READ_ONLY_OPTIMAL);
+                IMG_LAYOUT(img, GENERAL, GENERAL);
                 QVKR(vkEndCommandBuffer(cmd_buf));
                 // we add one more command list, locking the command buffer in this case
                 graph->process_dbuffer[graph->double_buffer] = MAX(graph->process_dbuffer[0], graph->process_dbuffer[1]) + 1;
