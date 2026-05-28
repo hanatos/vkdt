@@ -10,7 +10,7 @@ vec3 get_sensitivity(vec2 tc)
 {
   vec3 log_sensitivity = texture(img_filmsim, tc).rgb;
   // vec3 log_sensitivity = sample_catmull_rom_1d(img_filmsim, tc).rgb;
-  vec3 sensitivity = pow(vec3(10.0), log_sensitivity);
+  vec3 sensitivity = exp2(log_sensitivity * 3.32192809489);
   return mix(sensitivity, vec3(0.0), isnan(sensitivity));
 }
 
@@ -44,13 +44,13 @@ vec3 thorlabs_filters(float w)
   return vec3(cyan, magenta, yellow);
 }
 
-vec2 hash(in ivec2 p)  // this hash is not production ready, please
-{                        // replace this by something better
-  ivec2 n = p.x*ivec2(3,37) + p.y*ivec2(311,113); // 2D -> 1D
-  // 1D hash by Hugo Elias
-  n = (n << 13) ^ n;
-  n = n * (n * n * 15731 + 789221) + 1376312589;
-  return -1.0+2.0*vec2( n & ivec2(0x0fffffff))/float(0x0fffffff);
+vec2 hash(in ivec2 p)
+{
+  // Optimized PCG-style hash to minimize math instruction overhead
+  uvec2 q = uvec2(p);
+  q *= uvec2(1597334677U, 3812015801U);
+  q = (q.x ^ q.y) * uvec2(1597334677U, 3812015801U);
+  return -1.0 + 2.0 * vec2(q) * (1.0 / 4294967296.0);
 }
 
 float noise(in vec2 p)
@@ -161,15 +161,17 @@ expose_film(vec3 rgb, int film)
     vec3 sensitivity = get_sensitivity(tc);
     raw += sensitivity * val * env / pdf;
   }
-  const float one_log10 = 0.43429448190325176, log2_log10 = 0.30102999566398114;
-  return params.ev_film * log2_log10 + log(raw+1e-10) * one_log10;
+  const float log2_log10 = 0.30102999566398114;
+  return params.ev_film * log2_log10 + log2(raw+1e-10) * log2_log10;
 }
 
 vec3 sigmoid(vec3 x)
 {
-  // return 0.5 + 0.5 * x / sqrt(1.0+x*x);
-  const float b = 4.5;
-  return 0.5 + 0.5*x / pow(pow(abs(x), vec3(b)) + 1.0, vec3(1.0/b));
+  vec3 abs_x = abs(x);
+  vec3 x2 = abs_x * abs_x;
+  vec3 x4 = x2 * x2;
+  vec3 xb = x4 * sqrt(abs_x);
+  return 0.5 + 0.5*x * exp2(-0.2222222222222222 * log2(xb + 1.0));
 }
 
 vec3 sigmoid_ddx(vec3 x)
@@ -308,11 +310,11 @@ enlarger_expose_negative_to_paper(vec3 rgb)
 #endif
     float print_illuminant = enlarger.x*enlarger.y*enlarger.z * illuminant;
     float light = transmittance * print_illuminant;
-    raw += sensitivity * light * pow(2.0, params.ev_paper);
+    raw += sensitivity * light * exp2(params.ev_paper);
     // TODO and the same yet again for the preflash
   }
-  const float one_log10 = 0.43429448190325176;
-  return log(raw + 1e-10)*one_log10;
+  const float log2_log10 = 0.30102999566398114;
+  return log2(raw + 1e-10)*log2_log10;
 }
 
 vec3 // returns log raw
@@ -362,12 +364,12 @@ enlarger_expose_film_to_paper(vec3 density_cmy)
       neutral);
 #endif
     float print_illuminant = enlarger.x*enlarger.y*enlarger.z * illuminant;
-    float light = pow(10.0, -density_spectral) * print_illuminant;
-    raw += sensitivity * light * pow(2.0, params.ev_paper);
+    float light = exp2(-density_spectral * 3.32192809489) * print_illuminant;
+    raw += sensitivity * light * exp2(params.ev_paper);
     // TODO and the same yet again for the preflash
   }
-  const float one_log10 = 0.43429448190325176;
-  return log(raw + 1e-10)*one_log10;
+  const float log2_log10 = 0.30102999566398114;
+  return log2(raw + 1e-10)*log2_log10;
 }
 
 vec3 // return density_cmy
@@ -403,7 +405,7 @@ scan(vec3 density_cmy)
     if(params.process != 1) density_spectral += dye_density.w * dye_density_min_factor_paper;
     else                    density_spectral += dye_density.w * dye_density_min_factor_film;
     float scan_illuminant = (4.0/(SN+1.0))*sigmoid_eval(coeff, lambda);
-    float light = pow(10.0, -density_spectral) * scan_illuminant;
+    float light = exp2(-density_spectral * 3.32192809489) * scan_illuminant;
     vec3 cmf = cmf_1931(lambda); // 1931 2 deg std observer, approximate version
     raw += light * cmf;
   }

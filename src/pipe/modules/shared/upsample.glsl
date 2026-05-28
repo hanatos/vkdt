@@ -25,7 +25,7 @@ float sigmoid_eval(
     float lambda) // in nanometers
 {
   float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
-  float y = 1. / sqrt(x * x + 1.);
+  float y = inversesqrt(x * x + 1.0);
   float val = 0.5 * x * y +  0.5;
   return val * coeff.w;
 }
