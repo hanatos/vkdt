@@ -25,6 +25,7 @@ void main()
   vec3 hs = params.halation_scale*params.halation_strength.rgb;
   float strength_sum = params.halation_strength.r + params.halation_strength.g + params.halation_strength.b;
   float x = max(0.0, (hal.r + hal.g + hal.b) / strength_sum);
+  // -3.0 * log2(e) = -4.32808512266689
   float p_factor = -4.32808512266689 * params.halation_midtones;
   float prot = exp2(p_factor / (1e-3 + 0.01 * x * x));
   hs *= prot;

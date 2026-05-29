@@ -396,6 +396,8 @@ expose_film(vec3 rgb, int film)
   vec4 coeff = fetch_coeff(rgb);
   vec3 raw = vec3(0.0);
   [[unroll]]
+  // envelope(w >= 730nm) = 1000.0 * 1.0 * (1.0 - 1.0) = 0.0
+  // lambda_arr[9] = vec4(740, 750, 760, 770)
   for(int i=0; i<9; i++)
   {
     vec4 lambda = lambda_arr[i];
@@ -513,7 +515,8 @@ enlarger_expose_negative_to_paper(vec3 rgb)
     raw.g += dot(transmittance, shared_enlarger_factor_g[i]);
     raw.b += dot(transmittance, shared_enlarger_factor_b[i]);
   }
-  { // i=10 only has 1 active element (.x)
+  { // i=10 (lambda_arr[10] = vec4(780, 790, 800, 810))
+    // tid <= 40 evaluates up to lambda=780nm
     float lambda = lambda_arr[10].x;
     float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
     float y = inversesqrt(x * x + 1.0);
@@ -541,7 +544,8 @@ enlarger_expose_film_to_paper(vec3 density_cmy)
     raw.g += dot(light, shared_enlarger_factor_g[i]);
     raw.b += dot(light, shared_enlarger_factor_b[i]);
   }
-  { // i=10 only has 1 active element (.x)
+  { // i=10 (lambda_arr[10] = vec4(780, 790, 800, 810))
+    // tid <= 40 evaluates up to lambda=780nm
     float ds = density_cmy.x * shared_enlarger_dye_r[10].x + 
                density_cmy.y * shared_enlarger_dye_g[10].x + 
                density_cmy.z * shared_enlarger_dye_b[10].x;
@@ -583,7 +587,8 @@ scan(vec3 density_cmy)
     raw.g += dot(light, shared_scan_factor_g[i]);
     raw.b += dot(light, shared_scan_factor_b[i]);
   }
-  { // i=10 only has 1 active element (.x)
+  { // i=10 (lambda_arr[10] = vec4(780, 790, 800, 810))
+    // tid <= 40 evaluates up to lambda=780nm
     float ds = density_cmy.x * shared_scan_dye_r[10].x + 
                density_cmy.y * shared_scan_dye_g[10].x + 
                density_cmy.z * shared_scan_dye_b[10].x;
