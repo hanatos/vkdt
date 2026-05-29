@@ -230,7 +230,7 @@ void init_expose_film_shared(int film)
     shared_expose_factor_b[tid] = vec4(0.0);
   }
   barrier();
-  if (tid <= 40)
+  if (tid <= 35)
   {
     float lambda = 380.0 + tid * 10.0;
     vec2 tc = vec2((tid * 2.0 + 0.5) / 256.0, get_tcy(s_sensitivity, film));
@@ -396,7 +396,7 @@ expose_film(vec3 rgb, int film)
   vec4 coeff = fetch_coeff(rgb);
   vec3 raw = vec3(0.0);
   [[unroll]]
-  for(int i=0; i<11; i++)
+  for(int i=0; i<9; i++)
   {
     vec4 lambda = lambda_arr[i];
     // x = (coeff.x * lambda + coeff.y) * lambda + coeff.z
@@ -503,7 +503,7 @@ enlarger_expose_negative_to_paper(vec3 rgb)
   vec3 raw = vec3(0.0);
   vec4 coeff = fetch_coeff(rgb);
   [[unroll]]
-  for(int i=0; i<11; i++)
+  for(int i=0; i<10; i++)
   {
     vec4 lambda = lambda_arr[i];
     vec4 x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
@@ -512,6 +512,15 @@ enlarger_expose_negative_to_paper(vec3 rgb)
     raw.r += dot(transmittance, shared_enlarger_factor_r[i]);
     raw.g += dot(transmittance, shared_enlarger_factor_g[i]);
     raw.b += dot(transmittance, shared_enlarger_factor_b[i]);
+  }
+  { // i=10 only has 1 active element (.x)
+    float lambda = lambda_arr[10].x;
+    float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
+    float y = inversesqrt(x * x + 1.0);
+    float transmittance = (0.5 * x * y + 0.5) * coeff.w;
+    raw.r += transmittance * shared_enlarger_factor_r[10].x;
+    raw.g += transmittance * shared_enlarger_factor_g[10].x;
+    raw.b += transmittance * shared_enlarger_factor_b[10].x;
   }
   const float log2_log10 = 0.30102999566398114;
   return log2(raw + 1e-10)*log2_log10;
@@ -522,7 +531,7 @@ enlarger_expose_film_to_paper(vec3 density_cmy)
 { // enlarger: expose film to print paper (Vectorized spectral loop)
   vec3 raw = vec3(0.0);
   [[unroll]]
-  for(int i=0; i<11; i++)
+  for(int i=0; i<10; i++)
   {
     vec4 ds = density_cmy.x * shared_enlarger_dye_r[i] + 
               density_cmy.y * shared_enlarger_dye_g[i] + 
@@ -531,6 +540,15 @@ enlarger_expose_film_to_paper(vec3 density_cmy)
     raw.r += dot(light, shared_enlarger_factor_r[i]);
     raw.g += dot(light, shared_enlarger_factor_g[i]);
     raw.b += dot(light, shared_enlarger_factor_b[i]);
+  }
+  { // i=10 only has 1 active element (.x)
+    float ds = density_cmy.x * shared_enlarger_dye_r[10].x + 
+               density_cmy.y * shared_enlarger_dye_g[10].x + 
+               density_cmy.z * shared_enlarger_dye_b[10].x;
+    float light = exp2(-ds);
+    raw.r += light * shared_enlarger_factor_r[10].x;
+    raw.g += light * shared_enlarger_factor_g[10].x;
+    raw.b += light * shared_enlarger_factor_b[10].x;
   }
   const float log2_log10 = 0.30102999566398114;
   return log2(raw + 1e-10)*log2_log10;
@@ -555,7 +573,7 @@ scan(vec3 density_cmy)
 { // convert cmy density to spectral (Vectorized spectral loop)
   vec3 raw = vec3(0.0);
   [[unroll]]
-  for(int i=0; i<11; i++)
+  for(int i=0; i<10; i++)
   {
     vec4 ds = density_cmy.x * shared_scan_dye_r[i] + 
               density_cmy.y * shared_scan_dye_g[i] + 
@@ -564,6 +582,15 @@ scan(vec3 density_cmy)
     raw.r += dot(light, shared_scan_factor_r[i]);
     raw.g += dot(light, shared_scan_factor_g[i]);
     raw.b += dot(light, shared_scan_factor_b[i]);
+  }
+  { // i=10 only has 1 active element (.x)
+    float ds = density_cmy.x * shared_scan_dye_r[10].x + 
+               density_cmy.y * shared_scan_dye_g[10].x + 
+               density_cmy.z * shared_scan_dye_b[10].x;
+    float light = exp2(-ds);
+    raw.r += light * shared_scan_factor_r[10].x;
+    raw.g += light * shared_scan_factor_g[10].x;
+    raw.b += light * shared_scan_factor_b[10].x;
   }
   raw = clamp(raw, vec3(0.0), vec3(14.0));
   return XYZ_to_rec2020(raw);
