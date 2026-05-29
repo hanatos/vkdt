@@ -11,8 +11,9 @@ main()
   if(any(greaterThanEqual(ipos, imageSize(img_out[idx])))) return;
 
   const vec2 sz = vec2(textureSize(img_in[idx], 0));
-  const vec2 uv = (ipos + 0.5) / sz;
-  vec4 color = texture(img_in[idx], uv);
+  const vec2 inv_sz = vec2(1.0) / sz;
+  const vec2 uv = (ipos + 0.5) * inv_sz;
+  vec4 color = textureLod(img_in[idx], uv, 0.0);
   float wgt = 1.0;
   int sp = int(floor(push.radius));
 
@@ -27,7 +28,7 @@ main()
     float c = exp(-2.0 * a);
     float w = exp(-a);
     float v = exp(-3.0 * a);
-    vec2 step = vec2(1.0, 0.0) / sz;
+    vec2 step = vec2(inv_sz.x, 0.0);
     vec2 uv_p = uv;
     vec2 uv_m = uv;
 
@@ -36,7 +37,7 @@ main()
       wgt += 2.0 * w;
       uv_p += step;
       uv_m -= step;
-      color += w * (texture(img_in[idx], uv_p) + texture(img_in[idx], uv_m));
+      color += w * (textureLod(img_in[idx], uv_p, 0.0) + textureLod(img_in[idx], uv_m, 0.0));
       w *= v;
       v *= c;
     }
