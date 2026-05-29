@@ -10,35 +10,38 @@ main()
   int idx = int(gl_GlobalInvocationID.z);
   if(any(greaterThanEqual(ipos, imageSize(img_out[idx])))) return;
 
-  vec4 color = vec4(0);
-  float wgt = 0.0;
+  const vec2 sz = vec2(textureSize(img_in[idx], 0));
+  const vec2 uv = (ipos + 0.5) / sz;
+  vec4 color = texture(img_in[idx], uv);
+  float wgt = 1.0;
   int sp = int(floor(push.radius));
-  for(int i=-sp;i<=sp;i++)
+
+  if(sp > 0)
   {
-    float w = exp(-i*i/(2.0*(push.radius/3.0*push.radius/3.0)));
-    wgt += w;
-    color += w * texture(img_in[idx], (ipos + 0.5 + vec2(i, 0))/vec2(textureSize(img_in[idx], 0)));
+    // Efficiently compute Gaussian weights incrementally:
+    // w_i = w_{i-1} * v_i
+    // v_{i+1} = v_i * c
+    // where c = exp(-1/(sigma^2)), w_1 = exp(-1/(2*sigma^2)), v_2 = exp(-3/(2*sigma^2))
+    float sigma = push.radius / 3.0;
+    float a = 0.5 / (sigma * sigma);
+    float c = exp(-2.0 * a);
+    float w = exp(-a);
+    float v = exp(-3.0 * a);
+    vec2 step = vec2(1.0, 0.0) / sz;
+    vec2 uv_p = uv;
+    vec2 uv_m = uv;
+
+    for(int i=1;i<=sp;i++)
+    {
+      wgt += 2.0 * w;
+      uv_p += step;
+      uv_m -= step;
+      color += w * (texture(img_in[idx], uv_p) + texture(img_in[idx], uv_m));
+      w *= v;
+      v *= c;
+    }
   }
+
   color *= 1.0/wgt;
-#if 0
-#if 1
-  vec4 c0 = texelFetch(img_in[idx], ipos + ivec2(-2*push.step, 0), 0);
-  vec4 c1 = texelFetch(img_in[idx], ipos + ivec2(-1*push.step, 0), 0);
-  vec4 c2 = texelFetch(img_in[idx], ipos + ivec2( 0*push.step, 0), 0);
-  vec4 c3 = texelFetch(img_in[idx], ipos + ivec2( 1*push.step, 0), 0);
-  vec4 c4 = texelFetch(img_in[idx], ipos + ivec2( 2*push.step, 0), 0);
-  // vec4 color = (1.0/16.0)*(c0+4.0*c1+6.0*c2+4.0*c3+c4);
-  vec4 color = (1.0/5.0)*(c0+c1+c2+c3+c4);
-#else
-  vec2 dir = vec2(0, 1);
-  vec2 res = vec2(textureSize(img_in[idx], 0));
-  vec2 uv = vec2(ipos * (dir+vec2(1,1))) / res;
-  vec4 color = vec4(0.0);
-  vec2 off1 = push.step * vec2(1.3333333333333333) * dir / res;
-  color += textureLod(img_in[idx], uv, 0) * 0.29411764705882354;
-  color += textureLod(img_in[idx], uv + off1, 0) * 0.35294117647058826;
-  color += textureLod(img_in[idx], uv - off1, 0) * 0.35294117647058826;
-#endif
-#endif
   imageStore(img_out[idx], ipos, color);
 }
