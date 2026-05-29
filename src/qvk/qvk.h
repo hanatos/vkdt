@@ -145,9 +145,11 @@ VKDT_API extern qvk_t qvk;
 
 #ifdef QVK_ENABLE_VALIDATION
 #define _VK_EXTENSION_LIST \
-  _VK_EXTENSION_DO(vkDebugMarkerSetObjectNameEXT)
+  _VK_EXTENSION_DO(vkDebugMarkerSetObjectNameEXT) \
+  _VK_EXTENSION_DO(vkCmdPushDescriptorSetKHR)
 #else
-#define _VK_EXTENSION_LIST
+#define _VK_EXTENSION_LIST \
+  _VK_EXTENSION_DO(vkCmdPushDescriptorSetKHR)
 #endif
 
 #define _VK_EXTENSION_DO(a) extern PFN_##a q##a;

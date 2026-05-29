@@ -27,6 +27,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "gui/gui.h"
+
+static VkResult dt_graph_init_mipmap(dt_graph_t *g);
+static void dt_graph_cleanup_mipmap(dt_graph_t *g);
 
 void
 dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
@@ -44,8 +48,7 @@ dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
   g->module = calloc(sizeof(dt_module_t), g->max_modules);
   g->max_nodes = 4000;
   g->node = calloc(sizeof(dt_node_t), g->max_nodes);
-  dt_vkalloc_init(&g->heap, 16000, ((uint64_t)1)<<40); // bytesize doesn't matter
-  dt_vkalloc_init(&g->heap_staging, 100, ((uint64_t)1)<<40);
+  for(int i=0;i<32;i++) dt_vkalloc_init(&g->heap[i], 16000, ((uint64_t)1)<<40); // bytesize doesn't matter
   g->params_max = 16u<<20;
   g->params_end = 0;
   g->params_pool = calloc(sizeof(uint8_t), g->params_max);
@@ -109,6 +112,7 @@ dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
 
   g->lod_scale = 1;
   g->active_module = -1;
+  dt_graph_init_mipmap(g);
 }
 
 // Destroy per-image/per-graph-structure Vulkan resources: connector images,
@@ -141,6 +145,7 @@ graph_destroy_per_image_resources(dt_graph_t *g)
   {
     if(g->conn_image_pool[i].buffer)     vkDestroyBuffer   (qvk.device, g->conn_image_pool[i].buffer,     VK_NULL_HANDLE);
     if(g->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, g->conn_image_pool[i].image_view, VK_NULL_HANDLE);
+    for(int m=0;m<14;m++) if(g->conn_image_pool[i].mipmap_views[m]) vkDestroyImageView(qvk.device, g->conn_image_pool[i].mipmap_views[m], VK_NULL_HANDLE);
     if(g->conn_image_pool[i].image)      vkDestroyImage    (qvk.device, g->conn_image_pool[i].image,      VK_NULL_HANDLE);
     g->conn_image_pool[i] = (dt_connector_image_t){0};
   }
@@ -227,8 +232,7 @@ dt_graph_cleanup(dt_graph_t *g)
   g->active_module = -1;
   if(graph_wait_gpu(g, "graph_cleanup") != VK_SUCCESS) return;
   graph_teardown_modules(g);
-  dt_vkalloc_cleanup(&g->heap);
-  dt_vkalloc_cleanup(&g->heap_staging);
+  for(int i=0;i<32;i++) dt_vkalloc_cleanup(&g->heap[i]);
   graph_destroy_per_image_resources(g);
   vkDestroyDescriptorPool(qvk.device, g->dset_pool, 0);
   vkDestroyDescriptorSetLayout(qvk.device, g->uniform_dset_layout, 0);
@@ -236,11 +240,15 @@ dt_graph_cleanup(dt_graph_t *g)
   g->dset_pool = 0;
   g->uniform_dset_layout = 0;
   g->uniform_buffer = 0;
-  vkFreeMemory(qvk.device, g->vkmem, 0);
-  vkFreeMemory(qvk.device, g->vkmem_staging, 0);
+  for(int i=0;i<32;i++)
+  {
+    vkFreeMemory(qvk.device, g->vkmem[i], 0);
+    g->vkmem[i] = 0;
+    g->vkmem_size[i] = 0;
+  }
   vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
-  g->vkmem = g->vkmem_staging = g->vkmem_uniform = 0;
-  g->vkmem_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
+  g->vkmem_uniform = 0;
+  g->vkmem_uniform_size = 0;
   vkDestroySemaphore(qvk.device, g->semaphore_display, 0);
   vkDestroySemaphore(qvk.device, g->semaphore_process, 0);
   g->semaphore_display = 0;
@@ -270,6 +278,7 @@ dt_graph_cleanup(dt_graph_t *g)
     free(g->query[i].name);         g->query[i].name = 0;
     free(g->query[i].kernel);       g->query[i].kernel = 0;
   }
+  dt_graph_cleanup_mipmap(g);
 }
 
 static inline void *
@@ -336,6 +345,64 @@ dt_graph_create_shader_module(
 #endif
 #endif
   return VK_SUCCESS;
+}
+
+static VkResult dt_graph_init_mipmap(dt_graph_t *g)
+{
+  VkShaderModule shader_module;
+  QVKR(dt_graph_create_shader_module(g, dt_token("mipmap"), dt_token("main"), "comp", &shader_module));
+
+  VkDescriptorSetLayoutBinding bindings[] = {
+    {
+      .binding = 0,
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .descriptorCount = 1,
+      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+    },
+    {
+      .binding = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+      .descriptorCount = 1,
+      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+    }
+  };
+
+  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR,
+    .bindingCount = 2,
+    .pBindings = bindings,
+  };
+  QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, NULL, &g->mipmap_dset_layout));
+
+  VkPipelineLayoutCreateInfo pipeline_layout_info = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .setLayoutCount = 1,
+    .pSetLayouts = &g->mipmap_dset_layout,
+  };
+  QVKR(vkCreatePipelineLayout(qvk.device, &pipeline_layout_info, NULL, &g->mipmap_pipeline_layout));
+
+  VkComputePipelineCreateInfo pipeline_info = {
+    .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+    .stage = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+      .module = shader_module,
+      .pName = "main",
+    },
+    .layout = g->mipmap_pipeline_layout,
+  };
+  QVKR(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &g->mipmap_pipeline));
+
+  vkDestroyShaderModule(qvk.device, shader_module, NULL);
+  return VK_SUCCESS;
+}
+
+static void dt_graph_cleanup_mipmap(dt_graph_t *g)
+{
+  if(g->mipmap_pipeline) vkDestroyPipeline(qvk.device, g->mipmap_pipeline, NULL);
+  if(g->mipmap_pipeline_layout) vkDestroyPipelineLayout(qvk.device, g->mipmap_pipeline_layout, NULL);
+  if(g->mipmap_dset_layout) vkDestroyDescriptorSetLayout(qvk.device, g->mipmap_dset_layout, NULL);
 }
 
 // convenience function for debugging in gdb:
@@ -466,12 +533,14 @@ VkResult dt_graph_run(
 
   if(run & s_graph_run_alloc)
   { // output memory statistics if we did any allocation at all
-    dt_log(s_log_mem, "images : peak rss %g MB vmsize %g MB",
-        graph->heap.peak_rss/(1024.0*1024.0),
-        graph->heap.vmsize  /(1024.0*1024.0));
-    dt_log(s_log_mem, "staging: peak rss %g MB vmsize %g MB",
-        graph->heap_staging.peak_rss/(1024.0*1024.0),
-        graph->heap_staging.vmsize  /(1024.0*1024.0));
+    for(int i=0;i<32;i++) {
+      if((1<<i) & graph->heap_mask) {
+        dt_log(s_log_mem, "heap %d: peak rss %g MB vmsize %g MB",
+            i,
+            graph->heap[i].peak_rss/(1024.0*1024.0),
+            graph->heap[i].vmsize  /(1024.0*1024.0));
+      }
+    }
   }
 
   double clock_end = dt_time();
@@ -625,15 +694,18 @@ dt_graph_repurpose(dt_graph_t *g)
   if(graph_wait_gpu(g, "graph_repurpose") != VK_SUCCESS) return;
   graph_teardown_modules(g);
   // clear logical allocators
-  dt_vkalloc_nuke(&g->heap);
-  dt_vkalloc_nuke(&g->heap_staging);
+  for(int i=0;i<32;i++) dt_vkalloc_nuke(&g->heap[i]);
   graph_destroy_per_image_resources(g);
   // free memory because this can be sizable:
-  vkFreeMemory(qvk.device, g->vkmem, 0);
-  vkFreeMemory(qvk.device, g->vkmem_staging, 0);
+  for(int i=0;i<32;i++)
+  {
+    vkFreeMemory(qvk.device, g->vkmem[i], 0);
+    g->vkmem[i] = 0;
+    g->vkmem_size[i] = 0;
+  }
   vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
-  g->vkmem = g->vkmem_staging = g->vkmem_uniform = 0;
-  g->vkmem_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
+  g->vkmem_uniform = 0;
+  g->vkmem_uniform_size = 0;
   // reset command pool (reuse buffers, skip destroy/recreate)
   vkResetCommandPool(qvk.device, g->command_pool, 0);
   if(g->command_pool_gfx)

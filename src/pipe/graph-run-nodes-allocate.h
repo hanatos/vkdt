@@ -331,7 +331,7 @@ bind_buffers_to_memory(
   { // storage buffer
     if(img->image_view) vkDestroyImageView(qvk.device, img->image_view, VK_NULL_HANDLE);
     img->image_view = 0;
-    QVKR(vkBindBufferMemory(qvk.device, img->buffer, graph->vkmem, img->offset));
+    QVKR(vkBindBufferMemory(qvk.device, img->buffer, graph->vkmem[img->mem_type], img->offset));
   }
   else
   { // storage image
@@ -353,20 +353,20 @@ bind_buffers_to_memory(
         .sType        = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
         .pNext        = &bind_image_plane0_info,
         .image        = img->image,
-        .memory       = graph->vkmem,
+        .memory       = graph->vkmem[img->mem_type],
         .memoryOffset = img->offset,
       },{
         .sType        = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
         .pNext        = &bind_image_plane1_info,
         .image        = img->image,
-        .memory       = graph->vkmem,
+        .memory       = graph->vkmem[img->mem_type],
         .memoryOffset = img->offset + img->plane1_offset,
       }};
       QVKR(vkBindImageMemory2(qvk.device, 2, bind_image_memory_infos));
     }
     else
     { // plain:
-      QVKR(vkBindImageMemory(qvk.device, img->image, graph->vkmem, img->offset));
+      QVKR(vkBindImageMemory(qvk.device, img->image, graph->vkmem[img->mem_type], img->offset));
     }
 
     VkSamplerYcbcrConversionInfo ycbcr_info = {
@@ -389,6 +389,15 @@ bind_buffers_to_memory(
     };
     if(img->image_view) vkDestroyImageView(qvk.device, img->image_view, VK_NULL_HANDLE);
     QVKR(vkCreateImageView(qvk.device, &images_view_create_info, NULL, &img->image_view));
+
+    if (img->mip_levels > 1) {
+      for (uint32_t m = 0; m < img->mip_levels; m++) {
+        images_view_create_info.subresourceRange.baseMipLevel = m;
+        images_view_create_info.subresourceRange.levelCount = 1;
+        if(img->mipmap_views[m]) vkDestroyImageView(qvk.device, img->mipmap_views[m], VK_NULL_HANDLE);
+        QVKR(vkCreateImageView(qvk.device, &images_view_create_info, NULL, &img->mipmap_views[m]));
+      }
+    }
   }
   return VK_SUCCESS;
 }
@@ -441,7 +450,12 @@ alloc_alias_memory(dt_graph_t *graph, dt_node_t *node)
       if(c->flags & s_conn_dynamic_array)
       { // this is shit and should probably get a fake alignment value for a fake image.
         // amd requires this large one, nvidia can do one 0 less
-        c->array_mem = dt_vkalloc_protected(&graph->heap, c->array_heap_size, 0x10000);
+        dt_connector_image_t *img0 = dt_graph_connector_image(graph, nid, cid, 0, 0);
+        memory_requirements(c, img0, &mem_req);
+        uint32_t mem_type = qvk_get_memory_type(mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if(mem_type == ~0u) mem_type = qvk_get_memory_type(~0u, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        graph->heap_mask |= (1 << mem_type);
+        c->array_mem = dt_vkalloc_protected(&graph->heap[mem_type], c->array_heap_size, 0x10000);
         c->array_heap = calloc(sizeof(dt_vkalloc_t), 1);
         dt_vkalloc_init(c->array_heap, c->array_length * 2, c->array_heap_size);
       }
@@ -452,10 +466,12 @@ alloc_alias_memory(dt_graph_t *graph, dt_node_t *node)
           dt_connector_image_t *img = dt_graph_connector_image(graph,
               nid, cid, aid, f);
           memory_requirements(c, img, &mem_req);
+          img->mem_type = qvk_get_memory_type(mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+          graph->heap_mask |= (1 << img->mem_type);
           if(c->flags & s_conn_protected) // allocate protected memory
-            img->mem = dt_vkalloc_protected(&graph->heap, mem_req.size, mem_req.alignment);
+            img->mem = dt_vkalloc_protected(&graph->heap[img->mem_type], mem_req.size, mem_req.alignment);
           else
-            img->mem = dt_vkalloc(&graph->heap, mem_req.size, mem_req.alignment);
+            img->mem = dt_vkalloc(&graph->heap[img->mem_type], mem_req.size, mem_req.alignment);
           img->offset = img->mem->offset;
           img->size   = dt_connector_bufsize(c, c->roi.wd, c->roi.ht);
         }
@@ -466,7 +482,10 @@ alloc_alias_memory(dt_graph_t *graph, dt_node_t *node)
       vkGetBufferMemoryRequirements(qvk.device, c->staging[0], &mem_req);
       int need_dbuf = node->flags & s_module_request_read_source; // only good for sources
       size_t staging_size = need_dbuf ? mem_req.size * 2 : mem_req.size;
-      c->mem_staging       = dt_vkalloc(&graph->heap_staging, staging_size, mem_req.alignment);
+      c->mem_type_staging = qvk_get_memory_type(mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+      if(c->mem_type_staging == ~0u) c->mem_type_staging = qvk_get_memory_type(mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT); // fallback
+      graph->heap_mask |= (1 << c->mem_type_staging);
+      c->mem_staging       = dt_vkalloc(&graph->heap[c->mem_type_staging], staging_size, mem_req.alignment);
       c->offset_staging[0] = c->mem_staging->offset;
       c->offset_staging[1] = need_dbuf ? c->mem_staging->offset + mem_req.size : c->mem_staging->offset;
       // fprintf(stderr, "allocing staging dbuf %d %"PRItkn"_%"PRItkn"_%"PRItkn"@%d [%ld,%ld)\n",
@@ -488,7 +507,7 @@ alloc_alias_memory(dt_graph_t *graph, dt_node_t *node)
         // this could logically happen on the connector, we don't have more fine grained access:
         if(img->nid_last_ref == nid) // free this buffer, be it output or input
         {
-          dt_vkfree(&graph->heap, img->mem);
+          dt_vkfree(&graph->heap[img->mem_type], img->mem);
           img->nid_last_ref = -1; // avoid double free
         }
       }
@@ -591,8 +610,8 @@ alloc_bind_memory(dt_graph_t *graph, dt_node_t *node)
     dt_connector_t *c = node->connector+cid;
     if(c->mem_staging)
     { // bind staging memory:
-      vkBindBufferMemory(qvk.device, c->staging[0], graph->vkmem_staging, c->offset_staging[0]);
-      vkBindBufferMemory(qvk.device, c->staging[1], graph->vkmem_staging, c->offset_staging[1]);
+      vkBindBufferMemory(qvk.device, c->staging[0], graph->vkmem[c->mem_type_staging], c->offset_staging[0]);
+      vkBindBufferMemory(qvk.device, c->staging[1], graph->vkmem[c->mem_type_staging], c->offset_staging[1]);
     }
 
     if(!(c->flags & s_conn_dynamic_array)) // dynamic arrays take care of themselves later
@@ -1095,14 +1114,13 @@ dt_graph_run_nodes_allocate(
     // init ray tracing on graph, after output roi and nodes have been inited:
     QVKR(dt_raytrace_graph_init(graph, nodeid, cnt));
     // free pipeline resources if previously allocated anything:
-    dt_vkalloc_nuke(&graph->heap);
-    dt_vkalloc_nuke(&graph->heap_staging);
+    for(int i = 0; i < 32; i++) {
+      dt_vkalloc_nuke(&graph->heap[i]);
+    }
     graph->dset_cnt_image_read = 0;
     graph->dset_cnt_image_write = 0;
     graph->dset_cnt_buffer = 0;
     graph->dset_cnt_uniform = DT_GRAPH_MAX_FRAMES; // we have one global uniform for params, per frame
-    graph->memory_type_bits = ~0u;
-    graph->memory_type_bits_staging = ~0u;
     for(int i=0;i<cnt;i++)
       QVKR(alloc_outputs(graph, graph->node+nodeid[i]));
   }
@@ -1117,53 +1135,32 @@ dt_graph_run_nodes_allocate(
   // ==============================================
   //  now allocate vkmem and descriptor set pools
   // ==============================================
-  if(graph->heap.vmsize > graph->vkmem_size)
+  for(int i = 0; i < 32; i++)
   {
-    *run |= s_graph_run_upload_source; // new mem means new source
-    if(graph->vkmem)
+    if((graph->heap_mask & (1 << i)) == 0) continue;
+    if(graph->heap[i].vmsize > graph->vkmem_size[i])
     {
-      vkFreeMemory(qvk.device, graph->vkmem, 0);
-      graph->vkmem = 0;
+      *run |= s_graph_run_upload_source; // new mem means new source
+      if(graph->vkmem[i])
+      {
+        vkFreeMemory(qvk.device, graph->vkmem[i], 0);
+        graph->vkmem[i] = 0;
+      }
+      graph->vkmem_size[i] = 0;
+      QVKR(dt_check_device_allocation(graph->heap[i].vmsize, 0));
+      VkMemoryAllocateFlagsInfo allocation_flags = {
+        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
+        .flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
+      };
+      VkMemoryAllocateInfo mem_alloc_info = {
+        .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        .pNext           = &allocation_flags,
+        .allocationSize  = graph->heap[i].vmsize,
+        .memoryTypeIndex = i,
+      };
+      QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem[i]));
+      graph->vkmem_size[i] = graph->heap[i].vmsize;
     }
-    graph->vkmem_size = 0;
-    QVKR(dt_check_device_allocation(graph->heap.vmsize, 0));
-    VkMemoryAllocateFlagsInfo allocation_flags = {
-      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
-      .flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
-    };
-    VkMemoryAllocateInfo mem_alloc_info = {
-      .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-      .pNext           = &allocation_flags,
-      .allocationSize  = graph->heap.vmsize,
-      .memoryTypeIndex = qvk_memory_get_device(),
-    };
-    QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->vkmem));
-    graph->vkmem_size = graph->heap.vmsize;
-  }
-
-  if(graph->heap_staging.vmsize > graph->vkmem_staging_size)
-  {
-    *run |= s_graph_run_upload_source; // new mem means new source
-    if(graph->vkmem_staging)
-    {
-      vkFreeMemory(qvk.device, graph->vkmem_staging, 0);
-      graph->vkmem_staging = 0;
-    }
-    graph->vkmem_staging_size = 0;
-    QVKR(dt_check_device_allocation(graph->heap_staging.vmsize, 1));
-    // staging memory to copy to and from device
-    VkMemoryAllocateFlagsInfo allocation_flags = {
-      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
-      .flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
-    };
-    VkMemoryAllocateInfo mem_alloc_info_staging = {
-      .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-      .pNext           = &allocation_flags,
-      .allocationSize  = graph->heap_staging.vmsize,
-      .memoryTypeIndex = qvk_memory_get_staging(),
-    };
-    QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_staging, 0, &graph->vkmem_staging));
-    graph->vkmem_staging_size = graph->heap_staging.vmsize;
   }
 
   if(graph->vkmem_uniform_size < DT_GRAPH_MAX_FRAMES * graph->uniform_size)
@@ -1329,6 +1326,7 @@ dt_graph_run_nodes_allocate(
             const uint32_t ht = MAX(1, c->array_dim ? c->array_dim[2*aid+1] : c->roi.ht);
             img->mem = dt_vkalloc(c->array_heap, mem_req.size, mem_req.alignment);
             img->offset = img->mem->offset + c->array_mem->offset;
+            img->mem_type = qvk_get_memory_type(mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
             img->size   = dt_connector_bufsize(c, wd, ht);
             QVKR(bind_buffers_to_memory(graph, node, c, graph->double_buffer, aid));
           }

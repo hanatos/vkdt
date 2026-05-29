@@ -15,9 +15,11 @@ typedef struct dt_connector_image_t
   uint32_t             wd, ht;         // if non zero, these are the varying dimensions of image arrays
   uint32_t             mip_levels;     // number of mip map levels, if any (mostly zero)
   int                  nid_last_ref;   // nodeid in topological sort that uses this buffer last (can be freed/aliased after this)
+  uint32_t             mem_type;       // the memory type index used for this allocation
   dt_vkmem_t          *mem;            // used for alloc/free during graph traversal
   VkImage              image;          // vulkan image object
   VkImageView          image_view;
+  VkImageView          mipmap_views[14];
   VkImageLayout        layout;
   VkBuffer             buffer;         // in case this is a storage buffer
 }
@@ -67,13 +69,13 @@ typedef struct dt_graph_t
   dt_connector_image_t *conn_image_pool;
   uint32_t              conn_image_end, conn_image_max;
 
-  dt_vkalloc_t          heap;           // allocator for device images
-  dt_vkalloc_t          heap_staging;   // used for staging memory, which has different flags
+  dt_vkalloc_t          heap[32];       // allocators for device memory per memory type index
 
-  uint32_t              memory_type_bits;
-  uint32_t              memory_type_bits_staging;
-  VkDeviceMemory        vkmem;
-  VkDeviceMemory        vkmem_staging;
+  VkDeviceMemory        vkmem[32];      // device memory per memory type index
+  VkPipeline                  mipmap_pipeline;
+  VkPipelineLayout            mipmap_pipeline_layout;
+  VkDescriptorSetLayout       mipmap_dset_layout;
+  uint32_t              heap_mask;      // bitmask indicating which heap[] elements are in use
   VkDescriptorPool      dset_pool;
   VkCommandBuffer       command_buffer[2];     // compute-queue command buffers (or graphics-queue when no separate compute family)
   VkCommandPool         command_pool;
@@ -94,8 +96,7 @@ typedef struct dt_graph_t
 
   dt_raytrace_graph_t   rt;
 
-  VkDeviceSize          vkmem_size;          // allocation sizes to tell whether we need to re-alloc
-  VkDeviceSize          vkmem_staging_size;
+  VkDeviceSize          vkmem_size[32];      // allocation sizes to tell whether we need to re-alloc
   VkDeviceSize          vkmem_uniform_size;
 
   dt_graph_query_t      query[2];            // for odd and even command buffers, starting at half query_max

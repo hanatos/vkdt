@@ -65,6 +65,17 @@ qvk_memory_get_device()
 	return 0;
 }
 
+uint32_t
+qvk_get_memory_type(uint32_t memoryTypeBits, VkMemoryPropertyFlags propertyFlags)
+{
+  for (uint32_t i = 0; i < qvk.mem_properties.memoryTypeCount; i++) {
+    if ((memoryTypeBits & (1 << i)) && (qvk.mem_properties.memoryTypes[i].propertyFlags & propertyFlags) == propertyFlags) {
+      return i;
+    }
+  }
+  return ~0u;
+}
+
 const char *
 qvk_colourspace_to_string(VkColorSpaceKHR c)
 {
