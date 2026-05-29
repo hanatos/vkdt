@@ -15,7 +15,7 @@
 // directly from CPU to the consumer node.
 
 static inline VkResult
-dt_check_device_allocation(uint64_t size, int heap_index)
+dt_check_device_allocation(uint64_t size, int memory_type_index)
 {
   // vkAllocateMemory overcommits, moves to system ram, and sometimes works even when you think it should not.
   // find out whether we still stay in device memory, and fail over if not:
@@ -28,11 +28,21 @@ dt_check_device_allocation(uint64_t size, int heap_index)
     .pNext = &budget,
   };
   vkGetPhysicalDeviceMemoryProperties2(qvk.physical_device, &memprop);
-  for (int i=0;i<memprop.memoryProperties.memoryHeapCount;i++)
-    if(memprop.memoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
-      if(budget.heapBudget[i] > size)
-        return VK_SUCCESS;
-  dt_log(s_log_qvk, "failed to allocate %ld MB index %d", size/1024/1024, heap_index);
+  if(memory_type_index < 0 ||
+      memory_type_index >= (int)memprop.memoryProperties.memoryTypeCount)
+  {
+    dt_log(s_log_qvk, "failed to allocate %ld MB invalid memory type %d", size/1024/1024, memory_type_index);
+    return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+  }
+  uint32_t heap_index = memprop.memoryProperties.memoryTypes[memory_type_index].heapIndex;
+  if(heap_index >= memprop.memoryProperties.memoryHeapCount)
+  {
+    dt_log(s_log_qvk, "failed to allocate %ld MB invalid heap %u for memory type %d", size/1024/1024, heap_index, memory_type_index);
+    return VK_ERROR_OUT_OF_DEVICE_MEMORY;
+  }
+  if(budget.heapBudget[heap_index] > size)
+    return VK_SUCCESS;
+  dt_log(s_log_qvk, "failed to allocate %ld MB memory type %d heap %u", size/1024/1024, memory_type_index, heap_index);
   return VK_ERROR_OUT_OF_DEVICE_MEMORY;
 }
 
@@ -1147,7 +1157,7 @@ dt_graph_run_nodes_allocate(
         graph->vkmem[i] = 0;
       }
       graph->vkmem_size[i] = 0;
-      QVKR(dt_check_device_allocation(graph->heap[i].vmsize, 0));
+      QVKR(dt_check_device_allocation(graph->heap[i].vmsize, i));
       VkMemoryAllocateFlagsInfo allocation_flags = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
         .flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
@@ -1205,7 +1215,7 @@ dt_graph_run_nodes_allocate(
       .allocationSize  = mem_req.size,
       .memoryTypeIndex = qvk_memory_get_uniform(),
     };
-    QVKR(dt_check_device_allocation(mem_req.size, 2));
+    QVKR(dt_check_device_allocation(mem_req.size, mem_alloc_info_uniform.memoryTypeIndex));
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_uniform, 0, &graph->vkmem_uniform));
     graph->vkmem_uniform_size = 2 * graph->uniform_size;
     vkBindBufferMemory(qvk.device, graph->uniform_buffer, graph->vkmem_uniform, 0);
