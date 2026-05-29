@@ -20,8 +20,8 @@ void main()
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
   // load halation + raw exposed film
-  vec3 raw = texture(img_in,  (ipos+0.5)/vec2(imageSize(img_out))).rgb;
-  vec3 hal = texture(img_hal, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
+  vec3 raw = texelFetch(img_in,  ipos, 0).rgb;
+  vec3 hal = texelFetch(img_hal, ipos, 0).rgb;
   vec3 hs = params.halation_scale*params.halation_strength.rgb;
   // mid-tone protection, based on blurred image (hal) for smoother blend
   float p = 3.0*params.halation_midtones;

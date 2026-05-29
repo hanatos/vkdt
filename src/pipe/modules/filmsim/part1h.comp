@@ -22,7 +22,7 @@ void main()
   if(push.scale != 1.0)
     log_raw = sample_catmull_rom(img_in, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
   else
-    log_raw = texture(img_in, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
+    log_raw = texelFetch(img_in, ipos, 0).rgb;
 
   log_raw = develop_film_correct_exposure(log_raw, coupler);
   const float log2_10 = 3.32192809489;
