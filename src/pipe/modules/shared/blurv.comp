@@ -29,17 +29,38 @@ main()
     float w = exp(-a);
     float v = exp(-3.0 * a);
     vec2 step = vec2(0.0, inv_sz.y);
+    vec2 step_x2 = step * 2.0;
     vec2 uv_p = uv;
     vec2 uv_m = uv;
 
-    for(int i=1;i<=sp;i++)
+    int i = 1;
+    for(; i <= sp - 1; i += 2)
+    {
+      vec2 uv_p1 = uv_p + step;
+      vec2 uv_m1 = uv_m - step;
+      vec2 uv_p2 = uv_p + step_x2;
+      vec2 uv_m2 = uv_m - step_x2;
+
+      uv_p = uv_p2;
+      uv_m = uv_m2;
+
+      float w2 = w * v;
+      float v2 = v * c;
+
+      wgt += 2.0 * (w + w2);
+      color += w * (textureLod(img_in[idx], uv_p1, 0.0) + textureLod(img_in[idx], uv_m1, 0.0)) +
+               w2 * (textureLod(img_in[idx], uv_p2, 0.0) + textureLod(img_in[idx], uv_m2, 0.0));
+
+      w = w2 * v2;
+      v = v2 * c;
+    }
+
+    if(i == sp)
     {
       wgt += 2.0 * w;
       uv_p += step;
       uv_m -= step;
       color += w * (textureLod(img_in[idx], uv_p, 0.0) + textureLod(img_in[idx], uv_m, 0.0));
-      w *= v;
-      v *= c;
     }
   }
 
