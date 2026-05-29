@@ -711,7 +711,7 @@ nk_glfw3_device_upload_atlas(
     image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
     image_memory_barrier.subresourceRange.aspectMask =
         VK_IMAGE_ASPECT_COLOR_BIT;
     image_memory_barrier.subresourceRange.levelCount = mip_levels;
@@ -731,7 +731,7 @@ nk_glfw3_device_upload_atlas(
 
     vkCmdCopyBufferToImage(
         cmd, staging_buffer.buffer, glfw.font_image,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &buffer_copy_region);
+        VK_IMAGE_LAYOUT_GENERAL, 1, &buffer_copy_region);
 
   VkImageMemoryBarrier barrier = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -748,8 +748,8 @@ nk_glfw3_device_upload_atlas(
   for (uint32_t i = 1; i < mip_levels; i++)
   {
     barrier.subresourceRange.baseMipLevel = i - 1;
-    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
     vkCmdPipelineBarrier(cmd,
@@ -774,12 +774,12 @@ nk_glfw3_device_upload_atlas(
       },
     };
     vkCmdBlitImage(cmd,
-        glfw.font_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        glfw.font_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        glfw.font_image, VK_IMAGE_LAYOUT_GENERAL,
+        glfw.font_image, VK_IMAGE_LAYOUT_GENERAL,
         1, &blit,
         VK_FILTER_LINEAR);
-    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
@@ -792,8 +792,8 @@ nk_glfw3_device_upload_atlas(
     if(height > 1) height /= 2;
   }
   barrier.subresourceRange.baseMipLevel = mip_levels - 1;
-  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
   barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
   barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
@@ -844,7 +844,7 @@ nk_glfw3_device_upload_atlas(
     VkDescriptorImageInfo descriptor_image_info = {
       .sampler     = glfw.sampler,
       .imageView   = glfw.font_image_view,
-      .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
     };
     VkWriteDescriptorSet descriptor_write = {
       .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,

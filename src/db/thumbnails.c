@@ -626,7 +626,7 @@ dt_thumbnails_load_one(
   };
   VkDescriptorImageInfo img_info = {
     .sampler       = th->wd > 32 ? qvk.tex_sampler : qvk.tex_sampler_nearest,
-    .imageLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    .imageLayout   = VK_IMAGE_LAYOUT_GENERAL,
   };
   VkWriteDescriptorSet img_dset = {
     .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
