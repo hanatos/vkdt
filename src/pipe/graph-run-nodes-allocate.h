@@ -661,23 +661,7 @@ create_image(
   const uint32_t ht = MAX(1, c->array_dim ? c->array_dim[2*k+1] : c->roi.ht);
   VkFormat format = dt_connector_vkformat(c);
   uint32_t queue_indices[] = { qvk.queue_family_graphics, qvk.queue_family_compute };
-  int is_concurrent = 0;
-  if(qvk.queue_family_graphics != qvk.queue_family_compute)
-  {
-    for(int n2=0;n2<graph->num_nodes;n2++)
-    {
-      for(int i2=0;i2<graph->node[n2].num_connectors;i2++)
-      {
-        dt_connector_t *cin = graph->node[n2].connector + i2;
-        if(dt_connector_input(cin) &&
-           cin->connected.i == node - graph->node &&
-           cin->connected.c == c - node->connector)
-        {
-          if(graph->node[n2].name == dt_token("display")) is_concurrent = 1;
-        }
-      }
-    }
-  }
+  int is_concurrent = (c->flags & s_conn_concurrent) != 0;
 
   VkImageCreateInfo images_create_info = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,

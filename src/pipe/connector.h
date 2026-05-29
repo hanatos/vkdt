@@ -66,6 +66,7 @@ typedef enum dt_connector_flags_t
   s_conn_double_buffer = 32, // this connector is double-buffered for async compute/display
   s_conn_mipmap        = 64, // signifies we will build mipmaps
   s_conn_clear_once    = 128,// clear only on frame 0
+  s_conn_concurrent    = 256,// image must be shared between graphics and compute queues
 }
 dt_connector_flags_t;
 

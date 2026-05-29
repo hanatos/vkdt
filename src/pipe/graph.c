@@ -68,6 +68,17 @@ dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
     .commandBufferCount = 2,
   };
   QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, g->command_buffer));
+
+  // when the compute queue belongs to a compute-only family we need a second,
+  // graphics-family command pool to fall back to when s_node_graphics nodes
+  // (draw, overlay) are present on the graph.
+  if(qvk.queue_family_compute != qvk.queue_family_graphics)
+  {
+    cmd_pool_create_info.queueFamilyIndex = qvk.queue_family_graphics;
+    QVK(vkCreateCommandPool(qvk.device, &cmd_pool_create_info, NULL, &g->command_pool_gfx));
+    cmd_buf_alloc_info.commandPool = g->command_pool_gfx;
+    QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, g->command_buffer_gfx));
+  }
   VkSemaphoreTypeCreateInfo timelineCreateInfo = {
     .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
     .pNext         = NULL,
@@ -239,6 +250,13 @@ dt_graph_cleanup(dt_graph_t *g)
   g->command_buffer[0] = g->command_buffer[1] = VK_NULL_HANDLE;
   vkDestroyCommandPool(qvk.device, g->command_pool, 0);
   g->command_pool = 0;
+  if(g->command_pool_gfx != VK_NULL_HANDLE)
+  {
+    vkFreeCommandBuffers(qvk.device, g->command_pool_gfx, 2, g->command_buffer_gfx);
+    g->command_buffer_gfx[0] = g->command_buffer_gfx[1] = VK_NULL_HANDLE;
+    vkDestroyCommandPool(qvk.device, g->command_pool_gfx, 0);
+    g->command_pool_gfx = 0;
+  }
   free(g->module);             g->module = 0;
   free(g->node);               g->node = 0;
   free(g->params_pool);        g->params_pool = 0;
@@ -419,6 +437,15 @@ VkResult dt_graph_run(
       }
     }
 
+    // detect graphics nodes and choose the right command pool / submission queue for this run.
+    // s_node_graphics (draw, overlay) use vkCmdDraw* which requires the graphics queue family;
+    // a compute-only queue family does not support these commands.
+    graph->use_graphics_queue = 0;
+    if(graph->command_pool_gfx) // only relevant when families differ
+      for(int i=0;i<cnt;i++)
+        if(graph->node[nodeid[i]].type == s_node_graphics)
+          { graph->use_graphics_queue = 1; break; }
+
     // potentially free/re-allocate memory, create buffers, images, image_views, and descriptor sets:
     int dynamic_array = 0;
     QVKR(dt_graph_run_nodes_allocate(graph, &run, nodeid, cnt, &dynamic_array));
@@ -462,10 +489,11 @@ VkResult dt_graph_run(
       .pSignalSemaphoreValues    = &graph->process_dbuffer[buf_curr], // lock buf_curr for writing, this signal will remove the lock
     };
     VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    VkCommandBuffer cmd_buf = dt_graph_cmd_buf(graph);
     VkSubmitInfo submit = {
       .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
       .commandBufferCount   = 1,
-      .pCommandBuffers      = &graph->command_buffer[buf_curr],
+      .pCommandBuffers      = &cmd_buf,
       .pNext                = &timeline_info,
       .waitSemaphoreCount   = 1,
       .pWaitSemaphores      = &graph->semaphore_display,
@@ -474,8 +502,11 @@ VkResult dt_graph_run(
       .pSignalSemaphores    = &graph->semaphore_process,
     };
 
-    QVKLR(&qvk.queue[qvk.qid[graph->queue_name]].mutex,
-        vkQueueSubmit(qvk.queue[qvk.qid[graph->queue_name]].queue, 1, &submit, 0));
+    // submit to the graphics queue when graphics nodes are present (they require it),
+    // otherwise use the async compute queue for better UI responsiveness.
+    qvk_queue_name_t submit_queue = graph->use_graphics_queue ? s_queue_graphics : graph->queue_name;
+    QVKLR(&qvk.queue[qvk.qid[submit_queue]].mutex,
+        vkQueueSubmit(qvk.queue[qvk.qid[submit_queue]].queue, 1, &submit, 0));
 
     VkSemaphoreWaitInfo wait_info = {
       .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
@@ -605,6 +636,8 @@ dt_graph_repurpose(dt_graph_t *g)
   g->vkmem_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
   // reset command pool (reuse buffers, skip destroy/recreate)
   vkResetCommandPool(qvk.device, g->command_pool, 0);
+  if(g->command_pool_gfx)
+    vkResetCommandPool(qvk.device, g->command_pool_gfx, 0);
   // reset query pool software counters; hardware reset is done inline via vkCmdResetQueryPool
   for(int i=0;i<2;i++)
     g->query[i].cnt = 0;

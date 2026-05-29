@@ -8,7 +8,7 @@ generate_mipmaps(
     dt_connector_image_t *img)
 {
   if(img->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) return;
-  VkCommandBuffer cmd_buf = graph->command_buffer[graph->double_buffer];
+  VkCommandBuffer cmd_buf = dt_graph_cmd_buf(graph);
   VkImageMemoryBarrier barrier = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
     .image = img->image,
@@ -99,7 +99,7 @@ generate_mipmaps(
 static inline VkResult
 record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
 {
-  VkCommandBuffer cmd_buf = graph->command_buffer[graph->double_buffer];
+  VkCommandBuffer cmd_buf = dt_graph_cmd_buf(graph);
 
   // sanity check: are all input connectors bound?
   for(int i=0;i<node->num_connectors;i++)
@@ -542,9 +542,9 @@ dt_graph_run_nodes_record_cmd(
       .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     };
     int buf_curr = graph->double_buffer;
-    QVKR(vkBeginCommandBuffer(graph->command_buffer[buf_curr], &begin_info));
+    QVKR(vkBeginCommandBuffer(dt_graph_cmd_buf(graph), &begin_info));
     graph->query[buf_curr].cnt = 0;
-    vkCmdResetQueryPool(graph->command_buffer[buf_curr], graph->query[buf_curr].pool, 0, graph->query[buf_curr].max);
+    vkCmdResetQueryPool(dt_graph_cmd_buf(graph), graph->query[buf_curr].pool, 0, graph->query[buf_curr].max);
     int bvh_cnt = 0;
     for(int i=0;i<cnt;i++)
       if(graph->node[nodeid[i]].name == dt_token("bvh")) bvh_cnt++;
@@ -571,13 +571,13 @@ dt_graph_run_nodes_record_cmd(
       }
       if(res != VK_SUCCESS)
       { // need to clean up command buffer before we quit
-        QVKR(vkEndCommandBuffer(graph->command_buffer[buf_curr]));
+        QVKR(vkEndCommandBuffer(dt_graph_cmd_buf(graph)));
         return res;
       }
     }
     double rt_end = dt_time();
     dt_log(s_log_perf, "record command buffer:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
-    QVKR(vkEndCommandBuffer(graph->command_buffer[buf_curr]));
+    QVKR(vkEndCommandBuffer(dt_graph_cmd_buf(graph)));
   }
   return VK_SUCCESS;
 }
