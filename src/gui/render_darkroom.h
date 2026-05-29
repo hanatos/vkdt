@@ -10,7 +10,7 @@
      nk_input_is_key_down(&ctx->input, NK_KEY_CTRL)) { \
     (val) = CLAMP((val) + ctx->input.mouse.scroll_delta.y * 0.25f * (step), (vmin), (vmax)); \
     ctx->input.mouse.scroll_delta.y = 0.0f; \
-    vkdt.wstate.scroll_busy = 30; \
+    vkdt.wstate.scroll_busy = 90; \
     change = 1; } } while(0)
 
 static inline void
