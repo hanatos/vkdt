@@ -1,107 +1,5 @@
 #pragma once
 
-static inline void
-generate_mipmaps(
-    dt_graph_t           *graph,
-    int                   rwd,
-    int                   rht,
-    dt_connector_image_t *img)
-{
-  if(img->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) return;
-  VkCommandBuffer cmd_buf = dt_graph_cmd_buf(graph);
-  VkImageMemoryBarrier barrier = {
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-    .image = img->image,
-    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-    .subresourceRange.baseArrayLayer = 0,
-    .subresourceRange.layerCount = 1,
-    .subresourceRange.levelCount = 1,
-  };
-  int wd = img->wd > 0 ? img->wd : rwd;
-  int ht = img->ht > 0 ? img->ht : rht;
-
-  // put all mip levels into general layout since we will read/write them with compute:
-  barrier.subresourceRange.levelCount = img->mip_levels;
-  barrier.subresourceRange.baseMipLevel = 0;
-  barrier.oldLayout = img->layout;
-  barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-  barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_TRANSFER_WRITE_BIT;
-  barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_SHADER_READ_BIT;
-  vkCmdPipelineBarrier(cmd_buf,
-      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT|VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
-      0, NULL,
-      0, NULL,
-      1, &barrier);
-  barrier.subresourceRange.levelCount = 1;
-
-  vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, graph->mipmap_pipeline);
-
-  for (uint32_t i = 1; i < img->mip_levels; i++)
-  {
-    VkDescriptorImageInfo img_in = {
-      .sampler = qvk.tex_sampler,
-      .imageView = img->mipmap_views[i - 1],
-      .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-    };
-    VkDescriptorImageInfo img_out = {
-      .sampler = VK_NULL_HANDLE,
-      .imageView = img->mipmap_views[i],
-      .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-    };
-    VkWriteDescriptorSet writes[] = {
-      {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstBinding = 0,
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        .pImageInfo = &img_in,
-      },
-      {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstBinding = 1,
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-        .pImageInfo = &img_out,
-      },
-    };
-    qvkCmdPushDescriptorSetKHR(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, graph->mipmap_pipeline_layout, 0, 2, writes);
-
-    int dwd = wd > 1 ? wd / 2 : 1;
-    int dht = ht > 1 ? ht / 2 : 1;
-    vkCmdDispatch(cmd_buf, (dwd + 7) / 8, (dht + 7) / 8, 1);
-
-    barrier.subresourceRange.baseMipLevel = i;
-    barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-    barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-    barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    vkCmdPipelineBarrier(cmd_buf,
-        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
-        0, NULL,
-        0, NULL,
-        1, &barrier);
-
-    if(wd > 1) wd /= 2;
-    if(ht > 1) ht /= 2;
-  }
-
-  barrier.subresourceRange.levelCount = img->mip_levels;
-  barrier.subresourceRange.baseMipLevel = 0;
-  barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-  vkCmdPipelineBarrier(cmd_buf,
-      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0,
-      0, NULL,
-      0, NULL,
-      1, &barrier);
-  img->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-}
-
 static inline VkResult
 record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
 {
@@ -242,7 +140,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
           {
             if(node->connector[i].flags & s_conn_mipmap)
             { // we have mipmaps on this (display) node, can't simply transition:
-              generate_mipmaps(graph, 
+              dt_graph_generate_mipmaps(graph,
                   node->connector[i].roi.wd,
                   node->connector[i].roi.ht,
                   dt_graph_connector_image(graph, node-graph->node, i, k,

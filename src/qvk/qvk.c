@@ -220,6 +220,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   QVKR(vkEnumeratePhysicalDevices(qvk.instance, &num_devices, devices));
 
   qvk.raytracing_supported = 0;
+  qvk.subgroup_size_control_supported = 0;
   int picked_device = -1;
   for(int i = 0; i < num_devices; i++)
   {
@@ -248,6 +249,10 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       qvk.uniform_alignment    = dev_properties.limits.minUniformBufferOffsetAlignment;
       qvk.vendorID = dev_properties.vendorID;
       snprintf(qvk.device_name, sizeof(qvk.device_name), "%s", dev_properties.deviceName);
+      qvk.raytracing_supported = 0;
+      qvk.float_atomics_supported = 0;
+      qvk.coopmat_supported = 0;
+      qvk.subgroup_size_control_supported = 0;
       for(int k=0;k<num_ext;k++)
       {
         if (!strcmp(ext_properties[k].extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME))
@@ -256,6 +261,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
           qvk.float_atomics_supported = 1;
         else if (!strcmp(ext_properties[k].extensionName, VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME))
           qvk.coopmat_supported = 1;
+        else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME))
+          qvk.subgroup_size_control_supported = 1;
       }
       picked_device = i;
       if(preferred_device_name)
@@ -384,15 +391,18 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     .shaderImageFloat32AtomicAdd = VK_TRUE,
     .pNext                       = &v12f,
   };
-  // VkPhysicalDeviceSubgroupSizeControlFeaturesEXT sub_features = {
-  //   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES,
-  //   .pNext = &atomic_features,
-  // };
+  VkPhysicalDeviceSubgroupSizeControlFeaturesEXT sub_features = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT,
+    .subgroupSizeControl = VK_TRUE,
+    .computeFullSubgroups = VK_TRUE,
+    .pNext = &atomic_features,
+  };
   VkPhysicalDeviceVulkan11Features v11f = {
     .sType                  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
     .samplerYcbcrConversion = 1,
-    .pNext                  = qvk.float_atomics_supported ? (void *)&atomic_features : (void *)&v12f,
-    // .pNext                  = &sub_features,
+    .pNext                  = qvk.subgroup_size_control_supported ?
+      (void *)&sub_features :
+      (qvk.float_atomics_supported ? (void *)&atomic_features : (void *)&v12f),
   };
   VkPhysicalDeviceDynamicRenderingFeatures dyn_render = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
@@ -414,6 +424,12 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   {
     qvk.float_atomics_supported = 0;
     v11f.pNext = &v12f; // take the atomics out of the chain
+  }
+  if(qvk.subgroup_size_control_supported &&
+    (!sub_features.subgroupSizeControl || !sub_features.computeFullSubgroups))
+  {
+    qvk.subgroup_size_control_supported = 0;
+    v11f.pNext = qvk.float_atomics_supported ? (void *)&atomic_features : (void *)&v12f;
   }
 
   dt_log(s_log_qvk, "picked device %d %s ray tracing and %s float atomics and %s coopmat support", picked_device,
@@ -437,6 +453,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   int len = (qvk.raytracing_supported ? 8 : 2);
   if(qvk.float_atomics_supported) requested_device_extensions[len++] = VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME;
   if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME;
+  if(qvk.subgroup_size_control_supported) requested_device_extensions[len++] = VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
 #ifdef QVK_ENABLE_VALIDATION
   requested_device_extensions[len++] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
 #endif
@@ -516,9 +533,13 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     .pNext = &subprop,
 #endif
   };
+  VkPhysicalDeviceSubgroupProperties subgroup = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES,
+    .pNext = &prop11,
+  };
   VkPhysicalDeviceAccelerationStructurePropertiesKHR devprop_acc = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
-    .pNext = &prop11,
+    .pNext = &subgroup,
   };
   VkPhysicalDeviceProperties2 devprop = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
@@ -527,6 +548,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   vkGetPhysicalDeviceProperties2(qvk.physical_device, &devprop);
   qvk.raytracing_acc_min_align = devprop_acc.minAccelerationStructureScratchOffsetAlignment;
   qvk.max_allocation_size = prop11.maxMemoryAllocationSize;
+  qvk.subgroup_size = subgroup.subgroupSize;
+  qvk.subgroup_ops = subgroup.supportedOperations;
 
   // create texture samplers
   VkSamplerCreateInfo sampler_dspy_info = {

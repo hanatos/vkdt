@@ -347,6 +347,200 @@ dt_graph_create_shader_module(
   return VK_SUCCESS;
 }
 
+void
+dt_graph_generate_mipmaps(
+    dt_graph_t           *graph,
+    int                   rwd,
+    int                   rht,
+    dt_connector_image_t *img)
+{
+  if(img->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) return;
+  VkCommandBuffer cmd_buf = dt_graph_cmd_buf(graph);
+  VkImageMemoryBarrier barrier = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .image = img->image,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .subresourceRange.baseArrayLayer = 0,
+    .subresourceRange.layerCount = 1,
+    .subresourceRange.levelCount = 1,
+  };
+  int wd = img->wd > 0 ? img->wd : rwd;
+  int ht = img->ht > 0 ? img->ht : rht;
+
+  // put all mip levels into general layout since we will read/write them with compute:
+  barrier.subresourceRange.levelCount = img->mip_levels;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.oldLayout = img->layout;
+  barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+  barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_SHADER_READ_BIT;
+  vkCmdPipelineBarrier(cmd_buf,
+      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT|VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
+      0, NULL,
+      0, NULL,
+      1, &barrier);
+  barrier.subresourceRange.levelCount = 1;
+  int input_wd = wd;
+  int input_ht = ht;
+  for (uint32_t i = 1; i < img->mip_levels; )
+  {
+    if(graph->mipmap_use_down && (i + 2) < img->mip_levels &&
+        (input_wd >= 8) && (input_ht >= 8) &&
+        (input_wd % 8 == 0) && (input_ht % 8 == 0))
+    {
+      vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, graph->mipmap_down_pipeline);
+      VkDescriptorImageInfo img_in = {
+        .sampler = qvk.tex_sampler,
+        .imageView = img->mipmap_views[i - 1],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkDescriptorImageInfo img_gbuf = {
+        .sampler = qvk.tex_sampler,
+        .imageView = img->mipmap_views[i - 1],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkDescriptorImageInfo img_out2 = {
+        .sampler = VK_NULL_HANDLE,
+        .imageView = img->mipmap_views[i],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkDescriptorImageInfo img_out4 = {
+        .sampler = VK_NULL_HANDLE,
+        .imageView = img->mipmap_views[i + 1],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkDescriptorImageInfo img_out8 = {
+        .sampler = VK_NULL_HANDLE,
+        .imageView = img->mipmap_views[i + 2],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkWriteDescriptorSet writes[] = {
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 0,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+          .pImageInfo = &img_in,
+        },
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 1,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+          .pImageInfo = &img_gbuf,
+        },
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 2,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+          .pImageInfo = &img_out2,
+        },
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 3,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+          .pImageInfo = &img_out4,
+        },
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 4,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+          .pImageInfo = &img_out8,
+        },
+      };
+      qvkCmdPushDescriptorSetKHR(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, graph->mipmap_down_pipeline_layout, 1, 5, writes);
+
+      vkCmdDispatch(cmd_buf, (input_wd + 7) / 8, (input_ht + 7) / 8, 1);
+
+      barrier.subresourceRange.baseMipLevel = i;
+      barrier.subresourceRange.levelCount = 3;
+      barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+      barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+      barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      vkCmdPipelineBarrier(cmd_buf,
+          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
+          0, NULL,
+          0, NULL,
+          1, &barrier);
+      barrier.subresourceRange.levelCount = 1;
+
+      if(input_wd > 1) input_wd = MAX(1, input_wd / 8);
+      if(input_ht > 1) input_ht = MAX(1, input_ht / 8);
+      i += 3;
+    }
+    else
+    {
+      vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, graph->mipmap_pipeline);
+      VkDescriptorImageInfo img_in = {
+        .sampler = qvk.tex_sampler,
+        .imageView = img->mipmap_views[i - 1],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkDescriptorImageInfo img_out = {
+        .sampler = VK_NULL_HANDLE,
+        .imageView = img->mipmap_views[i],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkWriteDescriptorSet writes[] = {
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 0,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+          .pImageInfo = &img_in,
+        },
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 1,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+          .pImageInfo = &img_out,
+        },
+      };
+      qvkCmdPushDescriptorSetKHR(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, graph->mipmap_pipeline_layout, 0, 2, writes);
+
+      int dwd = input_wd > 1 ? input_wd / 2 : 1;
+      int dht = input_ht > 1 ? input_ht / 2 : 1;
+      vkCmdDispatch(cmd_buf, (dwd + 7) / 8, (dht + 7) / 8, 1);
+
+      barrier.subresourceRange.baseMipLevel = i;
+      barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+      barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+      barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      vkCmdPipelineBarrier(cmd_buf,
+          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
+          0, NULL,
+          0, NULL,
+          1, &barrier);
+
+      if(input_wd > 1) input_wd /= 2;
+      if(input_ht > 1) input_ht /= 2;
+      i += 1;
+    }
+  }
+
+  barrier.subresourceRange.levelCount = img->mip_levels;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+  vkCmdPipelineBarrier(cmd_buf,
+      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0,
+      0, NULL,
+      0, NULL,
+      1, &barrier);
+  img->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+}
+
 static VkResult dt_graph_init_mipmap(dt_graph_t *g)
 {
   VkShaderModule shader_module;
@@ -395,6 +589,101 @@ static VkResult dt_graph_init_mipmap(dt_graph_t *g)
   QVKR(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &g->mipmap_pipeline));
 
   vkDestroyShaderModule(qvk.device, shader_module, NULL);
+
+  g->mipmap_use_down =
+    (qvk.subgroup_ops & VK_SUBGROUP_FEATURE_CLUSTERED_BIT) &&
+    (qvk.subgroup_ops & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) &&
+    (qvk.subgroup_ops & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT) &&
+    (qvk.subgroup_size_control_supported || qvk.subgroup_size == 32);
+
+  if(g->mipmap_use_down)
+  {
+    VkDescriptorSetLayoutCreateInfo empty_dset_layout_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      .bindingCount = 0,
+      .pBindings = NULL,
+    };
+    QVKR(vkCreateDescriptorSetLayout(qvk.device, &empty_dset_layout_info, NULL, &g->mipmap_empty_dset_layout));
+
+    VkShaderModule down_shader_module;
+    QVKR(dt_graph_create_shader_module(g, dt_token("svgf2"), dt_token("down"), "comp", &down_shader_module));
+
+    VkDescriptorSetLayoutBinding down_bindings[] = {
+      {
+        .binding = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+      },
+      {
+        .binding = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+      },
+      {
+        .binding = 2,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+      },
+      {
+        .binding = 3,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+      },
+      {
+        .binding = 4,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+      },
+    };
+
+    VkDescriptorSetLayoutCreateInfo down_dset_layout_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR,
+      .bindingCount = 5,
+      .pBindings = down_bindings,
+    };
+    QVKR(vkCreateDescriptorSetLayout(qvk.device, &down_dset_layout_info, NULL, &g->mipmap_down_dset_layout));
+
+    VkDescriptorSetLayout down_set_layouts[] = {
+      g->mipmap_empty_dset_layout,
+      g->mipmap_down_dset_layout,
+    };
+    VkPipelineLayoutCreateInfo down_pipeline_layout_info = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+      .setLayoutCount = LENGTH(down_set_layouts),
+      .pSetLayouts = down_set_layouts,
+    };
+    QVKR(vkCreatePipelineLayout(qvk.device, &down_pipeline_layout_info, NULL, &g->mipmap_down_pipeline_layout));
+
+    VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT down_subgroup = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT,
+      .requiredSubgroupSize = 32,
+    };
+    VkPipelineShaderStageCreateInfo down_stage = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+      .module = down_shader_module,
+      .pName = "main",
+    };
+    if(qvk.subgroup_size_control_supported)
+    {
+      down_stage.pNext = &down_subgroup;
+    }
+
+    VkComputePipelineCreateInfo down_pipeline_info = {
+      .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+      .stage = down_stage,
+      .layout = g->mipmap_down_pipeline_layout,
+    };
+    QVKR(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &down_pipeline_info, NULL, &g->mipmap_down_pipeline));
+
+    vkDestroyShaderModule(qvk.device, down_shader_module, NULL);
+  }
   return VK_SUCCESS;
 }
 
@@ -403,6 +692,10 @@ static void dt_graph_cleanup_mipmap(dt_graph_t *g)
   if(g->mipmap_pipeline) vkDestroyPipeline(qvk.device, g->mipmap_pipeline, NULL);
   if(g->mipmap_pipeline_layout) vkDestroyPipelineLayout(qvk.device, g->mipmap_pipeline_layout, NULL);
   if(g->mipmap_dset_layout) vkDestroyDescriptorSetLayout(qvk.device, g->mipmap_dset_layout, NULL);
+  if(g->mipmap_down_pipeline) vkDestroyPipeline(qvk.device, g->mipmap_down_pipeline, NULL);
+  if(g->mipmap_down_pipeline_layout) vkDestroyPipelineLayout(qvk.device, g->mipmap_down_pipeline_layout, NULL);
+  if(g->mipmap_down_dset_layout) vkDestroyDescriptorSetLayout(qvk.device, g->mipmap_down_dset_layout, NULL);
+  if(g->mipmap_empty_dset_layout) vkDestroyDescriptorSetLayout(qvk.device, g->mipmap_empty_dset_layout, NULL);
 }
 
 // convenience function for debugging in gdb:

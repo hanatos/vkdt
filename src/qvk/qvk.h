@@ -127,6 +127,8 @@ typedef struct qvk_t
   uint64_t                    uniform_alignment;
   uint64_t                    raytracing_acc_min_align;
   uint64_t                    max_allocation_size;
+  uint32_t                    subgroup_size;
+  VkSubgroupFeatureFlags      subgroup_ops;
 
   uint32_t                    vendorID;
   char                        device_name[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
@@ -134,6 +136,7 @@ typedef struct qvk_t
   int                         raytracing_supported;
   int                         float_atomics_supported;
   int                         coopmat_supported;
+  int                         subgroup_size_control_supported;
   int                         blit_supported;
   int                         hdr_supported;
 }

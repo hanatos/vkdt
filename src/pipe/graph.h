@@ -75,6 +75,11 @@ typedef struct dt_graph_t
   VkPipeline                  mipmap_pipeline;
   VkPipelineLayout            mipmap_pipeline_layout;
   VkDescriptorSetLayout       mipmap_dset_layout;
+  VkPipeline                  mipmap_down_pipeline;
+  VkPipelineLayout            mipmap_down_pipeline_layout;
+  VkDescriptorSetLayout       mipmap_down_dset_layout;
+  VkDescriptorSetLayout       mipmap_empty_dset_layout;
+  int                         mipmap_use_down;
   uint32_t              heap_mask;      // bitmask indicating which heap[] elements are in use
   VkDescriptorPool      dset_pool;
   VkCommandBuffer       command_buffer[2];     // compute-queue command buffers (or graphics-queue when no separate compute family)
@@ -139,6 +144,12 @@ typedef struct dt_graph_t
 #endif
 }
 dt_graph_t;
+
+void dt_graph_generate_mipmaps(
+    dt_graph_t           *graph,
+    int                   rwd,
+    int                   rht,
+    dt_connector_image_t *img);
 
 void dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname); // init
 
