@@ -61,7 +61,7 @@ main()
 #if 1
     float L = dot(picked_rgb, vec3(1));
     vec2 rb = picked_rgb.rb / L;
-    float skin_w   = skin_weight(rb);
+    float skin_w   = pow(skin_weight(rb), 0.2);
     float skin_val = L*skin_spectrum(rb, lambda);
     val = mix(val, skin_val, skin_w);
 #endif
