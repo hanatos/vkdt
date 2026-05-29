@@ -24,7 +24,7 @@ void main()
   vec3 density_cmy, log_raw;
   if(params.process != 2)
   {
-    vec3 log_raw = expose_film(rgb, params.film);
+    log_raw = expose_film(rgb, params.film);
     if(params.couplers > 0)
     {
       vec3 coupler = develop_film_compute_couplers(log_raw);

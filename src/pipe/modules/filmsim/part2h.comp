@@ -23,10 +23,10 @@ void main()
   vec3 raw = texelFetch(img_in,  ipos, 0).rgb;
   vec3 hal = texelFetch(img_hal, ipos, 0).rgb;
   vec3 hs = params.halation_scale*params.halation_strength.rgb;
-  // mid-tone protection, based on blurred image (hal) for smoother blend
-  float p = 3.0*params.halation_midtones;
-  float x = max(0.0, dot(hal, vec3(1))/dot(params.halation_strength.rgb, vec3(1)));
-  float prot = exp2(-p * 1.4426950408889634 / (1e-3+0.01*x*x));
+  float strength_sum = params.halation_strength.r + params.halation_strength.g + params.halation_strength.b;
+  float x = max(0.0, (hal.r + hal.g + hal.b) / strength_sum);
+  float p_factor = -4.32808512266689 * params.halation_midtones;
+  float prot = exp2(p_factor / (1e-3 + 0.01 * x * x));
   hs *= prot;
   const float log2_log10 = 0.30102999566398114; // log10(2) = log2(x)->log10(x) conversion
   vec3 log_raw = log2((raw+hs*hal)/(1.0+hs))*log2_log10;

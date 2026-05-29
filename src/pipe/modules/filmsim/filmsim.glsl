@@ -6,6 +6,20 @@
 // number of spectral samples/wavelengths when integrating
 #define SN 40
 
+const vec4 lambda_arr[11] = vec4[](
+  vec4(380.0, 390.0, 400.0, 410.0),
+  vec4(420.0, 430.0, 440.0, 450.0),
+  vec4(460.0, 470.0, 480.0, 490.0),
+  vec4(500.0, 510.0, 520.0, 530.0),
+  vec4(540.0, 550.0, 560.0, 570.0),
+  vec4(580.0, 590.0, 600.0, 610.0),
+  vec4(620.0, 630.0, 640.0, 650.0),
+  vec4(660.0, 670.0, 680.0, 690.0),
+  vec4(700.0, 710.0, 720.0, 730.0),
+  vec4(740.0, 750.0, 760.0, 770.0),
+  vec4(780.0, 790.0, 800.0, 810.0)
+);
+
 vec3 get_sensitivity(vec2 tc)
 {
   vec3 log_sensitivity = texture(img_filmsim, tc).rgb;
@@ -56,12 +70,11 @@ float noise(in vec2 Rp)
   uint xor4 = q2x ^ q3y;
 
   uvec4 xors = uvec4(xor1, xor2, xor3, xor4);
-  uvec4 h_x = xors * 1597334677U;
-  uvec4 h_y = xors * 3812015801U;
+  uvec4 h = xors * 1597334677U;
 
-  const float scale_factor = 2.0 / 4294967296.0;
-  vec4 hx_f = vec4(h_x) * scale_factor - 1.0;
-  vec4 hy_f = vec4(h_y) * scale_factor - 1.0;
+  const float scale_factor = 2.0 / 65535.0;
+  vec4 hx_f = vec4(h >> 16) * scale_factor - 1.0;
+  vec4 hy_f = vec4(h & 0xFFFFU) * scale_factor - 1.0;
 
   vec4 dx = f.x - vec4(0.0, 1.0, 0.0, 1.0);
   vec4 dy = f.y - vec4(0.0, 0.0, 1.0, 1.0);
@@ -92,21 +105,17 @@ vec3 noise_v3(in vec3 Rp_x, in vec3 Rp_y)
   uvec3 xor3 = q1x ^ q3y;
   uvec3 xor4 = q2x ^ q3y;
 
-  const float scale_factor = 2.0 / 4294967296.0;
+  uvec3 h1 = xor1 * 1597334677U;
+  uvec3 h2 = xor2 * 1597334677U;
+  uvec3 h3 = xor3 * 1597334677U;
+  uvec3 h4 = xor4 * 1597334677U;
 
-  uvec3 h1x = xor1 * 1597334677U;
-  uvec3 h1y = xor1 * 3812015801U;
-  uvec3 h2x = xor2 * 1597334677U;
-  uvec3 h2y = xor2 * 3812015801U;
-  uvec3 h3x = xor3 * 1597334677U;
-  uvec3 h3y = xor3 * 3812015801U;
-  uvec3 h4x = xor4 * 1597334677U;
-  uvec3 h4y = xor4 * 3812015801U;
+  const float scale_factor = 2.0 / 65535.0;
 
-  vec3 v1 = (vec3(h1x) * scale_factor - 1.0) * f_x       + (vec3(h1y) * scale_factor - 1.0) * f_y;
-  vec3 v2 = (vec3(h2x) * scale_factor - 1.0) * (f_x-1.0) + (vec3(h2y) * scale_factor - 1.0) * f_y;
-  vec3 v3 = (vec3(h3x) * scale_factor - 1.0) * f_x       + (vec3(h3y) * scale_factor - 1.0) * (f_y-1.0);
-  vec3 v4 = (vec3(h4x) * scale_factor - 1.0) * (f_x-1.0) + (vec3(h4y) * scale_factor - 1.0) * (f_y-1.0);
+  vec3 v1 = (vec3(h1 >> 16) * scale_factor - 1.0) * f_x       + (vec3(h1 & 0xFFFFU) * scale_factor - 1.0) * f_y;
+  vec3 v2 = (vec3(h2 >> 16) * scale_factor - 1.0) * (f_x-1.0) + (vec3(h2 & 0xFFFFU) * scale_factor - 1.0) * f_y;
+  vec3 v3 = (vec3(h3 >> 16) * scale_factor - 1.0) * f_x       + (vec3(h3 & 0xFFFFU) * scale_factor - 1.0) * (f_y-1.0);
+  vec3 v4 = (vec3(h4 >> 16) * scale_factor - 1.0) * (f_x-1.0) + (vec3(h4 & 0xFFFFU) * scale_factor - 1.0) * (f_y-1.0);
 
   return mix(mix(v1, v2, u_x), mix(v3, v4, u_x), u_y);
 }
@@ -214,17 +223,17 @@ shared vec3 shared_M_sum;
 void init_expose_film_shared(int film)
 {
   int tid = int(gl_LocalInvocationIndex);
-  if (tid < 44)
+  if (tid < 11)
   {
-    shared_expose_factor_r[tid/4][tid%4] = 0.0;
-    shared_expose_factor_g[tid/4][tid%4] = 0.0;
-    shared_expose_factor_b[tid/4][tid%4] = 0.0;
+    shared_expose_factor_r[tid] = vec4(0.0);
+    shared_expose_factor_g[tid] = vec4(0.0);
+    shared_expose_factor_b[tid] = vec4(0.0);
   }
   barrier();
   if (tid <= 40)
   {
     float lambda = 380.0 + tid * 10.0;
-    vec2 tc = vec2((tid * 80.0 / 40.0 + 0.5) / 256.0, get_tcy(s_sensitivity, film));
+    vec2 tc = vec2((tid * 2.0 + 0.5) / 256.0, get_tcy(s_sensitivity, film));
     vec3 sensitivity = get_sensitivity(tc);
     float env = envelope(lambda);
     float pdf = 2.0 * 41.0;
@@ -239,20 +248,20 @@ void init_expose_film_shared(int film)
 void init_enlarger_shared(int film, int paper)
 {
   int tid = int(gl_LocalInvocationIndex);
-  if (tid < 44)
+  if (tid < 11)
   {
-    shared_enlarger_dye_r[tid/4][tid%4] = 0.0;
-    shared_enlarger_dye_g[tid/4][tid%4] = 0.0;
-    shared_enlarger_dye_b[tid/4][tid%4] = 0.0;
-    shared_enlarger_factor_r[tid/4][tid%4] = 0.0;
-    shared_enlarger_factor_g[tid/4][tid%4] = 0.0;
-    shared_enlarger_factor_b[tid/4][tid%4] = 0.0;
+    shared_enlarger_dye_r[tid] = vec4(0.0);
+    shared_enlarger_dye_g[tid] = vec4(0.0);
+    shared_enlarger_dye_b[tid] = vec4(0.0);
+    shared_enlarger_factor_r[tid] = vec4(0.0);
+    shared_enlarger_factor_g[tid] = vec4(0.0);
+    shared_enlarger_factor_b[tid] = vec4(0.0);
   }
   barrier();
   if (tid <= 40)
   {
     float lambda = 380.0 + tid * 10.0;
-    vec2 tc = vec2((tid * 80.0 / 40.0 + 0.5) / 256.0, get_tcy(s_sensitivity, paper));
+    vec2 tc = vec2((tid * 2.0 + 0.5) / 256.0, get_tcy(s_sensitivity, paper));
     vec3 sensitivity = get_sensitivity(tc);
     
     tc.y = get_tcy(s_dye_density, film);
@@ -288,17 +297,17 @@ void init_enlarger_shared(int film, int paper)
 void init_enlarger_negative_shared(int paper)
 {
   int tid = int(gl_LocalInvocationIndex);
-  if (tid < 44)
+  if (tid < 11)
   {
-    shared_enlarger_factor_r[tid/4][tid%4] = 0.0;
-    shared_enlarger_factor_g[tid/4][tid%4] = 0.0;
-    shared_enlarger_factor_b[tid/4][tid%4] = 0.0;
+    shared_enlarger_factor_r[tid] = vec4(0.0);
+    shared_enlarger_factor_g[tid] = vec4(0.0);
+    shared_enlarger_factor_b[tid] = vec4(0.0);
   }
   barrier();
   if (tid <= 40)
   {
     float lambda = 380.0 + tid * 10.0;
-    vec2 tc = vec2((tid * 80.0 / 40.0 + 0.5) / 256.0, get_tcy(s_sensitivity, paper));
+    vec2 tc = vec2((tid * 2.0 + 0.5) / 256.0, get_tcy(s_sensitivity, paper));
     vec3 sensitivity = get_sensitivity(tc);
 
     vec3 neutral = vec3(params.filter_c,
@@ -323,14 +332,14 @@ void init_enlarger_negative_shared(int paper)
 void init_scan_shared()
 {
   int tid = int(gl_LocalInvocationIndex);
-  if (tid < 44)
+  if (tid < 11)
   {
-    shared_scan_dye_r[tid/4][tid%4] = 0.0;
-    shared_scan_dye_g[tid/4][tid%4] = 0.0;
-    shared_scan_dye_b[tid/4][tid%4] = 0.0;
-    shared_scan_factor_r[tid/4][tid%4] = 0.0;
-    shared_scan_factor_g[tid/4][tid%4] = 0.0;
-    shared_scan_factor_b[tid/4][tid%4] = 0.0;
+    shared_scan_dye_r[tid] = vec4(0.0);
+    shared_scan_dye_g[tid] = vec4(0.0);
+    shared_scan_dye_b[tid] = vec4(0.0);
+    shared_scan_factor_r[tid] = vec4(0.0);
+    shared_scan_factor_g[tid] = vec4(0.0);
+    shared_scan_factor_b[tid] = vec4(0.0);
   }
   barrier();
   if (tid <= 40)
@@ -340,7 +349,7 @@ void init_scan_shared()
     const int film  = params.film;
     int dye_stock = (params.process != 1) ? paper : film;
     
-    vec2 tc = vec2((tid * 80.0 / 40.0 + 0.5) / 256.0, get_tcy(s_dye_density, dye_stock));
+    vec2 tc = vec2((tid * 2.0 + 0.5) / 256.0, get_tcy(s_dye_density, dye_stock));
     vec4 dye_density = texture(img_filmsim, tc);
     dye_density = mix(dye_density, vec4(1000000.0), isnan(dye_density));
     dye_density.xyz *= 3.32192809489;
@@ -389,7 +398,7 @@ expose_film(vec3 rgb, int film)
   [[unroll]]
   for(int i=0; i<11; i++)
   {
-    vec4 lambda = 380.0 + (vec4(i*4, i*4+1, i*4+2, i*4+3)) * 10.0;
+    vec4 lambda = lambda_arr[i];
     // x = (coeff.x * lambda + coeff.y) * lambda + coeff.z
     vec4 x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
     vec4 y = inversesqrt(x * x + 1.0);
@@ -450,6 +459,8 @@ develop_film_compute_couplers(vec3 log_raw)
 vec3 // returns new log_raw
 develop_film_correct_exposure(vec3 log_raw, vec3 coupler)
 {
+  if (params.couplers <= 0.0) return log_raw;
+
   vec3 ep = log_raw - coupler;
   vec3 M_sum = shared_M_sum;
 
@@ -457,6 +468,7 @@ develop_film_correct_exposure(vec3 log_raw, vec3 coupler)
   vec3 e = (ep + 0.5 * M_sum) / (1.0 - 0.5 * M_sum);
 
   vec3 sig, sig_d;
+  [[unroll]]
   for(int i=0; i<5; i++)
   {
     // Evaluates R, G, and B in parallel
@@ -493,7 +505,7 @@ enlarger_expose_negative_to_paper(vec3 rgb)
   [[unroll]]
   for(int i=0; i<11; i++)
   {
-    vec4 lambda = 380.0 + (vec4(i*4, i*4+1, i*4+2, i*4+3)) * 10.0;
+    vec4 lambda = lambda_arr[i];
     vec4 x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
     vec4 y = inversesqrt(x * x + 1.0);
     vec4 transmittance = (0.5 * x * y + 0.5) * coeff.w;
