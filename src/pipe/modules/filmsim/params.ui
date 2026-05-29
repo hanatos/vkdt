@@ -15,7 +15,7 @@ g paper:slider:0:2
 group:process:102
 grain:combo:digi clean:simulate grain
 group:grain:1
-size:slider:0.5:2.0
+size:slider:0.01:2.5
 uniform:slider:0:1.0
 group:process:0
 enlarge:combo:1x resolution:2x resolution:4x resolution

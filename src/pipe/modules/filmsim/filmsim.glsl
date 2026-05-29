@@ -50,141 +50,90 @@ vec3 thorlabs_filters(float w)
   return vec3(cyan, magenta, yellow);
 }
 
-float noise(in vec2 Rp)
+vec3 simplex3_2d(vec2 P)
 {
-  ivec2 i = ivec2(floor(Rp));
-  vec2 f = fract(Rp);
-
-  // quintic interpolation
-  vec2 u = f*f*f*(f*(f*6.0-15.0)+10.0);
-
-  uint q1x = uint(i.x) * 1597334677U;
-  uint q1y = uint(i.y) * 3812015801U;
-
-  uint q2x = q1x + 1597334677U;
-  uint q3y = q1y + 3812015801U;
-
-  uint xor1 = q1x ^ q1y;
-  uint xor2 = q2x ^ q1y;
-  uint xor3 = q1x ^ q3y;
-  uint xor4 = q2x ^ q3y;
-
-  uvec4 xors = uvec4(xor1, xor2, xor3, xor4);
-  uvec4 h = xors * 1597334677U;
-
-  const float scale_factor = 2.0 / 65535.0;
-  vec4 hx_f = vec4(h >> 16) * scale_factor - 1.0;
-  vec4 hy_f = vec4(h & 0xFFFFU) * scale_factor - 1.0;
-
-  vec4 dx = f.x - vec4(0.0, 1.0, 0.0, 1.0);
-  vec4 dy = f.y - vec4(0.0, 0.0, 1.0, 1.0);
-  vec4 v = hx_f * dx + hy_f * dy;
-
-  return mix(mix(v.x, v.y, u.x), mix(v.z, v.w, u.x), u.y);
+  // Skewing factors for 2D
+  const float F2 = 0.366025403784439;  // 0.5*(sqrt(3.0)-1.0)
+  const float G2 = 0.211324865405187;  // (3.0-sqrt(3.0))/6.0
+  
+  // Skew the input space to determine which simplex cell we're in
+  vec2 s = P + dot(P, vec2(F2));
+  ivec2 i = ivec2(floor(s));
+  vec2 p0 = P - (vec2(i) - dot(vec2(i), vec2(G2)));
+  
+  // Determine simplex offset
+  ivec2 i1 = (p0.x > p0.y) ? ivec2(1, 0) : ivec2(0, 1);
+  
+  // Offsets for middle and last corners
+  vec2 p1 = p0 - vec2(i1) + G2;
+  vec2 p2 = p0 - 1.0 + 2.0 * G2;
+  
+  // Hash function to get 3 random gradients per corner
+  uint kx = 1103515245U;
+  uint ky = 1234567891U;
+  uint m = 2654435769U;
+  
+  // Hashing corners
+  uvec3 cx = uvec3(i.x, i.x + i1.x, i.x + 1) * kx;
+  uvec3 cy = uvec3(i.y, i.y + i1.y, i.y + 1) * ky;
+  uvec3 c = cx ^ cy;
+  
+  // Mix
+  c ^= (c >> 16u); c *= m; c ^= (c >> 15u);
+  
+  uvec3 c_r = c;
+  uvec3 c_g = c * 1664525U + 1013904223U;
+  uvec3 c_b = c_g * 1664525U + 1013904223U;
+  
+  // Helper macro to get vec2 gradients in [-1, 1]
+  #define GA(h) (vec2(uintBitsToFloat((h >> 9u) | 0x3f800000u), uintBitsToFloat(((h << 16u) >> 9u) | 0x3f800000u)) * 2.0 - 3.0)
+  #define NORM(g) (g * inversesqrt(dot(g, g) + 1e-6))
+  
+  vec2 g0_r = NORM(GA(c_r.x)); vec2 g0_g = NORM(GA(c_g.x)); vec2 g0_b = NORM(GA(c_b.x));
+  vec2 g1_r = NORM(GA(c_r.y)); vec2 g1_g = NORM(GA(c_g.y)); vec2 g1_b = NORM(GA(c_b.y));
+  vec2 g2_r = NORM(GA(c_r.z)); vec2 g2_g = NORM(GA(c_g.z)); vec2 g2_b = NORM(GA(c_b.z));
+  
+  #undef NORM
+  #undef GA
+  
+  // Calculate unscaled influence of each corner (using 0.6 to avoid flat zero boundaries)
+  vec3 w = max(0.6 - vec3(dot(p0, p0), dot(p1, p1), dot(p2, p2)), 0.0);
+  vec3 w4 = w * w; w4 *= w4;
+  
+  // Dot products
+  vec3 d_r = vec3(dot(g0_r, p0), dot(g1_r, p1), dot(g2_r, p2));
+  vec3 d_g = vec3(dot(g0_g, p0), dot(g1_g, p1), dot(g2_g, p2));
+  vec3 d_b = vec3(dot(g0_b, p0), dot(g1_b, p1), dot(g2_b, p2));
+  
+  // Final noise (99.0 scales the normalized gradients + 0.6 weight to [-1.0, 1.0])
+  return vec3(dot(w4, d_r), dot(w4, d_g), dot(w4, d_b)) * 99.0;
 }
 
-vec3 noise_v3(in vec3 Rp_x, in vec3 Rp_y)
-{
-  ivec3 i_x = ivec3(floor(Rp_x));
-  ivec3 i_y = ivec3(floor(Rp_y));
-  vec3 f_x = fract(Rp_x);
-  vec3 f_y = fract(Rp_y);
-
-  // quintic interpolation
-  vec3 u_x = f_x*f_x*f_x*(f_x*(f_x*6.0-15.0)+10.0);
-  vec3 u_y = f_y*f_y*f_y*(f_y*(f_y*6.0-15.0)+10.0);
-
-  uvec3 q1x = uvec3(i_x) * 1597334677U;
-  uvec3 q1y = uvec3(i_y) * 3812015801U;
-
-  uvec3 q2x = q1x + 1597334677U;
-  uvec3 q3y = q1y + 3812015801U;
-
-  uvec3 xor1 = q1x ^ q1y;
-  uvec3 xor2 = q2x ^ q1y;
-  uvec3 xor3 = q1x ^ q3y;
-  uvec3 xor4 = q2x ^ q3y;
-
-  uvec3 h1 = xor1 * 1597334677U;
-  uvec3 h2 = xor2 * 1597334677U;
-  uvec3 h3 = xor3 * 1597334677U;
-  uvec3 h4 = xor4 * 1597334677U;
-
-  const float scale_factor = 2.0 / 65535.0;
-
-  vec3 v1 = (vec3(h1 >> 16) * scale_factor - 1.0) * f_x       + (vec3(h1 & 0xFFFFU) * scale_factor - 1.0) * f_y;
-  vec3 v2 = (vec3(h2 >> 16) * scale_factor - 1.0) * (f_x-1.0) + (vec3(h2 & 0xFFFFU) * scale_factor - 1.0) * f_y;
-  vec3 v3 = (vec3(h3 >> 16) * scale_factor - 1.0) * f_x       + (vec3(h3 & 0xFFFFU) * scale_factor - 1.0) * (f_y-1.0);
-  vec3 v4 = (vec3(h4 >> 16) * scale_factor - 1.0) * (f_x-1.0) + (vec3(h4 & 0xFFFFU) * scale_factor - 1.0) * (f_y-1.0);
-
-  return mix(mix(v1, v2, u_x), mix(v3, v4, u_x), u_y);
-}
-
-float noisef(in vec2 Rp)
-{
-  return noise(Rp) + .57*noise(0.61*Rp);
-}
-
-vec3 noisef_v3(in vec3 Rp_x, in vec3 Rp_y)
-{
-  return noise_v3(Rp_x, Rp_y) + 0.57 * noise_v3(0.61 * Rp_x, 0.61 * Rp_y);
-}
-
-// separate density into three layers of grains (coarse, mid, fine) that sum up
-// to the max density. lower density values are taken mostly by coarse grains.
-// use perlin gradient noise / correlated to simulate the three layers (represents non-uniformity of grain counts/pixel)
-// simulate a poisson distribution x3: are the grains turned?
-// expectation should be =density, i.e. n*p + n*p + n*p = density for the three layers
 vec3 add_grain(ivec2 ipos, vec3 density, float scale)
 {
-  ipos = ivec2(vec2(ipos)*scale); // if not processing full size (scale = 1), adjust here
-  float grain_size = params.grain_size;
-  float density_max = 3.3;
+  const float density_max = 3.3;
+  vec3 np = clamp(density / density_max, 0.0, 1.0);
 
-  vec3 np = density / density_max;
-  vec3 sat = clamp(1.5 * np, 0.0, 1.0);
-  vec3 factor_base = (1.0 - params.grain_uniformity) * 4.0 * sat * (1.0 - sat) / (scale * scale);
+  vec3 pd0 = clamp(np * 10.0, 0.0, 1.0);
+  vec3 pd1 = clamp(np * 5.0 - 0.5, 0.0, 1.0);
+  vec3 pd2 = clamp(np * 1.42857 - 0.42857, 0.0, 1.0);
 
-  // piecewise layer densities from coarse to fine layers; density_max folded in upfront
-  vec3 npl0 = density_max * clamp(np, 0.0, 0.1);
-  vec3 npl1 = density_max * clamp(np - 0.1, 0.0, 0.2);
-  vec3 npl2 = density_max * max(vec3(0.0), np - 0.3);
+  float u = pow(max(0.0, params.grain_uniformity), 0.333333);
+  vec3 var_base = 1.6008 * pd0 * max(1.0 - pd0 * u, 0.0) + 
+                  0.4356 * pd1 * max(1.0 - pd1 * u, 0.0) + 
+                  0.3267 * pd2 * max(1.0 - pd2 * u, 0.0);
+  vec3 amp_ch = sqrt(max(vec3(0.0), var_base * vec3(1.0, 0.8, 3.0)));
 
-  vec2 base_ipos = vec2(ipos) + global.hash*0.000001 + global.frame*133.7;
-  float rot_c = 0.98006, rot_s = 0.198669;
-  vec2 rot_base_ipos = vec2(rot_c*base_ipos.x + rot_s*base_ipos.y, -rot_s*base_ipos.x + rot_c*base_ipos.y);
-  float k = 0.3 / grain_size;
+  float g2 = params.grain_size * params.grain_size;
+  float k = 0.36 / g2;
+  float amp = 0.04 * g2 / scale;
 
-  vec3 res = vec3(0.0);
-  vec3 base_pos_x = rot_base_ipos.x + vec3(0.0, 1000.0, 2000.0);
-  vec3 base_pos_y = rot_base_ipos.y + vec3(0.0, 1000.0, 2000.0);
-  vec3 c0 = vec3(0.5, 0.4, 0.2);
+  vec2 pos = mat2(0.98006, -0.198669, 0.198669, 0.98006) * (vec2(ipos) * scale + (global.hash*1e-6 + global.frame*133.7));
+  
+  vec3 noise = simplex3_2d(pos * k) + 0.57 * simplex3_2d(pos * k * 0.61 + 12.3);
+  noise = mix(vec3(noise.g), noise, 0.6) * 0.869;
 
-  // Layer 0: Coarse
-  if (any(greaterThan(npl0, vec3(0.0))))
-  {
-    vec3 c = c0 * 1.0;
-    vec3 n = noisef_v3(base_pos_x * (c * k), base_pos_y * (c * k));
-    res += npl0 * max(vec3(0.0), 1.0 + factor_base * n);
-  }
-
-  // Layer 1: Mid
-  if (any(greaterThan(npl1, vec3(0.0))))
-  {
-    vec3 c = c0 * 2.5;
-    vec3 n = noisef_v3(base_pos_x * (c * k), base_pos_y * (c * k));
-    res += npl1 * max(vec3(0.0), 1.0 + factor_base * n);
-  }
-
-  // Layer 2: Fine
-  if (any(greaterThan(npl2, vec3(0.0))))
-  {
-    vec3 c = c0 * 5.0;
-    vec3 n = noisef_v3(base_pos_x * (c * k), base_pos_y * (c * k));
-    res += npl2 * max(vec3(0.0), 1.0 + factor_base * n);
-  }
-
-  return res;
+  return max(vec3(0.0), density + amp * amp_ch * noise);
 }
 
 const int s_sensitivity = 0;

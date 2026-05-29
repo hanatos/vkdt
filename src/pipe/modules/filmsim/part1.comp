@@ -30,8 +30,8 @@ void main()
   }
   else
   {
-    coupler = texelFetch(img_coupler, ipos, 0).rgb;
-    log_raw = texelFetch(img_in, ipos, 0).rgb;
+    coupler = texture(img_coupler, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
+    log_raw = texture(img_in, (ipos+0.5)/vec2(imageSize(img_out))).rgb;
   }
 
   log_raw = develop_film_correct_exposure(log_raw, coupler);
