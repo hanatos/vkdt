@@ -312,13 +312,12 @@ void main()
     #ifdef HAVE_NO_ATOMICS
       uintBitsToFloat(texelFetch(img_pick, ivec2(i, 0), 0).r),
       uintBitsToFloat(texelFetch(img_pick, ivec2(i, 1), 0).r),
-      uintBitsToFloat(texelFetch(img_pick, ivec2(i, 2), 0).r),
+      uintBitsToFloat(texelFetch(img_pick, ivec2(i, 2), 0).r));
     #else
       texelFetch(img_pick, ivec2(i, 0), 0).r,
       texelFetch(img_pick, ivec2(i, 1), 0).r,
-      texelFetch(img_pick, ivec2(i, 2), 0).r,
+      texelFetch(img_pick, ivec2(i, 2), 0).r);
     #endif
-    );
     vec3 lab = rec2020_to_oklab(picked_rgb);
     LCh_picked = oklab_Lab_to_LCh(lab.x, lab.y, lab.z);
   }
