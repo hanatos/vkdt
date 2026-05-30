@@ -309,9 +309,7 @@ dt_thumbnails_cache_one(
 typedef struct cache_coll_job_t
 {
   uint64_t stamp;
-  threads_mutex_t mutex_storage;
   uint32_t gid;
-  threads_mutex_t *mutex;
   dt_thumbnails_t *tn;
   dt_db_t *db;
   uint32_t *coll;
@@ -325,10 +323,7 @@ static void thread_free_coll(void *arg)
   cache_coll_job_t *j = arg;
   // only first thread destroys shared things
   if(j->gid == 0)
-  {
-    pthread_mutex_destroy(&j->mutex_storage);
     free(j->coll);
-  }
   free(j);
 }
 
@@ -352,7 +347,6 @@ thread_work_coll(
   cache_coll_job_t *j = arg;
   threads_mutex_lock(j->tn->graph_lock+j->gid); // shield against potential overscheduling (call _cache_list() from the gui before the old one is done)
   if(j->stamp != j->tn->job_timestamp) goto abort; // job invalid/stale, will not be able to access db any more!
-  j->tn->graph[j->gid].io_mutex = j->mutex;
   char filename[1024];
   dt_db_image_path(j->db, j->coll[item], filename, sizeof(filename));
   (void) dt_thumbnails_cache_one(j->tn->graph + j->gid, j->tn, filename);
@@ -360,7 +354,6 @@ thread_work_coll(
   threads_mutex_lock(&j->db->image_mutex);
   j->db->image[j->coll[item]].thumbnail = 0;
   threads_mutex_unlock(&j->db->image_mutex);
-  j->tn->graph[j->gid].io_mutex = 0;
   if(j->ufn) j->ufn();
 abort:
   threads_mutex_unlock(j->tn->graph_lock+j->gid);
@@ -379,7 +372,6 @@ dt_thumbnails_cache_list(
 
   uint32_t *collection = malloc(sizeof(uint32_t) * imgid_cnt);
   memcpy(collection, imgid, sizeof(uint32_t) * imgid_cnt); // take copy because this thing changes
-  cache_coll_job_t *job0 = 0;
   int taskid = -1;
   for(int k=0;k<DT_THUMBNAILS_THREADS;k++)
   {
@@ -394,13 +386,9 @@ dt_thumbnails_cache_list(
         .db    = db,
         .ufn   = updatefn,
       };
-      threads_mutex_init(&job->mutex_storage, 0);
-      job->mutex = &job->mutex_storage;
-      job0 = job;
     }
     else *job = (cache_coll_job_t) {
       .stamp = tn->job_timestamp,
-      .mutex = &job0->mutex_storage,
       .coll  = collection,
       .gid   = k,
       .tn    = tn,
