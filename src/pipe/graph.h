@@ -18,6 +18,7 @@ typedef struct dt_connector_image_t
   dt_vkmem_t          *mem;            // used for alloc/free during graph traversal
   VkImage              image;          // vulkan image object
   VkImageView          image_view;
+  VkImageView          mipmap_views[14];
   VkImageLayout        layout;
   VkBuffer             buffer;         // in case this is a storage buffer
 }
@@ -68,15 +69,32 @@ typedef struct dt_graph_t
   uint32_t              conn_image_end, conn_image_max;
 
   dt_vkalloc_t          heap;           // allocator for device images
+  dt_vkalloc_t          heap_1;         // overflow allocator for >4G storage images
   dt_vkalloc_t          heap_staging;   // used for staging memory, which has different flags
+  dt_vkalloc_t          heap_protected; // protected memory is never freed so it has its own heap
 
   uint32_t              memory_type_bits;
   uint32_t              memory_type_bits_staging;
   VkDeviceMemory        vkmem;
+  VkDeviceMemory        vkmem_1;
   VkDeviceMemory        vkmem_staging;
+  VkDeviceMemory        vkmem_protected;
+
+  VkPipeline                  mipmap_pipeline;
+  VkPipelineLayout            mipmap_pipeline_layout;
+  VkDescriptorSetLayout       mipmap_dset_layout;
+  VkPipeline                  mipmap_down_pipeline;
+  VkPipelineLayout            mipmap_down_pipeline_layout;
+  VkDescriptorSetLayout       mipmap_down_dset_layout;
+  VkDescriptorSetLayout       mipmap_empty_dset_layout;
+  int                         mipmap_use_down;
+
   VkDescriptorPool      dset_pool;
-  VkCommandBuffer       command_buffer[2];   // two per graph, to interleave cpu load, uploads and gpu compute
+  VkCommandBuffer       command_buffer[2];     // compute-queue command buffers (or graphics-queue when no separate compute family)
   VkCommandPool         command_pool;
+  VkCommandBuffer       command_buffer_gfx[2]; // graphics-queue fallback when s_node_graphics nodes are present
+  VkCommandPool         command_pool_gfx;
+  int                   use_graphics_queue;    // set each run: 1 when s_node_graphics nodes exist and a separate compute family is in use
   VkSemaphore           semaphore_display;   // timeline semaphore to keep track of commands that use the backbuffer images
   uint64_t              display_dbuffer[2];  // indicate the largest display timeline position currently reading double buffer 0 or 1
   VkSemaphore           semaphore_process;   // timeline semaphore indicating that graph processing/double buffer write access is done
@@ -92,8 +110,10 @@ typedef struct dt_graph_t
   dt_raytrace_graph_t   rt;
 
   VkDeviceSize          vkmem_size;          // allocation sizes to tell whether we need to re-alloc
+  VkDeviceSize          vkmem_1_size;
   VkDeviceSize          vkmem_staging_size;
   VkDeviceSize          vkmem_uniform_size;
+  VkDeviceSize          vkmem_protected_size;
 
   dt_graph_query_t      query[2];            // for odd and even command buffers, starting at half query_max
 
@@ -117,7 +137,6 @@ typedef struct dt_graph_t
 
   // scale output resolution to fit and copy the main display to the given buffer:
   VkImage               thumbnail_image;
-  void                 *io_mutex;      // if this is set to != 0 will be locked during read_source() calls
 
   int                   gui_attached;  // can't free the output images while still used etc.
   const char           *gui_msg;       // will result in a dt_gui_notification call if not zero
@@ -136,7 +155,23 @@ typedef struct dt_graph_t
 }
 dt_graph_t;
 
+void dt_graph_generate_mipmaps(
+    dt_graph_t           *graph,
+    int                   rwd,
+    int                   rht,
+    dt_connector_image_t *img);
+
 void dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname); // init
+
+// return the command buffer to record into for the current run.
+// uses the graphics-family fallback when s_node_graphics nodes are present.
+static inline VkCommandBuffer
+dt_graph_cmd_buf(const dt_graph_t *g)
+{
+  return g->use_graphics_queue
+    ? g->command_buffer_gfx[g->double_buffer]
+    : g->command_buffer    [g->double_buffer];
+}
 void dt_graph_cleanup(dt_graph_t *g);                      // cleanup, free memory
 void dt_graph_repurpose(dt_graph_t *g);                    // reset logical state, keep Vulkan objects
 

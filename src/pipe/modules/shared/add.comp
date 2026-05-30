@@ -36,4 +36,3 @@ void main()
     o.v[push.n * rid + id] += sum;
   }
 }
-

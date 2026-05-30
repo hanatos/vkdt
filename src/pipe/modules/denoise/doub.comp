@@ -1,12 +1,10 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
-
 #include "shared.glsl"
 #include "noise.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
-
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   float strength;
@@ -16,7 +14,6 @@ layout(std140, set = 0, binding = 1) uniform params_t
   vec4  edges;
   int   gainmap;
 } params;
-
 layout(push_constant, std140) uniform push_t
 {
   vec4 wb;
@@ -29,17 +26,14 @@ layout(push_constant, std140) uniform push_t
   int  gainmap;
   vec4 map_os;
 } push;
-
-layout(set = 1, binding = 0) uniform sampler2D img_in; // input uint16 buffer rggb
-layout(set = 1, binding = 1) uniform sampler2D img_crs0; // denoised coarse buffer
-layout(set = 1, binding = 2) uniform sampler2D img_crs1; // noisy coarse buffer from input
-layout(set = 1, binding = 3) uniform writeonly image2D img_out; // output f16 buffer
+layout(set = 1, binding = 0) uniform sampler2D img_in; // input uint16 rggb
+layout(set = 1, binding = 1) uniform sampler2D img_crs0; // denoised coarse
+layout(set = 1, binding = 2) uniform sampler2D img_crs1; // noisy coarse from input
+layout(set = 1, binding = 3) uniform writeonly image2D img_out; // output f16
 layout(set = 1, binding = 4) uniform sampler2D img_gainmap; // optional gainmap
 
-// do one scale of decimated wavelet denoising on full res mosaic
-void
-main()
-{
+void main()
+{ // do one scale of decimated wavelet denoising on full res mosaic
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 

@@ -218,10 +218,13 @@ void init_expose_film_shared(int film)
   if (tid <= 35)
   {
     float lambda = 380.0 + tid * 10.0;
+    // TODO this shall include skin spectra! * scene illuminant, D65 say
     vec2 tc = vec2((tid * 2.0 + 0.5) / 256.0, get_tcy(s_sensitivity, film));
     vec3 sensitivity = get_sensitivity(tc);
+    // avoid some metameric madness film vs cie cmf: cut off wavelength ranges
+    // that the spectral upsampling doesn't care about (outside the XYZ support)
     float env = envelope(lambda);
-    float pdf = 2.0 * 41.0;
+    float pdf = 2.0 * 41.0; // our integration is off by -1ev from agx, so 2.0 here
     vec3 factor = sensitivity * env / pdf;
     shared_expose_factor_r[tid/4][tid%4] = factor.r;
     shared_expose_factor_g[tid/4][tid%4] = factor.g;
@@ -260,6 +263,8 @@ void init_enlarger_shared(int film, int paper)
     neutral = clamp(neutral, vec3(0.0), vec3(1.0));
     
     float illuminant = (0.002 * 1.0) * colour_blackbody(vec4(lambda), 2856.0).x;
+    // pretty coarse manual fit to thorlabs filters:
+    // (lamp filters are transmittances 0..100%)
     vec3 enlarger = 100.0 * mix(
       vec3(1.0),
       thorlabs_filters(lambda),
@@ -268,6 +273,7 @@ void init_enlarger_shared(int film, int paper)
     float base_density = dye_density.w * dye_density_min_factor_film;
     float base_light = exp2(-base_density * 3.32192809489);
     vec3 factor = sensitivity * print_illuminant * exp2(params.ev_paper) * base_light;
+    // TODO and the same yet again for the preflash
 
     shared_enlarger_dye_r[tid/4][tid%4] = dye_density.x;
     shared_enlarger_dye_g[tid/4][tid%4] = dye_density.y;
@@ -292,6 +298,8 @@ void init_enlarger_negative_shared(int paper)
   if (tid <= 40)
   {
     float lambda = 380.0 + tid * 10.0;
+    // TODO should this use reflectances and then multiply the illuminant?
+    // XXX does it contain D65??
     vec2 tc = vec2((tid * 2.0 + 0.5) / 256.0, get_tcy(s_sensitivity, paper));
     vec3 sensitivity = get_sensitivity(tc);
 
@@ -301,12 +309,15 @@ void init_enlarger_negative_shared(int paper)
     neutral = clamp(neutral, vec3(0.0), vec3(1.0));
     
     float illuminant = (0.002 * 1.0) * colour_blackbody(vec4(lambda), 2856.0).x;
+    // pretty coarse manual fit to thorlabs filters:
+    // (lamp filters are transmittances 0..100%)
     vec3 enlarger = 100.0 * mix(
       vec3(1.0),
       thorlabs_filters(lambda),
       neutral);
     float print_illuminant = enlarger.x * enlarger.y * enlarger.z * illuminant;
     vec3 factor = sensitivity * print_illuminant * exp2(params.ev_paper);
+    // TODO and the same yet again for the preflash
     shared_enlarger_factor_r[tid/4][tid%4] = factor.r;
     shared_enlarger_factor_g[tid/4][tid%4] = factor.g;
     shared_enlarger_factor_b[tid/4][tid%4] = factor.b;
@@ -378,6 +389,8 @@ void init_coupler_matrix_shared()
 vec3 // returns log_raw
 expose_film(vec3 rgb, int film)
 { // film exposure in camera and chemical development (Vectorized spectral loop)
+  // vec4 d65cf = fetch_coeff(vec3(1));
+  // this upsamples *reflectances*, i.e. 111 is equal energy not D65
   vec4 coeff = fetch_coeff(rgb);
   vec3 raw = vec3(0.0);
   [[unroll]]

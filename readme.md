@@ -26,12 +26,22 @@ still on GPU.
 * [GPU decoder for MotionCam raw video](src/pipe/modules/i-mcraw/readme.md)
 * [10-bit display output](src/pipe/modules/test10b/readme.md)
 * [automatic parameter optimisation](src/fit/readme.md), for instance to fit vignetting
-* [heavy handed processing](src/pipe/modules/kpn-t/readme.md) at almost realistic speeds
+* [u-net based denoising](src/pipe/modules/oidn/readme.md) using fast schedules
 
 ## documentation
 
 * [image operation modules documentation](src/pipe/modules/readme.md)
 * [how to do selected things](doc/howto/howto.md)
+
+## ecosystem repositories
+
+* [data for spectral input device transforms](https://codeberg.org/hanatos/vkdt-camconst)
+* [neural network weights](https://codeberg.org/hanatos/vkdt-nn)
+* [neural network training infra](https://codeberg.org/hanatos/oidn)
+* [unit tests](https://codeberg.org/hanatos/vkdt-test)
+* [web site and docs for local use](https://codeberg.org/hanatos/vkdt-web)
+* [denox onnx to spir-v compiler](https://github.com/kistenklaus/denox)
+* [denox onnx to spir-v compiler, vkdt codegen](https://github.com/kistenklaus/vkdt-denox)
 
 ## packages
 

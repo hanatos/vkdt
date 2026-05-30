@@ -14,6 +14,7 @@ typedef struct dt_vkmem_t
   uint64_t size  : 48;      // only for us, the gpu will know what they asked for
   struct dt_vkmem_t *prev;  // for alloced/free lists
   struct dt_vkmem_t *next;
+  struct dt_vkalloc_t *heap;// pointing back to owner
 }
 dt_vkmem_t;
 

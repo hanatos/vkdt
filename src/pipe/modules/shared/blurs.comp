@@ -13,13 +13,8 @@ layout(push_constant, std140) uniform push_t
   float sigma;
 } push;
 
-layout( // input buffer array
-    set = 1, binding = 0
-) uniform sampler2D img_in[];
-
-layout( // output buffer array
-    set = 1, binding = 1
-) uniform writeonly image2D img_out[];
+layout(set = 1, binding = 0) uniform sampler2D img_in[];
+layout(set = 1, binding = 1) uniform writeonly image2D img_out[];
 
 void
 main()
@@ -38,4 +33,3 @@ main()
   rgb += texture(img_in[idx], (ipos + vec2(0.5 + off, 0.5 + off))/sz) / 4.0;
   imageStore(img_out[idx], ipos, rgb);
 }
-

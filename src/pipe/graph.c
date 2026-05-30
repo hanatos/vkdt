@@ -28,6 +28,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+static VkResult dt_graph_init_mipmap(dt_graph_t *g);
+static void dt_graph_cleanup_mipmap(dt_graph_t *g);
+
 void
 dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
 {
@@ -45,7 +48,9 @@ dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
   g->max_nodes = 4000;
   g->node = calloc(sizeof(dt_node_t), g->max_nodes);
   dt_vkalloc_init(&g->heap, 16000, ((uint64_t)1)<<40); // bytesize doesn't matter
+  dt_vkalloc_init(&g->heap_1, 16000, ((uint64_t)1)<<40);
   dt_vkalloc_init(&g->heap_staging, 100, ((uint64_t)1)<<40);
+  dt_vkalloc_init(&g->heap_protected, 16000, ((uint64_t)1)<<40);
   g->params_max = 16u<<20;
   g->params_end = 0;
   g->params_pool = calloc(sizeof(uint8_t), g->params_max);
@@ -68,6 +73,17 @@ dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
     .commandBufferCount = 2,
   };
   QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, g->command_buffer));
+
+  // when the compute queue belongs to a compute-only family we need a second,
+  // graphics-family command pool to fall back to when s_node_graphics nodes
+  // (draw, overlay) are present on the graph.
+  if(qvk.queue_family_compute != qvk.queue_family_graphics)
+  {
+    cmd_pool_create_info.queueFamilyIndex = qvk.queue_family_graphics;
+    QVK(vkCreateCommandPool(qvk.device, &cmd_pool_create_info, NULL, &g->command_pool_gfx));
+    cmd_buf_alloc_info.commandPool = g->command_pool_gfx;
+    QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, g->command_buffer_gfx));
+  }
   VkSemaphoreTypeCreateInfo timelineCreateInfo = {
     .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
     .pNext         = NULL,
@@ -98,6 +114,7 @@ dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
 
   g->lod_scale = 1;
   g->active_module = -1;
+  dt_graph_init_mipmap(g);
 }
 
 // Destroy per-image/per-graph-structure Vulkan resources: connector images,
@@ -131,6 +148,7 @@ graph_destroy_per_image_resources(dt_graph_t *g)
     if(g->conn_image_pool[i].buffer)     vkDestroyBuffer   (qvk.device, g->conn_image_pool[i].buffer,     VK_NULL_HANDLE);
     if(g->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, g->conn_image_pool[i].image_view, VK_NULL_HANDLE);
     if(g->conn_image_pool[i].image)      vkDestroyImage    (qvk.device, g->conn_image_pool[i].image,      VK_NULL_HANDLE);
+    for(int m=0;m<14;m++) if(g->conn_image_pool[i].mipmap_views[m]) vkDestroyImageView(qvk.device, g->conn_image_pool[i].mipmap_views[m], VK_NULL_HANDLE);
     g->conn_image_pool[i] = (dt_connector_image_t){0};
   }
   for(int i=0;i<g->num_nodes;i++)
@@ -217,7 +235,9 @@ dt_graph_cleanup(dt_graph_t *g)
   if(graph_wait_gpu(g, "graph_cleanup") != VK_SUCCESS) return;
   graph_teardown_modules(g);
   dt_vkalloc_cleanup(&g->heap);
+  dt_vkalloc_cleanup(&g->heap_1);
   dt_vkalloc_cleanup(&g->heap_staging);
+  dt_vkalloc_cleanup(&g->heap_protected);
   graph_destroy_per_image_resources(g);
   vkDestroyDescriptorPool(qvk.device, g->dset_pool, 0);
   vkDestroyDescriptorSetLayout(qvk.device, g->uniform_dset_layout, 0);
@@ -226,10 +246,12 @@ dt_graph_cleanup(dt_graph_t *g)
   g->uniform_dset_layout = 0;
   g->uniform_buffer = 0;
   vkFreeMemory(qvk.device, g->vkmem, 0);
+  vkFreeMemory(qvk.device, g->vkmem_1, 0);
   vkFreeMemory(qvk.device, g->vkmem_staging, 0);
   vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
-  g->vkmem = g->vkmem_staging = g->vkmem_uniform = 0;
-  g->vkmem_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
+  vkFreeMemory(qvk.device, g->vkmem_protected, 0);
+  g->vkmem = g->vkmem_1 = g->vkmem_staging = g->vkmem_uniform = g->vkmem_protected = 0;
+  g->vkmem_size = g->vkmem_1_size = g->vkmem_staging_size = g->vkmem_uniform_size = g->vkmem_protected_size = 0;
   vkDestroySemaphore(qvk.device, g->semaphore_display, 0);
   vkDestroySemaphore(qvk.device, g->semaphore_process, 0);
   g->semaphore_display = 0;
@@ -239,6 +261,13 @@ dt_graph_cleanup(dt_graph_t *g)
   g->command_buffer[0] = g->command_buffer[1] = VK_NULL_HANDLE;
   vkDestroyCommandPool(qvk.device, g->command_pool, 0);
   g->command_pool = 0;
+  if(g->command_pool_gfx != VK_NULL_HANDLE)
+  {
+    vkFreeCommandBuffers(qvk.device, g->command_pool_gfx, 2, g->command_buffer_gfx);
+    g->command_buffer_gfx[0] = g->command_buffer_gfx[1] = VK_NULL_HANDLE;
+    vkDestroyCommandPool(qvk.device, g->command_pool_gfx, 0);
+    g->command_pool_gfx = 0;
+  }
   free(g->module);             g->module = 0;
   free(g->node);               g->node = 0;
   free(g->params_pool);        g->params_pool = 0;
@@ -252,6 +281,7 @@ dt_graph_cleanup(dt_graph_t *g)
     free(g->query[i].name);         g->query[i].name = 0;
     free(g->query[i].kernel);       g->query[i].kernel = 0;
   }
+  dt_graph_cleanup_mipmap(g);
 }
 
 static inline void *
@@ -318,6 +348,357 @@ dt_graph_create_shader_module(
 #endif
 #endif
   return VK_SUCCESS;
+}
+
+void
+dt_graph_generate_mipmaps(
+    dt_graph_t           *graph,
+    int                   rwd,
+    int                   rht,
+    dt_connector_image_t *img)
+{
+  VkCommandBuffer cmd_buf = dt_graph_cmd_buf(graph);
+  VkImageMemoryBarrier barrier = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+    .image = img->image,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .subresourceRange.baseArrayLayer = 0,
+    .subresourceRange.layerCount = 1,
+    .subresourceRange.levelCount = 1,
+  };
+  int wd = img->wd > 0 ? img->wd : rwd;
+  int ht = img->ht > 0 ? img->ht : rht;
+
+  // put all mip levels into general layout since we will read/write them with compute:
+  barrier.subresourceRange.levelCount = img->mip_levels;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.oldLayout = img->layout;
+  barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+  barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_SHADER_READ_BIT;
+  vkCmdPipelineBarrier(cmd_buf,
+      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT|VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
+      0, NULL,
+      0, NULL,
+      1, &barrier);
+  barrier.subresourceRange.levelCount = 1;
+  int input_wd = wd;
+  int input_ht = ht;
+
+  for (uint32_t i = 1; i < img->mip_levels; )
+  {
+    if(graph->mipmap_use_down && (i + 2) < img->mip_levels &&
+        (input_wd >= 8) && (input_ht >= 8) &&
+        (input_wd % 8 == 0) && (input_ht % 8 == 0))
+    {
+      vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, graph->mipmap_down_pipeline);
+      VkDescriptorImageInfo img_in = {
+        .sampler = qvk.tex_sampler,
+        .imageView = img->mipmap_views[i - 1],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkDescriptorImageInfo img_gbuf = {
+        .sampler = qvk.tex_sampler,
+        .imageView = img->mipmap_views[i - 1],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkDescriptorImageInfo img_out2 = {
+        .sampler = VK_NULL_HANDLE,
+        .imageView = img->mipmap_views[i],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkDescriptorImageInfo img_out4 = {
+        .sampler = VK_NULL_HANDLE,
+        .imageView = img->mipmap_views[i + 1],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkDescriptorImageInfo img_out8 = {
+        .sampler = VK_NULL_HANDLE,
+        .imageView = img->mipmap_views[i + 2],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkWriteDescriptorSet writes[] = {
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 0,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+          .pImageInfo = &img_in,
+        },
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 1,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+          .pImageInfo = &img_gbuf,
+        },
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 2,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+          .pImageInfo = &img_out2,
+        },
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 3,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+          .pImageInfo = &img_out4,
+        },
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 4,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+          .pImageInfo = &img_out8,
+        },
+      };
+      qvkCmdPushDescriptorSetKHR(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, graph->mipmap_down_pipeline_layout, 1, 5, writes);
+
+      vkCmdDispatch(cmd_buf, (input_wd + 7) / 8, (input_ht + 7) / 8, 1);
+
+      barrier.subresourceRange.baseMipLevel = i;
+      barrier.subresourceRange.levelCount = 3;
+      barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+      barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+      barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      vkCmdPipelineBarrier(cmd_buf,
+          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
+          0, NULL,
+          0, NULL,
+          1, &barrier);
+      barrier.subresourceRange.levelCount = 1;
+
+      if(input_wd > 1) input_wd = MAX(1, input_wd / 8);
+      if(input_ht > 1) input_ht = MAX(1, input_ht / 8);
+      i += 3;
+    }
+    else
+    {
+      vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, graph->mipmap_pipeline);
+      VkDescriptorImageInfo img_in = {
+        .sampler = qvk.tex_sampler,
+        .imageView = img->mipmap_views[i - 1],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkDescriptorImageInfo img_out = {
+        .sampler = VK_NULL_HANDLE,
+        .imageView = img->mipmap_views[i],
+        .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      };
+      VkWriteDescriptorSet writes[] = {
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 0,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+          .pImageInfo = &img_in,
+        },
+        {
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstBinding = 1,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+          .pImageInfo = &img_out,
+        },
+      };
+      qvkCmdPushDescriptorSetKHR(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, graph->mipmap_pipeline_layout, 0, 2, writes);
+
+      int dwd = input_wd > 1 ? input_wd / 2 : 1;
+      int dht = input_ht > 1 ? input_ht / 2 : 1;
+      vkCmdDispatch(cmd_buf, (dwd + 7) / 8, (dht + 7) / 8, 1);
+
+      barrier.subresourceRange.baseMipLevel = i;
+      barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+      barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+      barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      vkCmdPipelineBarrier(cmd_buf,
+          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
+          0, NULL,
+          0, NULL,
+          1, &barrier);
+
+      if(input_wd > 1) input_wd /= 2;
+      if(input_ht > 1) input_ht /= 2;
+      i += 1;
+    }
+  }
+
+  barrier.subresourceRange.levelCount = img->mip_levels;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+  barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+  vkCmdPipelineBarrier(cmd_buf,
+      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0,
+      0, NULL,
+      0, NULL,
+      1, &barrier);
+  img->layout = VK_IMAGE_LAYOUT_GENERAL;
+}
+
+static VkResult dt_graph_init_mipmap(dt_graph_t *g)
+{
+  VkShaderModule shader_module;
+  QVKR(dt_graph_create_shader_module(g, dt_token("mipmap"), dt_token("main"), "comp", &shader_module));
+
+  VkDescriptorSetLayoutBinding bindings[] = {
+    {
+      .binding = 0,
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .descriptorCount = 1,
+      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+    },
+    {
+      .binding = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+      .descriptorCount = 1,
+      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+    }
+  };
+
+  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR,
+    .bindingCount = 2,
+    .pBindings = bindings,
+  };
+  QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, NULL, &g->mipmap_dset_layout));
+
+  VkPipelineLayoutCreateInfo pipeline_layout_info = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .setLayoutCount = 1,
+    .pSetLayouts = &g->mipmap_dset_layout,
+  };
+  QVKR(vkCreatePipelineLayout(qvk.device, &pipeline_layout_info, NULL, &g->mipmap_pipeline_layout));
+
+  VkComputePipelineCreateInfo pipeline_info = {
+    .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+    .stage = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+      .module = shader_module,
+      .pName = "main",
+    },
+    .layout = g->mipmap_pipeline_layout,
+  };
+  QVKR(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &g->mipmap_pipeline));
+
+  vkDestroyShaderModule(qvk.device, shader_module, NULL);
+
+  g->mipmap_use_down =
+    (qvk.subgroup_ops & VK_SUBGROUP_FEATURE_CLUSTERED_BIT) &&
+    (qvk.subgroup_ops & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) &&
+    (qvk.subgroup_ops & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT) &&
+    (qvk.subgroup_size_control_supported || qvk.subgroup_size == 32);
+
+  if(g->mipmap_use_down)
+  {
+    VkDescriptorSetLayoutCreateInfo empty_dset_layout_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      .bindingCount = 0,
+      .pBindings = NULL,
+    };
+    QVKR(vkCreateDescriptorSetLayout(qvk.device, &empty_dset_layout_info, NULL, &g->mipmap_empty_dset_layout));
+
+    VkShaderModule down_shader_module;
+    QVKR(dt_graph_create_shader_module(g, dt_token("svgf2"), dt_token("down"), "comp", &down_shader_module));
+
+    VkDescriptorSetLayoutBinding down_bindings[] = {
+      {
+        .binding = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+      },
+      {
+        .binding = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+      },
+      {
+        .binding = 2,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+      },
+      {
+        .binding = 3,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+      },
+      {
+        .binding = 4,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+      },
+    };
+
+    VkDescriptorSetLayoutCreateInfo down_dset_layout_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+      .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR,
+      .bindingCount = 5,
+      .pBindings = down_bindings,
+    };
+    QVKR(vkCreateDescriptorSetLayout(qvk.device, &down_dset_layout_info, NULL, &g->mipmap_down_dset_layout));
+
+    VkDescriptorSetLayout down_set_layouts[] = {
+      g->mipmap_empty_dset_layout,
+      g->mipmap_down_dset_layout,
+    };
+    VkPipelineLayoutCreateInfo down_pipeline_layout_info = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+      .setLayoutCount = LENGTH(down_set_layouts),
+      .pSetLayouts = down_set_layouts,
+    };
+    QVKR(vkCreatePipelineLayout(qvk.device, &down_pipeline_layout_info, NULL, &g->mipmap_down_pipeline_layout));
+
+    VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT down_subgroup = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT,
+      .requiredSubgroupSize = 32,
+    };
+    VkPipelineShaderStageCreateInfo down_stage = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+      .module = down_shader_module,
+      .pName = "main",
+    };
+    if(qvk.subgroup_size_control_supported)
+    {
+      down_stage.pNext = &down_subgroup;
+    }
+
+    VkComputePipelineCreateInfo down_pipeline_info = {
+      .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+      .stage = down_stage,
+      .layout = g->mipmap_down_pipeline_layout,
+    };
+    QVKR(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &down_pipeline_info, NULL, &g->mipmap_down_pipeline));
+
+    vkDestroyShaderModule(qvk.device, down_shader_module, NULL);
+  }
+  return VK_SUCCESS;
+}
+
+static void dt_graph_cleanup_mipmap(dt_graph_t *g)
+{
+  if(g->mipmap_pipeline) vkDestroyPipeline(qvk.device, g->mipmap_pipeline, NULL);
+  if(g->mipmap_pipeline_layout) vkDestroyPipelineLayout(qvk.device, g->mipmap_pipeline_layout, NULL);
+  if(g->mipmap_dset_layout) vkDestroyDescriptorSetLayout(qvk.device, g->mipmap_dset_layout, NULL);
+  if(g->mipmap_down_pipeline) vkDestroyPipeline(qvk.device, g->mipmap_down_pipeline, NULL);
+  if(g->mipmap_down_pipeline_layout) vkDestroyPipelineLayout(qvk.device, g->mipmap_down_pipeline_layout, NULL);
+  if(g->mipmap_down_dset_layout) vkDestroyDescriptorSetLayout(qvk.device, g->mipmap_down_dset_layout, NULL);
+  if(g->mipmap_empty_dset_layout) vkDestroyDescriptorSetLayout(qvk.device, g->mipmap_empty_dset_layout, NULL);
 }
 
 // convenience function for debugging in gdb:
@@ -419,6 +800,15 @@ VkResult dt_graph_run(
       }
     }
 
+    // detect graphics nodes and choose the right command pool / submission queue for this run.
+    // s_node_graphics (draw, overlay) use vkCmdDraw* which requires the graphics queue family;
+    // a compute-only queue family does not support these commands.
+    graph->use_graphics_queue = 0;
+    if(graph->command_pool_gfx) // only relevant when families differ
+      for(int i=0;i<cnt;i++)
+        if(graph->node[nodeid[i]].type == s_node_graphics)
+          { graph->use_graphics_queue = 1; break; }
+
     // potentially free/re-allocate memory, create buffers, images, image_views, and descriptor sets:
     int dynamic_array = 0;
     QVKR(dt_graph_run_nodes_allocate(graph, &run, nodeid, cnt, &dynamic_array));
@@ -442,6 +832,12 @@ VkResult dt_graph_run(
     dt_log(s_log_mem, "images : peak rss %g MB vmsize %g MB",
         graph->heap.peak_rss/(1024.0*1024.0),
         graph->heap.vmsize  /(1024.0*1024.0));
+    dt_log(s_log_mem, "overflow : peak rss %g MB vmsize %g MB",
+        graph->heap_1.peak_rss/(1024.0*1024.0),
+        graph->heap_1.vmsize  /(1024.0*1024.0));
+    dt_log(s_log_mem, "protected : peak rss %g MB vmsize %g MB",
+        graph->heap_protected.peak_rss/(1024.0*1024.0),
+        graph->heap_protected.vmsize  /(1024.0*1024.0));
     dt_log(s_log_mem, "staging: peak rss %g MB vmsize %g MB",
         graph->heap_staging.peak_rss/(1024.0*1024.0),
         graph->heap_staging.vmsize  /(1024.0*1024.0));
@@ -462,10 +858,11 @@ VkResult dt_graph_run(
       .pSignalSemaphoreValues    = &graph->process_dbuffer[buf_curr], // lock buf_curr for writing, this signal will remove the lock
     };
     VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    VkCommandBuffer cmd_buf = dt_graph_cmd_buf(graph);
     VkSubmitInfo submit = {
       .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
       .commandBufferCount   = 1,
-      .pCommandBuffers      = &graph->command_buffer[buf_curr],
+      .pCommandBuffers      = &cmd_buf,
       .pNext                = &timeline_info,
       .waitSemaphoreCount   = 1,
       .pWaitSemaphores      = &graph->semaphore_display,
@@ -474,8 +871,11 @@ VkResult dt_graph_run(
       .pSignalSemaphores    = &graph->semaphore_process,
     };
 
-    QVKLR(&qvk.queue[qvk.qid[graph->queue_name]].mutex,
-        vkQueueSubmit(qvk.queue[qvk.qid[graph->queue_name]].queue, 1, &submit, 0));
+    // submit to the graphics queue when graphics nodes are present (they require it),
+    // otherwise use the async compute queue for better UI responsiveness.
+    qvk_queue_name_t submit_queue = graph->use_graphics_queue ? s_queue_graphics : graph->queue_name;
+    QVKLR(&qvk.queue[qvk.qid[submit_queue]].mutex,
+        vkQueueSubmit(qvk.queue[qvk.qid[submit_queue]].queue, 1, &submit, 0));
 
     VkSemaphoreWaitInfo wait_info = {
       .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
@@ -595,16 +995,22 @@ dt_graph_repurpose(dt_graph_t *g)
   graph_teardown_modules(g);
   // clear logical allocators
   dt_vkalloc_nuke(&g->heap);
+  dt_vkalloc_nuke(&g->heap_1);
+  dt_vkalloc_nuke(&g->heap_protected);
   dt_vkalloc_nuke(&g->heap_staging);
   graph_destroy_per_image_resources(g);
   // free memory because this can be sizable:
   vkFreeMemory(qvk.device, g->vkmem, 0);
+  vkFreeMemory(qvk.device, g->vkmem_1, 0);
   vkFreeMemory(qvk.device, g->vkmem_staging, 0);
   vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
-  g->vkmem = g->vkmem_staging = g->vkmem_uniform = 0;
-  g->vkmem_size = g->vkmem_staging_size = g->vkmem_uniform_size = 0;
+  vkFreeMemory(qvk.device, g->vkmem_protected, 0);
+  g->vkmem = g->vkmem_1 = g->vkmem_staging = g->vkmem_uniform = g->vkmem_protected = 0;
+  g->vkmem_size = g->vkmem_1_size = g->vkmem_staging_size = g->vkmem_uniform_size = g->vkmem_protected_size = 0;
   // reset command pool (reuse buffers, skip destroy/recreate)
   vkResetCommandPool(qvk.device, g->command_pool, 0);
+  if(g->command_pool_gfx)
+    vkResetCommandPool(qvk.device, g->command_pool_gfx, 0);
   // reset query pool software counters; hardware reset is done inline via vkCmdResetQueryPool
   for(int i=0;i<2;i++)
     g->query[i].cnt = 0;

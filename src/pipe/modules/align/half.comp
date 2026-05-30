@@ -1,7 +1,6 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
-
 #include "shared.glsl"
 #include "config.h"
 
@@ -15,18 +14,12 @@ layout(push_constant, std140) uniform push_t
   int  block;
 } push;
 
-layout( // input buffer rggb
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // output buffer gray scale
-    set = 1, binding = 1
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
 // output grey scale image downsized 2x2
 // (this might be 3x3 for xtrans).
-void
-main()
+void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;

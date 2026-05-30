@@ -1,105 +1,9 @@
 #pragma once
 
-static inline void
-generate_mipmaps(
-    dt_graph_t           *graph,
-    int                   rwd,
-    int                   rht,
-    dt_connector_image_t *img)
-{
-  if(img->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) return;
-  VkCommandBuffer cmd_buf = graph->command_buffer[graph->double_buffer];
-  VkImageMemoryBarrier barrier = {
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-    .image = img->image,
-    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-    .subresourceRange.baseArrayLayer = 0,
-    .subresourceRange.layerCount = 1,
-    .subresourceRange.levelCount = 1,
-  };
-  int wd = img->wd > 0 ? img->wd : rwd;
-  int ht = img->ht > 0 ? img->ht : rht;
-
-  // put all mip levels into transfer_dst_optimal, since we want to blit onto them:
-  barrier.subresourceRange.levelCount = img->mip_levels;
-  barrier.subresourceRange.baseMipLevel = 0;
-  barrier.oldLayout = img->layout;
-  barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-  barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT|VK_ACCESS_TRANSFER_WRITE_BIT;
-  barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  vkCmdPipelineBarrier(cmd_buf,
-      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT|VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
-      0, NULL,
-      0, NULL,
-      1, &barrier);
-  barrier.subresourceRange.levelCount = 1;
-
-  for (uint32_t i = 1; i < img->mip_levels; i++)
-  {
-    barrier.subresourceRange.baseMipLevel = i - 1;
-    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    vkCmdPipelineBarrier(cmd_buf,
-        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
-        0, NULL,
-        0, NULL,
-        1, &barrier);
-    VkImageBlit blit = {
-      .srcOffsets = {{ 0, 0, 0 }, { wd, ht, 1 }},
-      .srcSubresource = {
-        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        .mipLevel = i - 1,
-        .baseArrayLayer = 0,
-        .layerCount = 1,
-      },
-      .dstOffsets = {{ 0, 0, 0 }, { wd > 1 ? wd / 2 : 1, ht > 1 ? ht / 2 : 1, 1 }},
-      .dstSubresource = {
-        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        .mipLevel = i,
-        .baseArrayLayer = 0,
-        .layerCount = 1,
-      },
-    };
-    vkCmdBlitImage(cmd_buf,
-        img->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        img->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        1, &blit,
-        VK_FILTER_LINEAR);
-    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-    vkCmdPipelineBarrier(cmd_buf,
-        VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-        0, NULL,
-        0, NULL,
-        1, &barrier);
-    if(wd > 1) wd /= 2;
-    if(ht > 1) ht /= 2;
-  }
-  barrier.subresourceRange.baseMipLevel = img->mip_levels - 1;
-  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-  vkCmdPipelineBarrier(cmd_buf,
-      VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-      0, NULL,
-      0, NULL,
-      1, &barrier);
-  img->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-}
-
 static inline VkResult
 record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
 {
-  VkCommandBuffer cmd_buf = graph->command_buffer[graph->double_buffer];
+  VkCommandBuffer cmd_buf = dt_graph_cmd_buf(graph);
 
   // sanity check: are all input connectors bound?
   for(int i=0;i<node->num_connectors;i++)
@@ -124,8 +28,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         if(node->type == s_node_graphics)
           IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, 0, graph->double_buffer),
-              SHADER_READ_ONLY_OPTIMAL,
-              COLOR_ATTACHMENT_OPTIMAL);
+              GENERAL, GENERAL);
         // else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
         //   IMG_LAYOUT(
         //       dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer),
@@ -169,16 +72,16 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     };
     dt_connector_image_t *img = dt_graph_connector_image(graph,
         node-graph->node, 0, 0, 0);
-    IMG_LAYOUT(img, UNDEFINED, TRANSFER_SRC_OPTIMAL);
-    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1);
+    IMG_LAYOUT(img, UNDEFINED, GENERAL);
+    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
     vkCmdCopyImage(cmd_buf,
         img->image,
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_IMAGE_LAYOUT_GENERAL,
         graph->thumbnail_image,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_GENERAL,
         1,
         &cp);
-    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1);
+    BARRIER_IMG_LAYOUT(graph->thumbnail_image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, 1);
     return VK_SUCCESS;
   }
 
@@ -236,7 +139,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
           {
             if(node->connector[i].flags & s_conn_mipmap)
             { // we have mipmaps on this (display) node, can't simply transition:
-              generate_mipmaps(graph, 
+              dt_graph_generate_mipmaps(graph,
                   node->connector[i].roi.wd,
                   node->connector[i].roi.ht,
                   dt_graph_connector_image(graph, node-graph->node, i, k,
@@ -251,8 +154,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
                     (node->connector[i].flags & s_conn_feedback) ?
                     1-(graph->double_buffer & 1) :
                     graph->double_buffer),
-                  GENERAL,
-                  SHADER_READ_ONLY_OPTIMAL);
+                  GENERAL, GENERAL);
             }
           }
         }
@@ -260,8 +162,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       else for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
         IMG_LAYOUT(
             dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer),
-            GENERAL,
-            TRANSFER_SRC_OPTIMAL);
+            GENERAL, GENERAL);
     }
     else if(dt_connector_output(node->connector+i))
     { // layout transition on the output to general
@@ -272,8 +173,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         {
           IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer),
-              UNDEFINED,//SHADER_READ_ONLY_OPTIMAL,
-              TRANSFER_DST_OPTIMAL);
+              UNDEFINED, GENERAL);
           // in case clearing is requested, zero out the image:
           VkClearColorValue col = {{0}};
           VkImageSubresourceRange range = {
@@ -286,7 +186,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
           vkCmdClearColorImage(
               cmd_buf,
               dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer)->image,
-              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+              VK_IMAGE_LAYOUT_GENERAL,
               &col,
               1,
               &range);
@@ -294,21 +194,18 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         if(node->type == s_node_graphics)
           IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, 0, graph->double_buffer),
-              TRANSFER_DST_OPTIMAL,
-              COLOR_ATTACHMENT_OPTIMAL);
+              GENERAL, GENERAL);
         else for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
           IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, k, graph->double_buffer),
-              TRANSFER_DST_OPTIMAL,
-              GENERAL);
+              GENERAL, GENERAL);
       }
       else
       {
         if(node->type == s_node_graphics)
           IMG_LAYOUT(
               dt_graph_connector_image(graph, node-graph->node, i, 0, graph->double_buffer),
-              UNDEFINED,
-              COLOR_ATTACHMENT_OPTIMAL);
+              UNDEFINED, GENERAL);
         else if(!(node->connector[i].flags & s_conn_dynamic_array)) for(int k=0;k<MAX(node->connector[i].array_length,1);k++)
           // IMG_LAYOUT does not implement a barrier in case the dst layout is already
           // GENERAL. this is a problem for "modify" image connectors.
@@ -322,11 +219,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
             BARRIER_IMG_LAYOUT(img->image, img->layout, VK_IMAGE_LAYOUT_GENERAL, img->mip_levels);
             img->layout = VK_IMAGE_LAYOUT_GENERAL;
           }
-          else
-            IMG_LAYOUT(
-              img,
-              UNDEFINED,
-              GENERAL);
+          else IMG_LAYOUT(img, UNDEFINED, GENERAL);
         }
       }
     }
@@ -371,7 +264,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
       vkCmdCopyImageToBuffer(
           cmd_buf,
           dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->image,
-          VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+          VK_IMAGE_LAYOUT_GENERAL,
           node->connector[0].staging[graph->double_buffer],
           yuv ? 2 : 1, yuv ? regions+1 : regions);
       BARRIER_COMPUTE_BUFFER(node->connector[0].staging[graph->double_buffer]);
@@ -412,19 +305,17 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     { // images with layout change
       IMG_LAYOUT(
           dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer),
-          UNDEFINED,
-          TRANSFER_DST_OPTIMAL);
+          UNDEFINED, GENERAL);
       if(wd > 0 && ht > 0)
         vkCmdCopyBufferToImage(
           cmd_buf,
           node->connector[0].staging[graph->double_buffer],
           dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer)->image,
-          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+          VK_IMAGE_LAYOUT_GENERAL,
           yuv ? 2 : 1, yuv ? regions+1 : regions);
       IMG_LAYOUT(
           dt_graph_connector_image(graph, node-graph->node, 0, 0, graph->double_buffer),
-          TRANSFER_DST_OPTIMAL,
-          SHADER_READ_ONLY_OPTIMAL);
+          GENERAL, GENERAL);
     }
     // get a profiler timestamp:
     if(graph->query[f].cnt < graph->query[f].max)
@@ -493,7 +384,7 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
     VkRenderingAttachmentInfo color_attachment = {
       .sType         = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
       .imageView     = dt_graph_connector_image(graph, node-graph->node, draw, 0, graph->double_buffer)->image_view,
-      .imageLayout   = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      .imageLayout   = VK_IMAGE_LAYOUT_GENERAL,
       .resolveMode   = VK_RESOLVE_MODE_NONE,
       .loadOp        = VK_ATTACHMENT_LOAD_OP_CLEAR,
       .storeOp       = VK_ATTACHMENT_STORE_OP_STORE,
@@ -542,9 +433,9 @@ dt_graph_run_nodes_record_cmd(
       .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     };
     int buf_curr = graph->double_buffer;
-    QVKR(vkBeginCommandBuffer(graph->command_buffer[buf_curr], &begin_info));
+    QVKR(vkBeginCommandBuffer(dt_graph_cmd_buf(graph), &begin_info));
     graph->query[buf_curr].cnt = 0;
-    vkCmdResetQueryPool(graph->command_buffer[buf_curr], graph->query[buf_curr].pool, 0, graph->query[buf_curr].max);
+    vkCmdResetQueryPool(dt_graph_cmd_buf(graph), graph->query[buf_curr].pool, 0, graph->query[buf_curr].max);
     int bvh_cnt = 0;
     for(int i=0;i<cnt;i++)
       if(graph->node[nodeid[i]].name == dt_token("bvh")) bvh_cnt++;
@@ -571,13 +462,13 @@ dt_graph_run_nodes_record_cmd(
       }
       if(res != VK_SUCCESS)
       { // need to clean up command buffer before we quit
-        QVKR(vkEndCommandBuffer(graph->command_buffer[buf_curr]));
+        QVKR(vkEndCommandBuffer(dt_graph_cmd_buf(graph)));
         return res;
       }
     }
     double rt_end = dt_time();
     dt_log(s_log_perf, "record command buffer:\t%8.3f ms", 1000.0*(rt_end-rt_beg));
-    QVKR(vkEndCommandBuffer(graph->command_buffer[buf_curr]));
+    QVKR(vkEndCommandBuffer(dt_graph_cmd_buf(graph)));
   }
   return VK_SUCCESS;
 }

@@ -1,37 +1,22 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
-
 #include "shared.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
-
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   int fixup;
 } params;
-
 layout(push_constant, std140) uniform push_t
 {
   vec4 wb;
   uint filters;
 } push;
-
-layout( // input original
-    set = 1, binding = 0
-) uniform sampler2D img_in;
-
-layout( // input green
-    set = 1, binding = 1
-) uniform sampler2D img_g;
-
-layout( // input buffer rgb gaussian covariance
-    set = 1, binding = 2
-) uniform sampler2D img_cov;
-
-layout( // output f16 buffer rgba
-    set = 1, binding = 3
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform sampler2D img_g;
+layout(set = 1, binding = 2) uniform sampler2D img_cov;
+layout(set = 1, binding = 3) uniform writeonly image2D img_out;
 
 float
 eval_gauss(vec4 cov, vec2 o)
@@ -111,8 +96,7 @@ void write_bayer2(
 // old dcraw-style trick to interpolate only the ratio (or difference) of red
 // vs green and blue vs green. based on first interpolating green (which we
 // have done in a previous pass)
-void
-main()
+void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;

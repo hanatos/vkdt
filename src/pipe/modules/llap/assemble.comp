@@ -1,28 +1,20 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
-
 #include "shared.glsl"
 #include "llap.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
-
 layout(push_constant, std140) uniform push_t
 {
   uint num_gamma;
   uint first;
 } push;
-
-layout( // input f16 buffer y coarse of current recon
-    set = 1, binding = 0
-) uniform sampler2D img_coarse;
-
+layout(set = 1, binding = 0) uniform sampler2D img_coarse;
 // we need 6 curves to avoid aliasing:
 layout(set = 1, binding = 1) uniform sampler2D img_l0[];
 layout(set = 1, binding = 2) uniform sampler2D img_l1[];
-layout( // output buffer y finer level of output
-    set = 1, binding = 3
-) uniform writeonly image2D img_out;
+layout(set = 1, binding = 3) uniform writeonly image2D img_out;
 
 float gauss_expand(sampler2D img_in, ivec2 opos)
 {
@@ -59,10 +51,8 @@ float gauss_expand(sampler2D img_in, ivec2 opos)
 #endif
 }
 
-// assemble
-void
-main()
-{
+void main()
+{ // assemble
   ivec2 opos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(opos, imageSize(img_out)))) return;
 
@@ -96,4 +86,3 @@ main()
   
   imageStore(img_out, opos, vec4(res + l0 * (1.0f-a) + l1 * a));
 }
-

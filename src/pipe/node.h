@@ -18,20 +18,22 @@ dt_node_type_t;
 
 typedef struct dt_node_t
 {
-  dt_token_t name;      // name of the node
-  dt_token_t kernel;    // modules/<name>/<kernel>.comp is the file name of the compute shader
+  dt_token_t            name;      // name of the node
+  dt_token_t            kernel;    // modules/<name>/<kernel>.comp is the file name of the compute shader
 
-  dt_module_t *module;  // reference back to module and class
+  dt_module_t          *module;  // reference back to module and class
 
-  dt_connector_t connector [DT_MAX_CONNECTORS];
-  uint32_t       conn_image[DT_MAX_CONNECTORS]; // start offset for connector into graph's connector allocation pool
-  int num_connectors;
+  dt_connector_t        connector [DT_MAX_CONNECTORS];
+  uint32_t              conn_image[DT_MAX_CONNECTORS]; // start offset for connector into graph's connector allocation pool
+  int                   num_connectors;
 
   VkPipeline            pipeline;
   VkPipelineLayout      pipeline_layout;
   VkDescriptorSet       uniform_dset[DT_GRAPH_MAX_FRAMES]; // uniform data is const per frame
   VkDescriptorSet       dset[DT_GRAPH_MAX_FRAMES];         // one descriptor set for every frame
   VkDescriptorSetLayout dset_layout;                       // they all share the same layout
+  VkDeviceSize          bref_offset;                       // offset into buffer reference uniform block
+  VkDeviceSize          bref_size;                         // size of the buffer reference block (one frame)
 
   dt_raytrace_node_t    rt;
 

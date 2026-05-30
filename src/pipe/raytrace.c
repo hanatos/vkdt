@@ -41,13 +41,15 @@ dt_raytrace_graph_cleanup(
     QVK_LOAD(vkDestroyAccelerationStructureKHR);
     qvkDestroyAccelerationStructureKHR(qvk.device, graph->rt.accel, VK_NULL_HANDLE);
   }
-  if(graph->rt.buf_accel)     vkDestroyBuffer(qvk.device, graph->rt.buf_accel,   VK_NULL_HANDLE);
-  if(graph->rt.buf_scratch)   vkDestroyBuffer(qvk.device, graph->rt.buf_scratch, VK_NULL_HANDLE);
-  if(graph->rt.buf_staging)   vkDestroyBuffer(qvk.device, graph->rt.buf_staging, VK_NULL_HANDLE);
-  if(graph->rt.vkmem_scratch) vkFreeMemory   (qvk.device, graph->rt.vkmem_scratch, 0);
-  if(graph->rt.vkmem_staging) vkFreeMemory   (qvk.device, graph->rt.vkmem_staging, 0);
-  if(graph->rt.vkmem_accel)   vkFreeMemory   (qvk.device, graph->rt.vkmem_accel,   0);
-  if(graph->rt.dset_layout)   vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
+  if(graph->rt.buf_accel)        vkDestroyBuffer(qvk.device, graph->rt.buf_accel,   VK_NULL_HANDLE);
+  if(graph->rt.buf_scratch)      vkDestroyBuffer(qvk.device, graph->rt.buf_scratch, VK_NULL_HANDLE);
+  if(graph->rt.buf_staging)      vkDestroyBuffer(qvk.device, graph->rt.buf_staging, VK_NULL_HANDLE);
+  if(graph->rt.buf_bref)         vkDestroyBuffer(qvk.device, graph->rt.buf_bref, VK_NULL_HANDLE);
+  if(graph->rt.buf_staging_bref) vkDestroyBuffer(qvk.device, graph->rt.buf_staging_bref, VK_NULL_HANDLE);
+  if(graph->rt.vkmem_scratch)    vkFreeMemory   (qvk.device, graph->rt.vkmem_scratch, 0);
+  if(graph->rt.vkmem_staging)    vkFreeMemory   (qvk.device, graph->rt.vkmem_staging, 0);
+  if(graph->rt.vkmem_accel)      vkFreeMemory   (qvk.device, graph->rt.vkmem_accel,   0);
+  if(graph->rt.dset_layout)      vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
   memset(&graph->rt, 0, sizeof(graph->rt));
 }
 
@@ -80,9 +82,9 @@ dt_raytrace_graph_cleanup(
 } while(0)
 
 #define CREATE_SCRATCH_BUF_R(SZ, BUF) CREATE_BUF_R(scratch, SZ, BUF,\
-    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_2_TRANSFER_DST_BIT)
 #define CREATE_STAGING_BUF_R(SZ, BUF) CREATE_BUF_R(staging, SZ, BUF,\
-    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_2_TRANSFER_DST_BIT | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT)
 #define CREATE_ACCEL_BUF_R(SZ, BUF) CREATE_BUF_R(accel, SZ, BUF,\
     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR)
 
@@ -203,7 +205,7 @@ dt_raytrace_graph_init(
     .stageFlags      = VK_SHADER_STAGE_ALL,
   },{
     .binding         = 1,
-    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
     .descriptorCount = graph->rt.nid_cnt,
     .stageFlags      = VK_SHADER_STAGE_ALL,
   }};
@@ -216,6 +218,12 @@ dt_raytrace_graph_init(
   if(graph->rt.dset_layout) vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
   QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->rt.dset_layout));
 
+  size_t uniform_alignment = 64;
+  graph->uniform_size = uniform_alignment*((graph->uniform_size + uniform_alignment-1)/uniform_alignment);
+  graph->rt.bref_offset = graph->uniform_size;
+  graph->uniform_size += sizeof(uint64_t); // reference to buffer holding all the geo buffer references
+  graph->uniform_size = uniform_alignment*((graph->uniform_size + uniform_alignment-1)/uniform_alignment);
+  graph->rt.bref_size = graph->uniform_size - graph->rt.bref_offset;
   for(int i=0;i<graph->rt.nid_cnt;i++)
     dt_raytrace_node_init(graph, graph->node + graph->rt.nid[i]);
   return VK_SUCCESS;
@@ -255,12 +263,14 @@ dt_raytrace_graph_alloc(
       &graph->rt.build_info, &graph->rt.nid_cnt, &accel_size);
 
   CREATE_SCRATCH_BUF_R(accel_size.buildScratchSize, graph->rt.buf_scratch);
+  CREATE_SCRATCH_BUF_R(sizeof(uint64_t)*graph->rt.nid_cnt, graph->rt.buf_bref);
   ALLOC_MEM_R(scratch, device, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR);
 
   // bind scratch buffers to the allocation
   QVKR(vkBindBufferMemory(qvk.device, graph->rt.buf_scratch, graph->rt.vkmem_scratch, graph->rt.buf_scratch_offset));
   for(int i=0;i<graph->rt.nid_cnt;i++)
     QVKR(vkBindBufferMemory(qvk.device, graph->node[graph->rt.nid[i]].rt.buf_scratch, graph->rt.vkmem_scratch, graph->node[graph->rt.nid[i]].rt.buf_scratch_offset));
+  QVKR(vkBindBufferMemory(qvk.device, graph->rt.buf_bref, graph->rt.vkmem_scratch, graph->rt.buf_bref_offset));
 
   // create acceleration structure buffer
   CREATE_ACCEL_BUF_R(accel_size.accelerationStructureSize, graph->rt.buf_accel);
@@ -286,9 +296,12 @@ dt_raytrace_graph_alloc(
 
   // create staging buffer for graph, allocate staging memory, bind graph + node staging:
   CREATE_STAGING_BUF_R(graph->rt.nid_cnt * sizeof(VkAccelerationStructureInstanceKHR), graph->rt.buf_staging);
+  CREATE_STAGING_BUF_R(graph->rt.nid_cnt * sizeof(uint64_t), graph->rt.buf_staging_bref);
   ALLOC_MEM_R(staging, staging, VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR);
   // bind staging buffers to the allocation
   QVKR(vkBindBufferMemory(qvk.device, graph->rt.buf_staging, graph->rt.vkmem_staging, graph->rt.buf_staging_offset));
+  QVKR(vkBindBufferMemory(qvk.device, graph->rt.buf_staging_bref, graph->rt.vkmem_staging, graph->rt.buf_staging_bref_offset));
+
 
   uint8_t *mapped_staging = 0;
   QVKR(vkMapMemory(qvk.device, graph->rt.vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void **)&mapped_staging));
@@ -314,6 +327,15 @@ dt_raytrace_graph_alloc(
       .accelerationStructureReference = qvkGetAccelerationStructureDeviceAddressKHR(qvk.device, &address_request),
     };
   }
+  for(int i=0;i<graph->rt.nid_cnt;i++)
+  { // write buffer references to staging memory
+    VkBufferDeviceAddressInfo address_info = {
+      .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+      .buffer = dt_graph_connector_image(graph, graph->rt.nid[i], 0, 0, 0)->buffer,
+    };
+    uint64_t *map = (uint64_t*)(mapped_staging + graph->rt.buf_staging_bref_offset);
+    map[i] = vkGetBufferDeviceAddress(qvk.device, &address_info);
+  }
   vkUnmapMemory(qvk.device, graph->rt.vkmem_staging);
 
   // allocate descriptor sets and point to our new accel struct
@@ -330,21 +352,28 @@ dt_raytrace_graph_alloc(
     .accelerationStructureCount = 1,
     .pAccelerationStructures    = &graph->rt.accel,
   };
-  VkDescriptorBufferInfo *bvtx0 = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt.nid_cnt);
-  VkDescriptorBufferInfo *bvtx1 = alloca(sizeof(VkDescriptorBufferInfo)*graph->rt.nid_cnt);
-  for(int i=0;i<graph->rt.nid_cnt;i++)
-  {
-    bvtx0[i] = (VkDescriptorBufferInfo){
-      .offset = 0,
-      .buffer = dt_graph_connector_image(graph, graph->rt.nid[i], 0, 0, 0)->buffer,
-      .range  = VK_WHOLE_SIZE,
+
+  uint64_t *map = 0;
+  QVKR(vkMapMemory(qvk.device, graph->vkmem_uniform, 0, VK_WHOLE_SIZE, 0, (void**)&map));
+  for(int f=0;f<2;f++)
+  { // write buffer reference to ubo
+    VkBufferDeviceAddressInfo address_info = {
+      .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+      .buffer = graph->rt.buf_bref,
     };
-    bvtx1[i] = (VkDescriptorBufferInfo){
-      .offset = 0,
-      .buffer = dt_graph_connector_image(graph, graph->rt.nid[i], 0, 0, 1)->buffer,
-      .range  = VK_WHOLE_SIZE,
-    };
+    int idx = (f*graph->uniform_size + graph->rt.bref_offset)/sizeof(uint64_t);
+    map[idx] = vkGetBufferDeviceAddress(qvk.device, &address_info);
   }
+  vkUnmapMemory(qvk.device, graph->vkmem_uniform);
+  VkDescriptorBufferInfo uniform_info[] = {{
+    .buffer      = graph->uniform_buffer,
+    .offset      = graph->rt.bref_offset,
+    .range       = graph->rt.bref_size,
+  },{
+    .buffer      = graph->uniform_buffer,
+    .offset      = graph->uniform_size + graph->rt.bref_offset,
+    .range       = graph->rt.bref_size,
+  }};
   VkWriteDescriptorSet dset_write[] = {{
     .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
     .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
@@ -354,11 +383,11 @@ dt_raytrace_graph_alloc(
     .pNext           = &acceleration_structure_info
   },{
     .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-    .descriptorCount = graph->rt.nid_cnt,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .pBufferInfo     = uniform_info+0,
+    .descriptorCount = 1,
     .dstSet          = graph->rt.dset[0],
     .dstBinding      = 1,
-    .pBufferInfo     = bvtx0,
   },{
     .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
     .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
@@ -368,11 +397,11 @@ dt_raytrace_graph_alloc(
     .pNext           = &acceleration_structure_info
   },{
     .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-    .descriptorCount = graph->rt.nid_cnt,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .pBufferInfo     = uniform_info+1,
+    .descriptorCount = 1,
     .dstSet          = graph->rt.dset[1],
     .dstBinding      = 1,
-    .pBufferInfo     = bvtx1,
   }};
   vkUpdateDescriptorSets(qvk.device, 4, dset_write, 0, NULL);
   return VK_SUCCESS;
@@ -490,5 +519,19 @@ dt_raytrace_record_command_buffer_accel_build(
       VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
       VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
       0, 1, &barrier, 0, NULL, 0, NULL);
+
+  // copy buffer references from staging -> final destination
+  VkCommandBuffer cmd_buf = graph->command_buffer[graph->double_buffer];
+  VkBufferCopy bufreg = {
+    .srcOffset = 0,
+    .dstOffset = 0,
+    .size      = graph->rt.nid_cnt * sizeof(uint64_t),
+  };
+  vkCmdCopyBuffer(
+      cmd_buf,
+      graph->rt.buf_staging_bref,
+      graph->rt.buf_bref,
+      1, &bufreg);
+  BARRIER_COMPUTE_BUFFER(graph->rt.buf_bref);
   return VK_SUCCESS;
 }

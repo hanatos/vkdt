@@ -1,7 +1,6 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
-
 #include "shared.glsl"
 #include "config.h"
 
@@ -20,21 +19,10 @@ layout(push_constant, std140) uniform push_t
   uint it;
 } push;
 
-layout( // distance buffers
-    set = 1, binding = 0
-) uniform sampler2D img_dist[];
-
-layout( // coarse offset buffer
-    set = 1, binding = 1
-) uniform sampler2D img_coff;
-
-layout( // merged offset buffer
-    set = 1, binding = 2
-) uniform writeonly image2D img_out;
-
-layout( // residual distance
-    set = 1, binding = 3
-) uniform writeonly image2D img_resid;
+layout(set = 1, binding = 0) uniform sampler2D img_dist[];
+layout(set = 1, binding = 1) uniform sampler2D img_coff;
+layout(set = 1, binding = 2) uniform writeonly image2D img_out;
+layout(set = 1, binding = 3) uniform writeonly image2D img_resid;
 
 float dot9(float a[9], float b[9])
 {
@@ -43,10 +31,8 @@ float dot9(float a[9], float b[9])
          a[6]*b[6] + a[7]*b[7] + a[8]*b[8];
 }
 
-// merge offset buffers: pick one with smaller distance
-void
-main()
-{
+void main()
+{ // merge offset buffers: pick one with smaller distance
   ivec2 ipos = ivec2(gl_GlobalInvocationID.xy);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
@@ -166,4 +152,3 @@ main()
   res1.z = res1.z/(1.0+res1.z); // fade out smoothly
   imageStore(img_resid, ipos, vec4(res1.z));
 }
-
