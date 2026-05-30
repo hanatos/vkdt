@@ -1,4 +1,5 @@
 // common functions with precomputed coefficients for rec2020 gamut
+#include "colourspaces.glsl"
 
 const float FLT_MAX = 3.402823466e+38;
 

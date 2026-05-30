@@ -312,7 +312,7 @@ void main()
     #ifdef HAVE_NO_ATOMICS
       uintBitsToFloat(texelFetch(img_pick, ivec2(i, 0), 0).r),
       uintBitsToFloat(texelFetch(img_pick, ivec2(i, 1), 0).r),
-      uintBitsToFloat(texelFetch(img_pick, ivec2(i, 2), 0).r)
+      uintBitsToFloat(texelFetch(img_pick, ivec2(i, 2), 0).r),
     #else
       texelFetch(img_pick, ivec2(i, 0), 0).r,
       texelFetch(img_pick, ivec2(i, 1), 0).r,

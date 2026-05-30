@@ -1,4 +1,4 @@
-#include "shared.glsl"
+#include "colourspaces.glsl"
 
 const float FLT_MAX = 3.402823466e+38;
 
