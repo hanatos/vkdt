@@ -120,6 +120,20 @@ init_display_flags(dt_graph_t *graph, dt_module_t *module)
       int extra_flag = s_conn_double_buffer;
       if(qvk.blit_supported && module->inst == dt_token("main"))
         extra_flag |= s_conn_mipmap;
+      // mark output connector feeding this display for concurrent queue sharing when:
+      // - a gui is attached (i.e. this is a live darkroom session, not batch export)
+      // - the hardware has a dedicated async compute queue family
+      // - no rasterisation nodes are present (draw/overlay use the graphics queue and
+      //   cannot be submitted on a pure compute queue)
+      if(graph->gui_attached &&
+         qvk.queue_family_compute != qvk.queue_family_graphics)
+      {
+        int has_graphics_node = 0;
+        for(int n=0;n<graph->num_nodes;n++)
+          if(graph->node[n].type == s_node_graphics) { has_graphics_node = 1; break; }
+        if(!has_graphics_node)
+          extra_flag |= s_conn_concurrent;
+      }
       c->flags |= extra_flag;
 
       // find node corresponding to our display module

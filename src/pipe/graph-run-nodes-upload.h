@@ -33,17 +33,11 @@ dt_graph_run_nodes_upload(
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
   };
 
-  if(!graph->vkmem_staging_size) return VK_SUCCESS; // this graph doesn't even have staging memory
-
-  threads_mutex_t *mutex = 0;// graph->io_mutex; // no speed impact, maybe not needed
-  if(mutex) threads_mutex_lock(mutex);
   if( dynamic_array ||
      (module_flags & s_module_request_read_source) ||
      (run & s_graph_run_upload_source))
   {
     double upload_beg = dt_time();
-    uint8_t *mapped = 0;
-    QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
     for(int ni=0;ni<cnt;ni++)
     { // for all source nodes on the active graph:
       int n = nodeid[ni];
@@ -78,13 +72,18 @@ dt_graph_run_nodes_upload(
               }
               dt_read_source_params_t p = { .node = node, .c = c, .a = a };
               size_t offset = node->connector[c].offset_staging[graph->double_buffer];
+              uint8_t *mapped = 0;
+              QVKR(vkMapMemory(qvk.device, graph->vkmem[node->connector[c].mem_type_staging], 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
               node->module->so->read_source(node->module, mapped + offset, &p);
               if(node->connector[c].array_length > 1)
               {
                 dt_connector_image_t *img = dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer);
-                if(!img) continue;
+                if(!img) {
+                  vkUnmapMemory(qvk.device, graph->vkmem[node->connector[c].mem_type_staging]);
+                  continue;
+                }
                 // fprintf(stderr, "upload %d[%d] off %lx size %lx\n", a, graph->double_buffer, img->offset, img->size);
-                vkUnmapMemory(qvk.device, graph->vkmem_staging);
+                vkUnmapMemory(qvk.device, graph->vkmem[node->connector[c].mem_type_staging]);
                 const uint32_t wd = MAX(1, node->connector[c].array_dim ? node->connector[c].array_dim[2*a+0] : node->connector[c].roi.wd);
                 const uint32_t ht = MAX(1, node->connector[c].array_dim ? node->connector[c].array_dim[2*a+1] : node->connector[c].roi.ht);
                 VkBufferImageCopy regions[] = {{
@@ -138,7 +137,8 @@ dt_graph_run_nodes_upload(
                 };
                 // wait inline on our semaphore because we share the staging buf
                 QVKR(vkWaitSemaphores(qvk.device, &wait_info, UINT64_MAX));
-                QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
+              } else {
+                vkUnmapMemory(qvk.device, graph->vkmem[node->connector[c].mem_type_staging]);
               }
             }
           }
@@ -148,10 +148,8 @@ dt_graph_run_nodes_upload(
               dt_token_str(node->name));
       }
     }
-    vkUnmapMemory(qvk.device, graph->vkmem_staging);
     double upload_end = dt_time();
     dt_log(s_log_perf, "upload source total:\t%8.3f ms", 1000.0*(upload_end-upload_beg));
   }
-  if(mutex) threads_mutex_unlock(mutex);
   return VK_SUCCESS;
 }

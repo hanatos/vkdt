@@ -101,6 +101,8 @@ typedef struct qvk_t
   VkDevice                    device;
   int                         qid[s_queue_cnt];   // map queue names to actual indices in the queue array (they may be the same)
   qvk_queue_t                 queue[s_queue_cnt];
+  uint32_t                    queue_family_graphics;
+  uint32_t                    queue_family_compute;
 
   VkSampler                   tex_sampler;
   VkSampler                   tex_sampler_dspy;
@@ -125,6 +127,8 @@ typedef struct qvk_t
   uint64_t                    uniform_alignment;
   uint64_t                    raytracing_acc_min_align;
   uint64_t                    max_allocation_size;
+  uint32_t                    subgroup_size;
+  VkSubgroupFeatureFlags      subgroup_ops;
 
   uint32_t                    vendorID;
   char                        device_name[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
@@ -132,6 +136,7 @@ typedef struct qvk_t
   int                         raytracing_supported;
   int                         float_atomics_supported;
   int                         coopmat_supported;
+  int                         subgroup_size_control_supported;
   int                         blit_supported;
   int                         hdr_supported;
 }
@@ -143,9 +148,11 @@ VKDT_API extern qvk_t qvk;
 
 #ifdef QVK_ENABLE_VALIDATION
 #define _VK_EXTENSION_LIST \
-  _VK_EXTENSION_DO(vkDebugMarkerSetObjectNameEXT)
+  _VK_EXTENSION_DO(vkDebugMarkerSetObjectNameEXT) \
+  _VK_EXTENSION_DO(vkCmdPushDescriptorSetKHR)
 #else
-#define _VK_EXTENSION_LIST
+#define _VK_EXTENSION_LIST \
+  _VK_EXTENSION_DO(vkCmdPushDescriptorSetKHR)
 #endif
 
 #define _VK_EXTENSION_DO(a) extern PFN_##a q##a;

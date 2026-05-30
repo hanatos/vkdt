@@ -15,9 +15,11 @@ typedef struct dt_connector_image_t
   uint32_t             wd, ht;         // if non zero, these are the varying dimensions of image arrays
   uint32_t             mip_levels;     // number of mip map levels, if any (mostly zero)
   int                  nid_last_ref;   // nodeid in topological sort that uses this buffer last (can be freed/aliased after this)
+  uint32_t             mem_type;       // the memory type index used for this allocation
   dt_vkmem_t          *mem;            // used for alloc/free during graph traversal
   VkImage              image;          // vulkan image object
   VkImageView          image_view;
+  VkImageView          mipmap_views[14];
   VkImageLayout        layout;
   VkBuffer             buffer;         // in case this is a storage buffer
 }
@@ -78,9 +80,22 @@ typedef struct dt_graph_t
   VkDeviceMemory        vkmem_1;
   VkDeviceMemory        vkmem_staging;
   VkDeviceMemory        vkmem_protected;
+
+  VkPipeline                  mipmap_pipeline;
+  VkPipelineLayout            mipmap_pipeline_layout;
+  VkDescriptorSetLayout       mipmap_dset_layout;
+  VkPipeline                  mipmap_down_pipeline;
+  VkPipelineLayout            mipmap_down_pipeline_layout;
+  VkDescriptorSetLayout       mipmap_down_dset_layout;
+  VkDescriptorSetLayout       mipmap_empty_dset_layout;
+  int                         mipmap_use_down;
+
   VkDescriptorPool      dset_pool;
-  VkCommandBuffer       command_buffer[2];   // two per graph, to interleave cpu load, uploads and gpu compute
+  VkCommandBuffer       command_buffer[2];     // compute-queue command buffers (or graphics-queue when no separate compute family)
   VkCommandPool         command_pool;
+  VkCommandBuffer       command_buffer_gfx[2]; // graphics-queue fallback when s_node_graphics nodes are present
+  VkCommandPool         command_pool_gfx;
+  int                   use_graphics_queue;    // set each run: 1 when s_node_graphics nodes exist and a separate compute family is in use
   VkSemaphore           semaphore_display;   // timeline semaphore to keep track of commands that use the backbuffer images
   uint64_t              display_dbuffer[2];  // indicate the largest display timeline position currently reading double buffer 0 or 1
   VkSemaphore           semaphore_process;   // timeline semaphore indicating that graph processing/double buffer write access is done
@@ -142,7 +157,23 @@ typedef struct dt_graph_t
 }
 dt_graph_t;
 
+void dt_graph_generate_mipmaps(
+    dt_graph_t           *graph,
+    int                   rwd,
+    int                   rht,
+    dt_connector_image_t *img);
+
 void dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname); // init
+
+// return the command buffer to record into for the current run.
+// uses the graphics-family fallback when s_node_graphics nodes are present.
+static inline VkCommandBuffer
+dt_graph_cmd_buf(const dt_graph_t *g)
+{
+  return g->use_graphics_queue
+    ? g->command_buffer_gfx[g->double_buffer]
+    : g->command_buffer    [g->double_buffer];
+}
 void dt_graph_cleanup(dt_graph_t *g);                      // cleanup, free memory
 void dt_graph_repurpose(dt_graph_t *g);                    // reset logical state, keep Vulkan objects
 
