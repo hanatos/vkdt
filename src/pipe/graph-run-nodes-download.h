@@ -19,11 +19,11 @@ dt_graph_run_nodes_download(
            (run & s_graph_run_download_sink)))
         {
           uint8_t *mapped = 0;
-          QVKR(vkMapMemory(qvk.device, graph->vkmem[node->connector[0].mem_type_staging], 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
+          QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
           dt_write_sink_params_t p = { .node = node, .c = 0, .a = 0 };
           node->module->so->write_sink(node->module,
               mapped + node->connector[0].offset_staging[graph->double_buffer], &p);
-          vkUnmapMemory(qvk.device, graph->vkmem[node->connector[0].mem_type_staging]);
+          vkUnmapMemory(qvk.device, graph->vkmem_staging);
         }
       }
     }

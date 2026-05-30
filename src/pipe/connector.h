@@ -136,7 +136,6 @@ typedef struct dt_connector_t
   // and the offset and size are still valid for successive runs through the
   // pipeline once it has been setup.
   dt_vkmem_t *mem_staging;
-  uint32_t    mem_type_staging;
 
   // connectors can hold arrays of images, to facilitate more parallel
   // processing for similar compute on small buffers.

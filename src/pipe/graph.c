@@ -27,7 +27,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "gui/gui.h"
 
 static VkResult dt_graph_init_mipmap(dt_graph_t *g);
 static void dt_graph_cleanup_mipmap(dt_graph_t *g);
@@ -148,8 +147,8 @@ graph_destroy_per_image_resources(dt_graph_t *g)
   {
     if(g->conn_image_pool[i].buffer)     vkDestroyBuffer   (qvk.device, g->conn_image_pool[i].buffer,     VK_NULL_HANDLE);
     if(g->conn_image_pool[i].image_view) vkDestroyImageView(qvk.device, g->conn_image_pool[i].image_view, VK_NULL_HANDLE);
-    for(int m=0;m<14;m++) if(g->conn_image_pool[i].mipmap_views[m]) vkDestroyImageView(qvk.device, g->conn_image_pool[i].mipmap_views[m], VK_NULL_HANDLE);
     if(g->conn_image_pool[i].image)      vkDestroyImage    (qvk.device, g->conn_image_pool[i].image,      VK_NULL_HANDLE);
+    for(int m=0;m<14;m++) if(g->conn_image_pool[i].mipmap_views[m]) vkDestroyImageView(qvk.device, g->conn_image_pool[i].mipmap_views[m], VK_NULL_HANDLE);
     g->conn_image_pool[i] = (dt_connector_image_t){0};
   }
   for(int i=0;i<g->num_nodes;i++)
@@ -358,7 +357,6 @@ dt_graph_generate_mipmaps(
     int                   rht,
     dt_connector_image_t *img)
 {
-  if(img->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) return;
   VkCommandBuffer cmd_buf = dt_graph_cmd_buf(graph);
   VkImageMemoryBarrier barrier = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -388,6 +386,7 @@ dt_graph_generate_mipmaps(
   barrier.subresourceRange.levelCount = 1;
   int input_wd = wd;
   int input_ht = ht;
+
   for (uint32_t i = 1; i < img->mip_levels; )
   {
     if(graph->mipmap_use_down && (i + 2) < img->mip_levels &&
@@ -533,7 +532,7 @@ dt_graph_generate_mipmaps(
   barrier.subresourceRange.levelCount = img->mip_levels;
   barrier.subresourceRange.baseMipLevel = 0;
   barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
   barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
   barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
@@ -542,7 +541,7 @@ dt_graph_generate_mipmaps(
       0, NULL,
       0, NULL,
       1, &barrier);
-  img->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  img->layout = VK_IMAGE_LAYOUT_GENERAL;
 }
 
 static VkResult dt_graph_init_mipmap(dt_graph_t *g)

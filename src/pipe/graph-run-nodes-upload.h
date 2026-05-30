@@ -73,17 +73,17 @@ dt_graph_run_nodes_upload(
               dt_read_source_params_t p = { .node = node, .c = c, .a = a };
               size_t offset = node->connector[c].offset_staging[graph->double_buffer];
               uint8_t *mapped = 0;
-              QVKR(vkMapMemory(qvk.device, graph->vkmem[node->connector[c].mem_type_staging], 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
+              QVKR(vkMapMemory(qvk.device, graph->vkmem_staging, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
               node->module->so->read_source(node->module, mapped + offset, &p);
               if(node->connector[c].array_length > 1)
               {
                 dt_connector_image_t *img = dt_graph_connector_image(graph, node-graph->node, c, a, graph->double_buffer);
                 if(!img) {
-                  vkUnmapMemory(qvk.device, graph->vkmem[node->connector[c].mem_type_staging]);
+                  vkUnmapMemory(qvk.device, graph->vkmem_staging);
                   continue;
                 }
                 // fprintf(stderr, "upload %d[%d] off %lx size %lx\n", a, graph->double_buffer, img->offset, img->size);
-                vkUnmapMemory(qvk.device, graph->vkmem[node->connector[c].mem_type_staging]);
+                vkUnmapMemory(qvk.device, graph->vkmem_staging);
                 const uint32_t wd = MAX(1, node->connector[c].array_dim ? node->connector[c].array_dim[2*a+0] : node->connector[c].roi.wd);
                 const uint32_t ht = MAX(1, node->connector[c].array_dim ? node->connector[c].array_dim[2*a+1] : node->connector[c].roi.ht);
                 VkBufferImageCopy regions[] = {{
@@ -138,7 +138,7 @@ dt_graph_run_nodes_upload(
                 // wait inline on our semaphore because we share the staging buf
                 QVKR(vkWaitSemaphores(qvk.device, &wait_info, UINT64_MAX));
               } else {
-                vkUnmapMemory(qvk.device, graph->vkmem[node->connector[c].mem_type_staging]);
+                vkUnmapMemory(qvk.device, graph->vkmem_staging);
               }
             }
           }

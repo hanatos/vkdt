@@ -15,7 +15,6 @@ typedef struct dt_connector_image_t
   uint32_t             wd, ht;         // if non zero, these are the varying dimensions of image arrays
   uint32_t             mip_levels;     // number of mip map levels, if any (mostly zero)
   int                  nid_last_ref;   // nodeid in topological sort that uses this buffer last (can be freed/aliased after this)
-  uint32_t             mem_type;       // the memory type index used for this allocation
   dt_vkmem_t          *mem;            // used for alloc/free during graph traversal
   VkImage              image;          // vulkan image object
   VkImageView          image_view;
@@ -138,7 +137,6 @@ typedef struct dt_graph_t
 
   // scale output resolution to fit and copy the main display to the given buffer:
   VkImage               thumbnail_image;
-  void                 *io_mutex;      // if this is set to != 0 will be locked during read_source() calls
 
   int                   gui_attached;  // can't free the output images while still used etc.
   const char           *gui_msg;       // will result in a dt_gui_notification call if not zero
