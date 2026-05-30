@@ -131,31 +131,32 @@ vec3 add_grain(ivec2 ipos, vec3 density, float scale)
   vec3 acc0 = vec3(0.0), acc1 = vec3(0.0), acc2 = vec3(0.0);
   vec3 wsq0 = vec3(0.0), wsq1 = vec3(0.0), wsq2 = vec3(0.0);
 
+  vec3 inv_2sq_0_l2e = inv_2sq_0 * 1.44269504;
+  vec3 inv_2sq_1_l2e = inv_2sq_1 * 1.44269504;
+  vec3 inv_2sq_2_l2e = inv_2sq_2 * 1.44269504;
+
+  [[loop]]
   for (int y = -1; y <= 2; y++) {
+    float dy = float(y) - f.y;
+    float dy2 = dy * dy;
+    [[loop]]
     for (int x = -1; x <= 2; x++) {
-      vec2 offset = vec2(float(x), float(y));
-      vec2 hash_pos = p + offset;
-      
-      // Independent white noise for each layer
+      float dx = float(x) - f.x;
+      float dist_sq = dx * dx + dy2;
+      float window = max(0.0, 1.0 - dist_sq * 0.125);
+      if (window <= 0.0) continue;
+
+      vec2 hash_pos = p + vec2(float(x), float(y));
       vec3 n0 = hash32(hash_pos) * 2.0 - 1.0;
       vec3 n1 = hash32(hash_pos + 13.37) * 2.0 - 1.0;
       vec3 n2 = hash32(hash_pos + 42.0) * 2.0 - 1.0;
 
-      vec2 d = offset - f;
-      float dist_sq = dot(d, d);
-      float window = max(0.0, 1.0 - dist_sq * 0.125); // smoothly zero at dist^2 = 8
+      vec3 w0 = exp2(-dist_sq * inv_2sq_0_l2e) * window;
+      vec3 w1 = exp2(-dist_sq * inv_2sq_1_l2e) * window;
+      vec3 w2 = exp2(-dist_sq * inv_2sq_2_l2e) * window;
 
-      vec3 w0 = exp(-dist_sq * inv_2sq_0) * window;
-      vec3 w1 = exp(-dist_sq * inv_2sq_1) * window;
-      vec3 w2 = exp(-dist_sq * inv_2sq_2) * window;
-
-      acc0 += n0 * w0;
-      acc1 += n1 * w1;
-      acc2 += n2 * w2;
-
-      wsq0 += w0 * w0;
-      wsq1 += w1 * w1;
-      wsq2 += w2 * w2;
+      acc0 += n0 * w0; acc1 += n1 * w1; acc2 += n2 * w2;
+      wsq0 += w0 * w0; wsq1 += w1 * w1; wsq2 += w2 * w2;
     }
   }
 
@@ -479,7 +480,7 @@ develop_film(vec3 log_raw, int film, ivec2 ipos, float scale)
       texture(img_filmsim, vec2(tcx.b, tc.y)).b);
   density_cmy = mix(density_cmy, vec3(0.0), isnan(density_cmy));
 
-  if(scale < 10.0 && params.grain > 0) density_cmy = add_grain(ipos, density_cmy, scale);
+  [[branch]] if(scale < 10.0 && params.grain > 0) density_cmy = add_grain(ipos, density_cmy, scale);
   return density_cmy;
 }
 
