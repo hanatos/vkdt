@@ -221,6 +221,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
 
   qvk.raytracing_supported = 0;
   qvk.subgroup_size_control_supported = 0;
+  qvk.shader64bit_indexing_supported = 0;
+  qvk.unified_image_layouts_supported = 0;
   int picked_device = -1;
   for(int i = 0; i < num_devices; i++)
   {
@@ -253,6 +255,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       qvk.float_atomics_supported = 0;
       qvk.coopmat_supported = 0;
       qvk.subgroup_size_control_supported = 0;
+      qvk.shader64bit_indexing_supported = 0;
+      qvk.unified_image_layouts_supported = 0;
       for(int k=0;k<num_ext;k++)
       {
         if (!strcmp(ext_properties[k].extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME))
@@ -263,6 +267,10 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
           qvk.coopmat_supported = 1;
         else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME))
           qvk.subgroup_size_control_supported = 1;
+        else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SHADER_64BIT_INDEXING_EXTENSION_NAME))
+          qvk.shader64bit_indexing_supported = 1;
+        else if (!strcmp(ext_properties[k].extensionName, VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME))
+          qvk.unified_image_layouts_supported = 1;
       }
       picked_device = i;
       if(preferred_device_name)
@@ -420,14 +428,14 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   };
   VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR layouts = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFIED_IMAGE_LAYOUTS_FEATURES_KHR,
-    .pNext = &devsize,
+    .pNext = qvk.shader64bit_indexing_supported ? (void*)&devsize : devsize.pNext,
     .unifiedImageLayouts = VK_TRUE,
     .unifiedImageLayoutsVideo = VK_TRUE,
   };
   VkPhysicalDeviceFeatures2 device_features = {
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
     .features = dev_features,
-    .pNext    = &layouts,
+    .pNext    = qvk.unified_image_layouts_supported ? (void*)&layouts : layouts.pNext,
   };
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
   // now find out whether we *really* support 32-bit floating point atomic adds:
@@ -448,23 +456,23 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       qvk.float_atomics_supported ? "with" : "without",
       qvk.coopmat_supported       ? "with" : "without");
 
-  const char *requested_device_extensions[30] = {
-    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,   // intel doesn't have it pre 2015 (hd 520)
-    VK_EXT_SHADER_64BIT_INDEXING_EXTENSION_NAME, // 64 bit ssbo addresses
-    VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME, // general image layouts
-    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME, // intel doesn't have it pre 2015 (hd 520)
-    VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
-    // ray tracing
-    VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
-    VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
-    VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
-    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
-    VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-    VK_KHR_RAY_QUERY_EXTENSION_NAME,
-    // VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME, // to bring intel + amd in line with our 32-wide code..
-    // end of ray tracing
-  };
-  int len = (qvk.raytracing_supported ? 11 : 5);
+  const char *requested_device_extensions[30];
+  int len = 0;
+  requested_device_extensions[len++] = VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME;   // intel doesn't have it pre 2015 (hd 520)
+  if(qvk.shader64bit_indexing_supported)
+    requested_device_extensions[len++] = VK_EXT_SHADER_64BIT_INDEXING_EXTENSION_NAME; // 64 bit ssbo addresses
+  if(qvk.unified_image_layouts_supported)
+    requested_device_extensions[len++] = VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME; // general image layouts
+  requested_device_extensions[len++] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
+  if(qvk.raytracing_supported)
+  {
+    requested_device_extensions[len++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
+    requested_device_extensions[len++] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
+    requested_device_extensions[len++] = VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME;
+    requested_device_extensions[len++] = VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME;
+    requested_device_extensions[len++] = VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME;
+    requested_device_extensions[len++] = VK_KHR_RAY_QUERY_EXTENSION_NAME;
+  }
   if(qvk.float_atomics_supported) requested_device_extensions[len++] = VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME;
   if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME;
   if(qvk.subgroup_size_control_supported) requested_device_extensions[len++] = VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;

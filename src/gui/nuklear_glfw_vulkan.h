@@ -520,7 +520,7 @@ nk_glfw3_create_pipeline(struct nk_glfw_device *dev)
     };
     VkGraphicsPipelineCreateInfo pipeline_info = {
       .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-      .pNext = &pipeline2_info,
+      .pNext = qvk.shader64bit_indexing_supported ? (void*)&pipeline2_info : 0,
       .flags = 0,
       .stageCount = 2,
       .pStages = shader_stages,

@@ -137,6 +137,8 @@ typedef struct qvk_t
   int                         float_atomics_supported;
   int                         coopmat_supported;
   int                         subgroup_size_control_supported;
+  int                         shader64bit_indexing_supported;
+  int                         unified_image_layouts_supported;
   int                         blit_supported;
   int                         hdr_supported;
 }
