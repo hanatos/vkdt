@@ -162,9 +162,9 @@ vec3 add_grain(ivec2 ipos, vec3 density, float scale)
 
   // Multiply by sqrt(3.0) (~1.732) to map uniform noise [-1, 1] variance to 1.0
   // Then divide by sqrt(sum(w^2)) to mathematically preserve standard deviation through the blur
-  vec3 blur_n0 = acc0 * 1.73205 / sqrt(max(wsq0, 1e-6));
-  vec3 blur_n1 = acc1 * 1.73205 / sqrt(max(wsq1, 1e-6));
-  vec3 blur_n2 = acc2 * 1.73205 / sqrt(max(wsq2, 1e-6));
+  vec3 blur_n0 = acc0 * 1.73205 * inversesqrt(max(wsq0, 1e-6));
+  vec3 blur_n1 = acc1 * 1.73205 * inversesqrt(max(wsq1, 1e-6));
+  vec3 blur_n2 = acc2 * 1.73205 * inversesqrt(max(wsq2, 1e-6));
 
   // Combine layers (each noise field is standard normal N(0,1), so they scale exactly by std_X)
   vec3 final_noise = blur_n0 * std_0 + blur_n1 * std_1 + blur_n2 * std_2;
