@@ -50,63 +50,11 @@ vec3 thorlabs_filters(float w)
   return vec3(cyan, magenta, yellow);
 }
 
-vec3 simplex3_2d(vec2 P)
+vec3 hash32(vec2 p)
 {
-  // Skewing factors for 2D
-  const float F2 = 0.366025403784439;  // 0.5*(sqrt(3.0)-1.0)
-  const float G2 = 0.211324865405187;  // (3.0-sqrt(3.0))/6.0
-  
-  // Skew the input space to determine which simplex cell we're in
-  vec2 s = P + dot(P, vec2(F2));
-  ivec2 i = ivec2(floor(s));
-  vec2 p0 = P - (vec2(i) - dot(vec2(i), vec2(G2)));
-  
-  // Determine simplex offset
-  ivec2 i1 = (p0.x > p0.y) ? ivec2(1, 0) : ivec2(0, 1);
-  
-  // Offsets for middle and last corners
-  vec2 p1 = p0 - vec2(i1) + G2;
-  vec2 p2 = p0 - 1.0 + 2.0 * G2;
-  
-  // Hash function to get 3 random gradients per corner
-  uint kx = 1103515245U;
-  uint ky = 1234567891U;
-  uint m = 2654435769U;
-  
-  // Hashing corners
-  uvec3 cx = uvec3(i.x, i.x + i1.x, i.x + 1) * kx;
-  uvec3 cy = uvec3(i.y, i.y + i1.y, i.y + 1) * ky;
-  uvec3 c = cx ^ cy;
-  
-  // Mix
-  c ^= (c >> 16u); c *= m; c ^= (c >> 15u);
-  
-  uvec3 c_r = c;
-  uvec3 c_g = c * 1664525U + 1013904223U;
-  uvec3 c_b = c_g * 1664525U + 1013904223U;
-  
-  // Helper macro to get vec2 gradients in [-1, 1]
-  #define GA(h) (vec2(uintBitsToFloat((h >> 9u) | 0x3f800000u), uintBitsToFloat(((h << 16u) >> 9u) | 0x3f800000u)) * 2.0 - 3.0)
-  #define NORM(g) (g * inversesqrt(dot(g, g) + 1e-6))
-  
-  vec2 g0_r = NORM(GA(c_r.x)); vec2 g0_g = NORM(GA(c_g.x)); vec2 g0_b = NORM(GA(c_b.x));
-  vec2 g1_r = NORM(GA(c_r.y)); vec2 g1_g = NORM(GA(c_g.y)); vec2 g1_b = NORM(GA(c_b.y));
-  vec2 g2_r = NORM(GA(c_r.z)); vec2 g2_g = NORM(GA(c_g.z)); vec2 g2_b = NORM(GA(c_b.z));
-  
-  #undef NORM
-  #undef GA
-  
-  // Calculate unscaled influence of each corner (using 0.6 to avoid flat zero boundaries)
-  vec3 w = max(0.6 - vec3(dot(p0, p0), dot(p1, p1), dot(p2, p2)), 0.0);
-  vec3 w4 = w * w; w4 *= w4;
-  
-  // Dot products
-  vec3 d_r = vec3(dot(g0_r, p0), dot(g1_r, p1), dot(g2_r, p2));
-  vec3 d_g = vec3(dot(g0_g, p0), dot(g1_g, p1), dot(g2_g, p2));
-  vec3 d_b = vec3(dot(g0_b, p0), dot(g1_b, p1), dot(g2_b, p2));
-  
-  // Final noise (99.0 scales the normalized gradients + 0.6 weight to [-1.0, 1.0])
-  return vec3(dot(w4, d_r), dot(w4, d_g), dot(w4, d_b)) * 99.0;
+  vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
+  p3 += dot(p3, p3.yxz + 33.33);
+  return fract((p3.xxy + p3.yzz) * p3.zyx);
 }
 
 vec3 add_grain(ivec2 ipos, vec3 density, float scale)
@@ -114,26 +62,113 @@ vec3 add_grain(ivec2 ipos, vec3 density, float scale)
   const float density_max = 3.3;
   vec3 np = clamp(density / density_max, 0.0, 1.0);
 
-  vec3 pd0 = clamp(np * 10.0, 0.0, 1.0);
-  vec3 pd1 = clamp(np * 5.0 - 0.5, 0.0, 1.0);
-  vec3 pd2 = clamp(np * 1.42857 - 0.42857, 0.0, 1.0);
+  // Sublayer probability of development (density fractions: Fast 10%, Mid 20%, Slow 70%)
+  vec3 p_dev_0 = clamp(np * 10.0, 0.0, 1.0);
+  vec3 p_dev_1 = clamp(np * 5.0 - 0.5, 0.0, 1.0);
+  vec3 p_dev_2 = clamp(np * 1.42857 - 0.42857, 0.0, 1.0);
 
-  float u = pow(max(0.0, params.grain_uniformity), 0.333333);
-  vec3 var_base = 1.6008 * pd0 * max(1.0 - pd0 * u, 0.0) + 
-                  0.4356 * pd1 * max(1.0 - pd1 * u, 0.0) + 
-                  0.3267 * pd2 * max(1.0 - pd2 * u, 0.0);
-  vec3 amp_ch = sqrt(max(vec3(0.0), var_base * vec3(1.0, 0.8, 3.0)));
-
-  float g2 = params.grain_size * params.grain_size;
-  float k = 0.36 / g2;
-  float amp = 0.04 * g2 / scale;
-
-  vec2 pos = mat2(0.98006, -0.198669, 0.198669, 0.98006) * (vec2(ipos) * scale + (global.hash*1e-6 + global.frame*133.7));
+  // Uniformity mapped to spektrafilm defaults (0.97, 0.97, 0.99)
+  float u_scalar = pow(max(0.0, params.grain_uniformity), 0.333333);
+  vec3 u = clamp(vec3(0.97, 0.97, 0.99) * u_scalar, 0.0, 1.0);
   
-  vec3 noise = simplex3_2d(pos * k) + 0.57 * simplex3_2d(pos * k * 0.61 + 12.3);
-  noise = mix(vec3(noise.g), noise, 0.6) * 0.869;
+  // spektrafilm agx_particle_scale = (0.8, 1.0, 2.0)
+  vec3 ch_scale = vec3(0.8, 1.0, 2.0);
 
-  return max(vec3(0.0), density + amp * amp_ch * noise);
+  // Exact spektrafilm layer variances: Var = p * (1 - p * u)
+  vec3 var_0 = p_dev_0 * max(1.0 - p_dev_0 * u, 0.0);
+  vec3 var_1 = p_dev_1 * max(1.0 - p_dev_1 * u, 0.0);
+  vec3 var_2 = p_dev_2 * max(1.0 - p_dev_2 * u, 0.0);
+
+  // Optical Density of a single particle
+  // od_particle = density_max_total * agx_particle_area_um2 * ch_scale * sl_scale / pixel_area_um2
+  // 3.3 * 0.2 * ch_scale * sl_scale / 100.0 = 0.0066 * ch_scale * sl_scale
+  vec3 od_0 = 0.0066 * ch_scale * 2.5;
+  vec3 od_1 = 0.0066 * ch_scale * 1.0;
+  vec3 od_2 = 0.0066 * ch_scale * 0.5;
+
+  // The true standard deviation in density space is sqrt(od_particle * density_max_fraction * Var)
+  // Spektrafilm fractions: Fast=0.1, Mid=0.2, Slow=0.7
+  // density_max_fraction = 3.3 * fraction
+  vec3 std_0 = sqrt(od_0 * (3.3 * 0.1) * var_0);
+  vec3 std_1 = sqrt(od_1 * (3.3 * 0.2) * var_1);
+  vec3 std_2 = sqrt(od_2 * (3.3 * 0.7) * var_2);
+
+  // Blur Sigma calculations
+  // spektrafilm per-layer dye cloud blur: sigma_layer = blur_dye_clouds_um * sqrt(od_particle)
+  // blur_dye_clouds_um defaults to 1.0
+  vec3 sigma_sq_layer_0 = 1.0 * 1.0 * od_0;
+  vec3 sigma_sq_layer_1 = 1.0 * 1.0 * od_1;
+  vec3 sigma_sq_layer_2 = 1.0 * 1.0 * od_2;
+
+  // Global blur (defaults to 0.65)
+  float global_blur_sq = 0.65 * 0.65;
+
+  // Total variance of the combined Gaussian blurs: sigma_total^2 = sigma_layer^2 + sigma_global^2
+  vec3 sigma_sq_0 = sigma_sq_layer_0 + global_blur_sq;
+  vec3 sigma_sq_1 = sigma_sq_layer_1 + global_blur_sq;
+  vec3 sigma_sq_2 = sigma_sq_layer_2 + global_blur_sq;
+
+  // Inverse variance for spatial Gaussian weights: 1 / (2 * sigma^2)
+  // Multiply by grain_size^2 to allow UI scaling of the blur radius
+  float g_scale_sq = params.grain_size * params.grain_size;
+  // We use coordinate scaling to allow large grain sizes with a constant 4x4 loop.
+  // The noise coordinates are scaled by 1/grain_size, effectively making the "particles" larger.
+  // We cap the scaling at 1.0 to preserve the original 1:1 pixel grain behavior for small sizes.
+  float coord_scale = max(1.0, params.grain_size);
+  float inv_coord_scale = 1.0 / coord_scale;
+
+  vec3 inv_2sq_0 = 1.0 / (2.0 * sigma_sq_0 * g_scale_sq * inv_coord_scale * inv_coord_scale);
+  vec3 inv_2sq_1 = 1.0 / (2.0 * sigma_sq_1 * g_scale_sq * inv_coord_scale * inv_coord_scale);
+  vec3 inv_2sq_2 = 1.0 / (2.0 * sigma_sq_2 * g_scale_sq * inv_coord_scale * inv_coord_scale);
+
+  vec2 seed_offset = vec2(global.hash*1e-6 + fract(float(global.frame)*0.1337)*1000.0);
+  // Scale the noise coordinates. 'scale' is for resolution/downsampling.
+  vec2 pos = mat2(0.98006, -0.198669, 0.198669, 0.98006) * (vec2(ipos) * scale * inv_coord_scale + seed_offset);
+  
+  vec2 p = floor(pos);
+  vec2 f = fract(pos);
+
+  vec3 acc0 = vec3(0.0), acc1 = vec3(0.0), acc2 = vec3(0.0);
+  vec3 wsq0 = vec3(0.0), wsq1 = vec3(0.0), wsq2 = vec3(0.0);
+
+  for (int y = -1; y <= 2; y++) {
+    for (int x = -1; x <= 2; x++) {
+      vec2 offset = vec2(float(x), float(y));
+      vec2 hash_pos = p + offset;
+      
+      // Independent white noise for each layer
+      vec3 n0 = hash32(hash_pos) * 2.0 - 1.0;
+      vec3 n1 = hash32(hash_pos + 13.37) * 2.0 - 1.0;
+      vec3 n2 = hash32(hash_pos + 42.0) * 2.0 - 1.0;
+
+      vec2 d = offset - f;
+      float dist_sq = dot(d, d);
+      float window = max(0.0, 1.0 - dist_sq * 0.125); // smoothly zero at dist^2 = 8
+
+      vec3 w0 = exp(-dist_sq * inv_2sq_0) * window;
+      vec3 w1 = exp(-dist_sq * inv_2sq_1) * window;
+      vec3 w2 = exp(-dist_sq * inv_2sq_2) * window;
+
+      acc0 += n0 * w0;
+      acc1 += n1 * w1;
+      acc2 += n2 * w2;
+
+      wsq0 += w0 * w0;
+      wsq1 += w1 * w1;
+      wsq2 += w2 * w2;
+    }
+  }
+
+  // Multiply by sqrt(3.0) (~1.732) to map uniform noise [-1, 1] variance to 1.0
+  // Then divide by sqrt(sum(w^2)) to mathematically preserve standard deviation through the blur
+  vec3 blur_n0 = acc0 * 1.73205 / sqrt(max(wsq0, 1e-6));
+  vec3 blur_n1 = acc1 * 1.73205 / sqrt(max(wsq1, 1e-6));
+  vec3 blur_n2 = acc2 * 1.73205 / sqrt(max(wsq2, 1e-6));
+
+  // Combine layers (each noise field is standard normal N(0,1), so they scale exactly by std_X)
+  vec3 final_noise = blur_n0 * std_0 + blur_n1 * std_1 + blur_n2 * std_2;
+
+  return max(vec3(0.0), density + final_noise);
 }
 
 const int s_sensitivity = 0;
