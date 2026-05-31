@@ -204,6 +204,8 @@ shared vec4 shared_scan_factor_b[11];
 
 shared mat3 shared_M;
 shared vec3 shared_M_sum;
+shared vec3 shared_preflash;
+shared vec3 shared_pf_acc[64];
 
 void init_expose_film_shared(int film)
 {
@@ -263,17 +265,28 @@ void init_enlarger_shared(int film, int paper)
     neutral = clamp(neutral, vec3(0.0), vec3(1.0));
     
     float illuminant = (0.002 * 1.0) * colour_blackbody(vec4(lambda), 2856.0).x;
-    // pretty coarse manual fit to thorlabs filters:
-    // (lamp filters are transmittances 0..100%)
-    vec3 enlarger = 100.0 * mix(
-      vec3(1.0),
-      thorlabs_filters(lambda),
-      neutral);
-    float print_illuminant = enlarger.x * enlarger.y * enlarger.z * illuminant;
     float base_density = dye_density.w * dye_density_min_factor_film;
     float base_light = exp2(-base_density * 3.32192809489);
-    vec3 factor = sensitivity * print_illuminant * exp2(params.ev_paper) * base_light;
-    // TODO and the same yet again for the preflash
+    float common_light = illuminant * base_light * exp2(params.ev_paper) * 1000000.0;
+
+    // pretty coarse manual fit to thorlabs filters:
+    // (lamp filters are transmittances 0..100%)
+    vec3 enlarger = mix(vec3(1.0), thorlabs_filters(lambda), neutral);
+    float print_illuminant = enlarger.x * enlarger.y * enlarger.z * common_light;
+    vec3 factor = sensitivity * print_illuminant;
+
+    vec3 pf_factor = vec3(0.0);
+    if (params.preflash > 0)
+    {
+      vec3 pf_neutral = vec3(params.filter_c,
+          clamp(params.filter_m, 0, 1) + 0.1*params.tune_m + params.pf_m,
+          clamp(params.filter_y, 0, 1) + 0.1*params.tune_y + params.pf_y);
+      pf_neutral = clamp(pf_neutral, vec3(0.0), vec3(1.0));
+      vec3 pf_enlarger = mix(vec3(1.0), thorlabs_filters(lambda), pf_neutral);
+      float pf_print_illuminant = pf_enlarger.x * pf_enlarger.y * pf_enlarger.z * common_light * exp2(params.pf_ev);
+      pf_factor = sensitivity * pf_print_illuminant;
+    }
+    shared_pf_acc[tid] = pf_factor;
 
     shared_enlarger_dye_r[tid/4][tid%4] = dye_density.x;
     shared_enlarger_dye_g[tid/4][tid%4] = dye_density.y;
@@ -282,6 +295,20 @@ void init_enlarger_shared(int film, int paper)
     shared_enlarger_factor_g[tid/4][tid%4] = factor.g;
     shared_enlarger_factor_b[tid/4][tid%4] = factor.b;
   }
+  else if (tid < 64) shared_pf_acc[tid] = vec3(0.0);
+  barrier();
+  // reduction for preflash
+  if (tid < 32) shared_pf_acc[tid] += shared_pf_acc[tid + 32];
+  barrier();
+  if (tid < 16) shared_pf_acc[tid] += shared_pf_acc[tid + 16];
+  barrier();
+  if (tid < 8)  shared_pf_acc[tid] += shared_pf_acc[tid + 8];
+  barrier();
+  if (tid < 4)  shared_pf_acc[tid] += shared_pf_acc[tid + 4];
+  barrier();
+  if (tid < 2)  shared_pf_acc[tid] += shared_pf_acc[tid + 2];
+  barrier();
+  if (tid < 1)  shared_preflash = (shared_pf_acc[0] + shared_pf_acc[1]);
   barrier();
 }
 
@@ -309,19 +336,45 @@ void init_enlarger_negative_shared(int paper)
     neutral = clamp(neutral, vec3(0.0), vec3(1.0));
     
     float illuminant = (0.002 * 1.0) * colour_blackbody(vec4(lambda), 2856.0).x;
+    float common_light = illuminant * exp2(params.ev_paper) * 1000000.0;
+
     // pretty coarse manual fit to thorlabs filters:
     // (lamp filters are transmittances 0..100%)
-    vec3 enlarger = 100.0 * mix(
-      vec3(1.0),
-      thorlabs_filters(lambda),
-      neutral);
-    float print_illuminant = enlarger.x * enlarger.y * enlarger.z * illuminant;
-    vec3 factor = sensitivity * print_illuminant * exp2(params.ev_paper);
-    // TODO and the same yet again for the preflash
+    vec3 enlarger = mix(vec3(1.0), thorlabs_filters(lambda), neutral);
+    float print_illuminant = enlarger.x * enlarger.y * enlarger.z * common_light;
+    vec3 factor = sensitivity * print_illuminant;
+
+    vec3 pf_factor = vec3(0.0);
+    if (params.preflash > 0)
+    {
+      vec3 pf_neutral = vec3(params.filter_c,
+          clamp(params.filter_m, 0, 1) + 0.1*params.tune_m + params.pf_m,
+          clamp(params.filter_y, 0, 1) + 0.1*params.tune_y + params.pf_y);
+      pf_neutral = clamp(pf_neutral, vec3(0.0), vec3(1.0));
+      vec3 pf_enlarger = mix(vec3(1.0), thorlabs_filters(lambda), pf_neutral);
+      float pf_print_illuminant = pf_enlarger.x * pf_enlarger.y * pf_enlarger.z * common_light * exp2(params.pf_ev);
+      pf_factor = sensitivity * pf_print_illuminant;
+    }
+    shared_pf_acc[tid] = pf_factor;
+
     shared_enlarger_factor_r[tid/4][tid%4] = factor.r;
     shared_enlarger_factor_g[tid/4][tid%4] = factor.g;
     shared_enlarger_factor_b[tid/4][tid%4] = factor.b;
   }
+  else if (tid < 64) shared_pf_acc[tid] = vec3(0.0);
+  barrier();
+  // reduction for preflash
+  if (tid < 32) shared_pf_acc[tid] += shared_pf_acc[tid + 32];
+  barrier();
+  if (tid < 16) shared_pf_acc[tid] += shared_pf_acc[tid + 16];
+  barrier();
+  if (tid < 8)  shared_pf_acc[tid] += shared_pf_acc[tid + 8];
+  barrier();
+  if (tid < 4)  shared_pf_acc[tid] += shared_pf_acc[tid + 4];
+  barrier();
+  if (tid < 2)  shared_pf_acc[tid] += shared_pf_acc[tid + 2];
+  barrier();
+  if (tid < 1)  shared_preflash = (shared_pf_acc[0] + shared_pf_acc[1]);
   barrier();
 }
 
@@ -524,7 +577,7 @@ enlarger_expose_negative_to_paper(vec3 rgb)
     raw.b += transmittance * shared_enlarger_factor_b[10].x;
   }
   const float log2_log10 = 0.30102999566398114;
-  return log2(raw + 1e-10)*log2_log10;
+  return log2(raw + shared_preflash + 1e-10)*log2_log10;
 }
 
 vec3 // returns log raw
@@ -553,7 +606,7 @@ enlarger_expose_film_to_paper(vec3 density_cmy)
     raw.b += light * shared_enlarger_factor_b[10].x;
   }
   const float log2_log10 = 0.30102999566398114;
-  return log2(raw + 1e-10)*log2_log10;
+  return log2(raw + shared_preflash + 1e-10)*log2_log10;
 }
 
 vec3 // return density_cmy

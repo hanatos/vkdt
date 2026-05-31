@@ -35,4 +35,11 @@ scale:slider:0:10.0
 radius:slider:0.00001:0.003
 hal mids:slider:0:1
 pad:hidden
+group:process:101
+---
+preflash:combo:off:on
+group:preflash:1
+pf ev:slider:-10:-3
+pf m:slider:-1:1
+pf y:slider:-1:1
 

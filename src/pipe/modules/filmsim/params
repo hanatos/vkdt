@@ -22,3 +22,7 @@ scale:float:1:0.35
 hal mids:float:1:0.0
 pad:float:2:0
 strength:float:4:0.8:0.05:0.01:0
+preflash:int:1:0
+pf ev:float:1:-10.0
+pf m:float:1:0.0
+pf y:float:1:0.0
