@@ -53,8 +53,8 @@ get_model(dt_module_t *mod)
   if(par_arch == 0)
   {
     if     (qvk.vendorID == 0x10de) par_arch = 2; // nvidia
-    else if(qvk.vendorID == 0x8086) par_arch = 3; // intel
-    else if(qvk.vendorID == 0x1002) par_arch = 4; // amd
+    else if(qvk.vendorID == 0x8086) par_arch = 1; // intel (fallback to generic)
+    else if(qvk.vendorID == 0x1002) par_arch = 1; // amd (fallback to generic)
     else par_arch = 1; // uhm, sorry.
     // 0x1010 - imgtec
     // 0x13b5 - arm
@@ -121,7 +121,7 @@ check_params(
 {
   const int pida = dt_module_get_param(mod->so, dt_token("arch"));
   const int pidv = dt_module_get_param(mod->so, dt_token("variant"));
-  const int vala = CLAMP(dt_module_param_int(mod, pida)[0], 0, 1);
+  const int vala = CLAMP(dt_module_param_int(mod, pida)[0], 0, 2);
   const int valv = CLAMP(dt_module_param_int(mod, pidv)[0], 0, 1);
   if(parid == pida) // arch changed
     if(*(int*)oldval != vala) 

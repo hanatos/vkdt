@@ -52,7 +52,16 @@ qvk_memory_get_uniform()
 uint32_t
 qvk_memory_get_device()
 {
-	for(uint32_t i = 0; i < qvk.mem_properties.memoryTypeCount; i++)
+  if(qvk.vendorID == 0x8086)
+  { // Intel GPUs: return first host-visible device-local memory type to support device address / SSBOs
+    for(uint32_t i = 0; i < qvk.mem_properties.memoryTypeCount; i++)
+    {
+      VkMemoryPropertyFlagBits f = qvk.mem_properties.memoryTypes[i].propertyFlags;
+      int test = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+      if((f & test) == test) return i;
+    }
+  }
+  for(uint32_t i = 0; i < qvk.mem_properties.memoryTypeCount; i++)
   {
     VkMemoryPropertyFlagBits f = qvk.mem_properties.memoryTypes[i].propertyFlags;
     int test  = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;// | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT)
@@ -62,7 +71,7 @@ qvk_memory_get_device()
       VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
     if(((f & test) == test) && ((f & testn) == 0)) return i;
   }
-	return 0;
+  return 0;
 }
 
 const char *
