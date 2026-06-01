@@ -267,8 +267,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
           qvk.coopmat_supported = 1;
         else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME))
           qvk.subgroup_size_control_supported = 1;
-        // else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SHADER_64BIT_INDEXING_EXTENSION_NAME))
-          // qvk.shader64bit_indexing_supported = 1;
+        else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SHADER_64BIT_INDEXING_EXTENSION_NAME))
+          qvk.shader64bit_indexing_supported = 1;
         else if (!strcmp(ext_properties[k].extensionName, VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME))
           qvk.unified_image_layouts_supported = 1;
       }

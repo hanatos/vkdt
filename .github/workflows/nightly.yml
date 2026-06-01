@@ -45,12 +45,15 @@ jobs:
           sudo sed -i 's/azure\.//' /etc/apt/sources.list
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
           sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-17 main"
+          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
           sudo apt-get update
           sudo apt-get -y install \
             ${{ matrix.compiler.packages }}
       - name: install base dependencies
         run: |
           sudo apt-get -y install \
+            vulkan-sdk
             build-essential \
             appstream-util \
             git \
