@@ -45,3 +45,12 @@ means illegally scraped off dubious sources from the internets by big tech, as
 you would otherwise expect. the training itself also finishes on a single
 desktop machine in an hour or two, so if you want to be absolutely sure it's
 easy enough to retrain for yourself on your own data.
+
+## technical
+
+the spir-v found in this module is generated from onnx using the [denox
+compiler](https://github.com/kistenklaus/denox), in particular the [denox vkdt
+codegen](https://github.com/kistenklaus/vkdt-denox). the method is described
+in the paper:
+*Karl Sassie, Johannes Hanika, Lucas Alber, Reiner Dolp, and Carsten Dachsbacher. Optimizing vulkan dispatch schedules for real-time U-net denoising. Proc. ACM Comput. Graph. Interact. Tech., 2026.*
+[pdf](https://jo.dreggn.org/home/2026_schedule.pdf)

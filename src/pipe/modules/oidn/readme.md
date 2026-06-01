@@ -29,3 +29,12 @@ before denoising.
 it is my understanding that oidn has been trained on purely synthetic data,
 output from rendering systems. thus, no internet scraping or violation of
 rights of third parties took place during training.
+
+## technical
+
+the spir-v found in this module is generated from onnx using the [denox
+compiler](https://github.com/kistenklaus/denox), in particular the [denox vkdt
+codegen](https://github.com/kistenklaus/vkdt-denox). the method is described
+in the paper:
+*Karl Sassie, Johannes Hanika, Lucas Alber, Reiner Dolp, and Carsten Dachsbacher. Optimizing vulkan dispatch schedules for real-time U-net denoising. Proc. ACM Comput. Graph. Interact. Tech., 2026.*
+[pdf](https://jo.dreggn.org/home/2026_schedule.pdf)
