@@ -169,7 +169,7 @@ vec3 add_grain(ivec2 ipos, vec3 density, float scale)
   // Combine layers (each noise field is standard normal N(0,1), so they scale exactly by std_X)
   vec3 final_noise = blur_n0 * std_0 + blur_n1 * std_1 + blur_n2 * std_2;
 
-  return max(vec3(0.0), density + final_noise);
+  return clamp(density + final_noise, vec3(0.0), vec3(2.0));
 }
 
 const int s_sensitivity = 0;
@@ -335,8 +335,8 @@ void init_enlarger_negative_shared(int paper)
         clamp(params.filter_y, 0, 1) + 0.1*params.tune_y);
     neutral = clamp(neutral, vec3(0.0), vec3(1.0));
     
-    float illuminant = (0.002 * 1.0) * colour_blackbody(vec4(lambda), 2856.0).x;
-    float common_light = illuminant * exp2(params.ev_paper) * 1000000.0;
+    float illuminant = (0.002 * 1.0) * 1000000.0 * colour_blackbody(vec4(lambda), 2856.0).x;
+    float common_light = illuminant * exp2(params.ev_paper);
 
     // pretty coarse manual fit to thorlabs filters:
     // (lamp filters are transmittances 0..100%)
@@ -400,7 +400,7 @@ void init_scan_shared()
     
     vec2 tc = vec2((tid * 2.0 + 0.5) / 256.0, get_tcy(s_dye_density, dye_stock));
     vec4 dye_density = texture(img_filmsim, tc);
-    dye_density = mix(dye_density, vec4(1000000.0), isnan(dye_density));
+    dye_density = mix(dye_density, vec4(1000.0), isnan(dye_density));
     dye_density.xyz *= 3.32192809489;
 
     vec3 d50 = vec3(0.9642, 1.0000, 0.8251);
@@ -442,6 +442,7 @@ void init_coupler_matrix_shared()
 vec3 // returns log_raw
 expose_film(vec3 rgb, int film)
 { // film exposure in camera and chemical development (Vectorized spectral loop)
+  rgb = max(vec3(5e-4), rgb); // clamp dark noise to avoid nan in the process
   // vec4 d65cf = fetch_coeff(vec3(1));
   // this upsamples *reflectances*, i.e. 111 is equal energy not D65
   vec4 coeff = fetch_coeff(rgb);
