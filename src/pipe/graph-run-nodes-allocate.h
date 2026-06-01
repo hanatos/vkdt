@@ -1171,6 +1171,7 @@ dt_graph_run_nodes_allocate(
     // free pipeline resources if previously allocated anything:
     dt_vkalloc_nuke(&graph->heap);
     dt_vkalloc_nuke(&graph->heap_1);
+    dt_vkalloc_nuke(&graph->heap_protected);
     dt_vkalloc_nuke(&graph->heap_staging);
     graph->dset_cnt_image_read = 0;
     graph->dset_cnt_image_write = 0;
