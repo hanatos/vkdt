@@ -1345,6 +1345,8 @@ NK_API void nk_glfw3_keyboard_callback(GLFWwindow *w, int key, int scancode, int
     [GLFW_KEY_PAGE_UP]   = NK_KEY_SCROLL_UP,
     [GLFW_KEY_LEFT_SHIFT]  = NK_KEY_SHIFT,
     [GLFW_KEY_RIGHT_SHIFT] = NK_KEY_SHIFT,
+    [GLFW_KEY_LEFT_CONTROL]  = NK_KEY_CTRL,
+    [GLFW_KEY_RIGHT_CONTROL] = NK_KEY_CTRL,
   };
   enum nk_keys nkey = translate[key];
 

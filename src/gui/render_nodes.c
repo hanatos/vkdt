@@ -142,6 +142,20 @@ void render_nodes_right_panel()
 
 void render_nodes()
 {
+  if(vkdt.wstate.interact_begin) dt_gui_set_lod(vkdt.wstate.lod_interact);
+  if(vkdt.wstate.interact_end) dt_gui_set_lod(vkdt.wstate.lod_fine);
+  if(vkdt.wstate.scroll_busy > 0)
+  {
+    dt_gui_set_lod(vkdt.wstate.lod_interact);
+    vkdt.wstate.scroll_busy--;
+    if(vkdt.wstate.scroll_busy == 0)
+      dt_gui_set_lod(vkdt.wstate.lod_fine);
+  }
+  if(!vkdt.wstate.grabbed && !vkdt.ctx.input.mouse.buttons[NK_BUTTON_LEFT].down && vkdt.wstate.active_widget_modid >= 0 && vkdt.wstate.active_widget_is_slider)
+  {
+    widget_end();
+  }
+
   static int resize_panel = 0;
   resize_panel = dt_resize_panel(resize_panel);
 

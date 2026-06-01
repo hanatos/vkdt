@@ -43,6 +43,7 @@
 static dt_dragkeys_t dragkeys;
 static dt_menu_t     darkroom_menu;
 
+
 enum hotkey_names_t
 { // for sane access in code
   s_hotkey_create_preset   = 0,
@@ -405,6 +406,7 @@ void render_darkroom_full(char *filter_name, char *filter_inst)
 void render_darkroom()
 {
   // double clock_beg = dt_time();
+
   int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
   int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
   struct nk_rect bounds = {win_x, win_y, win_w, win_h};
@@ -416,7 +418,19 @@ void render_darkroom()
     return;
   }
 
+  if(vkdt.wstate.interact_begin) dt_gui_set_lod(vkdt.wstate.lod_interact);
   if(vkdt.wstate.interact_end) dt_gui_set_lod(vkdt.wstate.lod_fine);
+  if(vkdt.wstate.scroll_busy > 0)
+  {
+    dt_gui_set_lod(vkdt.wstate.lod_interact);
+    vkdt.wstate.scroll_busy--;
+    if(vkdt.wstate.scroll_busy == 0)
+      dt_gui_set_lod(vkdt.wstate.lod_fine);
+  }
+  if(!vkdt.wstate.grabbed && !vkdt.ctx.input.mouse.buttons[NK_BUTTON_LEFT].down && vkdt.wstate.active_widget_modid >= 0 && vkdt.wstate.active_widget_is_slider)
+  {
+    widget_end();
+  }
   { static int prev_latched = 0;
     if(dragkeys.latched != prev_latched) dt_gui_set_lod(dragkeys.latched ? vkdt.wstate.lod_interact : vkdt.wstate.lod_fine);
     prev_latched = dragkeys.latched; }
@@ -667,7 +681,7 @@ void render_darkroom()
         vkdt.graph_dev.frame = vkdt.state.anim_frame;
         vkdt.state.anim_no_keyframes = 0;  // (re-)enable keyframes
         dt_graph_apply_keyframes(&vkdt.graph_dev); // rerun once
-        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.runflags |= s_graph_run_record_cmd_buf;
       }
       char text[50];
       bb.x += ctx->style.progress.padding.x;
@@ -768,8 +782,9 @@ void render_darkroom()
         nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
 
         dt_tooltip("level of detail: 1 means full res, any higher number will render on reduced resolution.");
+        int old_lod_fine = vkdt.wstate.lod_fine;
         nk_tab_property(int, ctx, "#", 1, &vkdt.wstate.lod_fine, 16, 1, 1);
-        dt_gui_set_lod(vkdt.wstate.lod_fine);
+        if(old_lod_fine != vkdt.wstate.lod_fine) dt_gui_set_lod(vkdt.wstate.lod_fine);
         nk_label(ctx, "level of detail", NK_TEXT_LEFT);
 
         dt_tooltip("level of detail while dragging a slider, for instance. you can set this to higher/coarser than the lod above.");
@@ -822,7 +837,7 @@ void render_darkroom()
               "only works when the animation is stopped.");
           if(nk_button_label(ctx, "force downloading all outputs"))
           {
-            vkdt.graph_dev.runflags = s_graph_run_download_sink;
+            vkdt.graph_dev.runflags |= s_graph_run_download_sink;
           }
           nk_label(ctx, "", 0);
         }
@@ -901,6 +916,7 @@ void render_darkroom()
   gui.pgupdn = 0;  // reset rotary encoder knob counter
   gui.hotkey = -1; // reset hotkey, we worked on all we could
   // dt_log(s_log_perf, "render_darkroom cpu:\t%8.3f ms", 1000.0*(dt_time() - clock_beg));
+
 }
 
 static void darkroom_menu_action(const char *action)
@@ -1266,7 +1282,6 @@ darkroom_process()
       }
     }
   }
-
 }
 
 int

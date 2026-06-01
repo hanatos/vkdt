@@ -3,6 +3,16 @@
 #include "widget_tooltip.h"
 #include "pipe/modules/matrices.h"
 
+// adjust with Ctrl+scroll
+#define CONSUME_SCROLL(bounds, val, vmin, vmax, step) do { \
+  if(nk_input_is_mouse_hovering_rect(&ctx->input, (bounds)) && \
+     ctx->input.mouse.scroll_delta.y != 0.0f && \
+     nk_input_is_key_down(&ctx->input, NK_KEY_CTRL)) { \
+    (val) = CLAMP((val) + ctx->input.mouse.scroll_delta.y * 0.25f * (step), (vmin), (vmax)); \
+    ctx->input.mouse.scroll_delta.y = 0.0f; \
+    vkdt.wstate.scroll_busy = 90; \
+    change = 1; } } while(0)
+
 static inline void
 dt_gui_set_lod(int lod)
 {
@@ -53,6 +63,7 @@ widget_end()
   dt_gui_ungrab_mouse();
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.selected = -1;
+  vkdt.wstate.active_widget_is_slider = 0;
 }
 static inline void widget_abort()
 {
@@ -66,6 +77,7 @@ static inline void widget_abort()
   dt_gui_ungrab_mouse();
   vkdt.wstate.active_widget_modid = -1;
   vkdt.wstate.selected = -1;
+  vkdt.wstate.active_widget_is_slider = 0;
 }
 
 static inline void
@@ -234,6 +246,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_tab_property(float, ctx, nkid, param->widget.min, val, param->widget.max,
           (param->widget.max - param->widget.min)/100.0,
           (param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd));
+      CONSUME_SCROLL(bounds, *val, param->widget.min, param->widget.max,
+          (param->widget.max - param->widget.min) / 100.0f);
       // draw fill level
       struct nk_color col = nk_rgba(255,255,255,30);
       struct nk_rect bar = nk_rect(bounds.x + 0.1*bounds.w, bounds.y + 0.15*bounds.h,
@@ -251,10 +265,22 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         if(gui.pgupdn != 0)
           *val = *val + gui.pgupdn * (param->widget.max - param->widget.min)/100.0;
 #endif
-      if(nk_input_is_mouse_hovering_rect(&ctx->input, bounds))
-      { // update lod, if user requested:
-        if(vkdt.wstate.interact_begin) dt_gui_set_lod(vkdt.wstate.lod_interact);
-        if(vkdt.wstate.interact_end)   dt_gui_set_lod(vkdt.wstate.lod_fine);
+      int already_active = vkdt.wstate.active_widget_modid == modid &&
+                           vkdt.wstate.active_widget_parid == parid &&
+                           vkdt.wstate.active_widget_parnm == -1;
+      int fresh_press = nk_window_has_focus(ctx) && nk_input_is_mouse_click_down_in_rect(&ctx->input, NK_BUTTON_LEFT, bounds, nk_true);
+      if(fresh_press && !already_active)
+      {
+        vkdt.wstate.active_widget_modid = modid;
+        vkdt.wstate.active_widget_parid = parid;
+        vkdt.wstate.active_widget_parnm = -1;
+        vkdt.wstate.active_widget_parsz = 0;
+        vkdt.wstate.active_widget_is_slider = 1;
+        already_active = 1;
+      }
+      else if(already_active && !ctx->input.mouse.buttons[NK_BUTTON_LEFT].down)
+      {
+        widget_end();
       }
 
       if(*val != oldval) change = 1;
@@ -263,7 +289,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
+        vkdt.graph_dev.runflags |= s_graph_run_record_cmd_buf | flags;
         vkdt.graph_dev.active_module = modid;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
@@ -273,16 +299,20 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
       int32_t oldval = *val;
       RESETBLOCK
+      struct nk_rect bounds = nk_widget_bounds(ctx);
       nk_tab_property(int, ctx, nkid, param->widget.min, val, param->widget.max,
           (int)(1.0+(param->widget.max - param->widget.min)/100.0),
           ((param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd)));
+      CONSUME_SCROLL(bounds, *val, param->widget.min, param->widget.max,
+          MAX(1, (param->widget.max - param->widget.min) / 100));
+
       if(*val != oldval) change = 1;
       if(change)
       {
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.runflags |= flags | s_graph_run_record_cmd_buf;
         vkdt.graph_dev.active_module = modid;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
@@ -329,14 +359,14 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
          ( ctx->input.mouse.buttons[NK_BUTTON_LEFT].down && \
          NK_INBOX(ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos.x,ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked_pos.y,bounds.x,bounds.y,bounds.w,bounds.h)))\
       {\
-        if(ctx->input.mouse.buttons[NK_BUTTON_LEFT].down) {\
+        if(nk_window_has_focus(ctx) && ctx->input.mouse.buttons[NK_BUTTON_LEFT].down) {\
           if(vkdt.wstate.active_widget_modid != modid && vkdt.wstate.active_widget_parid != parid &&\
              vkdt.wstate.active_widget_parnm != NUM) widget_end();\
-          dt_gui_set_lod(vkdt.wstate.lod_interact);\
           vkdt.wstate.active_widget_modid = modid;\
           vkdt.wstate.active_widget_parid = parid;\
           vkdt.wstate.active_widget_parnm = NUM;\
           vkdt.wstate.active_widget_parsz = 0;\
+          vkdt.wstate.active_widget_is_slider = 1;\
         }\
         const float c[] = { bounds.x + bounds.w/2.0, bounds.y + bounds.h/2.0 };\
         int N = 40;\
@@ -527,14 +557,15 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       // right-click contextual menu (shared macro)
       CONTEXTMENU(warea)
       int fresh_press = !vkdt.wstate.dragkey_latched &&
+                        nk_window_has_focus(ctx) &&
                         nk_input_is_mouse_click_down_in_rect(&ctx->input, NK_BUTTON_LEFT, warea, nk_true);
       if(fresh_press && !already_active)
       { // activate without changing values
-        dt_gui_set_lod(vkdt.wstate.lod_interact);
         vkdt.wstate.active_widget_modid = modid;
         vkdt.wstate.active_widget_parid = parid;
         vkdt.wstate.active_widget_parnm = num;
         vkdt.wstate.active_widget_parsz = 0;
+        vkdt.wstate.active_widget_is_slider = 1;
       }
       else if(already_active && ctx->input.mouse.buttons[NK_BUTTON_LEFT].down)
       { // pure delta dragging
@@ -577,14 +608,15 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
                           vkdt.wstate.active_widget_parid == parid &&
                           vkdt.wstate.active_widget_parnm == num + 3;
         int sbar_press  = !vkdt.wstate.dragkey_latched &&
+                          nk_window_has_focus(ctx) &&
                           nk_input_is_mouse_click_down_in_rect(&ctx->input, NK_BUTTON_LEFT, sbar, nk_true);
         if(sbar_press && !sbar_active && !already_active)
         {
-          dt_gui_set_lod(vkdt.wstate.lod_interact);
           vkdt.wstate.active_widget_modid = modid;
           vkdt.wstate.active_widget_parid = parid;
           vkdt.wstate.active_widget_parnm = num + 3;
           vkdt.wstate.active_widget_parsz = 0;
+          vkdt.wstate.active_widget_is_slider = 1;
         }
         else if(sbar_active && ctx->input.mouse.buttons[NK_BUTTON_LEFT].down)
         {
@@ -597,6 +629,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           if(val[3] != mo) change = 1;
         }
         else if(sbar_active) widget_end();
+        CONSUME_SCROLL(sbar, val[3], m_min, m_max, m_rng / 100.0f);
         if(nk_input_is_mouse_click_in_rect(&ctx->input, NK_BUTTON_DOUBLE, sbar))
         { val[3] = def[3]; change = 1; }
       }
@@ -615,7 +648,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, oldval);
-        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.runflags |= flags | s_graph_run_record_cmd_buf;
         vkdt.graph_dev.active_module = modid;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
@@ -647,7 +680,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.runflags |= flags | s_graph_run_record_cmd_buf;
         vkdt.graph_dev.active_module = modid;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
@@ -712,7 +745,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.runflags |= flags | s_graph_run_record_cmd_buf;
         vkdt.graph_dev.active_module = modid;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         vkdt.wstate.busy += 2;
@@ -759,7 +792,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.runflags |= flags | s_graph_run_record_cmd_buf;
         vkdt.graph_dev.active_module = modid;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         vkdt.wstate.busy += 2;
@@ -828,7 +861,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-        vkdt.graph_dev.runflags = flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.runflags |= flags | s_graph_run_record_cmd_buf;
         vkdt.graph_dev.active_module = modid;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
         vkdt.wstate.busy += 2;
@@ -962,16 +995,18 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
 
     // full manual control over parameter using the slider:
     RESETBLOCK
+    struct nk_rect bounds = nk_widget_bounds(ctx);
     nk_tab_property(float, ctx, "#", -360.0f, val, 360.0f, 
           (360.0f)/100.0,
           (360.0f)/(0.6*vkdt.state.center_wd));
+    CONSUME_SCROLL(bounds, *val, -360.0f, 360.0f, (360.0f - (-360.0f)) / 100.0f);
     if(*val != oldval) change = 1;
     if(change)
     {
       dt_graph_run_t flags = s_graph_run_none;
       if(vkdt.graph_dev.module[modid].so->check_params)
         flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-      vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
+      vkdt.graph_dev.runflags |= s_graph_run_record_cmd_buf | flags;
       vkdt.graph_dev.active_module = modid;
       dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
     }
@@ -1220,14 +1255,16 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
               memcpy(val-i, val-i-3, sizeof(float)*3);
               change = 1;
             }
+            struct nk_rect bounds = nk_widget_bounds(ctx);
             nk_tab_property(float, ctx, "#", 0.0, val, 1.0, 0.1, .001);
+            CONSUME_SCROLL(bounds, *val, 0.0f, 1.0f, 1.0f / 100.0f);
             if(*val != oldval) change = 1;
             if(change)
             {
               dt_graph_run_t flags = s_graph_run_none;
               if(vkdt.graph_dev.module[modid].so->check_params)
                 flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-              vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
+              vkdt.graph_dev.runflags |= s_graph_run_record_cmd_buf | flags;
               vkdt.graph_dev.active_module = modid;
               dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
             }
@@ -1391,7 +1428,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           dt_token_str(param->name),
           comp == 0 ? "red" : (comp == 1 ? "green" : "blue"));
       RESETBLOCK
+      struct nk_rect bounds = nk_widget_bounds(ctx);
       nk_tab_property(float, ctx, "#", param->widget.min, val, param->widget.max, 0.1, .001);
+      CONSUME_SCROLL(bounds, *val, param->widget.min, param->widget.max,
+          (param->widget.max - param->widget.min) / 100.0f);
       if(*val != oldval) change = 1;
       if(change)
       {
@@ -1400,7 +1440,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         dt_graph_run_t flags = s_graph_run_none;
         if(vkdt.graph_dev.module[modid].so->check_params)
           flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
-        vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
+        vkdt.graph_dev.runflags |= s_graph_run_record_cmd_buf | flags;
         vkdt.graph_dev.active_module = modid;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
