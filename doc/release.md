@@ -78,6 +78,51 @@ packages from github nightly ci.
 
 ### current changelog
 
+new modules:
+* `oidn` open image denoise
+* `reinhard` tonemapper (phcreery)
+* `hdrmerge` extend dynamic range (phcreery)
+* `overlay` render text and latency data
+* `opendrt` full-featured display transform
+
+removed modules:
+* `resnet` gmic neural denoiser (weights out of sync with upstream)
+
+major features:
+* `jddcnn` now for bayer and xtrans, with reconstruction for clean and noisy input
+* drag keys and chord menu (randalix)
+* revamped grade module with new colour wheel widget (randalix)
+* denox codegen cnn modules, much faster per-arch spirv
+* auto-growing thumbnail cache
+* support for a variety of input colour spaces (pana-v, aces, ..)
+
+graph internals:
+* large memory support (work around some 32-bit limits of bindings in spirv)
+* async compute support (niklasiivari)
+* bind ssbo as buffer address references too
+* `modify` type connectors
+* resizing/resampling both sharper and smoother whenever possible (instrumental for cnn training)
+* rewrote graph internals for buffer extent negotiations and allocation
+* remove geometry shaders (for metal compat)
+* centralise colour matrices, shared between cpu/gpu
+
+smaller:
+* low-lag present mode (phcreery)
+* game controller fixes
+* external resource tracking in the backend (colour luts, multiple input files, etc)
+* `filmcurv` agx colour mode (phcreery)
+* `filmcurv` luminance ratio colour mode (randalix)
+* `inpaint` allow horizontal or vertical inpainting (keep horizons straight)
+* `filmsim` expose halation radius
+* `filmsim` coupler diffusion radius exposed
+* `filmsim` like 2.5x faster (niklasiivari)
+* `filmsim` with preflash (niklasiivari)
+
+rendering:
+* geometry nodes `g-ocean` `g-wobble` `g-csolid`
+* use buffer address references for geo
+
+
 ## diverge branches
 
 on the master branch, delete the changelog (to be filled with new features which
