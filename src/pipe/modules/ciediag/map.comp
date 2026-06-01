@@ -7,7 +7,12 @@
 #include "shared/skin.glsl"
 
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
-
+layout(std140, set = 0, binding = 0) uniform global_t
+{
+  int frame, frame_cnt, hash, pad;
+  vec4 col;
+  vec4 hov;
+} global;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
   int nspots;
@@ -31,16 +36,6 @@ main()
   xy.y = 1.0-xy.y;
   // draw anti aliased lines through illum E and the tangent at the red/orange side for orientation
   const float t = 0.004;
-  float d;
-
-  // illum E
-  if(all(lessThan(abs(xy - vec2(0.3333, 0.3333)), vec2(0.05))))
-  {
-    d = abs(xy.x - 0.3333);
-    rgb.r = max(rgb.r, 0.9 * smoothstep(t, 0.0, d));
-    d = abs(xy.y - 0.3333);
-    rgb.r = max(rgb.r, 0.9 * smoothstep(t, 0.0, d));
-  }
 
   const mat3 xyz_to_rec2020 = matrix_xyz_to_rec2020;
   const mat3 xyz_to_rec709  = matrix_xyz_to_rec709;
@@ -53,14 +48,6 @@ main()
   if(all(greaterThan(xyz_to_rec2020 * xyz, vec3(0.0)))) rgb = max(rgb, vec3(0.01));
   if(all(greaterThan(xyz_to_rec709  * xyz, vec3(0.0)))) rgb = max(rgb, vec3(0.03));
 
-  if(xy.x <= 0.65 && xy.x >= 0.25)
-  { // planckian locus, manual fit
-    const vec4 cf = vec4(0.157127, -3.10907, 2.95381, -0.300549);
-    const float y = cf.x*xy.x*xy.x*xy.x + cf.y*xy.x*xy.x + cf.z*xy.x + cf.w;
-    d = abs(xy.y - y);
-    rgb.g = max(rgb.g, 0.9 * smoothstep(t, 0.0, d));
-  }
-
   vec3 spot = vec3(0);
   for(int i=0;i<params.nspots;i++)
   { // reference spots, same format as colour picker
@@ -70,7 +57,7 @@ main()
           params.ref[(3*i+2)/4][(3*i+2)%4]);
     vec3 pp = inverse(xyz_to_rec2020)*col;
     vec2 p = pp.xy / dot(pp, vec3(1));
-    d = distance(xy, p);
+    float d = distance(xy, p);
     spot = max(spot, mix(vec3(0), col, 0.9 * smoothstep(3*t, 0.0, d)));
   }
   if(spot.r > 0) rgb = spot;
@@ -80,6 +67,22 @@ main()
     float b = dot(r2,vec3(1));
     r2 /= b;
     rgb += skin_weight(r2.rb)*r2;
+  }
+
+  if(all(lessThan(abs(xy - vec2(0.3333, 0.3333)), vec2(0.02))))
+  { // illum E
+    float d = abs(xy.x - 0.3333);
+    rgb = mix(min(vec3(2),rgb), global.col.rgb, 0.9 * smoothstep(t, 0.0, d));
+    d = abs(xy.y - 0.3333);
+    rgb = mix(min(vec3(2),rgb), global.col.rgb, 0.9 * smoothstep(t, 0.0, d));
+  }
+
+  if(xy.x <= 0.65 && xy.x >= 0.25)
+  { // planckian locus, manual fit
+    const vec4 cf = vec4(0.157127, -3.10907, 2.95381, -0.300549);
+    const float y = cf.x*xy.x*xy.x*xy.x + cf.y*xy.x*xy.x + cf.z*xy.x + cf.w;
+    const float d = abs(xy.y - y);
+    rgb = mix(min(vec3(2),rgb), global.col.rgb, 0.9 * smoothstep(t, 0.0, d));
   }
 
   imageStore(img_out, ipos, vec4(rgb, 1.0));
