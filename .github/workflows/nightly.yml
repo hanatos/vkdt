@@ -53,7 +53,7 @@ jobs:
       - name: install base dependencies
         run: |
           sudo apt-get -y install \
-            vulkan-sdk
+            vulkan-sdk \
             build-essential \
             appstream-util \
             git \
