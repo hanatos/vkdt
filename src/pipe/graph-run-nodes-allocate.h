@@ -1055,15 +1055,16 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
         .blendConstants  = { 0.0f, 0.0f, 0.0f, 0.0f },
       };
 
+#if 0
       VkPipelineCreateFlags2CreateInfo pipeline2_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO,
         .flags = VK_PIPELINE_CREATE_2_64_BIT_INDEXING_BIT_EXT,
       };
-
+#endif
       VkFormat attachment_fmt = dt_connector_vkformat(node->connector+drawn_connector);
       VkPipelineRenderingCreateInfo pipeline_create = {
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-        .pNext                   = qvk.shader64bit_indexing_supported ? (void*)&pipeline2_info : 0,
+        // .pNext                   = qvk.shader64bit_indexing_supported ? (void*)&pipeline2_info : 0,
         .colorAttachmentCount    = 1,
         .pColorAttachmentFormats = &attachment_fmt,
       };
@@ -1115,15 +1116,17 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       };
 
       // finally create the pipeline
+#if 0
       VkPipelineCreateFlags2CreateInfo pipeline2_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO,
         .flags = VK_PIPELINE_CREATE_2_64_BIT_INDEXING_BIT_EXT,
       };
+#endif
       VkComputePipelineCreateInfo pipeline_info = {
         .sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
         .stage  = stage_info,
         .layout = node->pipeline_layout,
-        .pNext  = qvk.shader64bit_indexing_supported ? (void*)&pipeline2_info : 0,
+        // .pNext  = qvk.shader64bit_indexing_supported ? (void*)&pipeline2_info : 0,
       };
       QVKR(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, 0, &node->pipeline));
 

@@ -58,7 +58,7 @@ static const VkApplicationInfo vk_app_info = {
   .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
   .pEngineName        = "vkdt",
   .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
-  .apiVersion         = VK_API_VERSION_1_4,
+  .apiVersion         = VK_API_VERSION_1_3,
 };
 
 static void
@@ -428,7 +428,9 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   };
   VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR layouts = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFIED_IMAGE_LAYOUTS_FEATURES_KHR,
-    .pNext = qvk.shader64bit_indexing_supported ? (void*)&devsize : devsize.pNext,
+    // .pNext = qvk.shader64bit_indexing_supported ? (void*)&devsize : devsize.pNext,
+    // switch this off. i don't think it helps our case and it might increase register pressure.
+    .pNext = 0 ? (void*)&devsize : devsize.pNext,
     .unifiedImageLayouts = VK_TRUE,
     .unifiedImageLayoutsVideo = VK_TRUE,
   };

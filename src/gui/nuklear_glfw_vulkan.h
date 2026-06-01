@@ -514,13 +514,15 @@ nk_glfw3_create_pipeline(struct nk_glfw_device *dev)
     vertex_input.vertexAttributeDescriptionCount = 3;
     vertex_input.pVertexAttributeDescriptions = vertex_attribute_description;
 
+#if 0
     VkPipelineCreateFlags2CreateInfo pipeline2_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_CREATE_FLAGS_2_CREATE_INFO,
       .flags = VK_PIPELINE_CREATE_2_64_BIT_INDEXING_BIT_EXT,
     };
+#endif
     VkGraphicsPipelineCreateInfo pipeline_info = {
       .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-      .pNext = qvk.shader64bit_indexing_supported ? (void*)&pipeline2_info : 0,
+      // .pNext = qvk.shader64bit_indexing_supported ? (void*)&pipeline2_info : 0,
       .flags = 0,
       .stageCount = 2,
       .pStages = shader_stages,
