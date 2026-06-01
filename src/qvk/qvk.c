@@ -267,8 +267,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
           qvk.coopmat_supported = 1;
         else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME))
           qvk.subgroup_size_control_supported = 1;
-        else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SHADER_64BIT_INDEXING_EXTENSION_NAME))
-          qvk.shader64bit_indexing_supported = 1;
+        // else if (!strcmp(ext_properties[k].extensionName, VK_EXT_SHADER_64BIT_INDEXING_EXTENSION_NAME))
+          // qvk.shader64bit_indexing_supported = 1;
         else if (!strcmp(ext_properties[k].extensionName, VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME))
           qvk.unified_image_layouts_supported = 1;
       }
@@ -421,16 +421,16 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR,
     .pNext = &dyn_render,
   };
-  VkPhysicalDeviceShader64BitIndexingFeaturesEXT devsize = {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_64_BIT_INDEXING_FEATURES_EXT,
-    .pNext = qvk.coopmat_supported ? (void*)&coopmat : (void*)&dyn_render,
-    .shader64BitIndexing = VK_TRUE,
-  };
+  // VkPhysicalDeviceShader64BitIndexingFeaturesEXT devsize = {
+  //   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_64_BIT_INDEXING_FEATURES_EXT,
+  //   .pNext = qvk.coopmat_supported ? (void*)&coopmat : (void*)&dyn_render,
+  //   .shader64BitIndexing = VK_TRUE,
+  // };
   VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR layouts = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFIED_IMAGE_LAYOUTS_FEATURES_KHR,
     // .pNext = qvk.shader64bit_indexing_supported ? (void*)&devsize : devsize.pNext,
     // switch this off. i don't think it helps our case and it might increase register pressure.
-    .pNext = 0 ? (void*)&devsize : devsize.pNext,
+    .pNext = qvk.coopmat_supported ? (void*)&coopmat : (void*)&dyn_render,
     .unifiedImageLayouts = VK_TRUE,
     .unifiedImageLayoutsVideo = VK_TRUE,
   };
