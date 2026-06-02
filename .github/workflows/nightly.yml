@@ -39,12 +39,6 @@ jobs:
       GLFW: ${{ matrix.glfw.package }}
       RAW: ${{ matrix.raw.backend }}
     steps:
-      - name: install vulkan sdk
-        uses: humbletim/setup-vulkan-sdk@v1.2.1
-        with:
-          vulkan-query-version: 1.3.290.0
-          vulkan-components: Vulkan-Headers, Vulkan-Loader
-          vulkan-use-cache: true
       - name: update apt and install clang
         run: |
           # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
@@ -58,6 +52,8 @@ jobs:
         run: |
           sudo apt-get -y install \
             build-essential \
+            cmake \
+            ninja \
             appstream-util \
             git \
             glslang-tools \
@@ -72,6 +68,12 @@ jobs:
             libxi-dev \
             libfuse2 \
             appstream;
+      - name: install vulkan sdk
+        uses: humbletim/setup-vulkan-sdk@v1.2.1
+        with:
+          vulkan-query-version: 1.3.290.0
+          vulkan-components: Vulkan-Headers, Vulkan-Loader
+          vulkan-use-cache: true
       - name: install extra deps for rawler
         if: matrix.raw.backend == 'rawler'
         run: |
