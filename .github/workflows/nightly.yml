@@ -27,9 +27,9 @@ jobs:
         compiler:
           - {
               compiler: clang,
-              CC: clang-17,
-              CXX: clang++-17,
-              packages: clang-17 libomp-17-dev,
+              CC: clang-20,
+              CXX: clang++-20,
+              packages: clang-20 libomp-20-dev,
             }
     env:
       CC: ${{ matrix.compiler.CC }}
@@ -44,7 +44,7 @@ jobs:
           # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
           sudo sed -i 's/azure\.//' /etc/apt/sources.list
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-          sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-17 main"
+          sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main"
           sudo apt-get update
           sudo apt-get -y install \
             ${{ matrix.compiler.packages }}
@@ -145,8 +145,8 @@ jobs:
           VKDT_EXIV2_CFLAGS=$(eval VKDT_EXIV2_CFLAGS := $$(shell pkg-config --cflags exiv2))$(VKDT_EXIV2_CFLAGS)
           VKDT_EXIV2_LDFLAGS=$(eval VKDT_EXIV2_LDFLAGS := $$(shell pkg-config --libs exiv2))$(VKDT_EXIV2_LDFLAGS)
           export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
-          CC=clang-17
-          CXX=clang++-17
+          CC=clang-20
+          CXX=clang++-20
           export CC CXX
           EOF
       - name: build and install
