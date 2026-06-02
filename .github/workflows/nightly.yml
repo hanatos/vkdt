@@ -52,8 +52,6 @@ jobs:
         run: |
           sudo apt-get -y install \
             build-essential \
-            cmake \
-            ninja-build \
             appstream-util \
             git \
             glslang-tools \
@@ -68,6 +66,11 @@ jobs:
             libxi-dev \
             libfuse2 \
             appstream;
+      - name: setup modules (mmake, ninja)
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: 4.1.2
+          ninjaVersion: latest
       - name: install vulkan sdk
         uses: humbletim/setup-vulkan-sdk@v1.2.1
         with:
