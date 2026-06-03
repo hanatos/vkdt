@@ -66,17 +66,11 @@ jobs:
             libxi-dev \
             libfuse2 \
             appstream;
-      - name: setup modules (mmake, ninja)
-        uses: lukka/get-cmake@latest
-        with:
-          cmakeVersion: 4.1.2
-          ninjaVersion: latest
       - name: install vulkan sdk
-        uses: humbletim/setup-vulkan-sdk@v1.2.1
+        uses: humbletim/install-vulkan-sdk@v1.2
         with:
-          vulkan-query-version: 1.3.290.0
-          vulkan-components: Vulkan-Headers, Vulkan-Loader
-          vulkan-use-cache: false
+          version: 1.3.290.0
+          cache: true
       - name: install extra deps for rawler
         if: matrix.raw.backend == 'rawler'
         run: |
