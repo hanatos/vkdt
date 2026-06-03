@@ -69,7 +69,7 @@ jobs:
       - name: install vulkan sdk
         uses: humbletim/install-vulkan-sdk@v1.2
         with:
-          version: 1.3.290.0
+          version: 1.4.350.0
           cache: true
       - name: install extra deps for rawler
         if: matrix.raw.backend == 'rawler'
