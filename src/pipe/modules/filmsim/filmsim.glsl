@@ -444,9 +444,11 @@ expose_film(vec3 rgb, int film)
 { // film exposure in camera and chemical development (Vectorized spectral loop)
   rgb = max(vec3(5e-4), rgb); // clamp dark noise to avoid nan in the process
   // vec4 d65cf = fetch_coeff(vec3(1));
-  // this upsamples *reflectances*, i.e. 111 is equal energy not D65
   vec4 coeff = fetch_coeff(rgb);
   vec3 raw = vec3(0.0);
+  const float L      = params.skin == 1 ? dot(rgb, vec3(1)) : 0.0;
+  const vec2  rb     = params.skin == 1 ? rgb.rb / L : vec2(0);
+  const float skin_w = params.skin == 1 ? pow(skin_weight(rb), 0.2) : 0.0;
   [[unroll]]
   // envelope(w >= 730nm) = 1000.0 * 1.0 * (1.0 - 1.0) = 0.0
   // lambda_arr[9] = vec4(740, 750, 760, 770)
@@ -457,6 +459,12 @@ expose_film(vec3 rgb, int film)
     vec4 x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
     vec4 y = inversesqrt(x * x + 1.0);
     vec4 val = (0.5 * x * y + 0.5) * coeff.w;
+    if(params.skin == 1)
+    { // blend over to skin spectrum model. works best for d65 lit scenes
+      vec4 skin_val = 0.3333*L*vec4(skin_spectrum(rb, lambda.x), skin_spectrum(rb, lambda.y),
+                                    skin_spectrum(rb, lambda.z), skin_spectrum(rb, lambda.w));
+      val = mix(val, skin_val, skin_w);
+    }
     raw.r += dot(val, shared_expose_factor_r[i]);
     raw.g += dot(val, shared_expose_factor_g[i]);
     raw.b += dot(val, shared_expose_factor_b[i]);
