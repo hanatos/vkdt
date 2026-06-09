@@ -66,6 +66,7 @@ jobs:
             libxi-dev \
             libfuse2 \
             appstream;
+          sudo apt-get remove libvulkan-dev
       - name: install vulkan sdk
         uses: humbletim/install-vulkan-sdk@v1.2
         with:
