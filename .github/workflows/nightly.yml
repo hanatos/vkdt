@@ -38,6 +38,7 @@ jobs:
       BRANCH: master
       GLFW: ${{ matrix.glfw.package }}
       RAW: ${{ matrix.raw.backend }}
+      VULKAN_SDK: ${{ github.workspace }}/vulkan-sdk
     steps:
       - name: update apt and install clang
         run: |
@@ -68,10 +69,10 @@ jobs:
             appstream;
           sudo apt-get remove libvulkan-dev
       - name: install vulkan sdk
-        uses: humbletim/install-vulkan-sdk@v1.2
-        with:
-          version: 1.4.350.0
-          cache: true
+        run: |
+          wget https://sdk.lunarg.com/sdk/download/1.4.350.0/linux/vulkan_sdk.tar.gz?Human=true
+          tar xvzf vulkan_sdk.tar.gz ${{ env.VULKAN_SDK }}
+          mv ${{ env.VULKAN_SDK }}/1.4.350.0/x86_64/* ${{ env.VULKAN_SDK }}/
       - name: install extra deps for rawler
         if: matrix.raw.backend == 'rawler'
         run: |
@@ -92,14 +93,14 @@ jobs:
           fetch-depth: 0
       - name: configure generic x86_64 build
         run: |
-          grep VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME ${VULKAN_SDK}/include/vulkan_core.h
+          grep VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME ${{ env.VULKAN_SDK }}/include/vulkan_core.h
           echo "OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG" >> bin/config.mk
           echo "export OPT_CFLAGS" >> bin/config.mk
           echo "OPT_LDFLAGS=" >> bin/config.mk
           echo "export OPT_LDFLAGS" >> bin/config.mk
-          echo "VKDT_VULKAN_CFLAGS=-I${VULKAN_SDK}/include" >> bin/config.mk
-          echo "VKDT_VULKAN_LDFLAGS=-L${VULKAN_SDK}/lib -lvulkan" >> bin/config.mk
-          echo "GLSLC=${VULKAN_SDK}/bin/glslangValidator" >> bin/config.mk
+          echo "VKDT_VULKAN_CFLAGS=-I${{ env.VULKAN_SDK }}/include" >> bin/config.mk
+          echo "VKDT_VULKAN_LDFLAGS=-L${{ env.VULKAN_SDK }}/lib -lvulkan" >> bin/config.mk
+          echo "GLSLC=${{ env.VULKAN_SDK }}/bin/glslangValidator" >> bin/config.mk
           echo "export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS GLSLC" >> bin/config.mk
       - name: configure for local glfw
         run: |
