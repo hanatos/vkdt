@@ -92,6 +92,7 @@ jobs:
           fetch-depth: 0
       - name: configure generic x86_64 build
         run: |
+          grep VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME ${VULKAN_SDK}/include/vulkan_core.h
           echo "OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG" >> bin/config.mk
           echo "export OPT_CFLAGS" >> bin/config.mk
           echo "OPT_LDFLAGS=" >> bin/config.mk
