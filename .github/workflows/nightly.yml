@@ -76,7 +76,6 @@ jobs:
             libxi-dev \
             libfuse2 \
             appstream;
-          sudo apt-get remove libvulkan-dev
       - name: install extra deps for rawler
         if: matrix.raw.backend == 'rawler'
         run: |
@@ -160,6 +159,7 @@ jobs:
           EOF
       - name: build and install
         run: |
+          sudo apt-get remove libvulkan-dev
           bash bin/mkappimg.sh
           mv vkdt-*.AppImage $(echo vkdt-*.AppImage | sed "s/vkdt-/vkdt-${{ env.RAW }}-${{ env.GLFW }}-/")
       - name: check if it runs
