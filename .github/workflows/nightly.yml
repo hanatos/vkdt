@@ -40,6 +40,15 @@ jobs:
       RAW: ${{ matrix.raw.backend }}
       VULKAN_SDK: ${{ github.workspace }}/vulkan-sdk
     steps:
+      - name: install vulkan sdk
+        run: |
+          mkdir -p ${{ env.VULKAN_SDK }}
+          cd ${{ env.VULKAN_SDK }}
+          curl https://sdk.lunarg.com/sdk/download/1.4.350.0/linux/vulkan_sdk.tar.gz?Human=true -o vulkan_sdk.tar.gz
+          tar xf vulkan_sdk.tar.gz 
+          grep VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME ${{ env.VULKAN_SDK }}/1.4.350.0/x86_64/include/vulkan/vulkan_core.h
+          mv ${{ env.VULKAN_SDK }}/1.4.350.0/x86_64/* ${{ env.VULKAN_SDK }}/
+          grep VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME ${{ env.VULKAN_SDK }}/include/vulkan/vulkan_core.h
       - name: update apt and install clang
         run: |
           # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
@@ -68,15 +77,6 @@ jobs:
             libfuse2 \
             appstream;
           sudo apt-get remove libvulkan-dev
-      - name: install vulkan sdk
-        run: |
-          mkdir -p ${{ env.VULKAN_SDK }}
-          cd ${{ env.VULKAN_SDK }}
-          curl https://sdk.lunarg.com/sdk/download/1.4.350.0/linux/vulkan_sdk.tar.gz?Human=true -o vulkan_sdk.tar.gz
-          tar xf vulkan_sdk.tar.gz 
-          grep VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME ${{ env.VULKAN_SDK }}/1.4.350.0/x86_64/include/vulkan_core.h
-          mv ${{ env.VULKAN_SDK }}/1.4.350.0/x86_64/* ${{ env.VULKAN_SDK }}/
-          grep VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME ${{ env.VULKAN_SDK }}/include/vulkan_core.h
       - name: install extra deps for rawler
         if: matrix.raw.backend == 'rawler'
         run: |
