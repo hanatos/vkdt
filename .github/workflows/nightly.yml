@@ -70,7 +70,7 @@ jobs:
           sudo apt-get remove libvulkan-dev
       - name: install vulkan sdk
         run: |
-          wget https://sdk.lunarg.com/sdk/download/1.4.350.0/linux/vulkan_sdk.tar.gz?Human=true
+          curl https://sdk.lunarg.com/sdk/download/1.4.350.0/linux/vulkan_sdk.tar.gz?Human=true -o vulkan_sdk.tar.gz
           tar xvzf vulkan_sdk.tar.gz ${{ env.VULKAN_SDK }}
           mv ${{ env.VULKAN_SDK }}/1.4.350.0/x86_64/* ${{ env.VULKAN_SDK }}/
       - name: install extra deps for rawler
