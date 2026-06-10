@@ -70,8 +70,10 @@ jobs:
           sudo apt-get remove libvulkan-dev
       - name: install vulkan sdk
         run: |
+          mkdir -p ${{ env.VULKAN_SDK }}
+          cd ${{ env.VULKAN_SDK }}
           curl https://sdk.lunarg.com/sdk/download/1.4.350.0/linux/vulkan_sdk.tar.gz?Human=true -o vulkan_sdk.tar.gz
-          tar xvzf vulkan_sdk.tar.gz ${{ env.VULKAN_SDK }}
+          tar xvzf vulkan_sdk.tar.gz 
           mv ${{ env.VULKAN_SDK }}/1.4.350.0/x86_64/* ${{ env.VULKAN_SDK }}/
       - name: install extra deps for rawler
         if: matrix.raw.backend == 'rawler'
