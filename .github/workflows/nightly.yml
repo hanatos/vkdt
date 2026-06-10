@@ -160,6 +160,7 @@ jobs:
       - name: build and install
         run: |
           sudo apt-get remove libvulkan-dev
+          grep VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME ${{ env.VULKAN_SDK }}/include/vulkan/vulkan_core.h
           bash bin/mkappimg.sh
           mv vkdt-*.AppImage $(echo vkdt-*.AppImage | sed "s/vkdt-/vkdt-${{ env.RAW }}-${{ env.GLFW }}-/")
       - name: check if it runs
