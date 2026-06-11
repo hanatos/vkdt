@@ -402,10 +402,11 @@ void init_scan_shared()
     vec4 dye_density = texture(img_filmsim, tc);
     dye_density = mix(dye_density, vec4(1000.0), isnan(dye_density));
     dye_density.xyz *= 3.32192809489;
+    dye_density.xyz  = min(dye_density.xyz, 300.0); // appears to be the unfortunate end of numerics
 
     vec3 d50 = vec3(0.9642, 1.0000, 0.8251);
     vec4 coeff = fetch_coeff(d50);
-    float scan_illuminant = (4.0 / 41.0) * sigmoid_eval(coeff, lambda);
+    float scan_illuminant = ((params.process != 1 ? 4.0 : 4.7) / 41.0) * sigmoid_eval(coeff, lambda);
     vec3 cmf = cmf_1931(lambda);
     
     float factor = (params.process != 1) ? dye_density_min_factor_paper : dye_density_min_factor_film;
@@ -462,7 +463,7 @@ expose_film(vec3 rgb, int film)
     raw.b += dot(val, shared_expose_factor_b[i]);
   }
   const float log2_log10 = 0.30102999566398114;
-  return params.ev_film * log2_log10 + log2(raw+1e-10) * log2_log10;
+  return (params.ev_film + (params.process != 1 ? 0.0 : -2.0)) * log2_log10 + log2(raw+1e-10) * log2_log10;
 }
 
 vec3 sigmoid(vec3 x)
