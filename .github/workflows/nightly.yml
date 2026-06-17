@@ -312,7 +312,7 @@ jobs:
         run: |
           cd ${SRC_DIR}
           echo "OPT_LDFLAGS=\"-Wl,-rpath,@executable_path/../Frameworks\"" > bin/config.mk
-          echo "export OPT_LDLFAGS" >> bin/config.mk
+          echo "export OPT_LDFLAGS" >> bin/config.mk
       - name: compile
         run: |
           make -C ${SRC_DIR} -j20
