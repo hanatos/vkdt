@@ -225,16 +225,18 @@ int dt_gui_init()
 
   dt_gui_win_init(&vkdt.win);
 
-  // be verbose about monitor names so we can colour manage them:
-  int monitors_cnt;
-  GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
-  for(int i=0;i<monitors_cnt;i++)
-  {
-    const char *name = glfwGetMonitorName(monitors[i]);
-    int xpos, ypos;
-    glfwGetMonitorPos(monitors[i], &xpos, &ypos);
-    dt_log(s_log_gui, "monitor [%d] %s at %d %d", i, name, xpos, ypos);
-    // the corresponding display profile gamma+matrix will be in basedir/profile.<name>
+  if(pt != GLFW_PLATFORM_WAYLAND && pt != GLFW_PLATFORM_COCOA)
+  { // be verbose about monitor names so we can colour manage them (only relevant on ignorant platforms)
+    int monitors_cnt;
+    GLFWmonitor** monitors = glfwGetMonitors(&monitors_cnt);
+    for(int i=0;i<monitors_cnt;i++)
+    {
+      const char *name = glfwGetMonitorName(monitors[i]);
+      int xpos, ypos;
+      glfwGetMonitorPos(monitors[i], &xpos, &ypos);
+      dt_log(s_log_gui, "monitor [%d] %s at %d %d", i, name, xpos, ypos);
+      // the corresponding display profile gamma+matrix will be in basedir/profile.<name>
+    }
   }
 
   if(!vkdt.win.window)
