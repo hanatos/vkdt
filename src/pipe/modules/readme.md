@@ -58,7 +58,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 **output display transform/tonemapping**
 
 * [filmcurv: display transform curve](./filmcurv/readme.md)
-* [filmsim: spectral analog film simulation](./filmsim/readme.md)
+* [filmsim: spectral analog film simulation based on spektrafilm](./filmsim/readme.md)
 * [OpenDRT: sophisticated display transform with some colour correction options](./OpenDRT/readme.md)
 * [reinhard: reinhard histogram compression for hdr data](./reinhard/readme.md)
 

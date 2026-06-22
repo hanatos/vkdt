@@ -1,6 +1,6 @@
 # filmsim: artic's sophisticated spectral analog film simulation
 
-this is based on [agx emulsion](https://github.com/andreavolpato/agx-emulsion).
+this is an implementation of Andrea Volpato's [spektrafilm](https://github.com/andreavolpato/spektrafilm/).
 for a nice introduction see [this post](https://discuss.pixls.us/t/spectral-film-simulations-from-scratch/48209/1).
 
 this module is best activated by applying the `filmsim.pst` preset. this will
@@ -189,3 +189,37 @@ block) and print paper options (second block).
 * `strength` the strength of the halation effect per colour channel / layer in the film
 * `scale` scale the rgb strength of the halation effect in lockstep
 * `hal mids` midtone protection for halation. this heuristic lets you gradually fade out the effect of halation for darker tones. useful to preserve some extra sharpness outside the highlights. set to 1 for maximum effect, 0 means all tones are affected equally.
+
+## licence
+
+spektrafilm profile by Andrea Volpato, licensed under CC BY-SA 4.0.
+redistribution and derivatives must credit the author, link the project
+(https://github.com/andreavolpato/spektrafilm), preserve this license,
+and remain CC BY-SA 4.0.
+modifications must be noted.
+[full text of the license and attribution requirements](https://github.com/andreavolpato/spektrafilm/blob/main/SPEKTRAFILM_LICENSE.txt)
+
+### citation
+if you use these profiles in your work, please cite
+[the spektrafilm project](https://github.com/andreavolpato/spektrafilm),
+see CITATION.cff for details.
+
+### datasource
+these profiles were created by processing raw measurement data from
+data-sheets and/or scientific papers. original data are property of the respective holders.
+film/photo-paper: kodak and fujifilm data-sheets, scientific publications, and technical material.
+[reflectance: hisanari otsu](https://github.com/enneract/otsu2018),
+[munsell](https://zenodo.org/records/3269912),
+[human skin](https://www.nist.gov/programs-projects/reflectance-measurements-human-skin),
+[forest colors](https://zenodo.org/records/3269920),
+[japan colors](https://zenodo.org/records/5217752).
+all data publicly available.
+
+### modifications
+the vkdt datafile lut has been generated from the spektrafilm `profile/*json`
+using a [half assed python script found here](https://codeberg.org/hanatos/vkdt/src/branch/master/src/pipe/modules/filmsim/mklut-profiles.py).
+the implementation has been done in a best effort kind of sense, with some
+changes for efficiency (for instance the grain model was swapped out), as well
+as ui and parameters (e.g. scale of enlarger filters). if you find gross
+differences between spektrafilm and vkdt please let us know, this is probably
+not intentional.
