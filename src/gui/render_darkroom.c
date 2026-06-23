@@ -88,7 +88,8 @@ enum hotkey_names_t
   s_hotkey_dragkey_yinc     = 39,
   s_hotkey_dragkey_ydec_alt = 40,
   s_hotkey_dragkey_yinc_alt = 41,
-  s_hotkey_count            = 42,
+  s_hotkey_color_assessment = 42,
+  s_hotkey_count            = 43,
 };
 
 static const int hk_darkroom_size = 128;
@@ -137,6 +138,7 @@ static hk_t hk_darkroom[128] = {
   {"dragkey y-inc",     "step armed parameter up",              {GLFW_KEY_UP}},
   {"dragkey y-dec alt", "step armed parameter down (alt)",      {GLFW_KEY_J}},
   {"dragkey y-inc alt", "step armed parameter up (alt)",        {GLFW_KEY_K}},
+  {"color assessment", "toggle color assessment mode", {GLFW_KEY_LEFT_CONTROL, GLFW_KEY_B}},
 };
 
 // used to communicate between the gui helper functions
@@ -284,6 +286,10 @@ hotkey_dispatch:
       break;
     case s_hotkey_dopesheet:
       dt_gui_dr_toggle_dopesheet();
+      break;
+    case s_hotkey_color_assessment:
+      vkdt.wstate.color_assessment ^= 1;
+      dt_image_reset_zoom(&vkdt.wstate.img_widget);
       break;
     case s_hotkey_rate_0: dt_gui_rate_0(); break;
     case s_hotkey_rate_1: dt_gui_rate_1(); break;
@@ -779,6 +785,30 @@ void render_darkroom()
           dt_gui_edit_hotkeys();
         if(nk_button_label(ctx, "toggle perf overlay"))
           vkdt.wstate.show_perf_overlay ^= 1;
+        dt_tooltip("toggle color assessment mode");
+        if(nk_button_label(ctx, "toggle color assessment"))
+        {
+          vkdt.wstate.color_assessment ^= 1;
+          dt_image_reset_zoom(&vkdt.wstate.img_widget);
+        }
+        dt_tooltip("outer margin size of the color assessment frame as fraction of the window size");
+        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+        float old_ca_margin = vkdt.style.color_assessment_margin;
+        nk_tab_property(float, ctx, "#", 0.01f, &vkdt.style.color_assessment_margin, 0.5f, 0.01f, 0.01f);
+        nk_label(ctx, "color assessment margin", NK_TEXT_LEFT);
+        if(old_ca_margin != vkdt.style.color_assessment_margin)
+        {
+          dt_image_reset_zoom(&vkdt.wstate.img_widget);
+          dt_rc_set_float(&vkdt.rc, "gui/color_assessment_margin", vkdt.style.color_assessment_margin);
+        }
+
+        dt_tooltip("white frame thickness as fraction of the window size");
+        nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
+        float old_ca_frame_wd = vkdt.style.color_assessment_frame_wd;
+        nk_tab_property(float, ctx, "#", 0.001f, &vkdt.style.color_assessment_frame_wd, 0.1f, 0.001f, 0.001f);
+        nk_label(ctx, "color assessment frame width", NK_TEXT_LEFT);
+        if(old_ca_frame_wd != vkdt.style.color_assessment_frame_wd)
+          dt_rc_set_float(&vkdt.rc, "gui/color_assessment_frame_wd", vkdt.style.color_assessment_frame_wd);
         nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
 
         dt_tooltip("level of detail: 1 means full res, any higher number will render on reduced resolution.");

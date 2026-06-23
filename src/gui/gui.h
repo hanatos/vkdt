@@ -42,6 +42,8 @@ typedef struct dt_gui_style_t
   float panel_width_frac;   // width of the side panel as fraction of the total window width
   float border_frac;        // width of border between image and panel
   float fontsize;           // font height in pixels
+  float color_assessment_margin;   // color assessment margin
+  float color_assessment_frame_wd; // color assessment frame width
   struct nk_color colour[NK_COLOR_COUNT+7];
 }
 dt_gui_style_t;
@@ -109,6 +111,7 @@ typedef struct dt_gui_wstate_t
   int fullscreen_view;          // darkroom mode without panels
   int history_view;             // darkroom mode with left panel shown (history view)
   float dopesheet_view;         // darkroom mode dopesheet, stores adaptive size (0 means collapsed)
+  int color_assessment;         // color assessment mode active
 
   int have_joystick;            // found and enabled a joystick (disable via gui/disable_joystick in config)
   int joystick_id;              // like GLFW_JOYSTICK_1

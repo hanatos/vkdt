@@ -100,9 +100,51 @@ dt_image_zoom_at(
   float max_scale = 8.0f * (1.0f/scale_fit);
 
   w->scale = CLAMP(w->scale * factor, min_scale, max_scale);
-
+  
   float img1[2];
   dt_image_from_view(w, view, img1);
   w->look_at_x += -img1[0] + img[0];
   w->look_at_y += -img1[1] + img[1];
+}
+
+static inline void
+dt_image_clamp_zoom(
+    dt_image_widget_t *w,
+    int                color_assessment)
+{
+  if (color_assessment)
+  {
+    if (w->scale < 1.0f) w->scale = 1.0f;
+    float range_x = 0.5f - 0.5f / w->scale;
+    float range_y = 0.5f - 0.5f / w->scale;
+    w->look_at_x = CLAMP(w->look_at_x, -range_x, range_x);
+    w->look_at_y = CLAMP(w->look_at_y, -range_y, range_y);
+  }
+  else
+  {
+    w->look_at_x = CLAMP(w->look_at_x, -5.f, 5.f);
+    w->look_at_y = CLAMP(w->look_at_y, -5.f, 5.f);
+  }
+}
+
+static inline void
+dt_image_layout_color_assessment(
+    dt_image_widget_t *w,
+    float              win_x,
+    float              win_y,
+    float              win_w,
+    float              win_h,
+    float              margin,
+    float              frame_wd_frac)
+{
+  float m = 1.0f - 2.0f * margin;
+  float frame_wd_px = frame_wd_frac * MIN(win_w, win_h);
+  if (frame_wd_px < 1.0f) frame_wd_px = 1.0f;
+
+  float ar = w->wd / w->ht;
+  w->win_h = MIN((win_w * m - 2.0f * frame_wd_px) / ar, win_h * m - 2.0f * frame_wd_px);
+  w->win_w = ar * w->win_h;
+
+  w->win_x = win_x + (win_w - w->win_w) * 0.5f;
+  w->win_y = win_y + (win_h - w->win_h) * 0.5f;
 }

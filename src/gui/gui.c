@@ -220,6 +220,9 @@ int dt_gui_init()
   if(snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir) < 512)
     dt_rc_read(&vkdt.rc, configfile);
 
+  vkdt.style.color_assessment_margin = dt_rc_get_float(&vkdt.rc, "gui/color_assessment_margin", 0.10f);
+  vkdt.style.color_assessment_frame_wd = dt_rc_get_float(&vkdt.rc, "gui/color_assessment_frame_wd", 0.03f);
+
   vkdt.wstate.copied_imgid = -1u; // none copied at startup
   threads_mutex_init(&vkdt.wstate.notification_mutex, 0);
 

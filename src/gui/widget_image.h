@@ -57,7 +57,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
         float q[2] = {
           p[2*corner_hovered],
           p[2*corner_hovered+1]};
-        float rad = 0.02 * vkdt.state.center_wd;
+        float rad = 0.02 * w->win_w;
         nk_fill_circle(buf, (struct nk_rect){q[0]-rad, q[1]-rad, 2*rad, 2*rad}, (struct nk_color){0x77,0x77,0x77,0x77});
         if(hovered && nk_input_is_mouse_down(&ctx->input, NK_BUTTON_LEFT))
         {
@@ -139,7 +139,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
       }
       if(edge_hovered >= 0)
       {
-        float o = vkdt.state.center_wd * 0.02;
+        float o = w->win_w * 0.02;
         float q0[8] = { p[0], p[1], p[2], p[3], p[2],   p[3]-o, p[0],   p[1]-o};
         float q1[8] = { p[2], p[3], p[4], p[5], p[4]+o, p[5],   p[2]+o, p[3]};
         float q2[8] = { p[4], p[5], p[6], p[7], p[6],   p[7]+o, p[4],   p[5]+o};
@@ -198,8 +198,8 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
       float v[2] = { vkdt.wstate.state[0], 0.5 };
       float p[2];
       dt_image_to_view(&vkdt.wstate.img_widget, v, p);
-      nk_stroke_line(buf, p[0], vkdt.state.center_y, p[0],
-          vkdt.state.center_y + vkdt.state.center_ht, 1.0, nk_white);
+      nk_stroke_line(buf, p[0], w->win_y, p[0],
+          w->win_y + w->win_h, 1.0, nk_white);
       float vv[] = {pos.x, pos.y}, n[2] = {0};
       dt_image_from_view(&vkdt.wstate.img_widget, vv, n);
       if(hovered && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_LEFT))
@@ -221,9 +221,9 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
 
       const int modid = vkdt.wstate.active_widget_modid;
       const float scale = vkdt.wstate.img_widget.scale *
-        MIN(vkdt.state.center_wd / (float)
+        MIN(w->win_w / (float)
             vkdt.graph_dev.module[modid].connector[0].roi.wd,
-            vkdt.state.center_ht / (float)
+            w->win_h / (float)
             vkdt.graph_dev.module[modid].connector[0].roi.ht);
       for(int i=0;i<2;i++)
       { // ui scaled roi wd * radius * stroke radius
@@ -347,8 +347,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
     w->look_at_x = w->old_look_x-img1[0]+img0[0];
     w->look_at_y = w->old_look_y-img1[1]+img0[1];
   }
-  w->look_at_x = CLAMP(w->look_at_x, -5.f, 5.f);
-  w->look_at_y = CLAMP(w->look_at_y, -5.f, 5.f);
+  dt_image_clamp_zoom(w, vkdt.wstate.color_assessment);
 }
 
 static inline void
@@ -364,8 +363,16 @@ dt_image(
   w->wd = (float)out->connector[0].roi.wd;
   w->ht = (float)out->connector[0].roi.ht;
   struct nk_rect wb = nk_widget_bounds(ctx);
-  w->win_x = wb.x; w->win_y = wb.y;
-  w->win_w = wb.w; w->win_h = wb.h;
+  dt_image_clamp_zoom(w, vkdt.wstate.color_assessment);
+  if (vkdt.wstate.color_assessment)
+  {
+    dt_image_layout_color_assessment(w, wb.x, wb.y, wb.w, wb.h, vkdt.style.color_assessment_margin, vkdt.style.color_assessment_frame_wd);
+  }
+  else
+  {
+    w->win_x = wb.x; w->win_y = wb.y;
+    w->win_w = wb.w; w->win_h = wb.h;
+  }
   float im0[2], im1[2];
   float v0[2] = {w->win_x, w->win_y};
   float v1[2] = {w->win_x+w->win_w, w->win_y+w->win_h};
@@ -391,6 +398,22 @@ dt_image(
     disp.w = (int)(ns * subimg.w); disp.h = (int)(ns * subimg.h);
   }
   struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
+  if (vkdt.wstate.color_assessment)
+  {
+    struct nk_color gray_bg = { 119, 119, 119, 255 }; // middle gray
+    nk_fill_rect(buf, wb, 0.0f, gray_bg);
+
+    float frame_wd_px = vkdt.style.color_assessment_frame_wd * MIN(wb.w, wb.h);
+    if (frame_wd_px < 1.0f) frame_wd_px = 1.0f;
+
+    struct nk_rect white_rect = {
+      w->win_x - frame_wd_px,
+      w->win_y - frame_wd_px,
+      w->win_w + 2.0f * frame_wd_px,
+      w->win_h + 2.0f * frame_wd_px
+    };
+    nk_fill_rect(buf, white_rect, 0.0f, (struct nk_color){255, 255, 255, 255});
+  }
   struct nk_image nkimg = nk_subimage_ptr(out->dset[display_frame], w->wd, w->ht, subimg);
   int hover = nk_input_is_mouse_hovering_rect(&ctx->input, disp);
   nk_draw_image(buf, disp, &nkimg, (struct nk_color){0xff,0xff,0xff,0xff});
