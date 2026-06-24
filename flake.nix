@@ -71,6 +71,10 @@
               "VKDT_USE_RAWINPUT=2" # typically sets this by checking for `rustc --version`, lets save a dependency :)
               "VKDT_USE_MCRAW=false" # TODO: support mcraw
             ];
+
+            meta = {
+              mainProgram = "vkdt";
+            };
           };
 
           default = vkdt-git;

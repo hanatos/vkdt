@@ -1,21 +1,21 @@
 #include "modules/api.h"
 #include "denox_gbyrc.h"
+#include "denox_ibyrc.h"
 #include "denox_nbyrc.h"
 #include "denox_gxtrc.h"
+#include "denox_ixtrc.h"
 #include "denox_nxtrc.h"
 #include "denox_gbyrn.h"
+#include "denox_ibyrn.h"
 #include "denox_nbyrn.h"
 #include "denox_gxtrn.h"
+#include "denox_ixtrn.h"
 #include "denox_nxtrn.h"
 
-// intel and amd yet unknown:
-// #include "denox_ibyrc.h"
+// amd yet unknown:
 // #include "denox_abyrc.h"
-// #include "denox_ixtrc.h"
 // #include "denox_axtrc.h"
-// #include "denox_ibyrn.h"
 // #include "denox_abyrn.h"
-// #include "denox_ixtrn.h"
 // #include "denox_axtrn.h"
 
 typedef enum arch_t

@@ -1,2 +1,2 @@
-arch:combo:auto:generic:nvidia
+arch:combo:auto:generic:nvidia:intel
 variant:combo:clean:noisy
