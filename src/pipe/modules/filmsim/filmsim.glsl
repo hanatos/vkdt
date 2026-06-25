@@ -1,7 +1,11 @@
 // helper functions for film simulation.
-// this is all more or less a straight port of agx-emulsion
-// https://github.com/andreavolpato/agx-emulsion
+// this is all more or less a straight port of spektrafilm
+// https://github.com/andreavolpato/spektrafilm
 // so as derivative work i suppose this makes it GPL-v3
+// some parts of the implementation are swapped out completely,
+// but the input data is the same.
+#extension GL_EXT_shader_atomic_float  : enable
+#extension GL_EXT_shader_atomic_float2 : enable
 
 // number of spectral samples/wavelengths when integrating
 #define SN 40
@@ -195,6 +199,10 @@ shared vec4 shared_enlarger_factor_r[11];
 shared vec4 shared_enlarger_factor_g[11];
 shared vec4 shared_enlarger_factor_b[11];
 
+shared float shared_expose_autoexp;
+shared float shared_enlarger_autoexp;
+shared float shared_scan_autoexp;
+
 shared vec4 shared_scan_dye_r[11];
 shared vec4 shared_scan_dye_g[11];
 shared vec4 shared_scan_dye_b[11];
@@ -210,6 +218,7 @@ shared vec3 shared_pf_acc[64];
 void init_expose_film_shared(int film)
 {
   int tid = int(gl_LocalInvocationIndex);
+  if (tid == 0) shared_expose_autoexp = 0.0;
   if (tid < 11)
   {
     shared_expose_factor_r[tid] = vec4(0.0);
@@ -231,6 +240,7 @@ void init_expose_film_shared(int film)
     shared_expose_factor_r[tid/4][tid%4] = factor.r;
     shared_expose_factor_g[tid/4][tid%4] = factor.g;
     shared_expose_factor_b[tid/4][tid%4] = factor.b;
+    atomicAdd(shared_expose_autoexp, factor.g);
   }
   barrier();
 }
@@ -238,6 +248,7 @@ void init_expose_film_shared(int film)
 void init_enlarger_shared(int film, int paper)
 {
   int tid = int(gl_LocalInvocationIndex);
+  if (tid == 0) shared_enlarger_autoexp = 0.0;
   if (tid < 11)
   {
     shared_enlarger_dye_r[tid] = vec4(0.0);
@@ -264,10 +275,10 @@ void init_enlarger_shared(int film, int paper)
         clamp(params.filter_y, 0, 1) + 0.1*params.tune_y);
     neutral = clamp(neutral, vec3(0.0), vec3(1.0));
     
-    float illuminant = (0.002 * 1.0) * colour_blackbody(vec4(lambda), 2856.0).x;
+    float illuminant = colour_blackbody(vec4(lambda), 2856.0).x;
     float base_density = dye_density.w * dye_density_min_factor_film;
     float base_light = exp2(-base_density * 3.32192809489);
-    float common_light = illuminant * base_light * exp2(params.ev_paper) * 1000000.0;
+    float common_light = 800.0 * illuminant * base_light * exp2(params.ev_paper);
 
     // pretty coarse manual fit to thorlabs filters:
     // (lamp filters are transmittances 0..100%)
@@ -294,10 +305,11 @@ void init_enlarger_shared(int film, int paper)
     shared_enlarger_factor_r[tid/4][tid%4] = factor.r;
     shared_enlarger_factor_g[tid/4][tid%4] = factor.g;
     shared_enlarger_factor_b[tid/4][tid%4] = factor.b;
+    atomicAdd(shared_enlarger_autoexp, factor.g/exp2(params.ev_paper)); // XXX reduction? double exp?
   }
   else if (tid < 64) shared_pf_acc[tid] = vec3(0.0);
   barrier();
-  // reduction for preflash
+  // reduction for preflash (could run subgroupAdd if we knew that's 32 threads)
   if (tid < 32) shared_pf_acc[tid] += shared_pf_acc[tid + 32];
   barrier();
   if (tid < 16) shared_pf_acc[tid] += shared_pf_acc[tid + 16];
@@ -315,6 +327,7 @@ void init_enlarger_shared(int film, int paper)
 void init_enlarger_negative_shared(int paper)
 {
   int tid = int(gl_LocalInvocationIndex);
+  if (tid == 0) shared_enlarger_autoexp = 0.0;
   if (tid < 11)
   {
     shared_enlarger_factor_r[tid] = vec4(0.0);
@@ -335,7 +348,7 @@ void init_enlarger_negative_shared(int paper)
         clamp(params.filter_y, 0, 1) + 0.1*params.tune_y);
     neutral = clamp(neutral, vec3(0.0), vec3(1.0));
     
-    float illuminant = (0.002 * 1.0) * 1000000.0 * colour_blackbody(vec4(lambda), 2856.0).x;
+    float illuminant = 800.0 * colour_blackbody(vec4(lambda), 2856.0).x;
     float common_light = illuminant * exp2(params.ev_paper);
 
     // pretty coarse manual fit to thorlabs filters:
@@ -360,6 +373,7 @@ void init_enlarger_negative_shared(int paper)
     shared_enlarger_factor_r[tid/4][tid%4] = factor.r;
     shared_enlarger_factor_g[tid/4][tid%4] = factor.g;
     shared_enlarger_factor_b[tid/4][tid%4] = factor.b;
+    atomicAdd(shared_enlarger_autoexp, factor.g/exp2(params.ev_paper)); // XXX reduction/subgroups
   }
   else if (tid < 64) shared_pf_acc[tid] = vec3(0.0);
   barrier();
@@ -381,6 +395,7 @@ void init_enlarger_negative_shared(int paper)
 void init_scan_shared()
 {
   int tid = int(gl_LocalInvocationIndex);
+  if (tid == 0) shared_scan_autoexp = 0.0;
   if (tid < 11)
   {
     shared_scan_dye_r[tid] = vec4(0.0);
@@ -404,9 +419,12 @@ void init_scan_shared()
     dye_density.xyz *= 3.32192809489;
     dye_density.xyz  = min(dye_density.xyz, 300.0); // appears to be the unfortunate end of numerics
 
-    vec3 d50 = vec3(0.9642, 1.0000, 0.8251);
-    vec4 coeff = fetch_coeff(d50);
-    float scan_illuminant = ((params.process != 1 ? 4.0 : 4.7) / 41.0) * sigmoid_eval(coeff, lambda);
+    // vec3 d50 = vec3(0.9642, 1.0000, 0.8251);
+    // vec4 coeff = fetch_coeff(d50);
+    vec4 coeff = fetch_coeff(vec3(1)); // d65
+    // float scan_illuminant = 4.7 / 41.0 * sigmoid_eval(coeff, lambda);
+    float scan_illuminant = 4.0 / 41.0 * sigmoid_eval(coeff, lambda);
+    // float scan_illuminant = 6.3 / 41.0 * sigmoid_eval(coeff, lambda);
     vec3 cmf = cmf_1931(lambda);
     
     float factor = (params.process != 1) ? dye_density_min_factor_paper : dye_density_min_factor_film;
@@ -420,6 +438,7 @@ void init_scan_shared()
     shared_scan_factor_r[tid/4][tid%4] = factor_vec.r;
     shared_scan_factor_g[tid/4][tid%4] = factor_vec.g;
     shared_scan_factor_b[tid/4][tid%4] = factor_vec.b;
+    atomicAdd(shared_scan_autoexp, factor_vec.g);
   }
   barrier();
 }
@@ -442,10 +461,8 @@ void init_coupler_matrix_shared()
 
 vec3 // returns log_raw
 expose_film(vec3 rgb, int film)
-{ // film exposure in camera and chemical development (Vectorized spectral loop)
+{ // film exposure in camera and chemical development (vectorized spectral loop)
   rgb = max(vec3(5e-4), rgb); // clamp dark noise to avoid nan in the process
-  // vec4 d65cf = fetch_coeff(vec3(1));
-  // this upsamples *reflectances*, i.e. 111 is equal energy not D65
   vec4 coeff = fetch_coeff(rgb);
   vec3 raw = vec3(0.0);
   [[unroll]]
@@ -454,7 +471,6 @@ expose_film(vec3 rgb, int film)
   for(int i=0; i<9; i++)
   {
     vec4 lambda = lambda_arr[i];
-    // x = (coeff.x * lambda + coeff.y) * lambda + coeff.z
     vec4 x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;
     vec4 y = inversesqrt(x * x + 1.0);
     vec4 val = (0.5 * x * y + 0.5) * coeff.w;
@@ -463,7 +479,7 @@ expose_film(vec3 rgb, int film)
     raw.b += dot(val, shared_expose_factor_b[i]);
   }
   const float log2_log10 = 0.30102999566398114;
-  return (params.ev_film + (params.process != 1 ? 0.0 : -2.0)) * log2_log10 + log2(raw+1e-10) * log2_log10;
+  return (params.ev_film + log2(raw/max(1e-6, 0.18*shared_expose_autoexp)+1e-10)) * log2_log10;
 }
 
 vec3 sigmoid(vec3 x)
@@ -477,7 +493,7 @@ vec3 sigmoid(vec3 x)
 
 void sigmoid_both(vec3 x, out vec3 sig, out vec3 sig_d)
 {
-  // Combined evaluation of sigmoid and its derivative.
+  // combined evaluation of sigmoid and its derivative.
   // We reuse abs_x, x2, x4, and xb calculations.
   vec3 abs_x = abs(x);
   vec3 x2 = abs_x * abs_x;
@@ -554,7 +570,7 @@ develop_film(vec3 log_raw, int film, ivec2 ipos, float scale)
 
 vec3 // returns log raw
 enlarger_expose_negative_to_paper(vec3 rgb)
-{ // enlarger: expose scanned transmittances of negative to print paper (Vectorized spectral loop)
+{ // enlarger: expose scanned transmittances of negative to print paper (vectorized spectral loop)
   vec3 raw = vec3(0.0);
   vec4 coeff = fetch_coeff(rgb);
   [[unroll]]
@@ -579,12 +595,12 @@ enlarger_expose_negative_to_paper(vec3 rgb)
     raw.b += transmittance * shared_enlarger_factor_b[10].x;
   }
   const float log2_log10 = 0.30102999566398114;
-  return log2(raw + shared_preflash + 1e-10)*log2_log10;
+  return log2(raw + shared_preflash - 0.01*shared_enlarger_autoexp + 1e-10)*log2_log10;
 }
 
 vec3 // returns log raw
 enlarger_expose_film_to_paper(vec3 density_cmy)
-{ // enlarger: expose film to print paper (Vectorized spectral loop)
+{ // enlarger: expose film to print paper (vectorized spectral loop)
   vec3 raw = vec3(0.0);
   [[unroll]]
   for(int i=0; i<10; i++)
@@ -608,7 +624,7 @@ enlarger_expose_film_to_paper(vec3 density_cmy)
     raw.b += light * shared_enlarger_factor_b[10].x;
   }
   const float log2_log10 = 0.30102999566398114;
-  return log2(raw + shared_preflash + 1e-10)*log2_log10;
+  return log2(raw + shared_preflash - 0.01*shared_enlarger_autoexp + 1e-10)*log2_log10;
 }
 
 vec3 // return density_cmy
@@ -650,6 +666,6 @@ scan(vec3 density_cmy)
     raw.g += light * shared_scan_factor_g[10].x;
     raw.b += light * shared_scan_factor_b[10].x;
   }
-  raw = clamp(raw, vec3(0.0), vec3(14.0));
+  raw = clamp(raw / shared_scan_autoexp, vec3(0.0), vec3(14.0));
   return XYZ_to_rec2020(raw);
 }

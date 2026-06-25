@@ -60,7 +60,6 @@ for f in film_stocks:
     profile.data.log_sensitivity = np.array(profile.data.log_sensitivity)
     # pad grey up to rgb
     if np.shape(profile.data.log_sensitivity)[1] == 1:
-      print("replicating colours!!")
       profile.data.log_sensitivity = np.repeat(profile.data.log_sensitivity, 3, axis=1)
     print(np.shape(profile.data.log_sensitivity)) # (41, 3) or (81, 3)
 
@@ -79,12 +78,10 @@ for f in film_stocks:
     profile.data.channel_density= np.array(profile.data.channel_density)
     # pad grey up to rgb
     if np.shape(profile.data.channel_density)[1] == 1:
-      print("replicating colours!!")
       profile.data.channel_density = np.repeat(profile.data.channel_density, 3, axis=1)
     profile.data.base_density = np.array(profile.data.base_density)
     print(np.shape(profile.data.channel_density)) # (41, 3) or (81, 3)
     if profile.data.base_density.ndim > 1:
-      print("killing surplus base density values!!")
       profile.data.base_density = profile.data.base_density[:,0]
     print(np.shape(profile.data.base_density)) # (41) or (81)
     for i in range(0, np.shape(profile.data.channel_density)[0]):
@@ -105,7 +102,6 @@ for f in film_stocks:
     # pad grey up to rgb
     shp = np.shape(profile.data.density_curves)
     if shp[1] == 1:
-      print("replicating colours!!")
       profile.data.density_curves = np.repeat(profile.data.density_curves.reshape(shp[0], 1), 3, axis=1)
     profile.data.log_exposure = np.array(profile.data.log_exposure)
     logexp = np.linspace(-4.0, 4.0, 256)
