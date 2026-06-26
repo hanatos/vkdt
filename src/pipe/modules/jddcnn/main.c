@@ -121,8 +121,8 @@ check_params(
 {
   const int pida = dt_module_get_param(mod->so, dt_token("arch"));
   const int pidv = dt_module_get_param(mod->so, dt_token("variant"));
-  const int vala = CLAMP(dt_module_param_int(mod, pida)[0], 0, 1);
-  const int valv = CLAMP(dt_module_param_int(mod, pidv)[0], 0, 1);
+  const int vala = dt_module_param_int(mod, pida)[0];
+  const int valv = dt_module_param_int(mod, pidv)[0];
   if(parid == pida) // arch changed
     if(*(int*)oldval != vala) 
       return s_graph_run_all;
