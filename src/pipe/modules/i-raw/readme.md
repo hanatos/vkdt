@@ -33,3 +33,9 @@ deliver, you will experience frame drops.
 you may want to checkout the keyframes feature to gradually modify
 exposure for instance (see `examples/keyframes.cfg`, or the `ctrl-k`
 hotkey to create keyframes from the gui when hovering over controls.
+
+## for developers: updating
+
+to update to upstream rawler, delete the `Cargo.lock` file in the `rawloader-c` subdirectory.
+the `Cargo.toml` file points to the main git branch already and will update during the next
+build (regular top level `make`).
