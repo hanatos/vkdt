@@ -1024,7 +1024,6 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
     const float aspect = iwd/iht;
     const float rot = dt_module_param_float(vkdt.graph_dev.module+modid, dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("rotate")))[0];
     const int portrait = (fabsf(rot-90) < 45 || fabsf(rot-270) < 45);
-    static int portrait_on_activate = 0;
     if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
       int accept = 0;
@@ -1033,7 +1032,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
       if(nk_button_label(ctx, string) || accept)
       {
-        if(portrait_on_activate)
+        if(vkdt.wstate.portrait)
         {
           vkdt.wstate.state[0] = .5f + MIN(1.0f, 1.0f/aspect) * (vkdt.wstate.state[0] - .5f);
           vkdt.wstate.state[1] = .5f + MIN(1.0f, 1.0f/aspect) * (vkdt.wstate.state[1] - .5f);
@@ -1071,15 +1070,14 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         const float oht = portrait ? iwd : iht;
         // reset module params so the image will not appear cropped:
         float def[] = {0,1,0,1};
+        vkdt.wstate.portrait = portrait;
         if(portrait)
         {
-          portrait_on_activate = portrait;
           def[0] = .5f + MIN(1.0f, 1.0f/aspect) * (0.0f - .5f);
           def[1] = .5f + MIN(1.0f, 1.0f/aspect) * (1.0f - .5f);
           def[2] = .5f + MAX(1.0f,      aspect) * (0.0f - .5f);
           def[3] = .5f + MAX(1.0f,      aspect) * (1.0f - .5f);
         }
-        else portrait_on_activate = 0;
         float *c = vkdt.wstate.state;
         if(c[0] == 1.0 && c[1] == 3.0 && c[2] == 3.0 && c[3] == 7.0)
           memcpy(c, def, sizeof(def));

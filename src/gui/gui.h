@@ -89,6 +89,7 @@ typedef struct dt_gui_wstate_t
   struct nk_rect active_dspy_bound;
   int      selected;
   float    aspect;
+  int      portrait;
   float    state[2100];
   size_t   mapped_size;
   float   *mapped;

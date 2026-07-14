@@ -273,7 +273,7 @@ dt_gui_dr_crop_adjust(
       if(modid < 0 || modid > vkdt.graph_dev.num_modules) return;
       const float iwd = vkdt.graph_dev.module[modid].connector[0].roi.wd;
       const float iht = vkdt.graph_dev.module[modid].connector[0].roi.ht;
-      const float aspect = iwd/iht;
+      const float aspect = vkdt.wstate.portrait ? iht/iwd : iwd/iht;
       float target_aspect = vkdt.wstate.aspect / aspect;
       if(vkdt.wstate.selected == 0)
       { // left, move right side along:
