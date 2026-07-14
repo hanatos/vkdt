@@ -356,7 +356,8 @@ dt_image(
     dt_image_widget_t *w,
     dt_node_t         *out,     // make sure the out->dset is valid!
     int                events,  // if !=0 provide zoom/pan interaction
-    int                main)    // if !=0 do on-canvas ui elements
+    int                main,    // if !=0 do on-canvas ui elements
+    int         center_display) // if !=0 allow mouse events not only on the image but on the full center canvas
 {
   if(!out) return;
   w->out = out;
@@ -416,6 +417,11 @@ dt_image(
   }
   struct nk_image nkimg = nk_subimage_ptr(out->dset[display_frame], w->wd, w->ht, subimg);
   int hover = nk_input_is_mouse_hovering_rect(&ctx->input, disp);
+  if(center_display)
+  {
+    struct nk_rect center = {vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht};
+    hover = nk_input_is_mouse_hovering_rect(&ctx->input, center);
+  }
   nk_draw_image(buf, disp, &nkimg, (struct nk_color){0xff,0xff,0xff,0xff});
   char scaletext[10];
   if(ns >= 1.0f)

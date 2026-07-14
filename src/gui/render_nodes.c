@@ -91,9 +91,9 @@ void render_nodes_right_panel()
         int ht = wd * out->connector[0].roi.full_ht / (float)out->connector[0].roi.full_wd; // image aspect
         nk_layout_row_dynamic(ctx, ht, 1);
         if(dsp[d] == dt_token("main"))
-          dt_image(ctx, &vkdt.wstate.img_widget, out, 1, popout ? 0 : 1);
+          dt_image(ctx, &vkdt.wstate.img_widget, out, 1, popout ? 0 : 1, 0);
         else
-          dt_image(ctx, imgw+d, out, 1, 0);
+          dt_image(ctx, imgw+d, out, 1, 0, 0);
       }
       if(popout)
       {

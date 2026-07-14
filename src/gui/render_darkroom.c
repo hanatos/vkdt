@@ -457,7 +457,7 @@ void render_darkroom()
         int events = !vkdt.wstate.grabbed && !disabled;
         // center view has on-canvas widgets (but only if there *is* an image):
         nk_layout_row_dynamic(&vkdt.ctx, win_h, 1);
-        dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out_main, events, out_main != 0);
+        dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out_main, events, out_main != 0, 1);
       }
     }
     float wd = 0.8*win_y;
@@ -623,7 +623,7 @@ void render_darkroom()
         int wd = vkdt.state.panel_wd;
         int ht = wd * out->connector[0].roi.full_ht / (float)out->connector[0].roi.full_wd; // image aspect
         nk_layout_row_dynamic(ctx, ht, 1);
-        dt_image(ctx, imgw+d, out, 1, 0);
+        dt_image(ctx, imgw+d, out, 1, 0, 0);
       }
     }
 
