@@ -6,6 +6,8 @@
 // but the input data is the same.
 #extension GL_EXT_shader_atomic_float  : enable
 #extension GL_EXT_shader_atomic_float2 : enable
+#extension GL_KHR_shader_subgroup_basic      : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
 
 // number of spectral samples/wavelengths when integrating
 #define SN 40
@@ -213,12 +215,12 @@ shared vec4 shared_scan_factor_b[11];
 shared mat3 shared_M;
 shared vec3 shared_M_sum;
 shared vec3 shared_preflash;
-shared vec3 shared_pf_acc[64];
+shared vec3 shared_pf_acc[32];
+shared float shared_autoexp_acc[32];
 
 void init_expose_film_shared(int film)
 {
   int tid = int(gl_LocalInvocationIndex);
-  if (tid == 0) shared_expose_autoexp = 0.0;
   if (tid < 11)
   {
     shared_expose_factor_r[tid] = vec4(0.0);
@@ -226,6 +228,7 @@ void init_expose_film_shared(int film)
     shared_expose_factor_b[tid] = vec4(0.0);
   }
   barrier();
+  float ae_val = 0.0;
   if (tid <= 35)
   {
     float lambda = 380.0 + tid * 10.0;
@@ -240,7 +243,17 @@ void init_expose_film_shared(int film)
     shared_expose_factor_r[tid/4][tid%4] = factor.r;
     shared_expose_factor_g[tid/4][tid%4] = factor.g;
     shared_expose_factor_b[tid/4][tid%4] = factor.b;
-    atomicAdd(shared_expose_autoexp, factor.g);
+    ae_val = factor.g;
+  }
+  
+  float sub_sum = subgroupAdd(ae_val);
+  if (subgroupElect()) shared_autoexp_acc[gl_SubgroupID] = sub_sum;
+  barrier();
+  if (tid == 0)
+  {
+    float final_sum = 0.0;
+    for (int i = 0; i < gl_NumSubgroups; i++) final_sum += shared_autoexp_acc[i];
+    shared_expose_autoexp = final_sum;
   }
   barrier();
 }
@@ -248,7 +261,6 @@ void init_expose_film_shared(int film)
 void init_enlarger_shared(int film, int paper)
 {
   int tid = int(gl_LocalInvocationIndex);
-  if (tid == 0) shared_enlarger_autoexp = 0.0;
   if (tid < 11)
   {
     shared_enlarger_dye_r[tid] = vec4(0.0);
@@ -259,6 +271,8 @@ void init_enlarger_shared(int film, int paper)
     shared_enlarger_factor_b[tid] = vec4(0.0);
   }
   barrier();
+  vec3 pf_val = vec3(0.0);
+  float ae_val = 0.0;
   if (tid <= 40)
   {
     float lambda = 380.0 + tid * 10.0;
@@ -297,7 +311,7 @@ void init_enlarger_shared(int film, int paper)
       float pf_print_illuminant = pf_enlarger.x * pf_enlarger.y * pf_enlarger.z * common_light * exp2(params.pf_ev);
       pf_factor = sensitivity * pf_print_illuminant;
     }
-    shared_pf_acc[tid] = pf_factor;
+    pf_val = pf_factor;
 
     shared_enlarger_dye_r[tid/4][tid%4] = dye_density.x;
     shared_enlarger_dye_g[tid/4][tid%4] = dye_density.y;
@@ -305,29 +319,35 @@ void init_enlarger_shared(int film, int paper)
     shared_enlarger_factor_r[tid/4][tid%4] = factor.r;
     shared_enlarger_factor_g[tid/4][tid%4] = factor.g;
     shared_enlarger_factor_b[tid/4][tid%4] = factor.b;
-    atomicAdd(shared_enlarger_autoexp, factor.g/exp2(params.ev_paper)); // XXX reduction? double exp?
+    ae_val = factor.g;
   }
-  else if (tid < 64) shared_pf_acc[tid] = vec3(0.0);
+  
+  vec3 pf_sub_sum = subgroupAdd(pf_val);
+  float ae_sub_sum = subgroupAdd(ae_val);
+  if (subgroupElect())
+  {
+    shared_pf_acc[gl_SubgroupID] = pf_sub_sum;
+    shared_autoexp_acc[gl_SubgroupID] = ae_sub_sum;
+  }
   barrier();
-  // reduction for preflash (could run subgroupAdd if we knew that's 32 threads)
-  if (tid < 32) shared_pf_acc[tid] += shared_pf_acc[tid + 32];
-  barrier();
-  if (tid < 16) shared_pf_acc[tid] += shared_pf_acc[tid + 16];
-  barrier();
-  if (tid < 8)  shared_pf_acc[tid] += shared_pf_acc[tid + 8];
-  barrier();
-  if (tid < 4)  shared_pf_acc[tid] += shared_pf_acc[tid + 4];
-  barrier();
-  if (tid < 2)  shared_pf_acc[tid] += shared_pf_acc[tid + 2];
-  barrier();
-  if (tid < 1)  shared_preflash = (shared_pf_acc[0] + shared_pf_acc[1]);
+  if (tid == 0)
+  {
+    vec3 final_pf = vec3(0.0);
+    float final_ae = 0.0;
+    for (int i = 0; i < gl_NumSubgroups; i++)
+    {
+      final_pf += shared_pf_acc[i];
+      final_ae += shared_autoexp_acc[i];
+    }
+    shared_preflash = final_pf;
+    shared_enlarger_autoexp = final_ae / exp2(params.ev_paper);
+  }
   barrier();
 }
 
 void init_enlarger_negative_shared(int paper)
 {
   int tid = int(gl_LocalInvocationIndex);
-  if (tid == 0) shared_enlarger_autoexp = 0.0;
   if (tid < 11)
   {
     shared_enlarger_factor_r[tid] = vec4(0.0);
@@ -335,6 +355,8 @@ void init_enlarger_negative_shared(int paper)
     shared_enlarger_factor_b[tid] = vec4(0.0);
   }
   barrier();
+  vec3 pf_val = vec3(0.0);
+  float ae_val = 0.0;
   if (tid <= 40)
   {
     float lambda = 380.0 + tid * 10.0;
@@ -368,34 +390,40 @@ void init_enlarger_negative_shared(int paper)
       float pf_print_illuminant = pf_enlarger.x * pf_enlarger.y * pf_enlarger.z * common_light * exp2(params.pf_ev);
       pf_factor = sensitivity * pf_print_illuminant;
     }
-    shared_pf_acc[tid] = pf_factor;
+    pf_val = pf_factor;
 
     shared_enlarger_factor_r[tid/4][tid%4] = factor.r;
     shared_enlarger_factor_g[tid/4][tid%4] = factor.g;
     shared_enlarger_factor_b[tid/4][tid%4] = factor.b;
-    atomicAdd(shared_enlarger_autoexp, factor.g/exp2(params.ev_paper)); // XXX reduction/subgroups
+    ae_val = factor.g;
   }
-  else if (tid < 64) shared_pf_acc[tid] = vec3(0.0);
+  
+  vec3 pf_sub_sum = subgroupAdd(pf_val);
+  float ae_sub_sum = subgroupAdd(ae_val);
+  if (subgroupElect())
+  {
+    shared_pf_acc[gl_SubgroupID] = pf_sub_sum;
+    shared_autoexp_acc[gl_SubgroupID] = ae_sub_sum;
+  }
   barrier();
-  // reduction for preflash
-  if (tid < 32) shared_pf_acc[tid] += shared_pf_acc[tid + 32];
-  barrier();
-  if (tid < 16) shared_pf_acc[tid] += shared_pf_acc[tid + 16];
-  barrier();
-  if (tid < 8)  shared_pf_acc[tid] += shared_pf_acc[tid + 8];
-  barrier();
-  if (tid < 4)  shared_pf_acc[tid] += shared_pf_acc[tid + 4];
-  barrier();
-  if (tid < 2)  shared_pf_acc[tid] += shared_pf_acc[tid + 2];
-  barrier();
-  if (tid < 1)  shared_preflash = (shared_pf_acc[0] + shared_pf_acc[1]);
+  if (tid == 0)
+  {
+    vec3 final_pf = vec3(0.0);
+    float final_ae = 0.0;
+    for (int i = 0; i < gl_NumSubgroups; i++)
+    {
+      final_pf += shared_pf_acc[i];
+      final_ae += shared_autoexp_acc[i];
+    }
+    shared_preflash = final_pf;
+    shared_enlarger_autoexp = final_ae / exp2(params.ev_paper);
+  }
   barrier();
 }
 
 void init_scan_shared()
 {
   int tid = int(gl_LocalInvocationIndex);
-  if (tid == 0) shared_scan_autoexp = 0.0;
   if (tid < 11)
   {
     shared_scan_dye_r[tid] = vec4(0.0);
@@ -406,6 +434,7 @@ void init_scan_shared()
     shared_scan_factor_b[tid] = vec4(0.0);
   }
   barrier();
+  float ae_val = 0.0;
   if (tid <= 40)
   {
     float lambda = 380.0 + tid * 10.0;
@@ -438,7 +467,17 @@ void init_scan_shared()
     shared_scan_factor_r[tid/4][tid%4] = factor_vec.r;
     shared_scan_factor_g[tid/4][tid%4] = factor_vec.g;
     shared_scan_factor_b[tid/4][tid%4] = factor_vec.b;
-    atomicAdd(shared_scan_autoexp, factor_vec.g);
+    ae_val = factor_vec.g;
+  }
+  
+  float sub_sum = subgroupAdd(ae_val);
+  if (subgroupElect()) shared_autoexp_acc[gl_SubgroupID] = sub_sum;
+  barrier();
+  if (tid == 0)
+  {
+    float final_sum = 0.0;
+    for (int i = 0; i < gl_NumSubgroups; i++) final_sum += shared_autoexp_acc[i];
+    shared_scan_autoexp = final_sum;
   }
   barrier();
 }
