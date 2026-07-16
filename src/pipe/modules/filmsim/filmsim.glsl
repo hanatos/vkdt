@@ -283,6 +283,7 @@ void init_enlarger_shared(int film, int paper)
     vec4 dye_density = texture(img_filmsim, tc);
     dye_density = mix(dye_density, vec4(1000000.0), isnan(dye_density));
     dye_density.xyz *= 3.32192809489;
+    dye_density = clamp(dye_density, vec4(0.0), vec4(1e5)); // avoid nan in the blacks downstream
 
     vec3 neutral = vec3(params.filter_c,
         clamp(params.filter_m, 0, 1) + 0.1*params.tune_m,
@@ -705,6 +706,6 @@ scan(vec3 density_cmy)
     raw.g += light * shared_scan_factor_g[10].x;
     raw.b += light * shared_scan_factor_b[10].x;
   }
-  raw = clamp(raw / shared_scan_autoexp, vec3(0.0), vec3(14.0));
+  raw = clamp(raw / max(shared_scan_autoexp, 1e-5), vec3(0.0), vec3(14.0));
   return XYZ_to_rec2020(raw);
 }
