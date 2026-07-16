@@ -290,7 +290,7 @@ void init_enlarger_shared(int film, int paper)
         clamp(params.filter_y, 0, 1) + 0.1*params.tune_y);
     neutral = clamp(neutral, vec3(0.0), vec3(1.0));
     
-    float illuminant = colour_blackbody(vec4(lambda), 2856.0).x;
+    float illuminant = colour_blackbody(lambda, 2856.0);
     float base_density = dye_density.w * dye_density_min_factor_film;
     float base_light = exp2(-base_density * 3.32192809489);
     float common_light = 800.0 * illuminant * base_light * exp2(params.ev_paper);
@@ -371,7 +371,7 @@ void init_enlarger_negative_shared(int paper)
         clamp(params.filter_y, 0, 1) + 0.1*params.tune_y);
     neutral = clamp(neutral, vec3(0.0), vec3(1.0));
     
-    float illuminant = 800.0 * colour_blackbody(vec4(lambda), 2856.0).x;
+    float illuminant = 800.0 * colour_blackbody(lambda, 2856.0);
     float common_light = illuminant * exp2(params.ev_paper);
 
     // pretty coarse manual fit to thorlabs filters:
@@ -451,10 +451,9 @@ void init_scan_shared()
 
     // vec3 d50 = vec3(0.9642, 1.0000, 0.8251);
     // vec4 coeff = fetch_coeff(d50);
-    vec4 coeff = fetch_coeff(vec3(1)); // d65
-    // float scan_illuminant = 4.7 / 41.0 * sigmoid_eval(coeff, lambda);
-    float scan_illuminant = 4.0 / 41.0 * sigmoid_eval(coeff, lambda);
-    // float scan_illuminant = 6.3 / 41.0 * sigmoid_eval(coeff, lambda);
+    // vec4 coeff = fetch_coeff(vec3(1)); // d65
+    // float scan_illuminant = 4.0 / 41.0 * sigmoid_eval(coeff, lambda);
+    float scan_illuminant = 4.0/41.0 * colour_blackbody(lambda, params.scan_ill);
     vec3 cmf = cmf_1931(lambda);
     
     float factor = (params.process != 1) ? dye_density_min_factor_paper : dye_density_min_factor_film;

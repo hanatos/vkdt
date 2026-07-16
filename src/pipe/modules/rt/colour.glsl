@@ -88,6 +88,23 @@ vec4 colour_sample_lambda(vec4 xi, inout vec4 X, inout vec4 hrp)
 #endif
 }
 
+float colour_blackbody( // scalar version
+    float l,  // wavelength  in [nm]
+    float T)  // temperature in [K]
+{
+  const float h2 = 6.62606957e+11;// Planck's constant [J s] (adjusted for 10-9^5 because lambda is not in m but in nm)
+  const float h = 6.62606957e-34; // Planck's constant [J s]
+  const float c = 299792458.0;    // speed of light [m/s]
+  const float k = 1.3807e-23;     // Boltzmann's constant [J/K]
+  const float lambda_m = l*1e-9;   // lambda [m]
+  const float lambda2 = l*l;
+  const float lambda5 = lambda2*l*lambda2;
+  const float c1 = 2. * h2 * c * c / lambda5;
+  const float c2 = h * c / (lambda_m * T * k);
+  // convert to spectral radiance in [W/m^2 / sr / nm]
+  return 1e-14 * c1 / (exp(c2)-1.0); // chosen to about match return vec4(1) for 6500K in brightness
+  // return 2.21566e-16 * c1 / (exp(c2)-1.0); // such that it integrates y to 1.0 (for other cie cmf)
+}
 vec4 colour_blackbody(
     vec4  l,  // wavelengths in [nm]
     float T)  // temperature in [K]
