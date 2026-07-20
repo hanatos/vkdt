@@ -223,6 +223,7 @@ void modify_roi_out(
     mod->connector[0].chan = dt_token("rgba");
     mod->img_param.filters = 0;
   }
+  else mod->connector[0].chan = dt_token("rggb");
 
   float xyz_to_cam[12], mat[9] = {0};
   // get d65 camera matrix from rawloader
@@ -291,7 +292,7 @@ int read_source(
     {
       for(int k=0;k<3;k++)
         buf[4*(j*wd + i)+k] = ((uint16_t*)mod_data->img.data)[(j+oy)*stride + icpp*(ox + i) + k];
-      buf[4*(j*wd + i)+3] = 1.0;
+      buf[4*(j*wd + i)+3] = 0xffff;
     }
   }
   return 0;
