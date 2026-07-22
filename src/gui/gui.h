@@ -139,6 +139,8 @@ typedef struct dt_gui_wstate_t
   int   pending_widget_parid;   // param index for pending widget start
 
   int lighttable_images_per_row;// how many images per row in lighttable mode
+
+  double delta_time;            // time passed since last frame in seconds
 }
 dt_gui_wstate_t;
 

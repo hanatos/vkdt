@@ -160,10 +160,11 @@ dt_radial_widget(
         (struct nk_color){0xff,0xff,0xff,0xff});
     if(ax && ay)
     {
+      const float sensitivity = vkdt.wstate.delta_time * dt_rc_get_float(&vkdt.rc, "gui/joystick_sensitivity", 1.0f);
       if(fabsf(ax[0]) > fabsf(ay[0]))
-        val[0] += copysignf(MAX(0, fabsf(ax[0])-0.04f), ax[0]) * (max-min) * 0.002f;
+        val[0] += copysignf(MAX(0, fabsf(ax[0])-0.04f), ax[0]) * (max-min) * sensitivity;
       else
-        val[0] -= copysignf(MAX(0, fabsf(ay[0])-0.04f), ay[0]) * (max-min) * 0.01f;
+        val[0] -= copysignf(MAX(0, fabsf(ay[0])-0.04f), ay[0]) * (max-min) * 10.f * sensitivity;
       if(val[0] != oldval) goto changed;
     }
     else if(ctx->input.mouse.buttons[NK_BUTTON_LEFT].down)
