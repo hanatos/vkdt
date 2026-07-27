@@ -7,6 +7,7 @@ g film:slider:0:2
 couplers:slider:0.0:1.0
 group:couplers:100
 cp rad:slider:0.001:0.05
+scne ill:slider:2800:9300
 group:process:101
 ---
 paper:combo:kodak endura premier:kodak ektacolor edge:kodak supra endura:kodak portra endura:fujifilm crystal archive type ii:kodak 2383:kodak 2393:kodak ultra endura
