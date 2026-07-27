@@ -704,7 +704,8 @@ dt_graph_print_run(
     dt_graph_t     *graph,
     dt_graph_run_t  run)
 {
-  dt_log(s_log_pipe, "graph run db %d %s %s %s %s %s %s %s %s",
+  dt_log(s_log_pipe, "graph run f %d db %d %s %s %s %s %s %s %s %s",
+      graph->frame,
       graph->double_buffer,
       run & s_graph_run_roi ? "roi" : "",
       run & s_graph_run_create_nodes ? "nodes" : "",
