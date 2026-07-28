@@ -83,8 +83,8 @@ gamut.
 * `picked` what to do with the picked input colour, if it is connected to the `picked` connector.
   it can be used as source for white balancing and/or deflickering.
 * `matrix` input device transform mode: use the image matrix or a selection of presets, or the colour lut.
-* `temp` if a clut is used, this allows to blend between the two illuminants. usually this
-  is illuminant A and D65 and reflected in the values of the temperature here.
+* `temp` selects the illuminant anchor blend. setting it to `0` resolves once from RAW
+  metadata, or from a connected picker when `picked` is set to `temp`.
 * `white` the white balance destination colour. 1 1 1 is D65. setting this to 0 0 0 (doubleclick to default) will try to load the camera white balance.
 * `mat` a hidden parameter containing the coefficients of the image matrix.
 * `cnt` the number of patches to use in the rbf mapping

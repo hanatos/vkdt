@@ -13,7 +13,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   mat3  rbf_P;             // rbf matrix part
   vec4  rbf_c[24];         // rbf coefficients
   vec4  rbf_p[24];         // rbf positions
-  float temp;              // colour temperature for wb 0:2856 1:6504
+  float temp;              // CLUT anchor blend from Kelvin UI: 0 = high CCT, 1 = low CCT
   uint  colour_mode;       // 0-matrix 1-clut
   float saturation;        // multiplier on chroma
   uint  pick_mode;         // what do we do with the colour picked input?
@@ -21,6 +21,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   uint  primaries;         // see module.h
   uint  trc;
   float clip_highlights;   // pass highlights through or clip at minimum of rgb after processing
+  vec4  auto_wb;           // input image's as-shot camera wb, g-normalised
 } params;
 
 layout(push_constant, std140) uniform push_t
@@ -41,6 +42,9 @@ layout(set = 1, binding = 3
 #endif
 layout(set = 1, binding = 4) uniform sampler2D img_abney;
 layout(set = 1, binding = 5) uniform sampler2D img_spectra;
+layout(set = 1, binding = 6) uniform sampler2D img_auto_temp;
+
+#include "clut.glsl"
 
 vec3 // return adapted rec2020
 cat16(vec3 rec2020_d65, vec3 rec2020_src, vec3 rec2020_dst)
@@ -80,11 +84,20 @@ vec3 process_clut(vec3 rgb)
   float b = rgb.r+rgb.g+rgb.b;
   vec2 tc = rgb.rb/b;
   tri2quad(tc);
-  tc.x /= 3.0;
-  vec4 rbrb = vec4(texture(img_clut, tc).xy, texture(img_clut, tc+vec2(2.0/3.0, 0.0)).xy);
-  vec2 L2 = texture(img_clut, tc + vec2(1.0/3.0, 0.0)).xy;
-  float L = mix(L2.x, L2.y, params.temp);
-  vec2 rb = mix(rbrb.xy, rbrb.zw, params.temp);
+
+  ivec2 clut_size = textureSize(img_clut, 0);
+  int nbands = clut_size.x / clut_size.y;
+  int n = clut_nanchor(nbands);
+
+  float temp = params.temp < 0.0 ? texelFetch(img_auto_temp, ivec2(0), 0).r : params.temp;
+  float bp = clamp(temp, 0.0, 1.0) * float(n-1);
+  int k0 = int(bp);
+  int k1 = min(k0+1, n-1);
+  float frac = bp - float(k0);
+
+  vec2 rb = mix(clut_chroma(tc, k0, nbands), clut_chroma(tc, k1, nbands), frac);
+  float L  = mix(clut_luminance(tc, k0, n, nbands), clut_luminance(tc, k1, n, nbands), frac);
+
   rgb = vec3(rb.x, 1.0-rb.x-rb.y, rb.y);
   return rgb * L * b;
 }
