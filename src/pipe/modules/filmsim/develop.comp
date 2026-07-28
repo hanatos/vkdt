@@ -1,0 +1,37 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#include "head.glsl"
+#include "state.glsl"
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1, std430) readonly buffer buf_prep_t { filmsim_state_t prep; };
+layout(set = 1, binding = 2) uniform sampler2D img_coeff;
+layout(set = 1, binding = 3) uniform sampler2D img_curvewarp;
+layout(set = 1, binding = 4) uniform sampler2D img_coupler;
+layout(set = 1, binding = 5) uniform writeonly restrict image2D img_out;
+#include "state_ops.glsl"
+#include "sampling.glsl"
+#include "develop.glsl"
+#include "exposure.glsl"
+#include "print.glsl"
+#include "scan.glsl"
+void main()
+{
+  init_grain_workgroup();
+
+  FILMSIM_BOUNDS_INIT(ipos);
+
+  vec3 log_raw;
+  if (params.couplers <= 0)
+  {
+    vec2 tc = (ipos + 0.5) / vec2(imageSize(img_out));
+    vec3 rgb_in = fetch_upsampled(img_in, ipos, tc);
+    log_raw = params.gamma_film * expose_scene_to_film(img_coeff, rgb_in);
+  }
+  else
+  {
+    log_raw = fetch_coupler_subtracted_exposure(ipos, img_coupler);
+  }
+
+  vec3 density_cmy = develop_film(log_raw, ipos, img_curvewarp);
+  imageStore(img_out, ipos, vec4(finalize_film_density(density_cmy, ipos), 1));
+}

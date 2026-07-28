@@ -1,0 +1,97 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+// Once-per-frame prepared-state pass.
+#include "head.glsl"
+#include "state.glsl"
+layout(set = 1, binding = 0) uniform sampler2D img_filmsim;
+layout(set = 1, binding = 1, std430) buffer buf_prep_t { filmsim_state_t prep; };
+#include "setup.glsl"
+
+void main()
+{
+  bool need_film = params.process != s_process_print_neg;
+  bool need_paper = params.process != s_process_scan_neg;
+
+  if(need_film)
+  {
+    setup_film_density_model(params.film);
+    if(params.couplers > 0) setup_coupler_matrix();
+    setup_expose_film(params.film);
+  }
+
+  if(need_paper)
+  {
+    setup_paper_density_model(s_paper_offset + params.paper);
+    setup_enlarger_illuminant(params.film, s_paper_offset + params.paper);
+  }
+
+  setup_scan_illuminant();
+
+  int tid = int(gl_LocalInvocationIndex);
+  if (tid < 11)
+  {
+    if(need_film)
+    {
+      prep.film.expose_factor_r[tid] = shared_expose_factor_r[tid];
+      prep.film.expose_factor_g[tid] = shared_expose_factor_g[tid];
+      prep.film.expose_factor_b[tid] = shared_expose_factor_b[tid];
+    }
+
+    prep.scan.scan_dye_r[tid]        = shared_scan_dye_r[tid];
+    prep.scan.scan_dye_g[tid]        = shared_scan_dye_g[tid];
+    prep.scan.scan_dye_b[tid]        = shared_scan_dye_b[tid];
+    prep.scan.scan_factor_r[tid]     = shared_scan_factor_r[tid];
+    prep.scan.scan_factor_g[tid]     = shared_scan_factor_g[tid];
+    prep.scan.scan_factor_b[tid]     = shared_scan_factor_b[tid];
+
+    if(need_paper)
+    {
+      prep.paper.enlarger_dye_r[tid]    = shared_enlarger_dye_r[tid];
+      prep.paper.enlarger_dye_g[tid]    = shared_enlarger_dye_g[tid];
+      prep.paper.enlarger_dye_b[tid]    = shared_enlarger_dye_b[tid];
+      prep.paper.enlarger_factor_r[tid] = shared_enlarger_factor_r[tid];
+      prep.paper.enlarger_factor_g[tid] = shared_enlarger_factor_g[tid];
+      prep.paper.enlarger_factor_b[tid] = shared_enlarger_factor_b[tid];
+    }
+  }
+
+  if (tid == 0)
+  {
+    if(need_film)
+    {
+      prep.film.expose_autoexp_norm = shared_expose_autoexp_norm;
+      prep.film.scene_adapt = shared_scene_adapt;
+      prep.film.scene_white_xy = shared_scene_white_xy;
+      prep.film.gamut_safe_r2 = shared_gamut_safe_r2;
+
+      for (int l = 0; l < 3; l++)
+      {
+        prep.film.model_scale_film[l] = shared_model_scale[s_model_film][l];
+        prep.film.model_bias_film[l]  = shared_model_bias[s_model_film][l];
+        prep.film.model_amps_film[l]  = shared_model_amps[s_model_film][l].rgb;
+      }
+      prep.film.model_positive_film  = shared_model_positive[s_model_film];
+      prep.film.model_dmax = shared_model_dmax;
+      prep.film.M = shared_M; prep.film.c_ref = shared_c_ref; prep.film.Kr = shared_Kr;
+      prep.film.langmuir_k_dmax = shared_langmuir_k_dmax; prep.film.langmuir_num_dmax = shared_langmuir_num_dmax;
+      prep.grain.grain_area_fast = shared_grain_area_fast; prep.grain.grain_area_mid = shared_grain_area_mid; prep.grain.grain_area_slow = shared_grain_area_slow;
+      prep.grain.grain_uniformity = shared_grain_uniformity; prep.grain.grain_dmin = shared_grain_dmin;
+      prep.halation.halation_strength = shared_halation_strength;
+    }
+
+    prep.scan.scan_wp = shared_scan_wp; prep.scan.scan_autoexp_norm = shared_scan_autoexp_norm;
+    prep.scan.glare_mean = shared_glare_mean; prep.scan.glare_seed = shared_glare_seed;
+
+    if(need_paper)
+    {
+      for (int l = 0; l < 3; l++)
+      {
+        prep.paper.model_scale[l] = shared_model_scale[s_model_paper][l];
+        prep.paper.model_bias[l]  = shared_model_bias[s_model_paper][l];
+        prep.paper.model_amps[l]  = shared_model_amps[s_model_paper][l].rgb;
+      }
+      prep.paper.preflash = shared_preflash;
+      prep.paper.enlarger_autoexp_norm = shared_enlarger_autoexp_norm;
+    }
+  }
+}

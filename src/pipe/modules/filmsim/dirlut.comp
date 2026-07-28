@@ -1,0 +1,218 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+// Once-per-frame inverse DIR-coupler warp.
+#define FILMSIM_LOCAL_SIZE_X 256
+#define FILMSIM_LOCAL_SIZE_Y 1
+#include "head.glsl"
+#include "state.glsl"
+layout(set = 1, binding = 0) uniform writeonly restrict image2D img_out;
+layout(set = 1, binding = 1, std430) readonly buffer buf_prep_t { filmsim_state_t prep; };
+#include "state_ops.glsl"
+
+const int dirlut_threads = 256;
+const int dirlut_per_thread = logexp_grid / dirlut_threads;
+
+// Scalar arrays avoid vec3 padding beyond Vulkan's 16kB shared-memory floor.
+shared float shared_grid_warp[3][logexp_grid];
+
+// Strong couplers can fold the warp; detect folds with a segmented scan.
+const int dirlut_seg_size  = 16;
+const int dirlut_n_seg     = logexp_grid / dirlut_seg_size; // 32
+const int dirlut_max_folds = 8; // generous; extra folds beyond this are left unsmoothed (still correct, just not blended)
+
+shared int   s_fold_count[3];
+shared int   s_fold_p0[3][dirlut_max_folds];
+shared int   s_fold_r[3][dirlut_max_folds];
+shared float s_fold_Wp[3][dirlut_max_folds];
+shared float s_fold_Wt[3][dirlut_max_folds];
+
+shared float s_seg_min[3][dirlut_n_seg];
+shared float s_seg_max[3][dirlut_n_seg];
+shared float s_seg_first[3][dirlut_n_seg];
+shared float s_seg_last[3][dirlut_n_seg];
+shared bool  s_seg_mono[3][dirlut_n_seg]; // true if this segment alone has no internal descent
+
+void store_grid_warp(int j, vec3 v)
+{
+  shared_grid_warp[0][j] = v.r;
+  shared_grid_warp[1][j] = v.g;
+  shared_grid_warp[2][j] = v.b;
+}
+
+// Fold-flattened warp for binary search.
+float grid_warp_eff(int ch, int j)
+{
+  float v = shared_grid_warp[ch][j];
+  int n = s_fold_count[ch];
+  // Keep r in the fold to preserve monotonicity.
+  [[loop]] for(int f = 0; f < n; f++)
+    if(j > s_fold_p0[ch][f] && j <= s_fold_r[ch][f])
+      v = s_fold_Wp[ch][f];
+  return v;
+}
+
+void main()
+{
+  int tid = int(gl_LocalInvocationIndex);
+
+  // forward warp on the tabulation grid
+  [[unroll]] for(int k = 0; k < dirlut_per_thread; k++)
+  {
+    int j = tid + k*dirlut_threads;
+    float x = logexp_from_idx(float(j));
+    store_grid_warp(j, vec3(x) - coupler_saturate_post_blur(coupler_inhibit_pre_blur(eval_film_density(vec3(x)))));
+  }
+  barrier();
+
+  // Parallel segment reductions.
+  if (tid < 3 * dirlut_n_seg)
+  {
+    int ch  = tid / dirlut_n_seg;
+    int seg = tid % dirlut_n_seg;
+    int j0 = seg * dirlut_seg_size;
+    int j1 = min(j0 + dirlut_seg_size - 1, logexp_grid - 1);
+
+    float mn = shared_grid_warp[ch][j0], mx = mn;
+    bool mono = true;
+    [[loop]] for(int j = j0; j <= j1; j++)
+    {
+      float v = shared_grid_warp[ch][j];
+      mn = min(mn, v);
+      mx = max(mx, v);
+      if (j > j0 && v < shared_grid_warp[ch][j-1]) mono = false;
+    }
+    s_seg_min[ch][seg]   = mn;
+    s_seg_max[ch][seg]   = mx;
+    s_seg_first[ch][seg] = shared_grid_warp[ch][j0];
+    s_seg_last[ch][seg]  = shared_grid_warp[ch][j1];
+    s_seg_mono[ch][seg]  = mono;
+  }
+  barrier();
+
+  // Merge only segments touched by folds.
+  if (tid < 3)
+  {
+    int ch = tid;
+    int n_folds = 0;
+    bool in_fold = false;
+    int p0 = 0; float peak = 0.0, trough = 0.0;
+    float running_last = shared_grid_warp[ch][0];
+
+    [[loop]] for(int seg = 0; seg < dirlut_n_seg; seg++)
+    {
+      bool fast_skip =
+        (!in_fold && s_seg_mono[ch][seg] && s_seg_first[ch][seg] >= running_last) ||
+        ( in_fold && s_seg_max[ch][seg] < peak);
+      if (fast_skip)
+      {
+        if (in_fold) trough = min(trough, s_seg_min[ch][seg]);
+        else         running_last = s_seg_last[ch][seg];
+        continue;
+      }
+      int j0 = seg * dirlut_seg_size;
+      int j1 = min(j0 + dirlut_seg_size - 1, logexp_grid - 1);
+      [[loop]] for(int j = j0; j <= j1; j++)
+      {
+        float v = shared_grid_warp[ch][j];
+        if (!in_fold)
+        {
+          if (v < running_last)
+          {
+            in_fold = true; p0 = j - 1; peak = running_last; trough = min(running_last, v);
+          }
+          else running_last = v;
+        }
+        else
+        {
+          trough = min(trough, v);
+          if (v >= peak)
+          {
+            if (n_folds < dirlut_max_folds)
+            {
+              s_fold_p0[ch][n_folds] = p0;
+              s_fold_r[ch][n_folds]  = j;
+              s_fold_Wp[ch][n_folds] = peak;
+              s_fold_Wt[ch][n_folds] = trough;
+              n_folds++;
+            }
+            in_fold = false;
+            running_last = v;
+          }
+        }
+      }
+    }
+    if (in_fold && n_folds < dirlut_max_folds)
+    { // never recovers: the fold runs to the end of the grid
+      s_fold_p0[ch][n_folds] = p0;
+      s_fold_r[ch][n_folds]  = logexp_grid - 1;
+      s_fold_Wp[ch][n_folds] = peak;
+      s_fold_Wt[ch][n_folds] = trough;
+      n_folds++;
+    }
+
+    // Merge overlapping fold ranges to preserve monotonicity.
+    int m = 0;
+    [[loop]] for(int f = 0; f < n_folds; f++)
+    {
+      s_fold_p0[ch][m] = s_fold_p0[ch][f];
+      s_fold_r[ch][m]  = s_fold_r[ch][f];
+      s_fold_Wp[ch][m] = s_fold_Wp[ch][f];
+      s_fold_Wt[ch][m] = s_fold_Wt[ch][f];
+      m++;
+      [[loop]] while(m >= 2 &&
+          s_fold_Wt[ch][m-1] < s_fold_Wp[ch][m-2] &&
+          s_fold_Wt[ch][m-2] < s_fold_Wp[ch][m-1])
+      {
+        s_fold_r[ch][m-2]  = max(s_fold_r[ch][m-2],  s_fold_r[ch][m-1]);
+        s_fold_Wp[ch][m-2] = max(s_fold_Wp[ch][m-2], s_fold_Wp[ch][m-1]);
+        s_fold_Wt[ch][m-2] = min(s_fold_Wt[ch][m-2], s_fold_Wt[ch][m-1]);
+        m--;
+      }
+    }
+    s_fold_count[ch] = m;
+  }
+  barrier();
+
+  // Invert folds by blending; binary-search elsewhere.
+  [[unroll]] for(int k = 0; k < dirlut_per_thread; k++)
+  {
+    int j = tid + k*dirlut_threads;
+    float x = logexp_from_idx(float(j));
+
+    vec3 y = vec3(0.0);
+    [[unroll]] for(int ch = 0; ch < 3; ch++)
+    {
+      int n = s_fold_count[ch]; // bounded by cwarp_max_folds already, see grid_warp_eff
+      bool blended = false;
+      float yv = 0.0;
+      // Merged fold ranges do not overlap.
+      [[loop]] for(int f = 0; f < n; f++)
+      {
+        float Wt = s_fold_Wt[ch][f], Wp = s_fold_Wp[ch][f];
+        if (x > Wt && x < Wp)
+        {
+          float u  = clamp((x - Wt) / max(Wp - Wt, 1e-6), 0.0, 1.0);
+          float us = u * u * (3.0 - 2.0 * u);
+          yv = mix(logexp_from_idx(float(s_fold_p0[ch][f])), logexp_from_idx(float(s_fold_r[ch][f])), us);
+          blended = true;
+        }
+      }
+      if (!blended)
+      {
+        int lo = 0;
+        [[unroll]] for(int step = logexp_grid >> 1; step > 0; step >>= 1)
+        {
+          int probe = min(lo + step, logexp_grid - 1);
+          if (grid_warp_eff(ch, probe) <= x) lo = probe;
+        }
+        int hi = min(lo + 1, logexp_grid - 1);
+        float x_lo = grid_warp_eff(ch, lo), x_hi = grid_warp_eff(ch, hi);
+        float t = (lo == logexp_grid - 1) ? 0.0 : clamp((x - x_lo) / max(x_hi - x_lo, 1e-6), 0.0, 1.0);
+        yv = logexp_from_idx(float(lo) + t);
+      }
+      y[ch] = yv;
+    }
+
+    imageStore(img_out, ivec2(j, 0), vec4(y, 1.0));
+  }
+}

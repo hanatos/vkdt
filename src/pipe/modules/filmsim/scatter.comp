@@ -1,0 +1,30 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#include "head.glsl"
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly restrict image2D img_out;
+layout(set = 1, binding = 2) uniform sampler2D img_core;
+layout(set = 1, binding = 3) uniform sampler2D img_tail0;
+layout(set = 1, binding = 4) uniform sampler2D img_tail1;
+layout(set = 1, binding = 5) uniform sampler2D img_tail2;
+
+void main()
+{
+  FILMSIM_BOUNDS_INIT(ipos);
+
+  // Keep log2 input non-negative.
+  vec3 e0 = max(texelFetch(img_in, ipos, 0).rgb, vec3(0.0));
+  // This node exists only when scatter is enabled.
+  float s = clamp(params.scat_amt, 0.0, 1.0);
+
+  vec3 core  = max(texelFetch(img_core,  ipos, 0).rgb, vec3(0.0));
+  vec3 tail0 = max(texelFetch(img_tail0, ipos, 0).rgb, vec3(0.0));
+  vec3 tail1 = max(texelFetch(img_tail1, ipos, 0).rgb, vec3(0.0));
+  vec3 tail2 = max(texelFetch(img_tail2, ipos, 0).rgb, vec3(0.0));
+
+  // Normalized amplitudes preserve energy.
+  vec3 tail = scatter_exp_amp.x * tail0 + scatter_exp_amp.y * tail1 + scatter_exp_amp.z * tail2;
+
+  vec3 scattered = mix(core, tail, scatter_tail_weight);
+  imageStore(img_out, ipos, vec4(mix(e0, scattered, s), 1.0));
+}

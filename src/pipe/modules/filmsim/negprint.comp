@@ -1,0 +1,28 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#include "head.glsl"
+#include "state.glsl"
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform sampler2D img_coeff;
+layout(set = 1, binding = 2, std430) readonly buffer buf_prep_t { filmsim_state_t prep; };
+layout(set = 1, binding = 3) uniform writeonly restrict image2D img_out;
+#include "state_ops.glsl"
+#include "sampling.glsl"
+#include "shared/upsample.glsl"
+#include "print.glsl"
+#include "scan.glsl"
+
+// print a scanned negative (process==2): enlarger-expose it to paper,
+// develop the print, scan to rgb. see create_nodes in main.c.
+void main()
+{
+  FILMSIM_BOUNDS_INIT(ipos);
+  ivec2 out_sz = imageSize(img_out);
+  vec2 tc = (ipos + 0.5) / vec2(out_sz);
+
+  vec3 rgb = fetch_upsampled(img_in, ipos, tc);
+  vec3 log_raw = enlarger_expose_scanned_neg(img_coeff, rgb);
+  vec3 density_cmy = eval_paper_density(log_raw);
+  rgb = scan_cmy_to_rgb(density_cmy, ipos);
+  imageStore(img_out, ipos, vec4(rgb, 1));
+}
