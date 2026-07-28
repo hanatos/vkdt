@@ -55,7 +55,7 @@ qvk_memory_get_device()
 	for(uint32_t i = 0; i < qvk.mem_properties.memoryTypeCount; i++)
   {
     VkMemoryPropertyFlagBits f = qvk.mem_properties.memoryTypes[i].propertyFlags;
-    int test  = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;// | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT)
+    int test  = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     int testn =
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|

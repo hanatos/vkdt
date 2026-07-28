@@ -36,6 +36,29 @@ typedef struct dt_graph_query_t
 }
 dt_graph_query_t;
 
+typedef struct dt_graph_memory_t
+{
+  dt_vkalloc_t    heap;
+  VkDeviceMemory  vkmem;
+  VkDeviceSize    vkmem_size;
+  uint32_t        memory_type;
+  uint8_t         persistent;
+  uint8_t         low_32bit_offsets;
+}
+dt_graph_memory_t;
+
+typedef struct dt_graph_memory_request_t
+{
+  VkMemoryPropertyFlags required_flags;
+  VkMemoryPropertyFlags preferred_flags;
+  VkMemoryPropertyFlags avoid_flags;
+  uint8_t               persistent;
+  uint8_t               low_32bit_offsets;
+}
+dt_graph_memory_request_t;
+
+#define DT_GRAPH_MAX_MEMORY_ARENAS (VK_MAX_MEMORY_TYPES * 5)
+
 // the graph is stored as list of modules and list of nodes.
 // these have connectors with detailed buffer information which
 // also hold the id to the other connected module or node. thus,
@@ -68,17 +91,9 @@ typedef struct dt_graph_t
   dt_connector_image_t *conn_image_pool;
   uint32_t              conn_image_end, conn_image_max;
 
-  dt_vkalloc_t          heap;           // allocator for device images
-  dt_vkalloc_t          heap_1;         // overflow allocator for >4G storage images
-  dt_vkalloc_t          heap_staging;   // used for staging memory, which has different flags
-  dt_vkalloc_t          heap_protected; // protected memory is never freed so it has its own heap
-
-  uint32_t              memory_type_bits;
-  uint32_t              memory_type_bits_staging;
-  VkDeviceMemory        vkmem;
-  VkDeviceMemory        vkmem_1;
-  VkDeviceMemory        vkmem_staging;
-  VkDeviceMemory        vkmem_protected;
+  // Arenas are created lazily for the actual Vulkan memory type requested by a resource.
+  dt_graph_memory_t     memory[DT_GRAPH_MAX_MEMORY_ARENAS];
+  uint32_t              memory_cnt;
 
   VkPipeline                  mipmap_pipeline;
   VkPipelineLayout            mipmap_pipeline_layout;
@@ -109,11 +124,8 @@ typedef struct dt_graph_t
 
   dt_raytrace_graph_t   rt;
 
-  VkDeviceSize          vkmem_size;          // allocation sizes to tell whether we need to re-alloc
-  VkDeviceSize          vkmem_1_size;
-  VkDeviceSize          vkmem_staging_size;
+  // allocation sizes to tell whether we need to re-alloc
   VkDeviceSize          vkmem_uniform_size;
-  VkDeviceSize          vkmem_protected_size;
 
   dt_graph_query_t      query[2];            // for odd and even command buffers, starting at half query_max
 

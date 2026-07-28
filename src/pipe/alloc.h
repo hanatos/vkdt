@@ -15,6 +15,7 @@ typedef struct dt_vkmem_t
   struct dt_vkmem_t *prev;  // for alloced/free lists
   struct dt_vkmem_t *next;
   struct dt_vkalloc_t *heap;// pointing back to owner
+  struct dt_graph_memory_t *memory; // Vulkan arena backing this allocation
 }
 dt_vkmem_t;
 

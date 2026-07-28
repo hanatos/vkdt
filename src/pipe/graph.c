@@ -47,10 +47,6 @@ dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
   g->module = calloc(sizeof(dt_module_t), g->max_modules);
   g->max_nodes = 4000;
   g->node = calloc(sizeof(dt_node_t), g->max_nodes);
-  dt_vkalloc_init(&g->heap, 16000, ((uint64_t)1)<<40); // bytesize doesn't matter
-  dt_vkalloc_init(&g->heap_1, 16000, ((uint64_t)1)<<40);
-  dt_vkalloc_init(&g->heap_staging, 100, ((uint64_t)1)<<40);
-  dt_vkalloc_init(&g->heap_protected, 16000, ((uint64_t)1)<<40);
   g->params_max = 16u<<20;
   g->params_end = 0;
   g->params_pool = calloc(sizeof(uint8_t), g->params_max);
@@ -234,24 +230,20 @@ dt_graph_cleanup(dt_graph_t *g)
   g->active_module = -1;
   if(graph_wait_gpu(g, "graph_cleanup") != VK_SUCCESS) return;
   graph_teardown_modules(g);
-  dt_vkalloc_cleanup(&g->heap);
-  dt_vkalloc_cleanup(&g->heap_1);
-  dt_vkalloc_cleanup(&g->heap_staging);
-  dt_vkalloc_cleanup(&g->heap_protected);
+  for(int i=0;i<g->memory_cnt;i++)
+    dt_vkalloc_cleanup(&g->memory[i].heap);
   graph_destroy_per_image_resources(g);
+  for(int i=0;i<g->memory_cnt;i++)
+    vkFreeMemory(qvk.device, g->memory[i].vkmem, 0);
   vkDestroyDescriptorPool(qvk.device, g->dset_pool, 0);
   vkDestroyDescriptorSetLayout(qvk.device, g->uniform_dset_layout, 0);
   vkDestroyBuffer(qvk.device, g->uniform_buffer, 0);
   g->dset_pool = 0;
   g->uniform_dset_layout = 0;
   g->uniform_buffer = 0;
-  vkFreeMemory(qvk.device, g->vkmem, 0);
-  vkFreeMemory(qvk.device, g->vkmem_1, 0);
-  vkFreeMemory(qvk.device, g->vkmem_staging, 0);
   vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
-  vkFreeMemory(qvk.device, g->vkmem_protected, 0);
-  g->vkmem = g->vkmem_1 = g->vkmem_staging = g->vkmem_uniform = g->vkmem_protected = 0;
-  g->vkmem_size = g->vkmem_1_size = g->vkmem_staging_size = g->vkmem_uniform_size = g->vkmem_protected_size = 0;
+  g->vkmem_uniform = 0;
+  g->vkmem_uniform_size = 0;
   vkDestroySemaphore(qvk.device, g->semaphore_display, 0);
   vkDestroySemaphore(qvk.device, g->semaphore_process, 0);
   g->semaphore_display = 0;
@@ -829,18 +821,14 @@ VkResult dt_graph_run(
 
   if(run & s_graph_run_alloc)
   { // output memory statistics if we did any allocation at all
-    dt_log(s_log_mem, "images : peak rss %g MB vmsize %g MB",
-        graph->heap.peak_rss/(1024.0*1024.0),
-        graph->heap.vmsize  /(1024.0*1024.0));
-    dt_log(s_log_mem, "overflow : peak rss %g MB vmsize %g MB",
-        graph->heap_1.peak_rss/(1024.0*1024.0),
-        graph->heap_1.vmsize  /(1024.0*1024.0));
-    dt_log(s_log_mem, "protected : peak rss %g MB vmsize %g MB",
-        graph->heap_protected.peak_rss/(1024.0*1024.0),
-        graph->heap_protected.vmsize  /(1024.0*1024.0));
-    dt_log(s_log_mem, "staging: peak rss %g MB vmsize %g MB",
-        graph->heap_staging.peak_rss/(1024.0*1024.0),
-        graph->heap_staging.vmsize  /(1024.0*1024.0));
+    for(int i=0;i<graph->memory_cnt;i++)
+      dt_log(s_log_mem, "arena %u (type %u%s%s%s): peak rss %g MB vmsize %g MB", i,
+          graph->memory[i].memory_type,
+          qvk.mem_properties.memoryTypes[graph->memory[i].memory_type].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT ? ", host-visible" : "",
+          graph->memory[i].persistent ? ", persistent" : "",
+          graph->memory[i].low_32bit_offsets ? ", low32" : "",
+          graph->memory[i].heap.peak_rss/(1024.0*1024.0),
+          graph->memory[i].heap.vmsize  /(1024.0*1024.0));
   }
 
   double clock_end = dt_time();
@@ -994,19 +982,19 @@ dt_graph_repurpose(dt_graph_t *g)
   if(graph_wait_gpu(g, "graph_repurpose") != VK_SUCCESS) return;
   graph_teardown_modules(g);
   // clear logical allocators
-  dt_vkalloc_nuke(&g->heap);
-  dt_vkalloc_nuke(&g->heap_1);
-  dt_vkalloc_nuke(&g->heap_protected);
-  dt_vkalloc_nuke(&g->heap_staging);
+  for(int i=0;i<g->memory_cnt;i++)
+    dt_vkalloc_nuke(&g->memory[i].heap);
   graph_destroy_per_image_resources(g);
+  for(int i=0;i<g->memory_cnt;i++)
+  {
+    vkFreeMemory(qvk.device, g->memory[i].vkmem, 0);
+    g->memory[i].vkmem = 0;
+    g->memory[i].vkmem_size = 0;
+  }
   // free memory because this can be sizable:
-  vkFreeMemory(qvk.device, g->vkmem, 0);
-  vkFreeMemory(qvk.device, g->vkmem_1, 0);
-  vkFreeMemory(qvk.device, g->vkmem_staging, 0);
   vkFreeMemory(qvk.device, g->vkmem_uniform, 0);
-  vkFreeMemory(qvk.device, g->vkmem_protected, 0);
-  g->vkmem = g->vkmem_1 = g->vkmem_staging = g->vkmem_uniform = g->vkmem_protected = 0;
-  g->vkmem_size = g->vkmem_1_size = g->vkmem_staging_size = g->vkmem_uniform_size = g->vkmem_protected_size = 0;
+  g->vkmem_uniform = 0;
+  g->vkmem_uniform_size = 0;
   // reset command pool (reuse buffers, skip destroy/recreate)
   vkResetCommandPool(qvk.device, g->command_pool, 0);
   if(g->command_pool_gfx)
