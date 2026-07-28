@@ -235,8 +235,11 @@ void init_expose_film_shared(int film)
     // TODO this shall include skin spectra! * scene illuminant, D65 say
     vec2 tc = vec2((tid * 2.0 + 0.5) / 256.0, get_tcy(s_sensitivity, film));
     vec3 sensitivity = get_sensitivity(tc);
-    float scene_illuminant = colour_blackbody(lambda, params.scene_ill);
-    sensitivity /= scene_illuminant; // spectral white balance
+    if(params.scene_ill > 0)
+    { // spectral white balancing
+      float scene_illuminant = colour_blackbody(lambda, params.scene_ill);
+      sensitivity /= scene_illuminant;
+    }
     // avoid some metameric madness film vs cie cmf: cut off wavelength ranges
     // that the spectral upsampling doesn't care about (outside the XYZ support)
     float env = envelope(lambda);

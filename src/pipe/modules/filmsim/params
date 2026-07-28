@@ -27,4 +27,4 @@ pf ev:float:1:-10.0
 pf m:float:1:0.0
 pf y:float:1:0.0
 scan ill:float:1:6504.0
-scne ill:float:1:5500.0
+scne ill:float:1:0.0

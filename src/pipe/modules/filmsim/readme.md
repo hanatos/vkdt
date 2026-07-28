@@ -190,7 +190,7 @@ block) and print paper options (second block).
 * `scale` scale the rgb strength of the halation effect in lockstep
 * `hal mids` midtone protection for halation. this heuristic lets you gradually fade out the effect of halation for darker tones. useful to preserve some extra sharpness outside the highlights. set to 1 for maximum effect, 0 means all tones are affected equally.
 * `scan ill` temperature (K) of the scan illuminant black body emitter. it affects the final stage of all workflows and is often useful for post-white balancing.
-* `scne ill` temperature (K) of the scene illuminant, for white balancing. 5500 is close to illuminant E (neutral). this affects the render during film exposure.
+* `scne ill` temperature (K) of the scene illuminant, for white balancing. set to 0 for illuminant E (neutral). this affects the render during film exposure.
 
 ## licence
 
