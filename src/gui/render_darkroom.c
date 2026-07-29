@@ -1219,7 +1219,7 @@ darkroom_process()
     // graph->double_buffer points to the buffer currently locked for render/display
     // set graph_res = -1 initially (when entering dr mode) so we won't draw before it finished processing
     static int running = 0; // 1-double buffer is still running on gpu, has not been swapped in yet
-    if(vkdt.graph_res[vkdt.graph_dev.double_buffer] == -1)
+    if(vkdt.graph_res[vkdt.graph_dev.double_buffer^1] == -1)
       running = 1; // when entering dr mode graph_res is -1 and it will kick off 0 as running
 
     if((!running && vkdt.graph_dev.runflags) || // stills and stopped animations
@@ -1241,9 +1241,10 @@ darkroom_process()
       VkResult res = vkGetSemaphoreCounterValue(qvk.device, vkdt.graph_dev.semaphore_process, &value);
       if(res == VK_SUCCESS && value >= vkdt.graph_dev.process_dbuffer[vkdt.graph_dev.double_buffer^1])
       {
-        if(vkdt.graph_res[vkdt.graph_dev.double_buffer] == -1)
-          vkdt.graph_res[vkdt.graph_dev.double_buffer] = VK_SUCCESS; // let display know it's now good to show
+        if(vkdt.graph_res[vkdt.graph_dev.double_buffer^1] == -1)
+          vkdt.graph_res[vkdt.graph_dev.double_buffer^1] = VK_SUCCESS; // let display now it's now good to show
         running = 0;
+        vkdt.graph_dev.double_buffer ^= 1; // flip double buffer frame
       }
     }
   }
@@ -1253,7 +1254,6 @@ darkroom_process()
     { // double buffered compute
       // this will wait for other run
       // process double_buffer, wait for double_buffer^1
-      vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
       vkdt.graph_res[vkdt.graph_dev.double_buffer] =
         dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
       if(vkdt.graph_res[vkdt.graph_dev.double_buffer] != VK_SUCCESS)
@@ -1265,8 +1265,10 @@ darkroom_process()
         .semaphoreCount = 1,
         .pSemaphores    = &vkdt.graph_dev.semaphore_process,
         .pValues        = &vkdt.graph_dev.process_dbuffer[vkdt.graph_dev.double_buffer^1],
-      }; // wait for previous buffer to complete
-      vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30);
+      };
+      VkResult res = vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30);
+      if(res == VK_SUCCESS)
+        vkdt.graph_dev.double_buffer ^= 1; // lock ^1 as display buffer, we waited for it to complete
       // double-click reset: the reset rendered into the just-kicked slot but the display
       // still shows the previous slot. schedule one more grabbed run so the new result
       // becomes the display buffer, and post an empty event to wake glfwWaitEvents.
@@ -1427,7 +1429,7 @@ darkroom_enter()
         qvk_result_to_string(vkdt.graph_res[vkdt.graph_dev.double_buffer]));
   if(vkdt.graph_res[vkdt.graph_dev.double_buffer] == VK_SUCCESS)
     vkdt.graph_res[vkdt.graph_dev.double_buffer] = -1;
-  // vkdt.graph_dev.double_buffer = 1; // we are rendering to 0, make sure the display code uses this dset after swapping
+  vkdt.graph_dev.double_buffer = 1; // we are rendering to 0, make sure the display code uses this dset after swapping
   dt_graph_print_external_resources(&vkdt.graph_dev);
   dt_graph_free_external_resources(&vkdt.graph_dev);
 
