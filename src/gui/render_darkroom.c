@@ -1232,6 +1232,7 @@ darkroom_process()
         dt_gui_notification("failed to run the graph %s!",
             qvk_result_to_string(vkdt.graph_res[vkdt.graph_dev.double_buffer]));
       vkdt.graph_dev.runflags = 0; // clear this here, running graph has a copy.
+      vkdt.graph_dev.double_buffer ^= 1; // reset to the locked/already finished one
       running = 1;
     }
     if(running)
@@ -1426,6 +1427,7 @@ darkroom_enter()
         qvk_result_to_string(vkdt.graph_res[vkdt.graph_dev.double_buffer]));
   if(vkdt.graph_res[vkdt.graph_dev.double_buffer] == VK_SUCCESS)
     vkdt.graph_res[vkdt.graph_dev.double_buffer] = -1;
+  // vkdt.graph_dev.double_buffer = 1; // we are rendering to 0, make sure the display code uses this dset after swapping
   dt_graph_print_external_resources(&vkdt.graph_dev);
   dt_graph_free_external_resources(&vkdt.graph_dev);
 
