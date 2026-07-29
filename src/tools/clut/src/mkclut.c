@@ -162,7 +162,7 @@ create_chroma_lut_DEBUG(
 }
 #endif
 
-// Scatter spectral samples into camera-chroma bins.
+// create 2.5D chroma lut
 static inline float*
 create_chroma_lut(
     int                   *wd_out,
@@ -175,18 +175,19 @@ create_chroma_lut(
     const int              cie_spec_cnt,
     const int              ss)              // source oversampling factor
 {
-  int wd = sh->wd, ht = sh->ht; // output dimensions
+  int swd = sh->wd, sht = sh->ht; // sampling dimensions
+  int wd  = swd, ht = sht; // output dimensions
   float *buf = calloc(sizeof(float)*3, wd*ht+1);
-  double *bestd = malloc(sizeof(double)*wd*(uint64_t)ht);
-  for(uint64_t k=0;k<wd*(uint64_t)ht;k++) bestd[k] = 1e300;
 
-  // Illuminant-E reference luminance.
+  // do two passes over the data
+  // get illum E white point (lowest saturation) in camera rgb and quad param:
   const double wcf[] = {0.0, 0.0, 100000.0}; // illuminant E
   double white_cam_rgb[3] = {
     spectrum_integrate(cfa_spec, 0, cfa_spec_cnt, wcf, 3),
     spectrum_integrate(cfa_spec, 1, cfa_spec_cnt, wcf, 3),
     spectrum_integrate(cfa_spec, 2, cfa_spec_cnt, wcf, 3)};
   const double white_cam_rgb_L1 = normalise1(white_cam_rgb);
+  tri2quad(white_cam_rgb, white_cam_rgb+2);
   double xyz_spec[3] = {0.0};
   for(int k=0;k<3;k++)
     xyz_spec[k] = spectrum_integrate(cie_spec, k, cie_spec_cnt, wcf, 3);
@@ -195,14 +196,43 @@ create_chroma_lut(
   const double white_rec2020_L1 = normalise1(rec2020);
   const double ref_L = white_cam_rgb_L1 / white_rec2020_L1;
 
-  // Oversample the source grid.
-  const int sample_wd = wd*ss, sample_ht = ht*ss;
-
+  // first pass: get rough idea about max deviation from white and the saturation we got there
+  double *angular_ds = calloc(sizeof(double), 360*2);
+  int sample_wd = swd, sample_ht = sht;
   for(int j=0;j<sample_ht;j++) for(int i=0;i<sample_wd;i++)
   {
     double xy[2] = {(i+0.5)/sample_wd, (j+0.5)/sample_ht};
     quad2tri(xy+0, xy+1);
+    double cf[3]; // look up the coeffs for the sampled colour spectrum
+    fetch_coeffi(xy, spectra, sh->wd, sh->ht, cf); // nearest
+    if(cf[0] == 0) continue; // discard out of spectral locus
+    double cam_rgb_spec[3] = {0.0}; // camera rgb by processing spectrum * cfa spectrum
+    for(int k=0;k<3;k++)
+      cam_rgb_spec[k] = spectrum_integrate(cfa_spec, k, cfa_spec_cnt, cf, 3);
+    normalise1(cam_rgb_spec);
+    double u0 = cam_rgb_spec[0], u1 = cam_rgb_spec[2];
+    tri2quad(&u0, &u1);
+    float fxy[] = {xy[0], xy[1]}, white[] = {1.0f/3.0f, 1.0f/3.0f};
+    float sat = dt_spectrum_saturation(fxy, white);
+    // find angular max dist + sat
+    int bin = CLAMP(180.0/M_PI * (M_PI + atan2(u1-white_cam_rgb[2], u0-white_cam_rgb[0])), 0, 359);
+    double dist2 =
+      (u1-white_cam_rgb[2])*(u1-white_cam_rgb[2])+
+      (u0-white_cam_rgb[0])*(u0-white_cam_rgb[0]);
+    if(dist2 > angular_ds[2*bin])
+    {
+      angular_ds[2*bin+0] = dist2;
+      angular_ds[2*bin+1] = sat;
+    }
+  }
 
+  // 2nd pass:
+// #pragma omp parallel for schedule(dynamic) collapse(2) default(shared)
+  sample_wd = swd*ss, sample_ht = sht*ss;
+  for(int j=0;j<sample_ht;j++) for(int i=0;i<sample_wd;i++)
+  {
+    double xy[2] = {(i+0.5)/sample_wd, (j+0.5)/sample_ht};
+    quad2tri(xy+0, xy+1);
     double cf[3]; // look up the coeffs for the sampled colour spectrum
     fetch_coeff(xy, spectra, sh->wd, sh->ht, cf); // bilinear
     if(cf[0] == 0) continue; // discard out of spectral locus
@@ -211,32 +241,36 @@ create_chroma_lut(
     for(int k=0;k<3;k++)
       cam_rgb_spec[k] = spectrum_integrate(cfa_spec, k, cfa_spec_cnt, cf, 3);
     const double cam_rgb_L1 = normalise1(cam_rgb_spec);
-    double xyz_spec2[3] = {0.0};
+    double xyz_spec[3] = {0.0}; // camera rgb by processing spectrum * cfa spectrum
     for(int k=0;k<3;k++)
-      xyz_spec2[k] = spectrum_integrate(cie_spec, k, cie_spec_cnt, cf, 3);
-    double rec2020_s[3];
-    mat3_mulv(xyz_to_rec2020, xyz_spec2, rec2020_s);
-    const double rec2020_L1 = normalise1(rec2020_s) * ref_L;
+      xyz_spec[k] = spectrum_integrate(cie_spec, k, cie_spec_cnt, cf, 3);
+    double rec2020[3];
+    mat3_mulv(xyz_to_rec2020, xyz_spec, rec2020);
+    const double rec2020_L1 = normalise1(rec2020) * ref_L;
 
+    float fxy[] = {xy[0], xy[1]}, white[2] = {1.0f/3.0f, 1.0f/3.0f};
+    float sat = dt_spectrum_saturation(fxy, white);
     // convert tri t to quad u:
     double u0 = cam_rgb_spec[0], u1 = cam_rgb_spec[2];
     tri2quad(&u0, &u1);
-    if(u0 < 0 || u1 < 0 || u0 > 1.0 || u1 > 1.0) continue; // outside output grid
+    int bin = CLAMP(180.0/M_PI * (M_PI + atan2(u1-white_cam_rgb[2], u0-white_cam_rgb[0])), 0, 359);
+    double dist2 =
+      (u1-white_cam_rgb[2])*(u1-white_cam_rgb[2])+
+      (u0-white_cam_rgb[0])*(u0-white_cam_rgb[0]);
+    if(dist2 < angular_ds[2*bin] && sat > angular_ds[2*bin+1])
+      continue; // discard higher xy sat for lower rgb sat
+    if(dist2 < 0.8*0.8*angular_ds[2*bin] && sat > 0.95*angular_ds[2*bin+1])
+      continue; // be harsh to values straddling our bounds
 
-    int ii = CLAMP((int)(u0 * wd), 0, wd-1);
-    int jj = CLAMP((int)(u1 * ht), 0, ht-1);
-    double cx = (ii+0.5)/wd, cy = (jj+0.5)/ht;
-    double dd = (u0-cx)*(u0-cx) + (u1-cy)*(u1-cy);
+    // sort this into rb/sum(rgb) map in camera rgb
+    int ii = CLAMP(u0 * wd + 0.5, 0, wd-1);
+    int jj = CLAMP(u1 * ht + 0.5, 0, ht-1);
 
-    uint64_t bidx = (uint64_t)jj*wd + ii;
-    if(dd >= bestd[bidx]) continue; // a closer sample already claimed this bin
-    bestd[bidx] = dd;
-
-    buf[3*bidx+0] = rec2020_s[0];
-    buf[3*bidx+1] = rec2020_s[2];
-    buf[3*bidx+2] = rec2020_L1 / cam_rgb_L1;
+    buf[3*(jj*wd + ii)+0] = rec2020[0];
+    buf[3*(jj*wd + ii)+1] = rec2020[2];
+    buf[3*(jj*wd + ii)+2] = rec2020_L1 / cam_rgb_L1;
   }
-  free(bestd);
+  free(angular_ds);
 
   *wd_out = wd;
   *ht_out = ht;
