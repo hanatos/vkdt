@@ -3,6 +3,32 @@
 #include <math.h>
 #include <stdlib.h>
 
+static inline float
+legacy_temp_position(const float temp)
+{
+  return 1.0f - CLAMP(tanf(asinhf(46.3407f+temp))+(-0.0287128f*cosf(0.000798585f*(714.855f-temp)))+0.942275f, 0.0f, 1.0f);
+}
+
+static float
+auto_temp_kelvin(const float position, const uint32_t nbands)
+{
+  if(nbands > 3)
+  {
+    const float m_lo = 1e6f/15000.0f, m_hi = 1e6f/2000.0f;
+    return 1e6f/(m_lo + CLAMP(position, 0.0f, 1.0f)*(m_hi-m_lo));
+  }
+
+  // Invert the legacy two-anchor mapping.
+  float lo = 2000.0f, hi = 15000.0f;
+  for(int k=0;k<24;k++)
+  {
+    const float mid = 0.5f*(lo+hi);
+    if(legacy_temp_position(mid) < position) hi = mid;
+    else                                     lo = mid;
+  }
+  return 0.5f*(lo+hi);
+}
+
 void ui_callback(
     dt_module_t *mod,
     dt_token_t   param)
@@ -236,10 +262,26 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   f[2] = p_wb[2] / p_wb[1];
   f[3] = powf(2.0f, ((float*)module->param)[0]);
   int off = 4+12+4+12+4*24+4*24;
-  // linear, as the dng spec says:
-  // f[off+0] = 1.0f - CLAMP((p_tmp - 2856.f)/(6504.f-2856.f), 0.0f, 1.0f);
-  // turingbot reverses this function to more accurately blend along CCT:
-  f[off+0] = 1.0f - CLAMP(tanf(asinhf(46.3407f+p_tmp))+(-0.0287128f*cosf(0.000798585f*(714.855f-p_tmp)))+0.942275f, 0.0f, 1.0f);
+  // Three bands identify the legacy layout.
+  const uint32_t clut_ht = module->connector[2].roi.full_ht;
+  const uint32_t nbands  = clut_ht ? module->connector[2].roi.full_wd / clut_ht : 3;
+  if(p_tmp <= 0.0f)
+  { // Resolve as-shot WB once.
+    f[off+0] = -1.0f;
+    if(dt_connected(module->connector+2))
+      module->flags |= s_module_request_write_sink;
+  }
+  else if(nbands > 3)
+  { // Mired-uniform 2000--15000K anchors.
+    const float T_lo = 2000.0f, T_hi = 15000.0f;
+    const float m_lo = 1e6f/T_hi, m_hi = 1e6f/T_lo;
+    const float m = 1e6f/CLAMP(p_tmp, T_lo, T_hi);
+    f[off+0] = CLAMP((m - m_lo)/(m_hi - m_lo), 0.0f, 1.0f);
+  }
+  else
+  { // Legacy two-anchor mapping.
+    f[off+0] = 1.0f - CLAMP(tanf(asinhf(46.3407f+p_tmp))+(-0.0287128f*cosf(0.000798585f*(714.855f-p_tmp)))+0.942275f, 0.0f, 1.0f);
+  }
   i[off+1] = p_mat == 4 ? 1 : 0; // colour mode matrix or clut
   f[off+2] = p_sat;
   i[off+3] = p_pck;
@@ -247,6 +289,16 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   i[off+5] = img_param->colour_primaries;
   i[off+6] = img_param->colour_trc;
   f[off+7] = p_clp ? p_clm : 0.0;
+  float auto_wb[3] = {
+    img_param->whitebalance[0],
+    img_param->whitebalance[1],
+    img_param->whitebalance[2]};
+  if(!(auto_wb[0] > 0.0f) || !(auto_wb[1] > 0.0f) || !(auto_wb[2] > 0.0f))
+    auto_wb[0] = auto_wb[1] = auto_wb[2] = 1.0f;
+  f[off+8]  = auto_wb[0]/auto_wb[1];
+  f[off+9]  = 1.0f;
+  f[off+10] = auto_wb[2]/auto_wb[1];
+  f[off+11] = 1.0f;
 
   if(p_mat == 1)
   { // the one that comes with the image from the source node:
@@ -314,8 +366,50 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = sizeof(float)*(4+12+4+12+4*24+4*24+5+8+1);
+  mod->committed_param_size = sizeof(float)*(4+12+4+12+4*24+4*24+5+8+5);
   return 0;
+}
+
+void
+animate(
+    dt_graph_t  *graph,
+    dt_module_t *module)
+{
+  const int tempid = dt_module_get_param(module->so, dt_token("temp"));
+  if(dt_module_param_float(module, tempid)[0] <= 0.0f && dt_connected(module->connector+2))
+    module->flags |= s_module_request_write_sink;
+}
+
+dt_graph_run_t
+check_params(
+    dt_module_t *module,
+    uint32_t     parid,
+    uint32_t     num,
+    void        *oldval)
+{
+  if(parid >= 0 && parid < module->so->num_params &&
+      module->so->param[parid]->name == dt_token("temp") &&
+      dt_module_param_float(module, parid)[0] <= 0.0f)
+    module->flags |= s_module_request_write_sink;
+  return s_graph_run_record_cmd_buf;
+}
+
+void
+write_sink(
+    dt_module_t            *module,
+    void                   *buf,
+    dt_write_sink_params_t *p)
+{
+  const float position = ((const float *)buf)[0];
+  const int tempid = dt_module_get_param(module->so, dt_token("temp"));
+  float *temp = (float *)dt_module_param_float(module, tempid);
+  if(!temp || temp[0] > 0.0f || !(position >= 0.0f && position <= 1.0f)) return;
+
+  const uint32_t clut_ht = module->connector[2].roi.full_ht;
+  const uint32_t nbands  = clut_ht ? module->connector[2].roi.full_wd / clut_ht : 3;
+  temp[0] = auto_temp_kelvin(position, nbands);
+  module->flags &= ~s_module_request_write_sink;
+  module->graph->runflags |= s_graph_run_record_cmd_buf;
 }
 
 void create_nodes(
@@ -326,19 +420,37 @@ void create_nodes(
   int have_pick = dt_connected(module->connector+3);
   int have_abney = dt_connected(module->connector+4) && dt_connected(module->connector+5);
   const int pc[] = { have_clut, have_pick, have_abney };
+  const int pc_auto[] = { have_pick };
+  int id_auto = -1;
+  if(have_clut)
+  { // The sink turns temp:0 into editable Kelvin.
+    const dt_roi_t tiny = { .wd = 1, .ht = 1 };
+    const char *kernel = (qvk.float_atomics_supported || !have_pick || module->connector[3].format != dt_token("atom")) ? "autotemp" : "atemp-";
+    id_auto = dt_node_add(graph, module, "colour", kernel, 1, 1, 1, sizeof(pc_auto), pc_auto, 3,
+        "clut", "read",  "rg", "f16", dt_no_roi,
+        "temp", "write", "y",  "f32", &tiny,
+        "picked", "read", "r",  have_pick ? dt_token_str(module->connector[3].format) : "f16", dt_no_roi);
+    const int id_sink = dt_node_add(graph, module, "colour", "sink", 1, 1, 1, 0, 0, 1,
+        "temp", "sink", "y", "f32", dt_no_roi);
+    dt_connector_copy(graph, module, 2, id_auto, 0);
+    if(have_pick) dt_connector_copy(graph, module, 3, id_auto, 2);
+    else          dt_connector_copy(graph, module, 0, id_auto, 2);
+    CONN(dt_node_connect(graph, id_auto, 1, id_sink, 0));
+  }
   // we'll need the uint sampler in case there are no float atomics supported.
   // but only if anything picked is connected at all. our dummy is f16 in any
   // case and will run through the normal code with float atomics (there are no
   // atomics here, we just read the buffer and need to know if it's uint or float)
   const int nodeid = dt_node_add(graph, module, "colour",
       (qvk.float_atomics_supported || !have_pick || (have_pick && module->connector[3].format != dt_token("atom"))) ? "main" : "main-",
-      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, sizeof(pc), pc, 6,
+      module->connector[0].roi.wd, module->connector[0].roi.ht, 1, sizeof(pc), pc, 7,
       "input",   "read",  "rgba", "f16",  dt_no_roi,
       "output",  "write", "rgba", "f16",  &module->connector[0].roi,
       "clut",    "read",  "rgba", "f16",  dt_no_roi,
       "picked",  "read",  "r",    have_pick ? dt_token_str(module->connector[3].format) : "f16", dt_no_roi,
       "abney",   "read",  "rg",   "f16",  dt_no_roi,
-      "spectra", "read",  "rgba", "f16",  dt_no_roi);
+      "spectra", "read",  "rgba", "f16",  dt_no_roi,
+      "autotemp",  "read", "y",   "f32",  dt_no_roi);
   dt_connector_copy(graph, module, 0, nodeid, 0);
   dt_connector_copy(graph, module, 1, nodeid, 1);
   if(have_clut)  dt_connector_copy(graph, module, 2, nodeid, 2);
@@ -349,4 +461,6 @@ void create_nodes(
   else           dt_connector_copy(graph, module, 0, nodeid, 4); // dummy
   if(have_abney) dt_connector_copy(graph, module, 5, nodeid, 5);
   else           dt_connector_copy(graph, module, 0, nodeid, 5); // dummy
+  if(id_auto >= 0) CONN(dt_node_connect(graph, id_auto, 1, nodeid, 6));
+  else             dt_connector_copy(graph, module, 0, nodeid, 6); // dummy
 }
