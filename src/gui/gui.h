@@ -254,6 +254,7 @@ int  dt_gui_write_favs(const char *filename); // serialise the file with potenti
 void dt_gui_add_fav   (dt_token_t modid, dt_token_t insid, dt_token_t parid);
 void dt_gui_move_fav  (dt_token_t modid, dt_token_t insid, dt_token_t parid, int up);
 void dt_gui_remove_fav(dt_token_t modid, dt_token_t insid, dt_token_t parid);
+void dt_gui_rebuild_fav();
 
 // read list of tags (i.e. the directories in ~/.config/vkdt/tags/)
 void dt_gui_read_tags();

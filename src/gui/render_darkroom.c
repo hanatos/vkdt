@@ -1159,6 +1159,36 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
   }
 }
 
+static inline void
+clear_runflags()
+{ // graph_run has completed, now we need to check what happened:
+  if(vkdt.graph_dev.runflags & s_graph_run_alloc)
+  {
+    // if no external resources are allocated, does nothing:
+    dt_graph_print_external_resources(&vkdt.graph_dev);
+    dt_graph_free_external_resources(&vkdt.graph_dev);
+
+    if(!dt_graph_get_display(&vkdt.graph_dev, dt_token("main")))
+      dt_gui_notification("graph does not contain a display:main node!");
+
+    // do this after running the graph, it may only know
+    // after initing say the output roi, after loading an input file
+    vkdt.state.anim_max_frame = vkdt.graph_dev.frame_cnt-1;
+    if(vkdt.graph_dev.frame_cnt == 1) dt_gui_dr_hide_dopesheet();
+
+    // rebuild gui specific to this image
+    dt_gui_rebuild_fav();
+#if 1//ndef QVK_ENABLE_VALIDATION // debug build does not reset zoom (reload shaders keeping focus is nice)
+    dt_image_reset_zoom(&vkdt.wstate.img_widget);
+#endif
+  }
+  vkdt.graph_dev.runflags = 0; // in any case we processed this.
+  if(vkdt.graph_res[vkdt.graph_dev.double_buffer] != VK_SUCCESS)
+    dt_gui_notification("running the graph failed (%s)!",
+        qvk_result_to_string(vkdt.graph_res[vkdt.graph_dev.double_buffer]));
+  else vkdt.graph_res[vkdt.graph_dev.double_buffer] = -1; // mark as pending/still running
+}
+
 void
 darkroom_process()
 {
@@ -1211,55 +1241,40 @@ darkroom_process()
     start_time = (struct timespec){0};
   }
 
-  const int grabbed = vkdt.wstate.grabbed;
-  // the grabbed mode is *much* faster (schedules next frame directly and doesn't spin down clocks)
-  // XXX FIXME: when resetting animations, keeps garbage in the double buffer (need to reset the result)
-  if(!grabbed && !(advance && (vkdt.graph_dev.frame_rate == 0.0)))
   { // async graph compute vs. sync cpu + gui rendering
     // graph->double_buffer points to the buffer currently locked for render/display
-    // set graph_res = -1 initially (when entering dr mode) so we won't draw before it finished processing
-    static int running = 0; // 1-double buffer is still running on gpu, has not been swapped in yet
-    if(vkdt.graph_res[vkdt.graph_dev.double_buffer^1] == -1)
-      running = 1; // when entering dr mode graph_res is -1 and it will kick off 0 as running
-
-    if((!running && vkdt.graph_dev.runflags) || // stills and stopped animations
-       (!running && vkdt.graph_dev.runflags && vkdt.state.anim_playing && advance)) // running animations only if frame advances
-    { // double buffered async compute
-      vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
-      vkdt.graph_res[vkdt.graph_dev.double_buffer] =
-        dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
-      if(vkdt.graph_res[vkdt.graph_dev.double_buffer] != VK_SUCCESS)
-        dt_gui_notification("failed to run the graph %s!",
-            qvk_result_to_string(vkdt.graph_res[vkdt.graph_dev.double_buffer]));
-      vkdt.graph_dev.runflags = 0; // clear this here, running graph has a copy.
-      vkdt.graph_dev.double_buffer ^= 1; // reset to the locked/already finished one
-      running = 1;
-    }
+    // 1-double buffer is still running on gpu, has not been swapped in yet
+    int running = (vkdt.graph_res[vkdt.graph_dev.double_buffer^1] == -1);
     if(running)
     {
       uint64_t value;
       VkResult res = vkGetSemaphoreCounterValue(qvk.device, vkdt.graph_dev.semaphore_process, &value);
       if(res == VK_SUCCESS && value >= vkdt.graph_dev.process_dbuffer[vkdt.graph_dev.double_buffer^1])
-      {
-        if(vkdt.graph_res[vkdt.graph_dev.double_buffer^1] == -1)
-          vkdt.graph_res[vkdt.graph_dev.double_buffer^1] = VK_SUCCESS; // let display now it's now good to show
+      { // back buffer finished rendering!
+        vkdt.graph_res[vkdt.graph_dev.double_buffer^1] = VK_SUCCESS; // let display know it's now good to show
         running = 0;
         vkdt.graph_dev.double_buffer ^= 1; // flip double buffer frame
+        // fprintf(stderr, "displaying dbuf %d\n", vkdt.graph_dev.double_buffer);
       }
     }
-  }
-  else // if grabbed
-  { // swap double buffers and run for grabbed animations
-    if(vkdt.graph_dev.runflags) // stills and stopped animations have 0 runflag
-    { // double buffered compute
-      // this will wait for other run
-      // process double_buffer, wait for double_buffer^1
+#if 0 // animation mode:
+    running = 0; // start new frame regardless whether anything is still running or not!
+    // the graph will wait on the dbuf it's currently writing internally.
+    // we'll wait for the other one after execution (potential gui lockup, but faster for anim)
+#endif
+
+    if(!running && vkdt.graph_dev.runflags) // stills and stopped animations
+    { // double buffered async compute
+      vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
+      // fprintf(stderr, "rendering dbuf %d frame %d\n", vkdt.graph_dev.double_buffer, vkdt.graph_dev.frame);
+      if(vkdt.graph_dev.runflags & s_graph_run_alloc) // allocation also invalidates the other dbuf
+        vkdt.graph_res[1-vkdt.graph_dev.double_buffer] = VK_INCOMPLETE;
       vkdt.graph_res[vkdt.graph_dev.double_buffer] =
         dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
-      if(vkdt.graph_res[vkdt.graph_dev.double_buffer] != VK_SUCCESS)
-        dt_gui_notification("failed to run the graph %s!",
-            qvk_result_to_string(vkdt.graph_res[vkdt.graph_dev.double_buffer]));
-      vkdt.graph_dev.runflags = 0; // we started this
+      clear_runflags();
+      vkdt.graph_dev.double_buffer ^= 1; // reset to the locked/already finished one
+#if 0
+      // fast lockstep animation mode: wait for the other backbuffer to finish, so we have something for the ui:
       VkSemaphoreWaitInfo wait_info = {
         .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
         .semaphoreCount = 1,
@@ -1269,15 +1284,7 @@ darkroom_process()
       VkResult res = vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30);
       if(res == VK_SUCCESS)
         vkdt.graph_dev.double_buffer ^= 1; // lock ^1 as display buffer, we waited for it to complete
-      // double-click reset: the reset rendered into the just-kicked slot but the display
-      // still shows the previous slot. schedule one more grabbed run so the new result
-      // becomes the display buffer, and post an empty event to wake glfwWaitEvents.
-      if(dragkeys.pending_runflags)
-      {
-        vkdt.graph_dev.runflags |= dragkeys.pending_runflags;
-        dragkeys.pending_runflags = 0;
-        glfwPostEmptyEvent();
-      }
+#endif
     }
   }
 
@@ -1422,33 +1429,8 @@ darkroom_enter()
   dt_gui_set_lod(vkdt.wstate.lod_fine);
   vkdt.graph_dev.runflags = s_graph_run_all;
   vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
-  vkdt.graph_dev.double_buffer = 0; // graph_init does this too, but let's be explicit
-  if((vkdt.graph_res[vkdt.graph_dev.double_buffer] =
-        dt_graph_run(&vkdt.graph_dev, s_graph_run_all & ~s_graph_run_wait_done)) != VK_SUCCESS)
-    dt_gui_notification("running the graph failed (%s)!",
-        qvk_result_to_string(vkdt.graph_res[vkdt.graph_dev.double_buffer]));
-  if(vkdt.graph_res[vkdt.graph_dev.double_buffer] == VK_SUCCESS)
-    vkdt.graph_res[vkdt.graph_dev.double_buffer] = -1;
-  vkdt.graph_dev.double_buffer = 1; // we are rendering to 0, make sure the display code uses this dset after swapping
-  dt_graph_print_external_resources(&vkdt.graph_dev);
-  dt_graph_free_external_resources(&vkdt.graph_dev);
 
-  // nodes are only constructed after running once
-  // (could run up to s_graph_run_create_nodes)
-  if(!dt_graph_get_display(&vkdt.graph_dev, dt_token("main")))
-    dt_gui_notification("graph does not contain a display:main node!");
-
-  // do this after running the graph, it may only know
-  // after initing say the output roi, after loading an input file
-  vkdt.state.anim_max_frame = vkdt.graph_dev.frame_cnt-1;
-
-  // rebuild gui specific to this image
   dt_gui_read_favs("darkroom.ui");
-#if 1//ndef QVK_ENABLE_VALIDATION // debug build does not reset zoom (reload shaders keeping focus is nice)
-  dt_image_reset_zoom(&vkdt.wstate.img_widget);
-#endif
-
-  if(vkdt.graph_dev.frame_cnt == 1) dt_gui_dr_hide_dopesheet();
 
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "back to lighttable");
   dt_gamepadhelp_set(dt_gamepadhelp_ps, "toggle this help");

@@ -43,8 +43,6 @@ widget_end()
   if(!vkdt.wstate.grabbed)
   {
     if(vkdt.wstate.active_widget_modid < 0) return; // all good already
-    // rerun all (roi could have changed, buttons are drastic)
-    vkdt.graph_dev.runflags = s_graph_run_all;
     int modid = vkdt.wstate.active_widget_modid;
     int parid = vkdt.wstate.active_widget_parid;
     int parnm = vkdt.wstate.active_widget_parnm;
@@ -911,6 +909,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
         dt_module_set_param_float_n(vkdt.graph_dev.module+modid, dt_token("crop"), vkdt.wstate.state+10, 4);
         widget_end();
+        vkdt.graph_dev.runflags = s_graph_run_all;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
       nk_style_pop_style_item(ctx);
@@ -1040,6 +1039,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           vkdt.wstate.state[3] = .5f + MAX(1.0f,      aspect) * (vkdt.wstate.state[3] - .5f);
         }
         widget_end();
+        vkdt.graph_dev.runflags = s_graph_run_all;
         dt_image_reset_zoom(&vkdt.wstate.img_widget);
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }

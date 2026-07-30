@@ -772,7 +772,7 @@ VkResult dt_gui_present()
   return res | dt_gui_present_win(&vkdt.win);
 }
 
-static inline void
+void
 dt_gui_rebuild_fav()
 { // rebuild favourites from global list, specific to current graph
   vkdt.fav_cnt = 0;
