@@ -76,6 +76,12 @@ vec3 develop_film(vec3 log_raw, ivec2 ipos, sampler2D curvewarp)
   return density_cmy;
 }
 
+uint hash_from_size()
+{ // avoid "shower door" effect when grain slides over the image:
+  uint i = uint(1337*params.grain_size);
+  return pcg3d(uvec3(i, 300*i, 7000000*i)).x;
+}
+
 void init_grain_workgroup()
 {
   if (params.grain <= 0) return;
@@ -94,7 +100,7 @@ void init_grain_workgroup()
     sg_inv_cum0 = 1.0 / max(cum0, vec3(1e-3));
     sg_inv_dcum1 = 1.0 / max(cum1 - cum0, vec3(1e-3));
     sg_inv_dcum2 = 1.0 / max(1.0 - cum1, vec3(1e-3));
-    sg_seed = hash3(ivec2(global.hash, global.frame), 0x9e3779b9u).xy * 64.0;
+    sg_seed = hash3(ivec2(global.hash, global.frame + hash_from_size()), 0x9e3779b9u).xy * 64.0;
     float lattice_um_sq = max(lattice_um * lattice_um, 1e-6), inv_pixel_area_um2 = 1.0 / lattice_um_sq;
     vec3 particle_frac_fast = min(prep.grain.grain_area_fast * inv_pixel_area_um2, vec3(1.0));
     vec3 particle_frac_mid = min(prep.grain.grain_area_mid * inv_pixel_area_um2, vec3(1.0));
