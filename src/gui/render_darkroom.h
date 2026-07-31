@@ -138,6 +138,18 @@ static inline void render_perf_overlay()
   values_offset = (values_offset + 1) & nvmask;
 }
 
+static inline int
+dt_gui_widget_is_visible(int modid, int parid)
+{
+  const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
+  if(!param) return 0;
+  if(param->widget.grpid == -1) return 1;
+  int grpval = dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0];
+  if(param->widget.mode <  100 && grpval != param->widget.mode) return 0;
+  if(param->widget.mode >= 100 && grpval == param->widget.mode - 100) return 0;
+  return dt_gui_widget_is_visible(modid, param->widget.grpid);
+}
+
 static inline void
 render_darkroom_widget(int modid, int parid, int is_fav_menu)
 {
@@ -145,14 +157,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   if(!param) return;
   struct nk_context *ctx = &vkdt.ctx;
 
-  // skip if group mode does not match:
-  if(param->widget.grpid != -1)
-  {
-    if(param->widget.mode <  100 && dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] != param->widget.mode)
-      return;
-    if(param->widget.mode >= 100 && dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0] == param->widget.mode-100)
-      return;
-  }
+  // skip if group mode or any parent group mode does not match:
+  if(!dt_gui_widget_is_visible(modid, parid)) return;
 
 #define CONTEXTMENU(rect) \
   { struct nk_vec2 cm_sz_ = {(rect).w, (rect).w};\

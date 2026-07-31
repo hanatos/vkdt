@@ -1,0 +1,32 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#include "head.glsl"
+#include "state.glsl"
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1, std430) readonly buffer buf_prep_t { filmsim_state_t prep; };
+layout(set = 1, binding = 2) uniform sampler2D img_curvewarp;
+layout(set = 1, binding = 3) uniform writeonly restrict image2D img_out;
+layout(set = 1, binding = 4) uniform sampler2D img_hal0;
+layout(set = 1, binding = 5) uniform sampler2D img_hal1;
+layout(set = 1, binding = 6) uniform sampler2D img_hal2;
+layout(set = 1, binding = 7) uniform sampler2D img_hal3;
+layout(set = 1, binding = 8) uniform sampler2D img_hal4;
+layout(set = 1, binding = 9) uniform sampler2D img_hal5;
+#include "state_ops.glsl"
+#include "sampling.glsl"
+#include "develop.glsl"
+#include "halation.glsl"
+#include "shared/upsample.glsl"
+#include "print.glsl"
+#include "scan.glsl"
+void main()
+{
+  init_grain_workgroup();
+  init_halation_workgroup();
+
+  FILMSIM_BOUNDS_INIT(ipos);
+  vec3 log_raw = combine_halation(ipos, img_in, img_hal0, img_hal1, img_hal2, img_hal3, img_hal4, img_hal5);
+
+  vec3 density_cmy = develop_film(log_raw, ipos, img_curvewarp);
+  imageStore(img_out, ipos, vec4(finalize_film_density(density_cmy, ipos), 1));
+}

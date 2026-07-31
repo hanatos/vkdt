@@ -1,47 +1,76 @@
 process:combo:expose film and print:expose and scan negative:print negative
-group:process:102
 ---
-film:combo:kodak ektar 100:kodak portra 160:kodak portra 400:kodak portra 800:kodak portra 800 push 1:kodak portra 800 push 2:kodak gold 200:kodak ultramax 400:kodak vision3 50d:kodak vision3 250d:kodak vision3 200t:kodak vision3 500t:fujifilm pro 400h:fujifilm xtra 400:fujifilm c200:kodak ektachrome 100 (positive):kodak kodachrome 64 (positive):fujifilm provia 100f (positive):fujifilm velvia 100 (positive):kodak verita 200d:kodak 2302 (b/w):kodak double-x (b/w):kodak tri-x (b/w, positive)
+group:process:102
+film:combo:kodak gold 200:kodak ultramax 400:kodak ektar 100:kodak portra 160:kodak portra 400:kodak portra 800:kodak portra 800 push 1:kodak portra 800 push 2:fujifilm c200:fujifilm xtra 400:fujifilm pro 400h:kodak vision3 50d:kodak vision3 250d:kodak vision3 200t:kodak vision3 500t:kodak verita 200d:kodak kodachrome 64 (positive):kodak ektachrome 100 (positive):fujifilm provia 100f (positive):fujifilm velvia 100 (positive):kodak double-x (b/w):kodak tri-x (b/w, positive)
 ev film:slider:-5:5
-g film:slider:0:2
-couplers:slider:0.0:1.0
-group:couplers:100
-cp rad:slider:0.001:0.05
-scne ill:slider:2800:9300
-group:process:101
+g film:slider:0.5:1.5
+g fast:slider:0.5:1.5
+g slow:slider:0.5:1.5
+exhaust:slider:0:1
+hl boost:slider:0:10
+scne ill:slider:2000:10000
+film ill:slider:2000:10000
+group:-1:-1
 ---
-paper:combo:kodak endura premier:kodak ektacolor edge:kodak supra endura:kodak portra endura:fujifilm crystal archive type ii:kodak 2383:kodak 2393:kodak ultra endura
+group:process:101
+paper:combo:kodak endura premier:kodak supra endura:kodak ultra endura:kodak portra endura:kodak ektacolor edge:fujifilm crystal archive type ii:kodak 2383:kodak 2393:kodak 2302 (b/w)
+p base:slider:0:1.5
 ev paper:slider:-5:5
-g paper:slider:0:2
-group:process:102
-grain:combo:digi clean:simulate grain
-group:grain:1
-size:slider:0.01:2.5
-uniform:slider:0:1.0
-group:process:0
-enlarge:combo:1x resolution:2x resolution:4x resolution
+g paper:slider:0.5:1.5
+g fast p:slider:0.5:1.5
+g slow p:slider:0.5:1.5
+p exh:slider:0:1
+glare:slider:0.0:0.5
+group:-1:-1
+---
 group:process:2
-filter c:slider:0:1
+filter c:slider:-1:1
 filter m:slider:0:1
 filter y:slider:0:1
-group:process:101
+group:process:102
 tune m:slider:-1:1
 tune y:slider:-1:1
-group:process:102
+group:-1:-1
 ---
-halation:combo:off:on
-group:halation:1
-strength:rgbknobs
-scale:slider:0:10.0
-radius:slider:0.00001:0.003
-hal mids:slider:0:1
-pad:hidden
 group:process:101
----
 preflash:combo:off:on
 group:preflash:1
 pf ev:slider:-10:-3
 pf m:slider:-1:1
 pf y:slider:-1:1
 group:-1:-1
-scan ill:slider:2800:9300
+---
+group:process:102
+couplers:combo:off:on
+group:couplers:1
+cp amt:slider:0.0:1.0
+lang r:slider:0.01:2.0
+lang g:slider:0.01:2.0
+lang b:slider:0.01:2.0
+cp rad:slider:0:200
+group:-1:-1
+---
+group:process:102
+halation:combo:off:on
+group:halation:1
+radius:slider:0:200
+hal amt:slider:0:10.0
+hal mids:slider:0:1
+hal bnc:slider:1:6
+hal dec:slider:0:1
+scat amt:slider:0:1
+strength:rgbknobs
+group:-1:-1
+---
+group:process:102
+grain:combo:digi clean:simulate grain
+group:grain:1
+size:slider:0.01:2.5
+uniform:slider:0:1.0
+group:-1:-1
+---
+enlarge:combo:1x resolution:2x resolution:4x resolution
+---
+scan ill:slider:2000:10000
+pad_cp:hidden
+pad:hidden

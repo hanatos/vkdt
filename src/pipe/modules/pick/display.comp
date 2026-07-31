@@ -50,7 +50,7 @@ main()
     // or else read colour from params (requires round trip to cpu)?
     // params.pick[]
 
-    vec4 coeff = fetch_coeff(picked_rgb);
+    vec4 coeff = fetch_coeff(img_coeff, picked_rgb);
     vec3 cyl = vec3(coeff.x, coeff.z - coeff.y*coeff.y /(4.0 * coeff.x), -coeff.y / (2.0*coeff.x));
 
     float x = (coeff.x * lambda + coeff.y) * lambda + coeff.z;

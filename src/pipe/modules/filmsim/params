@@ -1,30 +1,48 @@
 process:int:1:0
-film:int:1:2
+film:int:1:4
 ev film:float:1:0
 g film:float:1:1.0
-couplers:float:1:0.25
-cp rad:float:1:0.0015
-grain:int:1:0
-size:float:1:1.0
-uniform:float:1:1.0
+g fast:float:1:1.0
+g slow:float:1:1.0
+exhaust:float:1:0.0
+hl boost:float:1:0.0
 paper:int:1:3
+p base:float:1:1.0
 ev paper:float:1:0
 g paper:float:1:1.0
-enlarge:int:1:0
+g fast p:float:1:1.0
+g slow p:float:1:1.0
+p exh:float:1:0.0
+glare:float:1:0.0
 filter c:float:1:-1
 filter m:float:1:0
 filter y:float:1:0
 tune m:float:1:0.0
 tune y:float:1:0.0
-halation:int:1:0
-radius:float:1:0.0015
-scale:float:1:0.35
-hal mids:float:1:0.0
-pad:float:2:0
-strength:float:4:0.8:0.05:0.01:0
 preflash:int:1:0
 pf ev:float:1:-10.0
 pf m:float:1:0.0
 pf y:float:1:0.0
-scan ill:float:1:6504.0
-scne ill:float:1:0.0
+couplers:int:1:1
+cp amt:float:1:1.0
+lang r:float:1:1.0
+lang g:float:1:1.0
+lang b:float:1:1.0
+cp rad:float:1:20.0
+halation:int:1:1
+radius:float:1:65.0
+hal amt:float:1:1.0
+hal mids:float:1:0.0
+hal bnc:int:1:3
+hal dec:float:1:0.5
+scat amt:float:1:1.0
+pad_cp:float:2:0:0
+strength:float:4:1.0:1.0:1.0:0
+grain:int:1:1
+size:float:1:1.0
+uniform:float:1:1.0
+enlarge:int:1:0
+scan ill:float:1:5000
+scne ill:float:1:0
+film ill:float:1:0
+pad:float:2:0:0

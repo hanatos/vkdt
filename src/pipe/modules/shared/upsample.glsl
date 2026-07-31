@@ -7,10 +7,9 @@ void tri2quad(inout vec2 tc)
   tc.x = (1.0-tc.x)*(1.0-tc.x);
 }
 
-vec4 fetch_coeff(vec3 rgb)
+vec4 fetch_coeff(sampler2D img_coeff, vec3 rgb, mat3 rgb_to_xyz)
 {
-  const mat3 rec2020_to_xyz = matrix_rec2020_to_xyz;
-  vec3 xyz = rec2020_to_xyz * rgb;
+  vec3 xyz = rgb_to_xyz * rgb;
   float b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
   tri2quad(tc);
@@ -18,6 +17,11 @@ vec4 fetch_coeff(vec3 rgb)
   vec4 coeff = texelFetch(img_coeff, tci, 0);
   coeff.w = b / coeff.w;
   return coeff;
+}
+
+vec4 fetch_coeff(sampler2D img_coeff, vec3 rgb)
+{
+  return fetch_coeff(img_coeff, rgb, matrix_rec2020_to_xyz);
 }
 
 float sigmoid_eval(
