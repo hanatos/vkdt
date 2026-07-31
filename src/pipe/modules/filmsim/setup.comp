@@ -60,9 +60,6 @@ void main()
     if(need_film)
     {
       prep.film.expose_autoexp_norm = shared_expose_autoexp_norm;
-      prep.film.scene_adapt = shared_scene_adapt;
-      prep.film.scene_white_xy = shared_scene_white_xy;
-      prep.film.gamut_safe_r2 = shared_gamut_safe_r2;
 
       for (int l = 0; l < 3; l++)
       {

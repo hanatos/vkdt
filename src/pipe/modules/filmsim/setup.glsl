@@ -28,9 +28,6 @@ shared vec4 shared_expose_factor_g[11];
 shared vec4 shared_expose_factor_b[11];
 shared vec4 shared_expose_ae_bb;
 shared float shared_expose_autoexp_norm;
-shared mat3 shared_scene_adapt;
-shared vec2 shared_scene_white_xy;
-shared float shared_gamut_safe_r2;
 shared vec4 shared_reduce_acc[32];
 
 shared mat3 shared_M;
@@ -226,14 +223,13 @@ void setup_expose_film(int film)
   vec4 ref_tx = texelFetch(img_filmsim, ivec2(22, film * 3 + s_density_model), 0);
   float ref_cct = ref_tx.w;
   vec3 expose_norm = max(ref_tx.rgb, vec3(1e-6));
-  vec2 m_scene = eval_illuminant_m(params.scene_ill);
-  vec2 m_d65   = daylight_weights(d65_cct);
-  vec2 m_film  = eval_illuminant_m(params.film_ill);
-  vec2 m_ref   = eval_illuminant_m(ref_cct);
+  vec2 m_scene  = eval_illuminant_m(params.scene_ill);
+  vec2 m_d65    = daylight_weights(d65_cct);
+  float target_cct = (params.film_ill != 0.0) ? params.film_ill : ref_cct;
+  vec2 m_target = eval_illuminant_m(target_cct);
   barrier();
 
   float ae_val = 0.0;
-  vec3 bb_val = vec3(0.0);
   if (tid < n_expose_bands)
   {
     float lambda = 380.0 + tid * 10.0;
@@ -248,54 +244,24 @@ void setup_expose_film(int film)
       float d65_illuminant   = eval_illuminant_spd(d65_cct, lambda, tid, m_d65);
       factor *= d65_illuminant / max(scene_illuminant, 1e-6);
     }
-    // Simulate a non-reference film illuminant.
-    if (params.film_ill != 0.0)
+    // Convert the reconstructed reflectance to radiance under the film's own
+    // illuminant, or a simulated one from film_ill.
     {
-      float film_illuminant = eval_illuminant_spd(params.film_ill, lambda, tid, m_film);
-      float ref_illuminant  = eval_illuminant_spd(ref_cct, lambda, tid, m_ref);
-      factor *= film_illuminant / max(ref_illuminant, 1e-6);
+      float target_illuminant = eval_illuminant_spd(target_cct, lambda, tid, m_target);
+      factor *= target_illuminant;
     }
     factor /= expose_norm;
     shared_expose_factor_r[tid/4][tid%4] = factor.r;
     shared_expose_factor_g[tid/4][tid%4] = factor.g;
     shared_expose_factor_b[tid/4][tid%4] = factor.b;
     ae_val = dot(factor, rec2020_luma);
-    if (ref_cct < 4000.0) bb_val = colour_blackbody(lambda, ref_cct) * cmf_1931(lambda);
   }
 
-  SUBGROUP_REDUCE(vec4, xyzw, vec4(0.0), vec4(ae_val, bb_val), shared_expose_ae_bb);
-
-  vec3 bb = shared_expose_ae_bb.yzw;
-  vec3 ref_xyz = (ref_cct < 1.0) ? vec3(0.0)
-               : (ref_cct >= 4000.0) ? xy1_to_xyz(daylight_locus_xy(ref_cct))
-                                     : bb / max(bb.y, 1e-9);
-  vec2 white_xy = ref_xyz.xy / max(dot(vec3(1.0), ref_xyz), 1e-6);
-
-  float edge_r = 1e30;
-  [[loop]] for(int e = tid; e < 65; e += 64)
-  {
-    vec2 a = cie1931_locus[e], ev = cie1931_locus[(e + 1) % 65] - a;
-    edge_r = min(edge_r, abs(ev.x * (white_xy.y - a.y) - ev.y * (white_xy.x - a.x))
-                         / max(length(ev), 1e-9));
-  }
-  {
-    float sub_min = subgroupMin(edge_r);
-    if (subgroupElect()) shared_reduce_acc[gl_SubgroupID].x = sub_min;
-    barrier();
-    if (gl_SubgroupID == 0)
-    {
-      float val_ = (gl_SubgroupInvocationID < gl_NumSubgroups) ? shared_reduce_acc[gl_SubgroupInvocationID].x : 1e30;
-      float m = subgroupMin(val_);
-      if (gl_SubgroupInvocationID == 0) shared_gamut_safe_r2 = (gamut_knee_t * m) * (gamut_knee_t * m);
-    }
-  }
+  SUBGROUP_REDUCE(float, x, 0.0, ae_val, shared_expose_autoexp_norm);
 
   if (tid == 0)
   {
-    shared_expose_autoexp_norm = max(1e-6, 0.18 * shared_expose_ae_bb.x);
-    shared_scene_adapt = scene_adapt_to_ref(ref_xyz);
-    shared_scene_white_xy = white_xy;
-    prep.film.scene_adapt_inv = inverse(shared_scene_adapt);
+    shared_expose_autoexp_norm = max(1e-6, 0.18 * shared_expose_autoexp_norm);
     prep.film.hl_boost_k_gain = 0.003224982 * (exp2(params.hl_boost_ev) - 1.0);
   }
   barrier();

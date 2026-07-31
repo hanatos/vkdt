@@ -7,7 +7,6 @@ from dotmap import DotMap
 import numpy as np
 import scipy.stats
 import struct
-import colour
 
 # Baked spektrafilm coupler and grain presets.
 _DATA_DIR = os.environ.get('SPEKTRAFILM_DATA')
@@ -47,9 +46,28 @@ _REF_ILLUMINANT_CCT = {
     'K75P':   6344.0,
 }
 
-# CIE 1931 XYZ on the shader's 36 bands.
-_CIE_LAM_36 = 380.0 + 10.0 * np.arange(36)
-_CIE_XYZ_36 = np.asarray(colour.MSDS_CMFS['CIE 1931 2 Degree Standard Observer'][_CIE_LAM_36])
+# rec2020's native white, matching filmsim.glsl's d65_xyz literal.
+_D65_XYZ = np.array([0.950430, 1.0, 1.088801])
+
+# CIE daylight basis S0/S1/S2 on the shader's 36 exposure bands (380-730nm,
+# 10nm step), matching data.glsl's cie_d_s0/s1/s2 tables exactly.
+_LAM36 = 380.0 + 10.0 * np.arange(36)
+_CIE_D_S0_36 = np.array([
+     63.4,  65.8,  94.8, 104.8, 105.9,  96.8, 113.9, 125.6, 125.5, 121.3,
+    121.3, 113.5, 113.1, 110.8, 106.5, 108.8, 105.3, 104.4, 100.0,  96.0,
+     95.1,  89.1,  90.5,  90.3,  88.4,  84.0,  85.1,  81.9,  82.6,  84.9,
+     81.3,  71.9,  74.3,  76.4,  63.3,  71.7])
+_CIE_D_S1_36 = np.array([
+     38.5,  35.0,  43.4,  46.3,  43.9,  37.1,  36.7,  35.9,  32.6,  27.9,
+     24.3,  20.1,  16.2,  13.2,   8.6,   6.1,   4.2,   1.9,   0.0,  -1.6,
+     -3.5,  -3.5,  -5.8,  -7.2,  -8.6,  -9.5, -10.9, -10.7, -12.0, -14.0,
+    -13.6, -12.0, -13.3, -12.9, -10.6, -11.6])
+_CIE_D_S2_36 = np.array([
+      3.0,   1.2,  -1.1,  -0.5,  -0.7,  -1.2,  -2.6,  -2.9,  -2.8,  -2.6,
+     -2.6,  -1.8,  -1.5,  -1.3,  -1.2,  -1.0,  -0.5,  -0.3,   0.0,   0.2,
+      0.5,   2.1,   3.2,   4.1,   4.7,   5.1,   6.7,   7.3,   8.6,   9.8,
+     10.2,   8.3,   9.6,   8.5,   7.0,   7.6])
+_ILLUMINANT_BB_MAX_CCT = 4000.0  # below this, use blackbody; matches the shader.
 
 def _colour_blackbody(lam, T):
   h2, h, c, k = 6.62606957e11, 6.62606957e-34, 299792458.0, 1.3807e-23
@@ -58,24 +76,31 @@ def _colour_blackbody(lam, T):
   c2 = h * c / (lambda_m * T * k)
   return 1e-14 * c1 / (np.exp(c2) - 1.0)
 
-def _blackbody_xyz(T):
-  XYZ = np.sum(_colour_blackbody(_CIE_LAM_36, T)[:, None] * _CIE_XYZ_36, axis=0)
-  return XYZ / XYZ[1]
-
 def _daylight_locus_xy(T):
   T = np.clip(T, 4000.0, 25000.0)
   invT = 1.0 / T
   x = (99.11*invT + 2.9678e6*invT**2 - 4.6070e9*invT**3 + 0.244063) if T <= 7000.0 else \
       (247.48*invT + 1.9018e6*invT**2 - 2.0064e9*invT**3 + 0.237040)
   y = -3.0*x*x + 2.870*x - 0.275
-  return np.array([x, y])
+  return x, y
 
-def _ref_illuminant_xyz(cct):
-  """Reference illuminant XYZ, normalized to Y=1."""
-  if cct >= 4000.0:
-    x, y = _daylight_locus_xy(cct)
-    return np.array([x / y, 1.0, (1.0 - x - y) / y])
-  return _blackbody_xyz(cct)
+def _daylight_weights(T):
+  x, y = _daylight_locus_xy(T)
+  d = 0.2562*x - 0.7341*y + 0.0241
+  invd = 1.0 / (d if abs(d) > 1e-9 else 1e-9)
+  m1 = (-1.7703*x + 5.9114*y - 1.3515) * invd
+  m2 = (-31.4424*x + 30.0717*y + 0.0300) * invd
+  return m1, m2
+
+def _illuminant_spd_36(cct):
+  """Illuminant SPD on the 36-band exposure grid, matching the shader's
+  eval_illuminant_spd exactly (blackbody below 4000K, else CIE daylight basis)."""
+  if cct < 1.0:
+    return np.ones(36)
+  if cct < _ILLUMINANT_BB_MAX_CCT:
+    return _colour_blackbody(_LAM36, cct)
+  m1, m2 = _daylight_weights(cct)
+  return _CIE_D_S0_36 + m1 * _CIE_D_S1_36 + m2 * _CIE_D_S2_36
 
 # Spectral upsampling LUT for exposure normalization.
 _SPECTRA_EM_LUT = None
@@ -121,10 +146,13 @@ def _envelope(w):
     return t * t * (3.0 - 2.0 * t)
   return 1000.0 * smoothstep(380.0, 400.0, w) * (1.0 - smoothstep(700.0, 730.0, w))
 
-def expose_normalization(white_xyz, sensitivity):
-  """Per-channel neutral-scene exposure normalization."""
-  lam = 380.0 + 10.0 * np.arange(36)
-  white_sd = _reconstruct_white_sd(white_xyz, lam) * _envelope(lam)
+def expose_normalization(ref_cct, sensitivity):
+  """Per-channel exposure normalization: reflectance reconstructed at D65
+  (matching the shader's fixed-D65 fetch_coeff anchor), converted to radiance
+  under the film's own reference illuminant. The runtime factor does the same
+  conversion for the actual target illuminant (ref_cct, or a simulated film_ill),
+  so a neutral scene under the film's own reference stays neutral."""
+  white_sd = _reconstruct_white_sd(_D65_XYZ, _LAM36) * _envelope(_LAM36) * _illuminant_spd_36(ref_cct)
   norm = tuple(float(np.sum(sensitivity[:, c] * white_sd)) for c in range(3))
   return tuple(n if n > 1e-8 else 1.0 for n in norm)
 
@@ -476,7 +504,7 @@ for f in film_stocks:
                     profile.data.log_sensitivity[:, c].astype(float))
           for c in range(3)], axis=1)
       sens36 = np.nan_to_num(10.0 ** sens36, nan=0.0)  # NaN bands drop out, matching the shader's NaN handling
-      dens_model[22, 0:3] = expose_normalization(_ref_illuminant_xyz(ref_cct), sens36)
+      dens_model[22, 0:3] = expose_normalization(ref_cct, sens36)
 
     for i in range(0, 256):
       px = struct.pack('<ffff',

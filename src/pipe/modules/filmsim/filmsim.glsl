@@ -101,12 +101,6 @@ vec2 daylight_weights(float T)
   return (vec2(-1.7703, -31.4424) * xy.x + vec2(5.9114, 30.0717) * xy.y + vec2(-1.3515, 0.0300)) * invd;
 }
 
-vec3 xy1_to_xyz(vec2 xy)
-{
-  float inv_y = 1.0 / max(xy.y, 1e-6);
-  return vec3(xy.x * inv_y, 1.0, (1.0 - xy.x - xy.y) * inv_y);
-}
-
 float norm_cdf(float z)
 {
   return 1.0 / (1.0 + exp2(-z * (0.10294312 * z * z + 2.30220556)));
@@ -154,61 +148,3 @@ mat3 chromatic_adapt(mat3 cat_m, mat3 cat_minv, vec3 src_xyz, vec3 dst_xyz)
   return mat3(cat_minv[0]*scale.x, cat_minv[1]*scale.y, cat_minv[2]*scale.z) * cat_m;
 }
 
-mat3 scene_adapt_to_ref(vec3 ref_xyz)
-{
-  if(ref_xyz.y < 1e-4) return matrix_rec2020_to_xyz;
-  return chromatic_adapt(matrix_cat16_M, matrix_cat16_Mi, d65_xyz, ref_xyz) * matrix_rec2020_to_xyz;
-}
-
-const float gamut_knee_t = 0.815;
-
-float pseudo_angle(vec2 v)
-{
-  float p = v.x / (abs(v.x) + abs(v.y) + 1e-30);
-  return (v.y < 0.0) ? (3.0 + p) : (1.0 - p);
-}
-
-float locus_reach(vec2 c, vec2 u)
-{
-  float pa0 = pseudo_angle(cie1931_locus[0] - c);
-  float au = pa0 - pseudo_angle(u);
-  if(au < 0.0) au += 4.0;
-  int lo = 0, hi = 65;
-  [[loop]] while(hi - lo > 1)
-  {
-    int mid = (lo + hi) >> 1;
-    float am = pa0 - pseudo_angle(cie1931_locus[mid] - c);
-    if(am < 0.0) am += 4.0;
-    if(am <= au) lo = mid; else hi = mid;
-  }
-  vec2 a = cie1931_locus[lo], e = cie1931_locus[(lo + 1) % 65] - a;
-  float denom = u.x * e.y - u.y * e.x;
-  vec2 o = c - a;
-  return (abs(denom) < 1e-12) ? 1e8 : (-o.x * e.y + o.y * e.x) / denom;
-}
-
-float reinhard_knee(float d, float threshold, float limit, float power)
-{
-  if(d <= threshold) return d;
-  float scale = limit - threshold;
-  float x = (d - threshold) / scale;
-  float y = x / pow(1.0 + pow(x, power), 1.0 / power);
-  return threshold + scale * y;
-}
-
-vec3 gamut_compress(vec3 rgb, vec3 xyz, mat3 rgb_to_xyz_inv, vec2 white_xy)
-{
-  float b = dot(vec3(1.0), xyz);
-  if(b <= 0.0) return rgb;
-  vec2 xy = xyz.xy / b;
-  vec2 d = xy - white_xy;
-  float dist = length(d);
-  if(dist < 1e-9) return rgb;
-  vec2 dir = d / dist;
-  float boundary = locus_reach(white_xy, dir);
-  float d_norm = dist / max(boundary, 1e-6);
-  float d_comp = reinhard_knee(d_norm, gamut_knee_t, 1.0, 1.2);
-  vec2 xy_comp = white_xy + dir * (d_comp * boundary);
-  vec3 xyz_comp = vec3(xy_comp * b, b - xy_comp.x * b - xy_comp.y * b);
-  return rgb_to_xyz_inv * xyz_comp;
-}
