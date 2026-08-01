@@ -24,7 +24,7 @@ pf ev:float:1:-10.0
 pf m:float:1:0.0
 pf y:float:1:0.0
 couplers:int:1:1
-cp amt:float:1:1.0
+cp amt:float:1:0.5
 lang r:float:1:1.0
 lang g:float:1:1.0
 lang b:float:1:1.0
