@@ -1162,7 +1162,7 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
 static inline void
 clear_runflags()
 { // graph_run has completed, now we need to check what happened:
-  if(vkdt.graph_dev.runflags & s_graph_run_alloc)
+  if(vkdt.graph_dev.runflags & s_graph_run_create_nodes)
   {
     // if no external resources are allocated, does nothing:
     dt_graph_print_external_resources(&vkdt.graph_dev);
@@ -1267,8 +1267,12 @@ darkroom_process()
     { // double buffered async compute
       vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
       // fprintf(stderr, "rendering dbuf %d frame %d\n", vkdt.graph_dev.double_buffer, vkdt.graph_dev.frame);
-      if(vkdt.graph_dev.runflags & s_graph_run_alloc) // allocation also invalidates the other dbuf
-        vkdt.graph_res[1-vkdt.graph_dev.double_buffer] = VK_INCOMPLETE;
+      // XXX FIXME: this invalidation is required to keep validation layers happy!
+      // if we invalidate things, nuklear doesn't render an image, the nk hashes change, sliders lose focus
+      // and all ui logic goes to hell (jumps like mad). ignoring that we'll read garbage for half a frame or so
+      // results in the much smoother user interface operation:
+      // if(vkdt.graph_dev.runflags & s_graph_run_alloc) // strictly speaking, allocation also invalidates the other dbuf
+      //   vkdt.graph_res[1-vkdt.graph_dev.double_buffer] = VK_INCOMPLETE;
       vkdt.graph_res[vkdt.graph_dev.double_buffer] =
         dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
       clear_runflags();
