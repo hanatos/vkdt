@@ -50,14 +50,17 @@ dt_gui_lt_assign_tag()
 }
 
 static inline void
-dt_gui_lt_toggle_select_all()
+dt_gui_lt_select_all()
 {
-  if(vkdt.db.selection_cnt > 0) // select none
-    dt_db_selection_clear(&vkdt.db);
-  else // select all
-    for(uint32_t i=0;i<vkdt.db.collection_cnt;i++)
-      dt_db_selection_add(&vkdt.db, i);
+  for(uint32_t i=0;i<vkdt.db.collection_cnt;i++)
+    dt_db_selection_add(&vkdt.db, i);
   dt_gui_notification("selected %d/%d images", vkdt.db.selection_cnt, vkdt.db.collection_cnt);
+}
+
+static inline void
+dt_gui_lt_select_none()
+{
+  dt_db_selection_clear(&vkdt.db);
 }
 
 static inline void

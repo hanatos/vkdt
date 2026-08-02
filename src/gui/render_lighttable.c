@@ -28,7 +28,8 @@
 
 static hk_t hk_lighttable[] = {
   {"tag",           "assign a tag to selected images",  {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_T}},
-  {"select all",    "toggle select all/none",           {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_A}},
+  {"select all",    "select all images",                {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_A}},
+  {"select none",   "select no images",                 {GLFW_KEY_LEFT_SHIFT,    GLFW_KEY_A}},
   {"export",        "export selected images",           {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_S}},
   {"copy",          "copy from selected image",         {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_C}},
   {"paste history", "paste history to selected images", {GLFW_KEY_LEFT_CONTROL,  GLFW_KEY_V}},
@@ -56,28 +57,29 @@ typedef enum hotkey_names_t
 {
   s_hotkey_assign_tag    = 0,
   s_hotkey_select_all    = 1,
-  s_hotkey_export        = 2,
-  s_hotkey_copy_hist     = 3,
-  s_hotkey_paste_hist    = 4,
-  s_hotkey_append_preset = 5,
-  s_hotkey_scroll_cur    = 6,
-  s_hotkey_scroll_end    = 7,
-  s_hotkey_scroll_top    = 8,
-  s_hotkey_fullscreen    = 9,
-  s_hotkey_duplicate     = 10,
-  s_hotkey_rate_0        = 11,
-  s_hotkey_rate_1        = 12,
-  s_hotkey_rate_2        = 13,
-  s_hotkey_rate_3        = 14,
-  s_hotkey_rate_4        = 15,
-  s_hotkey_rate_5        = 16,
-  s_hotkey_label_1       = 17,
-  s_hotkey_label_2       = 18,
-  s_hotkey_label_3       = 19,
-  s_hotkey_label_4       = 20,
-  s_hotkey_label_5       = 21,
-  s_hotkey_zoom_in       = 22,
-  s_hotkey_zoom_out      = 23,
+  s_hotkey_select_none   = 2,
+  s_hotkey_export        = 3,
+  s_hotkey_copy_hist     = 4,
+  s_hotkey_paste_hist    = 5,
+  s_hotkey_append_preset = 6,
+  s_hotkey_scroll_cur    = 7,
+  s_hotkey_scroll_end    = 8,
+  s_hotkey_scroll_top    = 9,
+  s_hotkey_fullscreen    = 10,
+  s_hotkey_duplicate     = 11,
+  s_hotkey_rate_0        = 12,
+  s_hotkey_rate_1        = 13,
+  s_hotkey_rate_2        = 14,
+  s_hotkey_rate_3        = 15,
+  s_hotkey_rate_4        = 16,
+  s_hotkey_rate_5        = 17,
+  s_hotkey_label_1       = 18,
+  s_hotkey_label_2       = 19,
+  s_hotkey_label_3       = 20,
+  s_hotkey_label_4       = 21,
+  s_hotkey_label_5       = 22,
+  s_hotkey_zoom_in       = 23,
+  s_hotkey_zoom_out      = 24,
 } hotkey_names_t;
 static dt_menu_t lighttable_menu;
 static int g_hotkey = -1; // to pass hotkey from handler to rendering. necessary for scrolling/export
@@ -116,11 +118,11 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
     case s_hotkey_label_4: dt_gui_label_4(); return;
     case s_hotkey_label_5: dt_gui_label_5(); return;
     case s_hotkey_assign_tag:
-      dt_gui_lt_assign_tag();
-      return;
+      return dt_gui_lt_assign_tag();
     case s_hotkey_select_all:
-      dt_gui_lt_toggle_select_all();
-      return;
+      return dt_gui_lt_select_all();
+    case s_hotkey_select_none:
+      return dt_gui_lt_select_none();
     case s_hotkey_export: // handled during rendering
     case s_hotkey_scroll_cur:
     case s_hotkey_scroll_end:
