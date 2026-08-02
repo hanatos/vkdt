@@ -1,0 +1,4 @@
+input:read:rgba:*
+output:write:rgba:*
+picked:read:r:*
+dspy:write:rgba:*

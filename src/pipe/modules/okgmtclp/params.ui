@@ -1,0 +1,11 @@
+mode:combo:oklab preserve chroma:oklab project
+group:mode:1
+project:combo:single point:adaptive
+group:mode:1
+L0:combo:0.5:L_cusp
+group:project:1
+alpha:slider:0.02:10
+group:-1:0
+dspyl:slider:0:1
+dspyc:slider:0:1
+dspyh:slider:0:360

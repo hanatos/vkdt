@@ -68,6 +68,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [colour: generic colour manipulation/input device transform](./colour/readme.md)
 * [curves: rgb and 3x3 ych curve widgets](./curves/readme.md)
 * [grade: simple ACES CDL grading tool](./grade/readme.md)
+* [okgmtclp: gamut clipping in oklab space](./okgmtclp/readme.md)
 
 **corrective**
 
