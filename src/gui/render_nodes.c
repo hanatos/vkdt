@@ -52,25 +52,18 @@ void render_nodes_right_panel()
     nk_end(ctx);
   }
   const int display_frame = vkdt.graph_dev.double_buffer % 2;
-  dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
-  if(out_hist && vkdt.graph_res[display_frame] == VK_SUCCESS && out_hist->dset[display_frame])
-  {
-    int wd = vkdt.state.panel_wd;
-    int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
-    nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
-    struct nk_image img = nk_image_ptr(out_hist->dset[display_frame]);
-    nk_image(ctx, img);
-  }
   static dt_image_widget_t imgw[] = {
     { .look_at_x = 0, .look_at_y = 0, .scale=1.0 },
     { .look_at_x = 0, .look_at_y = 0, .scale=1.0 },
+    { .look_at_x = 0, .look_at_y = 0, .scale=1.0 },
     { .look_at_x = 0, .look_at_y = 0, .scale=1.0 }};
-  dt_token_t dsp[] = { dt_token("main"), dt_token("view0"), dt_token("view1") };
+  dt_token_t dsp[] = { dt_token("hist"), dt_token("main"), dt_token("view0"), dt_token("view1") };
   for(uint32_t d = 0; d < sizeof(dsp)/sizeof(dsp[0]); d++)
   {
     dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dsp[d]);
-    if(out && vkdt.graph_res[display_frame] == VK_SUCCESS)
+    if(out)
     {
+      const int rdy = vkdt.graph_res[display_frame] == VK_SUCCESS;
       const int popout = (dsp[d] == dt_token("main")) && vkdt.win1.window;
       char title[20] = {0};
       snprintf(title, sizeof(title), "nodes %" PRItkn, dt_token_str(dsp[d]));
@@ -91,9 +84,9 @@ void render_nodes_right_panel()
         int ht = wd * out->connector[0].roi.full_ht / (float)out->connector[0].roi.full_wd; // image aspect
         nk_layout_row_dynamic(ctx, ht, 1);
         if(dsp[d] == dt_token("main"))
-          dt_image(ctx, &vkdt.wstate.img_widget, out, 1, popout ? 0 : 1, 0);
+          dt_image(ctx, &vkdt.wstate.img_widget, out, 1, popout ? 0 : 1, 0, rdy);
         else
-          dt_image(ctx, imgw+d, out, 1, 0, 0);
+          dt_image(ctx, imgw+d, out, 1, 0, 0, rdy);
       }
       if(popout)
       {

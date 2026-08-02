@@ -356,7 +356,8 @@ dt_image(
     dt_node_t         *out,     // make sure the out->dset is valid!
     int                events,  // if !=0 provide zoom/pan interaction
     int                main,    // if !=0 do on-canvas ui elements
-    int         center_display) // if !=0 allow mouse events not only on the image but on the full center canvas
+    int         center_display, // if !=0 allow mouse events not only on the image but on the full center canvas
+    int                rdy)     // don't use descriptor set if it's not ready
 {
   if(!out) return;
   w->out = out;
@@ -414,7 +415,10 @@ dt_image(
     };
     nk_fill_rect(buf, white_rect, 0.0f, (struct nk_color){255, 255, 255, 255});
   }
-  struct nk_image nkimg = nk_subimage_ptr(out->dset[display_frame], w->wd, w->ht, subimg);
+  if(!rdy) subimg = (struct nk_rect){0};
+  struct nk_image nkimg = nk_subimage_ptr(
+      out->dset[display_frame],
+      w->wd, w->ht, subimg);
   int hover = nk_input_is_mouse_hovering_rect(&ctx->input, disp);
   if(center_display)
   {

@@ -1607,28 +1607,14 @@ static inline void render_darkroom_widgets(
         dt_module_get_connector(arr+curr, dt_token("dspy")) >= 0)
     {
       dt_node_t *out_dspy = dt_graph_get_display(graph, dt_token("dspy"));
-      if(out_dspy && vkdt.graph_res[display_frame] == VK_SUCCESS)
+      if(out_dspy)
       {
-        struct nk_rect row = nk_layout_widget_bounds(ctx);
-        float iwd = out_dspy->connector[0].roi.wd;
-        float iht = out_dspy->connector[0].roi.ht;
-        float scale = MIN(
-            MIN(out_dspy->connector[0].roi.wd, row.w) / iwd,
-            MIN(out_dspy->connector[0].roi.ht, row.w) / iht);
-        int ht = scale * iht, wd = scale * iwd;
-        float r = wd / (float)row.w;
-        nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,ctx->style.window.spacing.y));
-        float w3[] = {
-          0.5*(1-r)*pwd-ctx->style.window.spacing.x,
-          r*pwd-ctx->style.window.spacing.x,
-          0.5*(1-r)*pwd};
-        nk_layout_row(ctx, NK_STATIC, ht, 3, w3);
-        nk_label(ctx, "", 0);
-        vkdt.wstate.active_dspy_bound = nk_widget_bounds(ctx);
-        struct nk_image img = nk_image_ptr(out_dspy->dset[display_frame]);
-        nk_image(ctx, img);
-        nk_label(ctx, "", 0);
-        nk_style_pop_vec2(ctx);
+        int rdy = vkdt.graph_res[display_frame] == VK_SUCCESS;
+        dt_image_widget_t imgw = { .look_at_x = 0, .look_at_y = 0, .scale=1.0 };
+        int wd = vkdt.state.panel_wd;
+        int ht = wd * out_dspy->connector[0].roi.full_ht / (float)out_dspy->connector[0].roi.full_wd; // image aspect
+        nk_layout_row_dynamic(ctx, ht, 1);
+        dt_image(ctx, &imgw, out_dspy, 0, 0, 0, rdy);
       }
     }
     for(int i=0;i<arr[curr].so->num_params;i++)

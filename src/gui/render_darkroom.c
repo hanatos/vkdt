@@ -452,13 +452,11 @@ void render_darkroom()
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
-      if(vkdt.graph_res[display_frame] == VK_SUCCESS)
-      {
-        int events = !vkdt.wstate.grabbed && !disabled;
-        // center view has on-canvas widgets (but only if there *is* an image):
-        nk_layout_row_dynamic(&vkdt.ctx, win_h, 1);
-        dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out_main, events, out_main != 0, 1);
-      }
+      int rdy = vkdt.graph_res[display_frame] == VK_SUCCESS;
+      int events = !vkdt.wstate.grabbed && !disabled;
+      // center view has on-canvas widgets (but only if there *is* an image):
+      nk_layout_row_dynamic(&vkdt.ctx, win_h, 1);
+      dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out_main, events, out_main != 0, 1, rdy);
     }
     float wd = 0.8*win_y;
     const uint32_t ci = dt_db_current_imgid(&vkdt.db);
@@ -601,13 +599,14 @@ void render_darkroom()
   { // right panel
     // draw histogram image:
     dt_node_t *out_hist = dt_graph_get_display(&vkdt.graph_dev, dt_token("hist"));
-    if(out_hist && vkdt.graph_res[display_frame] == VK_SUCCESS && out_hist->dset[display_frame])
+    if(out_hist && out_hist->dset[display_frame])
     {
+      int rdy = vkdt.graph_res[display_frame] == VK_SUCCESS;
+      dt_image_widget_t imgw = { .look_at_x = 0, .look_at_y = 0, .scale=1.0 };
       int wd = vkdt.state.panel_wd;
       int ht = wd * out_hist->connector[0].roi.full_ht / (float)out_hist->connector[0].roi.full_wd; // image aspect
-      nk_layout_row_dynamic(&vkdt.ctx, ht, 1);
-      struct nk_image img = nk_image_ptr(out_hist->dset[display_frame]);
-      nk_image(ctx, img);
+      nk_layout_row_dynamic(ctx, ht, 1);
+      dt_image(ctx, &imgw, out_hist, 0, 0, 0, rdy);
     }
 
     static dt_image_widget_t imgw[] = {
@@ -617,13 +616,13 @@ void render_darkroom()
     for(uint32_t d = 0; d < sizeof(dsp)/sizeof(dsp[0]); d++)
     {
       dt_node_t *out = dt_graph_get_display(&vkdt.graph_dev, dsp[d]);
-      if(out && vkdt.graph_res[display_frame] == VK_SUCCESS)
+      if(out)
       {
-        struct nk_context *ctx = &vkdt.ctx;
+        int rdy = vkdt.graph_res[display_frame] == VK_SUCCESS;
         int wd = vkdt.state.panel_wd;
         int ht = wd * out->connector[0].roi.full_ht / (float)out->connector[0].roi.full_wd; // image aspect
         nk_layout_row_dynamic(ctx, ht, 1);
-        dt_image(ctx, imgw+d, out, 1, 0, 0);
+        dt_image(ctx, imgw+d, out, 1, 0, 0, rdy);
       }
     }
 
@@ -1271,8 +1270,8 @@ darkroom_process()
       // if we invalidate things, nuklear doesn't render an image, the nk hashes change, sliders lose focus
       // and all ui logic goes to hell (jumps like mad). ignoring that we'll read garbage for half a frame or so
       // results in the much smoother user interface operation:
-      // if(vkdt.graph_dev.runflags & s_graph_run_alloc) // strictly speaking, allocation also invalidates the other dbuf
-      //   vkdt.graph_res[1-vkdt.graph_dev.double_buffer] = VK_INCOMPLETE;
+      if(vkdt.graph_dev.runflags & s_graph_run_alloc) // strictly speaking, allocation also invalidates the other dbuf
+        vkdt.graph_res[1-vkdt.graph_dev.double_buffer] = VK_INCOMPLETE;
       vkdt.graph_res[vkdt.graph_dev.double_buffer] =
         dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
       clear_runflags();
