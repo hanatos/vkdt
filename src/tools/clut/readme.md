@@ -32,6 +32,8 @@ since we want to reconstruct the spectral response it is important to use a
 target with known spectral reflectivity (the ColorChecker sold by
 xrite/calibrite).
 
+alternatively, you might try [a similar approach: *spectral sensitivity estimation without a camera*.](https://color-lab-eilat.github.io/Spectral-sensitivity-estimation-web/).
+
 
 ## mkssf: estimating spectral response
 
