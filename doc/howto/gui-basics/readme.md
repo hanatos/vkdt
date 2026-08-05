@@ -85,9 +85,11 @@ this is mostly useful for slightly more complex graphs:
 
 basic interaction with the graph:
 
-* drag a read (or write) pin to a write (or read) pin to connect
-* drag a read pin into the void to remove a connection
-* drag and drop a disconnected node on top of a link to insert the node
+* use middle mouse button + drag to pan the graph around
+* use mouse wheel to zoom in/out centered around the pointer
+* drag a write pin to a read pin to connect
+* right click the ball of a read pin to remove a connection
+* drag and drop a disconnected node on top of a link to insert the node (if there is a default `input`→`output`)
 
 this last point only works if the node is *simple*, i.e. it has a clearly
 defined chain of an `input` connector to an `output` connector and does not
@@ -145,6 +147,6 @@ darkroom mode (only on the single edited image).
 can be customised for each view separately in the gui via `settings`→
 `hotkeys`. some keys are special and not in the hotkey system.
 
-`f11` goes full screen
+`f11` goes full screen (on wayland conspire with the compositor instead)
 
 `ctrl+x` quits the application
