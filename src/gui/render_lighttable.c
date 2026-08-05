@@ -426,9 +426,15 @@ void render_lighttable_center()
       }
       else
       { // no modifier, select exactly this image:
-        if(dt_db_selection_contains(&vkdt.db, i) &&
-           nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, row))
+        const int is_selected = dt_db_selection_contains(&vkdt.db, i);
+        const int is_double   = nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, row);
+        if(is_double)
         {
+          if(!is_selected)
+          { // ensure image is selected (and thus current) before entering darkroom
+            dt_db_selection_clear(&vkdt.db);
+            dt_db_selection_add(&vkdt.db, i);
+          }
           dt_view_switch(s_view_darkroom);
         }
         else
