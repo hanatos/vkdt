@@ -411,7 +411,6 @@ void render_darkroom_full(char *filter_name, char *filter_inst)
 
 void render_darkroom()
 {
-  // double clock_beg = dt_time();
 
   int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
   int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
@@ -450,13 +449,24 @@ void render_darkroom()
   if(nk_begin(&vkdt.ctx, "darkroom center", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
   { // draw center view image:
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
-    if(out_main)
+    int rdy = out_main && (vkdt.graph_res[display_frame] == VK_SUCCESS);
+    int events = !vkdt.wstate.grabbed && !disabled;
+    // center view has on-canvas widgets (but only if there *is* an image):
+    nk_layout_row_dynamic(&vkdt.ctx, win_h, 1);
+
+    int show_placeholder = !rdy && vkdt.wstate.dr_placeholder_valid;
+    if(show_placeholder)
     {
-      int rdy = vkdt.graph_res[display_frame] == VK_SUCCESS;
-      int events = !vkdt.wstate.grabbed && !disabled;
-      // center view has on-canvas widgets (but only if there *is* an image):
-      nk_layout_row_dynamic(&vkdt.ctx, win_h, 1);
-      dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out_main, events, out_main != 0, 1, rdy);
+      dt_image_draw_placeholder(
+          &vkdt.ctx, &vkdt.wstate.img_widget,
+          vkdt.wstate.dr_placeholder_dset,
+          vkdt.wstate.dr_placeholder_wd,
+          vkdt.wstate.dr_placeholder_ht);
+    }
+    else if(out_main)
+    {
+      dt_image(&vkdt.ctx, &vkdt.wstate.img_widget, out_main, events,
+               out_main != 0, 1, rdy);
     }
     float wd = 0.8*win_y;
     const uint32_t ci = dt_db_current_imgid(&vkdt.db);
@@ -1245,7 +1255,8 @@ darkroom_process()
     // 1-double buffer is still running on gpu, has not been swapped in yet
     int running = (vkdt.graph_res[vkdt.graph_dev.double_buffer^1] == -1);
     if(running)
-    {
+    { // keep the loop awake while the back buffer is still rendering on the gpu
+      vkdt.wstate.busy++;
       uint64_t value;
       VkResult res = vkGetSemaphoreCounterValue(qvk.device, vkdt.graph_dev.semaphore_process, &value);
       if(res == VK_SUCCESS && value >= vkdt.graph_dev.process_dbuffer[vkdt.graph_dev.double_buffer^1])
@@ -1262,6 +1273,8 @@ darkroom_process()
     // we'll wait for the other one after execution (potential gui lockup, but faster for anim)
 #endif
 
+    // If placeholder is valid, the graph output isn't ready yet, so render_darkroom()
+    // shows the thumbnail. Once the graph finishes, it will draw the full image.
     if(!running && vkdt.graph_dev.runflags) // stills and stopped animations
     { // double buffered async compute
       vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
@@ -1326,7 +1339,20 @@ darkroom_process()
 
 int
 darkroom_enter()
-{
+{ // capture the current image's thumbnail as a darkroom placeholder while the full-res pipeline runs
+  uint32_t imgid = dt_db_current_imgid(&vkdt.db);
+  vkdt.wstate.dr_placeholder_valid = 0;
+  if(imgid != -1u)
+  {
+    const uint32_t tid = vkdt.db.image[imgid].thumbnail;
+    if(tid > 0 && tid < vkdt.thumbnails.thumb_max)
+    {
+      vkdt.wstate.dr_placeholder_dset = vkdt.thumbnails.thumb[tid].dset;
+      vkdt.wstate.dr_placeholder_wd   = vkdt.thumbnails.thumb[tid].wd;
+      vkdt.wstate.dr_placeholder_ht   = vkdt.thumbnails.thumb[tid].ht;
+      vkdt.wstate.dr_placeholder_valid = 1;
+    }
+  }
   vkdt.wstate.lod_fine     = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
   vkdt.wstate.lod_interact = dt_rc_get_int(&vkdt.rc, "gui/lod_interact", 1);
   vkdt.state.anim_frame = 0;
@@ -1339,7 +1365,7 @@ darkroom_enter()
   dt_radial_menu_dr_close(&vkdt.wstate.radial_menu_dr);
   vkdt.wstate.mapped = 0;
   vkdt.wstate.selected = -1;
-  uint32_t imgid = dt_db_current_imgid(&vkdt.db);
+  imgid = dt_db_current_imgid(&vkdt.db);
   if(imgid == -1u) return 1;
   char graph_cfg[PATH_MAX+100];
   dt_db_image_path(&vkdt.db, imgid, graph_cfg, sizeof(graph_cfg));
@@ -1492,6 +1518,7 @@ darkroom_leave()
   dt_graph_repurpose(&vkdt.graph_dev);
   dt_graph_history_cleanup(&vkdt.graph_dev);
   vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
+  vkdt.wstate.dr_placeholder_valid = 0;  // clear placeholder on exit
   dt_dragkeys_cancel(&dragkeys);
   dt_gamepadhelp_clear();
   dt_keyhelp_clear();
