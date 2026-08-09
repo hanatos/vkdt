@@ -436,3 +436,31 @@ dt_image(
   // now the controls:
   if(events) dt_image_events(ctx, w, hover, main, disp);
 }
+
+// Draw a thumbnail as placeholder while the full-res pipeline is still processing.
+// Simple fit-to-view — no zoom/pan interaction. Both thumbnail and full-res
+// have the same aspect ratio, so swapping at fit-to-view is seamless.
+static inline void
+dt_image_draw_placeholder(
+    struct nk_context *ctx,
+    dt_image_widget_t *w,
+    VkDescriptorSet dset,
+    float thumb_wd,
+    float thumb_ht)
+{
+  struct nk_rect wb = nk_widget_bounds(ctx);
+
+  float scale = MIN(wb.w / thumb_wd, wb.h / thumb_ht);
+  float disp_w = thumb_wd * scale;
+  float disp_h = thumb_ht * scale;
+  struct nk_rect disp = {
+    wb.x + (wb.w - disp_w) * 0.5f,
+    wb.y + (wb.h - disp_h) * 0.5f,
+    disp_w, disp_h
+  };
+
+  struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
+  struct nk_image nkimg = nk_subimage_ptr(dset, thumb_wd, thumb_ht,
+      (struct nk_rect){0, 0, thumb_wd, thumb_ht});
+  nk_draw_image(buf, disp, &nkimg, (struct nk_color){0xff,0xff,0xff,0xff});
+}

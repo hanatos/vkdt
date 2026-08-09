@@ -141,6 +141,12 @@ typedef struct dt_gui_wstate_t
   int lighttable_images_per_row;// how many images per row in lighttable mode
 
   double delta_time;            // time passed since last frame in seconds
+
+  // Placeholder thumbnail for darkroom while pipeline processes
+  VkDescriptorSet   dr_placeholder_dset;   // thumbnail descriptor set
+  float             dr_placeholder_wd;     // thumbnail width in texels
+  float             dr_placeholder_ht;     // thumbnail height in texels
+  int               dr_placeholder_valid;  // 1 if we have a valid placeholder
 }
 dt_gui_wstate_t;
 
