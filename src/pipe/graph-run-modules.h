@@ -632,11 +632,19 @@ dt_graph_run_modules(
           }
         }
       }
+    VkSemaphore sem[] = {
+      graph->semaphore_process,
+      graph->semaphore_extra,
+    };
+    const uint64_t wait_value[] = {
+      graph->timeline_value,
+      graph->semaphore_extra_val,
+    };
     VkSemaphoreWaitInfo wait_info = {
       .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
-      .semaphoreCount = 1,
-      .pSemaphores    = &graph->semaphore_process,
-      .pValues        = &graph->timeline_value,
+      .semaphoreCount = 2,
+      .pSemaphores    = sem,
+      .pValues        = wait_value,
     };
     QVKR(vkWaitSemaphores(qvk.device, &wait_info, UINT64_MAX));
     for(int i=0;i<graph->conn_image_end;i++)

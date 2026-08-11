@@ -20,7 +20,9 @@ typedef enum dt_roi_mark_t
   s_roi_mark_soft_fwd  = s_roi_mark_soft | s_roi_mark_fwd,
   s_roi_mark_hard_fwd  = s_roi_mark_hard | s_roi_mark_fwd,
   s_roi_mark_dontcare  = 0xff,
-} dt_roi_mark_t;
+}
+dt_roi_mark_t;
+
 typedef struct dt_roi_t
 {
   uint32_t full_wd, full_ht; // full input size
