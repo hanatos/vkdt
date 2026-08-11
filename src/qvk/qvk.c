@@ -58,19 +58,8 @@ static const VkApplicationInfo vk_app_info = {
   .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
   .pEngineName        = "vkdt",
   .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
-  .apiVersion         = VK_API_VERSION_1_3,
+  .apiVersion         = VK_API_VERSION_1_4,
 };
-
-static void
-get_vk_extension_list(
-    const char *layer,
-    uint32_t *num_extensions,
-    VkExtensionProperties **ext)
-{
-  QVK(vkEnumerateInstanceExtensionProperties(layer, num_extensions, NULL));
-  *ext = malloc(sizeof(**ext) * *num_extensions);
-  QVK(vkEnumerateInstanceExtensionProperties(layer, num_extensions, *ext));
-}
 
 static void
 get_vk_layer_list(
@@ -149,13 +138,12 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     LENGTH(vk_requested_instance_extensions) +
     (allow_hdr ?
     LENGTH(vk_hdr_instance_extensions) : 0);
-  char **ext = alloca(sizeof(char *) * num_inst_ext_combined);
-  memcpy(ext, qvk.glfw_extensions, qvk.num_glfw_extensions * sizeof(*qvk.glfw_extensions));
-  memcpy(ext + qvk.num_glfw_extensions, vk_requested_instance_extensions, sizeof(vk_requested_instance_extensions));
+  assert(num_inst_ext_combined <= LENGTH(qvk.inst_extension));
+  memcpy(qvk.inst_extension, qvk.glfw_extensions, qvk.num_glfw_extensions * sizeof(*qvk.glfw_extensions));
+  memcpy(qvk.inst_extension + qvk.num_glfw_extensions, vk_requested_instance_extensions, sizeof(vk_requested_instance_extensions));
   if(allow_hdr)
-    memcpy(ext + qvk.num_glfw_extensions + LENGTH(vk_requested_instance_extensions), vk_hdr_instance_extensions, sizeof(vk_hdr_instance_extensions));
-
-  get_vk_extension_list(NULL, &qvk.num_extensions, &qvk.extensions);
+    memcpy(qvk.inst_extension + qvk.num_glfw_extensions + LENGTH(vk_requested_instance_extensions), vk_hdr_instance_extensions, sizeof(vk_hdr_instance_extensions));
+  qvk.inst_extension_cnt = num_inst_ext_combined;
 
   const char *vk_requested_layers[] = {
 #ifdef QVK_ENABLE_VALIDATION
@@ -172,8 +160,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     .pApplicationInfo        = &vk_app_info,
     .enabledLayerCount       = num_layers,
     .ppEnabledLayerNames     = num_layers ? vk_requested_layers : 0,
-    .enabledExtensionCount   = num_inst_ext_combined,
-    .ppEnabledExtensionNames = (const char * const*)ext,
+    .enabledExtensionCount   = qvk.inst_extension_cnt,
+    .ppEnabledExtensionNames = (const char * const*)qvk.inst_extension,
 #ifdef __APPLE__
     .flags                   = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
 #endif
@@ -288,9 +276,6 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   }
 
   qvk.physical_device = devices[picked_device];
-  VkPhysicalDeviceFeatures dev_features; // be sure that corresponds to what we picked
-  vkGetPhysicalDeviceFeatures(qvk.physical_device, &dev_features);
-
   vkGetPhysicalDeviceMemoryProperties(qvk.physical_device, &qvk.mem_properties);
 
   if(qvk.coopmat_supported)
@@ -330,7 +315,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   dt_log(s_log_qvk, "num queue families: %d", num_queue_families);
 
   int queue_family_index = -1;
-  int queue_cnt = 0;
+  int queue_cnt = 0, queue_compute_cnt = 0, queue_vid_dec_cnt = 0;
   for(int i = 0; i < num_queue_families; i++)
   {
     if((queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
@@ -348,12 +333,26 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     if((queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT) &&
       !(queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT))
     {
+      queue_compute_cnt = queue_families[i].queueCount;
       compute_family_index = i;
       break;
     }
   }
+  
+  int vid_dec_family_index = queue_family_index;
+  for(int i = 0; i < num_queue_families; i++)
+  {
+    if(queue_families[i].queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR)
+    {
+      queue_vid_dec_cnt = queue_families[i].queueCount;
+      vid_dec_family_index = i;
+      break;
+    }
+  }
+
   qvk.queue_family_graphics = queue_family_index;
-  qvk.queue_family_compute = compute_family_index;
+  qvk.queue_family_compute  = compute_family_index;
+  qvk.queue_family_vid_dec  = vid_dec_family_index;
 
   if(queue_family_index < 0)
   {
@@ -375,82 +374,78 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     qvk.blit_supported = 1;
   else qvk.blit_supported = 0;
 
-  VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features = {
-    .sType                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+#if 0
+  qvk.df_cluster_bvh = (VkPhysicalDeviceClusterAccelerationStructureFeaturesNV) {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CLUSTER_ACCELERATION_STRUCTURE_FEATURES_NV,
+    .clusterAccelerationStructure = VK_TRUE,
+  };
+#endif
+  qvk.df_accel = (VkPhysicalDeviceAccelerationStructureFeaturesKHR) {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+    // .pNext = &qvk.df_cluster_bvh,
     .accelerationStructure = VK_TRUE,
   };
-  VkPhysicalDeviceRayQueryFeaturesKHR ray_query_features = {
-    .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR,
-    .pNext    = &acceleration_structure_features,
+  qvk.df_ray_query = (VkPhysicalDeviceRayQueryFeaturesKHR) {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR,
+    .pNext = &qvk.df_accel,
     .rayQuery = VK_TRUE,
   };
-  VkPhysicalDeviceVulkan12Features v12f = {
+  qvk.df_v14 = (VkPhysicalDeviceVulkan14Features) {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES,
+    .pNext = qvk.raytracing_supported ? &qvk.df_ray_query : 0,
+    .maintenance5 = VK_TRUE,
+  };
+  qvk.df_v13 = (VkPhysicalDeviceVulkan13Features) {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+    .pNext = &qvk.df_v14,
+    .dynamicRendering     = VK_TRUE,
+    .subgroupSizeControl  = VK_TRUE,
+    .computeFullSubgroups = VK_TRUE,
+  };
+  qvk.df_v12 = (VkPhysicalDeviceVulkan12Features) {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-    .pNext                                     = qvk.raytracing_supported ? &ray_query_features : 0,
+    .pNext = &qvk.df_v13,
     .descriptorIndexing                        = VK_TRUE,
     .uniformAndStorageBuffer8BitAccess         = VK_TRUE,
     .runtimeDescriptorArray                    = VK_TRUE,
     .shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
     .bufferDeviceAddress                       = VK_TRUE,
   };
-  VkPhysicalDeviceShaderAtomicFloatFeaturesEXT atomic_features = {
-    .sType                       = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT,
+  qvk.df_atomics = (VkPhysicalDeviceShaderAtomicFloatFeaturesEXT) {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT,
+    .pNext = &qvk.df_v12,
     .shaderImageFloat32Atomics   = VK_TRUE,
     .shaderImageFloat32AtomicAdd = VK_TRUE,
-    .pNext                       = &v12f,
   };
-  VkPhysicalDeviceSubgroupSizeControlFeaturesEXT sub_features = {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT,
-    .subgroupSizeControl = VK_TRUE,
-    .computeFullSubgroups = VK_TRUE,
-    .pNext = &atomic_features,
-  };
-  VkPhysicalDeviceVulkan11Features v11f = {
-    .sType                  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+  qvk.df_v11 = (VkPhysicalDeviceVulkan11Features) {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+    .pNext = qvk.float_atomics_supported ? &qvk.df_atomics : qvk.df_atomics.pNext,
     .samplerYcbcrConversion = 1,
-    .pNext                  = qvk.subgroup_size_control_supported ?
-      (void *)&sub_features :
-      (qvk.float_atomics_supported ? (void *)&atomic_features : (void *)&v12f),
   };
-  VkPhysicalDeviceDynamicRenderingFeatures dyn_render = {
-    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
-    .pNext = &v11f,
-    .dynamicRendering = VK_TRUE,
-  };
-  VkPhysicalDeviceCooperativeMatrixFeaturesKHR coopmat = {
+  qvk.df_coopmat = (VkPhysicalDeviceCooperativeMatrixFeaturesKHR) {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR,
-    .pNext = &dyn_render,
+    .pNext = &qvk.df_v11,
   };
-  // VkPhysicalDeviceShader64BitIndexingFeaturesEXT devsize = {
-  //   .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_64_BIT_INDEXING_FEATURES_EXT,
-  //   .pNext = qvk.coopmat_supported ? (void*)&coopmat : (void*)&dyn_render,
-  //   .shader64BitIndexing = VK_TRUE,
-  // };
-  VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR layouts = {
+  qvk.df_layouts = (VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR) {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFIED_IMAGE_LAYOUTS_FEATURES_KHR,
-    // .pNext = qvk.shader64bit_indexing_supported ? (void*)&devsize : devsize.pNext,
-    // switch this off. i don't think it helps our case and it might increase register pressure.
-    .pNext = qvk.coopmat_supported ? (void*)&coopmat : (void*)&dyn_render,
+    .pNext = qvk.coopmat_supported ? &qvk.df_coopmat : qvk.df_coopmat.pNext,
     .unifiedImageLayouts = VK_TRUE,
     .unifiedImageLayoutsVideo = VK_TRUE,
   };
   VkPhysicalDeviceFeatures2 device_features = {
     .sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-    .features = dev_features,
-    .pNext    = qvk.unified_image_layouts_supported ? (void*)&layouts : layouts.pNext,
+    .pNext    = qvk.unified_image_layouts_supported ? &qvk.df_layouts : qvk.df_layouts.pNext,
   };
   vkGetPhysicalDeviceFeatures2(qvk.physical_device, &device_features);
   // now find out whether we *really* support 32-bit floating point atomic adds:
-  if(atomic_features.shaderImageFloat32AtomicAdd == VK_FALSE)
+  if(qvk.df_atomics.shaderImageFloat32AtomicAdd == VK_FALSE)
   {
     qvk.float_atomics_supported = 0;
-    v11f.pNext = &v12f; // take the atomics out of the chain
   }
   if(qvk.subgroup_size_control_supported &&
-    (!sub_features.subgroupSizeControl || !sub_features.computeFullSubgroups))
+    (!qvk.df_v13.subgroupSizeControl || !qvk.df_v13.computeFullSubgroups))
   {
     qvk.subgroup_size_control_supported = 0;
-    v11f.pNext = qvk.float_atomics_supported ? (void *)&atomic_features : (void *)&v12f;
   }
 
   dt_log(s_log_qvk, "picked device %d %s ray tracing and %s float atomics and %s coopmat support", picked_device,
@@ -458,48 +453,64 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       qvk.float_atomics_supported ? "with" : "without",
       qvk.coopmat_supported       ? "with" : "without");
 
-  const char *requested_device_extensions[30];
   int len = 0;
-  requested_device_extensions[len++] = VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME;   // intel doesn't have it pre 2015 (hd 520)
+  qvk.dev_extension[len++] = VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME;   // intel doesn't have it pre 2015 (hd 520)
   if(qvk.shader64bit_indexing_supported)
-    requested_device_extensions[len++] = VK_EXT_SHADER_64BIT_INDEXING_EXTENSION_NAME; // 64 bit ssbo addresses
+    qvk.dev_extension[len++] = VK_EXT_SHADER_64BIT_INDEXING_EXTENSION_NAME; // 64 bit ssbo addresses
   if(qvk.unified_image_layouts_supported)
-    requested_device_extensions[len++] = VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME; // general image layouts
-  requested_device_extensions[len++] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
+    qvk.dev_extension[len++] = VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME; // general image layouts
+  qvk.dev_extension[len++] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
   if(qvk.raytracing_supported)
   {
-    requested_device_extensions[len++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
-    requested_device_extensions[len++] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
-    requested_device_extensions[len++] = VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME;
-    requested_device_extensions[len++] = VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME;
-    requested_device_extensions[len++] = VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME;
-    requested_device_extensions[len++] = VK_KHR_RAY_QUERY_EXTENSION_NAME;
+    qvk.dev_extension[len++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
+    qvk.dev_extension[len++] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
+    qvk.dev_extension[len++] = VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME;
+    qvk.dev_extension[len++] = VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME;
+    qvk.dev_extension[len++] = VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME;
+    qvk.dev_extension[len++] = VK_KHR_RAY_QUERY_EXTENSION_NAME;
   }
-  if(qvk.float_atomics_supported) requested_device_extensions[len++] = VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME;
-  if(qvk.coopmat_supported) requested_device_extensions[len++] = VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME;
-  if(qvk.subgroup_size_control_supported) requested_device_extensions[len++] = VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
+  if(qvk.float_atomics_supported) qvk.dev_extension[len++] = VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME;
+  if(qvk.coopmat_supported) qvk.dev_extension[len++] = VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME;
+  if(qvk.subgroup_size_control_supported) qvk.dev_extension[len++] = VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
 #ifdef QVK_ENABLE_VALIDATION
-  requested_device_extensions[len++] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
+  qvk.dev_extension[len++] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
 #endif
 #ifdef __APPLE__
-  requested_device_extensions[len++] = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
+  qvk.dev_extension[len++] = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
 #endif
-  if(window) requested_device_extensions[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
-  if(enable_hdr_wsi) requested_device_extensions[len++] = VK_EXT_HDR_METADATA_EXTENSION_NAME;
+  int vid_dec = 1;
+  if(vid_dec)
+  {
+    qvk.dev_extension[len++] = VK_KHR_VIDEO_QUEUE_EXTENSION_NAME;
+    qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME;
+    qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME;
+    qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME;
+    qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME;
+  }
+  if(window) qvk.dev_extension[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+  if(enable_hdr_wsi) qvk.dev_extension[len++] = VK_EXT_HDR_METADATA_EXTENSION_NAME;
 
-  VkDeviceQueueCreateInfo queue_create_infos[2];
+  VkDeviceQueueCreateInfo queue_create_infos[3];
   uint32_t num_queue_create_infos = 1;
   queue_create_infos[0] = queue_create_info;
   
   if(qvk.queue_family_compute != qvk.queue_family_graphics)
   {
-    queue_create_infos[1] = (VkDeviceQueueCreateInfo) {
+    queue_create_infos[num_queue_create_infos++] = (VkDeviceQueueCreateInfo) {
       .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
       .queueCount       = 1,
       .pQueuePriorities = queue_priorities,
       .queueFamilyIndex = qvk.queue_family_compute,
     };
-    num_queue_create_infos = 2;
+  }
+  if(qvk.queue_family_vid_dec != qvk.queue_family_graphics)
+  {
+    queue_create_infos[num_queue_create_infos++] = (VkDeviceQueueCreateInfo) {
+      .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+      .queueCount       = 1,
+      .pQueuePriorities = queue_priorities,
+      .queueFamilyIndex = qvk.queue_family_vid_dec,
+    };
   }
 
   VkDeviceCreateInfo dev_create_info = {
@@ -508,8 +519,9 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     .pQueueCreateInfos       = queue_create_infos,
     .queueCreateInfoCount    = num_queue_create_infos,
     .enabledExtensionCount   = len,
-    .ppEnabledExtensionNames = requested_device_extensions,
+    .ppEnabledExtensionNames = qvk.dev_extension,
   };
+  qvk.dev_extension_cnt = len;
 
   /* create device and queue */
   QVKR(vkCreateDevice(qvk.physical_device, &dev_create_info, NULL, &qvk.device));
@@ -519,15 +531,27 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     if(k == s_queue_compute && qvk.queue_family_compute != qvk.queue_family_graphics)
     {
       qvk.queue[k].idx = 0;
-      qvk.qid[k] = 1; // unique logical index for our internal tracking
+      qvk.queue[k].num = queue_compute_cnt;
+      qvk.qid[k] = 1; // map queue name k to actual qvk.queue[.] index
       vkGetDeviceQueue(qvk.device, qvk.queue_family_compute, 0, &qvk.queue[k].queue);
       threads_mutex_init(&qvk.queue[k].mutex, 0);
       qvk.queue[k].family = qvk.queue_family_compute;
       dt_log(s_log_qvk, "queue %d is idx %d family %d (async compute)", k, qvk.qid[k], qvk.queue_family_compute);
     }
+    else if(k == s_queue_vid_dec && qvk.queue_family_vid_dec != qvk.queue_family_graphics)
+    {
+      qvk.queue[k].idx = 0;
+      qvk.queue[k].num = queue_vid_dec_cnt;
+      qvk.qid[k] = k;
+      vkGetDeviceQueue(qvk.device, qvk.queue_family_vid_dec, 0, &qvk.queue[k].queue);
+      threads_mutex_init(&qvk.queue[k].mutex, 0);
+      qvk.queue[k].family = qvk.queue_family_vid_dec;
+      dt_log(s_log_qvk, "queue %d is idx %d family %d (video decode)", k, qvk.qid[k], qvk.queue_family_vid_dec);
+    }
     else
     {
       qvk.queue[k].idx = MIN(queue_cnt-1, k);
+      qvk.queue[k].num = queue_cnt;
       qvk.qid[k] = qvk.queue[k].idx;
       if(k == qvk.queue[k].idx)
       { // new unique index, need to construct all the things
@@ -689,10 +713,6 @@ qvk_cleanup()
   vkDestroyDevice      (qvk.device,   NULL);
   QVK(qvkDestroyDebugUtilsMessengerEXT(qvk.instance, qvk.dbg_messenger, NULL));
   vkDestroyInstance    (qvk.instance, NULL);
-
-  free(qvk.extensions);
-  qvk.extensions = NULL;
-  qvk.num_extensions = 0;
 
   free(qvk.layers);
   qvk.layers = NULL;

@@ -676,7 +676,7 @@ void render_darkroom()
       }
       nk_size anim_frame = vkdt.state.anim_frame;
       struct nk_rect bb = nk_widget_bounds(ctx);
-      if(nk_progress(ctx, &anim_frame, vkdt.state.anim_max_frame, nk_true))
+      if(nk_progress(ctx, &anim_frame, vkdt.graph_dev.frame_cnt-1, nk_true))
       {
         vkdt.state.anim_frame = anim_frame;
         vkdt.graph_dev.frame = vkdt.state.anim_frame;
@@ -687,7 +687,7 @@ void render_darkroom()
       char text[50];
       bb.x += ctx->style.progress.padding.x;
       bb.y += ctx->style.progress.padding.y;
-      snprintf(text, sizeof(text), "frame %d/%d", vkdt.state.anim_frame, vkdt.state.anim_max_frame);
+      snprintf(text, sizeof(text), "frame %d/%d", vkdt.state.anim_frame, vkdt.graph_dev.frame_cnt);
       nk_draw_text(nk_window_get_canvas(ctx), bb, text, strlen(text), nk_glfw3_font(0), nk_rgba(0,0,0,0), nk_rgba(255,255,255,255));
     }
 
@@ -822,12 +822,11 @@ void render_darkroom()
       if(nk_tree_push(ctx, NK_TREE_TAB, "animation", NK_MINIMIZED))
       { // animation controls
         nk_layout_row(ctx, NK_DYNAMIC, row_height, 2, ratio);
-        int resi = vkdt.state.anim_max_frame;
+        int resi = vkdt.graph_dev.frame_cnt-1;
         nk_tab_property(int, ctx, "#", 0, &resi, 10000, 1, 1);
-        if(resi != vkdt.state.anim_max_frame) 
+        if(resi != vkdt.graph_dev.frame_cnt-1)
         {
-          vkdt.state.anim_max_frame = resi;
-          vkdt.graph_dev.frame_cnt = vkdt.state.anim_max_frame+1;
+          vkdt.graph_dev.frame_cnt = resi+1;
           dt_graph_history_global(&vkdt.graph_dev);
         }
         nk_label(ctx, "last frame", NK_TEXT_LEFT);
@@ -1168,7 +1167,6 @@ clear_runflags()
 
     // do this after running the graph, it may only know
     // after initing say the output roi, after loading an input file
-    vkdt.state.anim_max_frame = vkdt.graph_dev.frame_cnt-1;
     if(vkdt.graph_dev.frame_cnt == 1) dt_gui_dr_hide_dopesheet();
 
     // rebuild gui specific to this image
@@ -1218,6 +1216,7 @@ darkroom_process()
         vkdt.graph_dev.runflags = 0; // no need to re-render
       else advance = 1;
     }
+    // fprintf(stderr, "adv %d frame %d/%d anim frame %d\n", advance, vkdt.graph_dev.frame, vkdt.graph_dev.frame_cnt, vkdt.state.anim_frame);
     if(advance)
     {
       if(vkdt.state.anim_frame > vkdt.graph_dev.frame + 1)
@@ -1225,7 +1224,7 @@ darkroom_process()
       vkdt.graph_dev.frame = vkdt.state.anim_frame;
       if(!vkdt.state.anim_no_keyframes)
         dt_graph_apply_keyframes(&vkdt.graph_dev);
-      if(vkdt.graph_dev.frame_cnt == 0 || vkdt.state.anim_frame < vkdt.state.anim_max_frame+1)
+      if(vkdt.graph_dev.frame_cnt == 0 || vkdt.state.anim_frame < vkdt.graph_dev.frame_cnt)
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
     }
     if(vkdt.state.anim_frame == vkdt.graph_dev.frame_cnt - 1)
