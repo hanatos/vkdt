@@ -87,6 +87,7 @@ dt_graph_get_resource_filename(
 {
   char tmp[2*PATH_MAX+10];
   
+  if(!fname) return 1;
   if(fname[0] != '/' && fname[1] != ':') // relative paths
   {
     snprintf(tmp, sizeof(tmp), "%s/%s", mod->graph->searchpath, fname);

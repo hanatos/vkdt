@@ -3,6 +3,8 @@
 static inline VkResult
 record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
 {
+  // video decoding dispatches its own command buffer up front:
+  if(node->type == s_node_vid_dec) return VK_SUCCESS;
   VkCommandBuffer cmd_buf = dt_graph_cmd_buf(graph);
 
   // sanity check: are all input connectors bound?

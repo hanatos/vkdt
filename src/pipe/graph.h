@@ -112,6 +112,8 @@ typedef struct dt_graph_t
   VkCommandPool         command_pool_gfx;
   int                   use_graphics_queue;    // set each run: 1 when s_node_graphics nodes exist and a separate compute family is in use
   VkSemaphore           semaphore_process;   // timeline semaphore indicating that graph processing/double buffer write access is done
+  VkSemaphore           semaphore_extra;     // external sync (wait for video decoder)
+  uint64_t              semaphore_extra_val; // value to wait for
   qvk_queue_name_t      queue_name;
   dt_graph_display_images_t *dspy;           // used for ui synchronisation, if set. owned by the ui.
   uint64_t (*dspy_acquire)(dt_graph_t *g);   // callback to get new frame id/semaphore value

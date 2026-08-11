@@ -1016,7 +1016,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   // a sink or a source does not need a pipeline to be run.
   // note, however, that a sink does need a descriptor set, as we want to bind
   // it to ui textures later on.
-  if(!(dt_node_sink(node) || dt_node_source(node)))
+  if(!((node->type & s_node_vid_dec) || dt_node_sink(node) || dt_node_source(node)))
   {
     // create the pipeline layout
     VkDescriptorSetLayout dset_layout[] = {

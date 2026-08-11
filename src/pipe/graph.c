@@ -92,6 +92,7 @@ dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
     .flags = 0,
   };
   vkCreateSemaphore(qvk.device, &createInfo, NULL, &g->semaphore_process);
+  vkCreateSemaphore(qvk.device, &createInfo, NULL, &g->semaphore_extra);
   
   { // init temporary command buffer
     VkCommandPoolCreateInfo create_pool = {
@@ -205,11 +206,16 @@ graph_destroy_per_image_resources(dt_graph_t *g)
 static VkResult
 graph_wait_gpu(dt_graph_t *g, const char *caller)
 {
+  const uint64_t wait_value[] = {
+    g->timeline_value,
+    g->semaphore_extra_val,
+  };
+  VkSemaphore sem[] = { g->semaphore_process, g->semaphore_extra };
   VkSemaphoreWaitInfo wait_info = {
     .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
-    .semaphoreCount = 1,
-    .pSemaphores    = &g->semaphore_process,
-    .pValues        = &g->timeline_value,
+    .semaphoreCount = 2,
+    .pSemaphores    = sem,
+    .pValues        = wait_value,
   };
   VkResult res = vkWaitSemaphores(qvk.device, &wait_info, UINT64_MAX);
   if(res != VK_SUCCESS)
@@ -264,7 +270,9 @@ dt_graph_cleanup(dt_graph_t *g)
   g->vkmem_uniform = 0;
   g->vkmem_uniform_size = 0;
   vkDestroySemaphore(qvk.device, g->semaphore_process, 0);
+  vkDestroySemaphore(qvk.device, g->semaphore_extra, 0);
   g->semaphore_process = 0;
+  g->semaphore_extra   = 0;
   if(g->command_pool != VK_NULL_HANDLE)
     vkFreeCommandBuffers(qvk.device, g->command_pool, 2, g->command_buffer);
   g->command_buffer[0] = g->command_buffer[1] = VK_NULL_HANDLE;
@@ -889,12 +897,11 @@ VkResult dt_graph_run(
     graph->timeline_value = get_timeline_value(graph);
     QVKR(vkEndCommandBuffer(cmd_buf));
 
-    // VkPipelineStageFlagBits wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-    // uint64_t timeline_prev = MAX(graph->timeline_value, 1)-1; // wait for the other double buffer to finish
+    VkPipelineStageFlagBits wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     VkTimelineSemaphoreSubmitInfo timeline_info = {
       .sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
-      // .waitSemaphoreValueCount   = timeline_prev < graph->timeline_value ? 1 : 0,
-      // .pWaitSemaphoreValues      = &timeline_prev,
+      .waitSemaphoreValueCount   = 1,
+      .pWaitSemaphoreValues      = &graph->semaphore_extra_val,
       .signalSemaphoreValueCount = 1,
       .pSignalSemaphoreValues    = &graph->timeline_value, // signal this buffer is ready to display once we're done
     };
@@ -903,9 +910,9 @@ VkResult dt_graph_run(
       .commandBufferCount   = 1,
       .pCommandBuffers      = &cmd_buf,
       .pNext                = &timeline_info,
-      // .waitSemaphoreCount   = timeline_prev < graph->timeline_value ? 1 : 0,
-      // .pWaitSemaphores      = &graph->semaphore_process,
-      // .pWaitDstStageMask    = &wait_stage,
+      .waitSemaphoreCount   = 1,
+      .pWaitSemaphores      = &graph->semaphore_extra,
+      .pWaitDstStageMask    = &wait_stage,
       .signalSemaphoreCount = 1,
       .pSignalSemaphores    = &graph->semaphore_process,
     };
