@@ -201,7 +201,9 @@ VkResult dt_graph_run(
 
 void dt_token_print(dt_token_t t);
 
-VkResult dt_graph_create_shader_module(
+#ifndef VKDT_DSO_BUILD
+VKDT_API VkResult
+dt_graph_create_shader_module(
     dt_graph_t     *graph,  // only needed for debugging purposes
     dt_token_t      node,
     dt_token_t      kernel,
@@ -209,13 +211,14 @@ VkResult dt_graph_create_shader_module(
     VkShaderModule *shader_module);
 
 // return the memory allocation and VkImage etc corresponding to a node's connector
-dt_connector_image_t*
+VKDT_API dt_connector_image_t*
 dt_graph_connector_image(
     dt_graph_t *graph,
     int         nid,    // node id
     int         cid,    // connector id
     int         array,  // array index
     int         dbuf);  // double buffer index
+#endif
 
 // apply all keyframes found in the module list and write to the modules parameters according to
 // the current frame in the graph (g->frame). floating point parameters will be interpolated.
