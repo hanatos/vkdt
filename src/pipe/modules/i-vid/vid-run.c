@@ -1,5 +1,4 @@
 #include "vid.h"
-#include "qvk/qvk.h"
 #include "pipe/node.h"
 #include "pipe/modules/api.h"
 
@@ -230,6 +229,7 @@ decode_video_receive_frame(
   };
   QVKR(vkBeginCommandBuffer(cmd_buf, &begin_info));
   vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, v->pipeline);
+  QVK_LOAD(vkCmdPushDescriptorSetKHR);
   qvkCmdPushDescriptorSetKHR(
       cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
       v->pipeline_layout, 1, 2, write_dset);

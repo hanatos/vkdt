@@ -1,6 +1,7 @@
 #pragma once
 #include "core/threads.h"
 #include "core/log.h"
+#include "qvk/qvk.h"
 
 #include <libavutil/pixfmt.h>
 #include <libavformat/avformat.h>
@@ -68,3 +69,97 @@ void decode_video_cleanup(decode_video_t *v);
 int  decode_video_graph_run_pre_node(decode_video_t *v, dt_graph_t *graph, dt_node_t *node);
 void decode_video_stop(decode_video_t *v);
 void decode_seek(decode_video_t *v, double ts);
+
+// copied from qvk_util.c so the module interface doesn't need it:
+static inline const char *
+qvk_result_to_string(VkResult result)
+{
+  switch(result) {
+  case VK_SUCCESS: return "VK_SUCCESS";
+  case VK_NOT_READY: return "VK_NOT_READY";
+  case VK_TIMEOUT: return "VK_TIMEOUT";
+  case VK_EVENT_SET: return "VK_EVENT_SET";
+  case VK_EVENT_RESET: return "VK_EVENT_RESET";
+  case VK_INCOMPLETE: return "VK_INCOMPLETE";
+  case VK_ERROR_OUT_OF_HOST_MEMORY: return "VK_ERROR_OUT_OF_HOST_MEMORY";
+  case VK_ERROR_OUT_OF_DEVICE_MEMORY: return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
+  case VK_ERROR_INITIALIZATION_FAILED: return "VK_ERROR_INITIALIZATION_FAILED";
+  case VK_ERROR_DEVICE_LOST: return "VK_ERROR_DEVICE_LOST";
+  case VK_ERROR_MEMORY_MAP_FAILED: return "VK_ERROR_MEMORY_MAP_FAILED";
+  case VK_ERROR_LAYER_NOT_PRESENT: return "VK_ERROR_LAYER_NOT_PRESENT";
+  case VK_ERROR_EXTENSION_NOT_PRESENT: return "VK_ERROR_EXTENSION_NOT_PRESENT";
+  case VK_ERROR_FEATURE_NOT_PRESENT: return "VK_ERROR_FEATURE_NOT_PRESENT";
+  case VK_ERROR_INCOMPATIBLE_DRIVER: return "VK_ERROR_INCOMPATIBLE_DRIVER";
+  case VK_ERROR_TOO_MANY_OBJECTS: return "VK_ERROR_TOO_MANY_OBJECTS";
+  case VK_ERROR_FORMAT_NOT_SUPPORTED: return "VK_ERROR_FORMAT_NOT_SUPPORTED";
+  case VK_ERROR_FRAGMENTED_POOL: return "VK_ERROR_FRAGMENTED_POOL";
+  case VK_ERROR_OUT_OF_POOL_MEMORY: return "VK_ERROR_OUT_OF_POOL_MEMORY";
+  case VK_ERROR_INVALID_EXTERNAL_HANDLE: return "VK_ERROR_INVALID_EXTERNAL_HANDLE";
+  case VK_ERROR_SURFACE_LOST_KHR: return "VK_ERROR_SURFACE_LOST_KHR";
+  case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR: return "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR";
+  case VK_SUBOPTIMAL_KHR: return "VK_SUBOPTIMAL_KHR";
+  case VK_ERROR_OUT_OF_DATE_KHR: return "VK_ERROR_OUT_OF_DATE_KHR";
+  case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR: return "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR";
+  case VK_ERROR_VALIDATION_FAILED_EXT: return "VK_ERROR_VALIDATION_FAILED_EXT";
+  case VK_ERROR_INVALID_SHADER_NV: return "VK_ERROR_INVALID_SHADER_NV";
+  case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT: return "VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT";
+  case VK_ERROR_FRAGMENTATION_EXT: return "VK_ERROR_FRAGMENTATION_EXT";
+  case VK_ERROR_NOT_PERMITTED_EXT: return "VK_ERROR_NOT_PERMITTED_EXT";
+  case VK_ERROR_INVALID_DEVICE_ADDRESS_EXT: return "VK_ERROR_INVALID_DEVICE_ADDRESS_EXT";
+  case VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT: return "VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT";
+  case VK_RESULT_MAX_ENUM: return "VK_RESULT_MAX_ENUM";
+  default: return "AAARRGHH";
+  };
+}
+
+// copy of the one in graph.c so we don't have to expose it
+static inline void *
+read_file(const char *filename, size_t *len)
+{
+  FILE *f = dt_graph_open_resource(0, 0, filename, "rb");
+  if(!f) return 0;
+  fseek(f, 0, SEEK_END);
+  const size_t filesize = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  char *file = malloc(filesize+1);
+
+  size_t rd = fread(file, sizeof(char), filesize, f);
+  file[filesize] = 0;
+  if(rd != filesize)
+  {
+    free(file);
+    file = 0;
+    fclose(f);
+    return 0;
+  }
+  if(len) *len = filesize;
+  fclose(f);
+  return file;
+}
+
+static inline VkResult
+dt_graph_create_shader_module(
+    dt_graph_t     *graph,
+    dt_token_t      node,
+    dt_token_t      kernel,
+    const char     *type,
+    VkShaderModule *shader_module)
+{
+  // create the compute shader stage
+  char filename[PATH_MAX+100] = {0};
+  snprintf(filename, sizeof(filename), "modules/%"PRItkn"/%"PRItkn".%s.spv",
+      dt_token_str(node), dt_token_str(kernel), type);
+
+  size_t len;
+  void *data = read_file(filename, &len);
+  if(!data) return VK_ERROR_INVALID_EXTERNAL_HANDLE;
+
+  VkShaderModuleCreateInfo sm_info = {
+    .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+    .codeSize = len,
+    .pCode    = data
+  };
+  QVKR(vkCreateShaderModule(qvk.device, &sm_info, 0, shader_module));
+  free(data);
+  return VK_SUCCESS;
+}
