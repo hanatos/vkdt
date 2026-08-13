@@ -15,9 +15,6 @@ typedef struct vid_data_t
 }
 vid_data_t;
 
-#if 1 // XXX TODO some of that makes sense (detect colour/trc)
-// XXX some of it is automatic in the ycbcr conversion (chroma/bitdepth)
-// XXX some is automatic and might still be exposed (colrange)
 static inline void
 parse_parameters(
     dt_module_t *mod,
@@ -83,69 +80,8 @@ parse_parameters(
       p_colrange[0] = 1; // default to jpeg/full range
   }
 
-#if 0
-  // enum AVCodecID vcodec = d->fmtc->streams[d->video_idx]->codecpar->codec_id;
-  // enum AVPixelFormat format = (enum AVPixelFormat)d->fmtc->streams[d->video_idx]->codecpar->format;
-  const int bd[] = {8, 10, 12, 16, -1};
-  int bit_depth = bd[p_bits[0]];
-
-  int profile = d->fmtc->streams[d->video_idx]->codecpar->profile;
-  int level = d->fmtc->streams[d->video_idx]->codecpar->level;
-
-  enum AVColorRange color_range = d->fmtc->streams[d->video_idx]->codecpar->color_range;
-  AVRational sample_aspect_ratio = d->fmtc->streams[d->video_idx]->codecpar->sample_aspect_ratio;
-  enum AVFieldOrder field_order = d->fmtc->streams[d->video_idx]->codecpar->field_order;
-  enum AVChromaLocation chroma_location = d->fmtc->streams[d->video_idx]->codecpar->chroma_location;
-#endif
   enum AVColorPrimaries color_primaries = d->v.video.av_stream->codecpar->color_primaries;
   enum AVColorTransferCharacteristic color_trc = d->v.video.av_stream->codecpar->color_trc;
-#if 0
-  enum AVColorSpace color_space = d->fmtc->streams[d->video_idx]->codecpar->color_space;
-  fprintf(stderr, "[i-vid] %d x %d @ %d profile %d lvl %d aspect %g\n",
-      d->wd, d->ht, bit_depth, profile, level, 
-      (float)sample_aspect_ratio.num / sample_aspect_ratio.den);
-#endif
-
-#if 0
-  static const char* fo[] = {
-    "UNKNOWN",
-    "PROGRESSIVE",
-    "TT: Top coded_first, top displayed first",
-    "BB: Bottom coded first, bottom displayed first",
-    "TB: Top coded first, bottom displayed first",
-    "BT: Bottom coded first, top displayed first",
-  };
-  fprintf(stderr, "[i-vid] field order %s\n", fo[field_order]);
-#endif
-
-#if 0
-  static const char* cr[] = {
-    "UNSPECIFIED",
-    "MPEG: the normal 219*2^(n-8) MPEG YUV ranges",
-    "JPEG: the normal     2^n-1   JPEG YUV ranges",
-    "NB: Not part of ABI",
-  };
-  fprintf(stderr, "[i-vid] color range %s\n", cr[color_range]);
-#endif
-
-  static const char* cp[] = {
-    "RESERVED0",
-    "BT709: also ITU-R BT1361 / IEC 61966-2-4 / SMPTE RP177 Annex B",
-    "UNSPECIFIED",
-    "RESERVED",
-    "BT470M: also FCC Title 47 Code of Federal Regulations 73.682 (a)(20)",
-    "BT470BG: also ITU-R BT601-6 625 / ITU-R BT1358 625 / ITU-R BT1700 625 PAL & SECAM",
-    "SMPTE170M: also ITU-R BT601-6 525 / ITU-R BT1358 525 / ITU-R BT1700 NTSC",
-    "SMPTE240M: also ITU-R BT601-6 525 / ITU-R BT1358 525 / ITU-R BT1700 NTSC",
-    "FILM: colour filters using Illuminant C",
-    "BT2020: ITU-R BT2020",
-    "SMPTE428: SMPTE ST 428-1 (CIE 1931 XYZ)",
-    "SMPTE431: SMPTE ST 431-2 (2011) / DCI P3",
-    "SMPTE432: SMPTE ST 432-1 (2010) / P3 D65 / Display P3",
-    "JEDEC_P22: JEDEC P22 phosphors",
-    "NB: Not part of ABI",
-  };
-  fprintf(stderr, "[i-vid] colour primaries %s\n", cp[color_primaries]);
   if(p_colour[0] == -1)
   {
     p_colour[0] = s_colour_primaries_srgb; // default to bt.709
@@ -155,29 +91,6 @@ parse_parameters(
     if(color_primaries == 12) p_colour[0] = s_colour_primaries_P3;   // display P3
   }
 
-  static const char* ctrc[] = {
-    "RESERVED0",
-    "BT709: also ITU-R BT1361",
-    "UNSPECIFIED",
-    "RESERVED",
-    "GAMMA22:  also ITU-R BT470M / ITU-R BT1700 625 PAL & SECAM",
-    "GAMMA28:  also ITU-R BT470BG",
-    "SMPTE170M:  also ITU-R BT601-6 525 or 625 / ITU-R BT1358 525 or 625 / ITU-R BT1700 NTSC",
-    "SMPTE240M",
-    "LINEAR:  Linear transfer characteristics",
-    "LOG: Logarithmic transfer characteristic (100:1 range)",
-    "LOG_SQRT: Logarithmic transfer characteristic (100 * Sqrt(10) : 1 range)",
-    "IEC61966_2_4: IEC 61966-2-4",
-    "BT1361_ECG: ITU-R BT1361 Extended Colour Gamut",
-    "IEC61966_2_1: IEC 61966-2-1 (sRGB or sYCC)",
-    "BT2020_10: ITU-R BT2020 for 10-bit system",
-    "BT2020_12: ITU-R BT2020 for 12-bit system",
-    "SMPTE2084: SMPTE ST 2084 for 10-, 12-, 14- and 16-bit systems",
-    "SMPTE428:  SMPTE ST 428-1",
-    "ARIB_STD_B67:  ARIB STD-B67, known as Hybrid log-gamma",
-    "NB: Not part of ABI",
-  };
-  fprintf(stderr, "[i-vid] trc %s\n", ctrc[color_trc]);
   if(p_trc[0] == -1)
   {
     p_trc[0] = 1; // default to bt.709
@@ -188,52 +101,7 @@ parse_parameters(
     if(color_trc == 16) p_trc[0] = s_colour_trc_PQ;     // smpte 2084
     if(color_trc == 18) p_trc[0] = s_colour_trc_HLG;    // HLG
   }
-
-#if 0
-  static const char* cs[] = {
-    "RGB:   order of coefficients is actually GBR, also IEC 61966-2-1 (sRGB)",
-    "BT709:   also ITU-R BT1361 / IEC 61966-2-4 xvYCC709 / SMPTE RP177 Annex B",
-    "UNSPECIFIED",
-    "RESERVED",
-    "FCC:  FCC Title 47 Code of Federal Regulations 73.682 (a)(20)",
-    "BT470BG:  also ITU-R BT601-6 625 / ITU-R BT1358 625 / ITU-R BT1700 625 PAL & SECAM / IEC 61966-2-4 xvYCC601",
-    "SMPTE170M:  also ITU-R BT601-6 525 / ITU-R BT1358 525 / ITU-R BT1700 NTSC",
-    "SMPTE240M:  functionally identical to above",
-    "YCGCO:  Used by Dirac / VC-2 and H.264 FRext, see ITU-T SG16",
-    "BT2020_NCL:  ITU-R BT2020 non-constant luminance system",
-    "BT2020_CL:  ITU-R BT2020 constant luminance system",
-    "SMPTE2085:  SMPTE 2085, Y'D'zD'x",
-    "CHROMA_DERIVED_NCL:  Chromaticity-derived non-constant luminance system",
-    "CHROMA_DERIVED_CL:  Chromaticity-derived constant luminance system",
-    "ICTCP:  ITU-R BT.2100-0, ICtCp",
-    "NB:  Not part of ABI",
-  };
-  fprintf(stderr, "[i-vid] colour space %s\n", cs[color_space]);
-  if(p_colour[0] == -1)
-  {
-    p_colour[0] = s_colour_primaries_srgb; // default to bt.709
-    if(color_space == 1) p_colour[0] = s_colour_primaries_srgb; // bt.709
-    if(color_space == 9) p_colour[0] = s_colour_primaries_2020; // bt.2020 non constant luminance
-  }
-#endif
-
-#if 0
-  static const char* cl[] = {
-    "UNSPECIFIED",
-    "LEFT: MPEG-2/4 4:2:0, H.264 default for 4:2:0",
-    "CENTER: MPEG-1 4:2:0, JPEG 4:2:0, H.263 4:2:0",
-    "TOPLEFT: ITU-R 601, SMPTE 274M 296M S314M(DV 4:1:1), mpeg2 4:2:2",
-    "TOP",
-    "BOTTOMLEFT",
-    "BOTTOM",
-    "NB:Not part of ABI",
-  };
-  fprintf(stderr, "[i-vid] chroma location %s\n", cl[chroma_location]);
-  d->p_chroma = p_chroma[0];
-  d->p_bits   = p_bits[0];
-#endif
 }
-#endif
 
 int init(dt_module_t *mod)
 {
