@@ -15,7 +15,7 @@ typedef struct vid_data_t
 }
 vid_data_t;
 
-#if 0 // XXX TODO some of that makes sense (detect colour/trc)
+#if 1 // XXX TODO some of that makes sense (detect colour/trc)
 // XXX some of it is automatic in the ycbcr conversion (chroma/bitdepth)
 // XXX some is automatic and might still be exposed (colrange)
 static inline void
@@ -25,12 +25,12 @@ parse_parameters(
 {
   int *p_colour   = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("colour")));
   int *p_trc      = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("trc")));
+  // these are for information/read only:
   int *p_bits     = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("bitdepth")));
   int *p_chroma   = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("chroma")));
   int *p_colrange = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("colrange")));
 
-  // if(p_bits[0] == 4) // we *always* overwrite this because it will crash if a user sets this to a wrong thing!
-  switch(d->fmtc->streams[d->video_idx]->codecpar->format)
+  switch(d->v.video.av_stream->codecpar->format)
   {
     case AV_PIX_FMT_YUVJ420P:
     case AV_PIX_FMT_YUV420P:
@@ -52,8 +52,7 @@ parse_parameters(
     default:
       p_bits[0] = 4; // unsupported
   }
-  // if(p_chroma[0] == 3) // we *always* overwrite this because it will crash if a user sets this to a wrong thing!
-  switch(d->fmtc->streams[d->video_idx]->codecpar->format)
+  switch(d->v.video.av_stream->codecpar->format)
   {
     case AV_PIX_FMT_YUVJ420P:
     case AV_PIX_FMT_YUV420P:
@@ -71,8 +70,7 @@ parse_parameters(
     default:
       p_chroma[0] = 3; // unsupported
   }
-  if(p_colrange[0] == 2)
-  switch(d->fmtc->streams[d->video_idx]->codecpar->color_range)
+  switch(d->v.video.av_stream->codecpar->color_range)
   { 
     case AVCOL_RANGE_MPEG:
       p_colrange[0] = 0;
@@ -85,6 +83,7 @@ parse_parameters(
       p_colrange[0] = 1; // default to jpeg/full range
   }
 
+#if 0
   // enum AVCodecID vcodec = d->fmtc->streams[d->video_idx]->codecpar->codec_id;
   // enum AVPixelFormat format = (enum AVPixelFormat)d->fmtc->streams[d->video_idx]->codecpar->format;
   const int bd[] = {8, 10, 12, 16, -1};
@@ -96,14 +95,18 @@ parse_parameters(
   enum AVColorRange color_range = d->fmtc->streams[d->video_idx]->codecpar->color_range;
   AVRational sample_aspect_ratio = d->fmtc->streams[d->video_idx]->codecpar->sample_aspect_ratio;
   enum AVFieldOrder field_order = d->fmtc->streams[d->video_idx]->codecpar->field_order;
-  enum AVColorPrimaries color_primaries = d->fmtc->streams[d->video_idx]->codecpar->color_primaries;
-  enum AVColorTransferCharacteristic color_trc = d->fmtc->streams[d->video_idx]->codecpar->color_trc;
-  enum AVColorSpace color_space = d->fmtc->streams[d->video_idx]->codecpar->color_space;
   enum AVChromaLocation chroma_location = d->fmtc->streams[d->video_idx]->codecpar->chroma_location;
+#endif
+  enum AVColorPrimaries color_primaries = d->v.video.av_stream->codecpar->color_primaries;
+  enum AVColorTransferCharacteristic color_trc = d->v.video.av_stream->codecpar->color_trc;
+#if 0
+  enum AVColorSpace color_space = d->fmtc->streams[d->video_idx]->codecpar->color_space;
   fprintf(stderr, "[i-vid] %d x %d @ %d profile %d lvl %d aspect %g\n",
       d->wd, d->ht, bit_depth, profile, level, 
       (float)sample_aspect_ratio.num / sample_aspect_ratio.den);
+#endif
 
+#if 0
   static const char* fo[] = {
     "UNKNOWN",
     "PROGRESSIVE",
@@ -113,7 +116,9 @@ parse_parameters(
     "BT: Bottom coded first, top displayed first",
   };
   fprintf(stderr, "[i-vid] field order %s\n", fo[field_order]);
+#endif
 
+#if 0
   static const char* cr[] = {
     "UNSPECIFIED",
     "MPEG: the normal 219*2^(n-8) MPEG YUV ranges",
@@ -121,6 +126,7 @@ parse_parameters(
     "NB: Not part of ABI",
   };
   fprintf(stderr, "[i-vid] color range %s\n", cr[color_range]);
+#endif
 
   static const char* cp[] = {
     "RESERVED0",
@@ -140,6 +146,14 @@ parse_parameters(
     "NB: Not part of ABI",
   };
   fprintf(stderr, "[i-vid] colour primaries %s\n", cp[color_primaries]);
+  if(p_colour[0] == -1)
+  {
+    p_colour[0] = s_colour_primaries_srgb; // default to bt.709
+    if(color_primaries ==  1) p_colour[0] = s_colour_primaries_srgb; // bt.709
+    if(color_primaries ==  9) p_colour[0] = s_colour_primaries_2020; // bt.2020 non constant luminance
+    if(color_primaries == 10) p_colour[0] = s_colour_primaries_XYZ;  // cie xyz
+    if(color_primaries == 12) p_colour[0] = s_colour_primaries_P3;   // display P3
+  }
 
   static const char* ctrc[] = {
     "RESERVED0",
@@ -167,12 +181,15 @@ parse_parameters(
   if(p_trc[0] == -1)
   {
     p_trc[0] = 1; // default to bt.709
-    if(color_trc == 8)  p_trc[0] = 0; // linear
-    if(color_trc == 1)  p_trc[0] = 1; // bt.709
-    if(color_trc == 16) p_trc[0] = 2; // smpte 2084
-    if(color_trc == 18) p_trc[0] = 3; // HLG
+    if(color_trc ==  8) p_trc[0] = s_colour_trc_linear; // linear
+    if(color_trc ==  4) p_trc[0] = s_colour_trc_gamma;  // gamma22
+    if(color_trc ==  1) p_trc[0] = s_colour_trc_709;    // bt.709
+    if(color_trc == 13) p_trc[0] = s_colour_trc_srgb;   // sRGB
+    if(color_trc == 16) p_trc[0] = s_colour_trc_PQ;     // smpte 2084
+    if(color_trc == 18) p_trc[0] = s_colour_trc_HLG;    // HLG
   }
 
+#if 0
   static const char* cs[] = {
     "RGB:   order of coefficients is actually GBR, also IEC 61966-2-1 (sRGB)",
     "BT709:   also ITU-R BT1361 / IEC 61966-2-4 xvYCC709 / SMPTE RP177 Annex B",
@@ -198,7 +215,9 @@ parse_parameters(
     if(color_space == 1) p_colour[0] = s_colour_primaries_srgb; // bt.709
     if(color_space == 9) p_colour[0] = s_colour_primaries_2020; // bt.2020 non constant luminance
   }
+#endif
 
+#if 0
   static const char* cl[] = {
     "UNSPECIFIED",
     "LEFT: MPEG-2/4 4:2:0, H.264 default for 4:2:0",
@@ -212,6 +231,7 @@ parse_parameters(
   fprintf(stderr, "[i-vid] chroma location %s\n", cl[chroma_location]);
   d->p_chroma = p_chroma[0];
   d->p_bits   = p_bits[0];
+#endif
 }
 #endif
 
@@ -252,7 +272,8 @@ void modify_roi_out(
       return;
     }
   }
-  
+
+  parse_parameters(mod, d);
   mod->connector[0].roi.full_wd = d->v.wd;
   mod->connector[0].roi.full_ht = d->v.ht;
   float b = 0.0, w = 1.0f;
