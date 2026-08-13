@@ -3,4 +3,4 @@ trc:int:1:-1
 bitdepth:int:1:4
 chroma:int:1:3
 colrange:int:1:2
-filename:string:256:test.mp4
+filename:string:256:video.mp4
