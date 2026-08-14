@@ -1,9 +1,10 @@
 // pipewire audio output
+#include "gui/view.h"
 
 #include <spa/param/audio/format-utils.h>
 #include <pipewire/pipewire.h>
 
-typedef struct dt_snd_t
+typedef struct dt_pw_t
 {
   int sample_rate; // e.g. 44100
   int channels;    // e.g. 2
@@ -12,31 +13,31 @@ typedef struct dt_snd_t
   struct pw_main_loop *loop;
   struct pw_stream *stream;
 }
-dt_snd_t;
+dt_pw_t;
 
 static void on_process(void *data)
 {
-  dt_snd_t *snd = data;
+  dt_pw_t *snd = data;
   struct pw_buffer *b = pw_stream_dequeue_buffer(snd->stream);
   if(!b) return; // XXX ???
   struct spa_buffer *buf = b->buffer;
   if(!buf->datas[0].data) return; // ???
-  uint32_t stride = sizeof(int16_t) * snd->channels;
+  uint32_t stride = sizeof(int16_t) * snd->channels; // XXX adjust stride to format
   uint32_t frame_cnt = buf->datas[0].maxsize / stride;
   if(b->requested) frame_cnt = MIN(b->requested, frame_cnt);
 
-  uint32_t size = dt_view_snd_process(buf, frame_cnt * stride);
+  uint32_t size = dt_view_snd_process(buf->datas[0].data, frame_cnt * stride);
 
   buf->datas[0].chunk->offset = 0;
   buf->datas[0].chunk->stride = stride;
-  buf->datas[0].chunk->size   = frame_cnt * stride;
+  buf->datas[0].chunk->size   = size;
   pw_stream_queue_buffer(snd->stream, b);
 }
 
 static void
 task_snd_work(uint32_t item, void *data)
 {
-  dt_snd_t *snd = data;
+  dt_pw_t *snd = data;
   const struct spa_pod *params[1];
   uint8_t buffer[1024];
   struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
@@ -60,7 +61,7 @@ task_snd_work(uint32_t item, void *data)
 
   params[0] = spa_format_audio_raw_build(&b, SPA_PARAM_EnumFormat,
       &SPA_AUDIO_INFO_RAW_INIT(
-        .format   = snd->format,
+        .format   = SPA_AUDIO_FORMAT_S16, // XXX convert these! snd->format,
         .channels = snd->channels,
         .rate     = snd->sample_rate));
 
@@ -87,20 +88,26 @@ int dt_snd_init(
 {
   pw_init(0, 0);
   memset(snd, 0, sizeof(dt_snd_t));
-  snd->sample_rate = sample_rate;
-  snd->channels = channels;
-  snd->format = format;
-  snd->tid = threads_task("snd", 1, -1, snd, &task_snd_work, 0);
+  dt_pw_t *pw = malloc(sizeof(*pw));
+  snd->handle = pw;
+  pw->sample_rate = snd->sample_rate = sample_rate;
+  pw->channels = snd->channels = channels;
+  pw->format = snd->format = format;
+  fprintf(stderr, "XXX starting pipewire task!\n");
+  pw->tid = threads_task("snd", 1, -1, pw, &task_snd_work, 0);
   return 0;
 }
 
-int dt_snd_cleanup(dt_snd_t *snd)
+void dt_snd_cleanup(dt_snd_t *snd)
 {
-  if(snd->tid >= 0)
+  dt_pw_t *pw = snd->handle;
+  if(!pw) return;
+  if(pw->tid >= 0)
   {
-    pw_main_loop_quit(snd->loop);
-    threads_wait(snd->tid);
-    snd->tid = -1;
+    pw_main_loop_quit(pw->loop);
+    threads_wait(pw->tid);
+    pw->tid = -1;
   }
-  return 0;
+  free(snd->handle);
+  memset(snd, 0, sizeof(dt_snd_t));
 }

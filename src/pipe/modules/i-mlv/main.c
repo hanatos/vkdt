@@ -211,6 +211,7 @@ int read_source(
   return read_frame(mod, mapped);
 }
 
+#if 0
 int audio(
     dt_module_t  *mod,
     uint64_t      sample_beg,
@@ -227,3 +228,4 @@ int audio(
   return MIN(sample_cnt, 
     MAX(0, dat->video.audio_data + dat->video.audio_size - *samples))/bytes_per_sample;
 }
+#endif
