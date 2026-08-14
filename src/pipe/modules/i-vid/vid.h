@@ -30,7 +30,14 @@ typedef struct decode_video_t
   AVFormatContext *av_format_ctx;
   AVPacket        *av_pkt;
   decode_state_t   video;
-  // decode_state_t   audio; // TODO
+  decode_state_t   audio;
+
+  int      channels;
+  int      format;
+  int      sample_rate;
+  uint8_t *audio_buf;
+  int      audio_size;
+  int      audio_stride;
 
   int flushing;            // we're flushing the av codecs, don't send more packets
 

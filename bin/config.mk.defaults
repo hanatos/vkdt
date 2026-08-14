@@ -62,7 +62,7 @@ export VKDT_USE_MLV
 
 # to play the audio that comes with the mlv video, vkdt uses
 # alsa. this introduces an asound dependency. disable here:
-VKDT_USE_PIPEWIRE=$(eval VKDT_USE_PIPEWIRE := $$(shell pkg-config --libs libpipewire-0.3 && echo 1 || echo 0))$(VKDT_USE_PIPEWIRE)
+VKDT_USE_PIPEWIRE=$(eval VKDT_USE_PIPEWIRE := $$(shell pkg-config --libs libpipewire-0.3 &>/dev/null && echo 1 || echo 0))$(VKDT_USE_PIPEWIRE)
 export VKDT_USE_PIPEWIRE
 VKDT_PIPEWIRE_CFLAGS=$(eval VKDT_PIPEWIRE_CFLAGS := $$(shell pkg-config --cflags libpipewire-0.3))$(VKDT_PIPEWIRE_CFLAGS)
 VKDT_PIPEWIRE_LDFLAGS=$(eval VKDT_PIPEWIRE_LDFLAGS := $$(shell pkg-config --libs libpipewire-0.3))$(VKDT_PIPEWIRE_LDFLAGS)

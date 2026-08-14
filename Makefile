@@ -210,11 +210,11 @@ endif
 ifeq ($(VKDT_USE_MLV), 1)
 	@echo "magic lantern raw video: mlv"
 endif
-ifeq ($(VKDT_USE_ALSA), 0)
+ifeq ($(VKDT_USE_PIPEWIRE), 0)
 	@echo "sound                  : no"
 endif
-ifeq ($(VKDT_USE_ALSA), 1)
-	@echo "sound                  : alsa"
+ifeq ($(VKDT_USE_PIPEWIRE), 1)
+	@echo "sound                  : pipewire"
 endif
 ifeq ($(VKDT_USE_MCRAW), 0)
 	@echo "motioncam raw video    : no"

@@ -8,6 +8,7 @@ typedef struct dt_snd_t
   void *handle;
   int sample_rate;
   int channels;
+  int format;
 }
 dt_snd_t;
 
@@ -18,8 +19,3 @@ int dt_snd_init(
     int       sample_rate,
     int       channels,
     int       format);
-
-int dt_snd_play(
-    dt_snd_t *snd,
-    uint16_t *samples,
-    int       sample_cnt);
