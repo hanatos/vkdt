@@ -640,6 +640,7 @@ void write_sink(
           frame = ost->frame;
 
         int src_nb_samples = frame->nb_samples;
+#if 0
         while(src_nb_samples > 0)
         { // fill exactly the packet size we can get
           uint16_t *samples = 0;
@@ -654,6 +655,7 @@ void write_sink(
           ost->sample_pos += sample_cnt;
           src_nb_samples -= sample_cnt;
         }
+#endif
         frame->pts = ost->next_pts;
         ost->next_pts += frame->nb_samples;
 

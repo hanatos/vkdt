@@ -53,7 +53,7 @@ int decode_video_init(decode_video_t *v, dt_graph_t *graph, const char *filename
 
   if ((ret = av_find_best_stream(v->av_format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, 0, 0)) < 0)
   {
-    dt_log(s_log_pipe|s_log_err, "av_find_best_stream failed");
+    dt_log(s_log_pipe|s_log_err, "av_find_best_stream (video) failed");
     return 1;
   }
 
@@ -175,6 +175,30 @@ int decode_video_init(decode_video_t *v, dt_graph_t *graph, const char *filename
   };
   QVK(vkAllocateCommandBuffers(qvk.device, &cmd_buf_alloc_info, &v->cmd));
 
+  if ((ret = av_find_best_stream(v->av_format_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, 0, 0)) < 0)
+  { // audio:
+    dt_log(s_log_pipe, "av_find_best_stream (audio) failed");
+    return 0;
+  }
+  else
+  {
+    v->audio.av_stream = v->av_format_ctx->streams[ret];
+    const AVCodec *codec = avcodec_find_decoder(v->audio.av_stream->codecpar->codec_id);
+    if(!codec) return 0;
+    v->audio.av_ctx = avcodec_alloc_context3(codec);
+    if(!v->audio.av_ctx) return 0;
+    if(avcodec_parameters_to_context(v->audio.av_ctx, v->audio.av_stream->codecpar) < 0) return 0;
+    if(avcodec_open2(v->audio.av_ctx, codec, 0) < 0) return 0;
+    const AVChannelLayout mono   = AV_CHANNEL_LAYOUT_MONO;
+    const AVChannelLayout stereo = AV_CHANNEL_LAYOUT_STEREO;
+    if(av_channel_layout_compare(&v->audio.av_ctx->ch_layout, &mono))   v->channels = 1;
+    if(av_channel_layout_compare(&v->audio.av_ctx->ch_layout, &stereo)) v->channels = 2;
+    v->format = v->audio.av_ctx->sample_fmt; // like AV_SAMPLE_FMT_S16
+    v->audio_stride = v->channels * av_get_bytes_per_sample(v->audio.av_ctx->sample_fmt);
+    v->sample_rate = v->audio.av_ctx->sample_rate;
+    dt_log(s_log_pipe, "audio inited with %d channels %d fmt %d stride %d sample rate", v->channels, v->format, v->audio_stride, v->sample_rate);
+  }
+
   return 0;
 }
 
@@ -197,11 +221,12 @@ void decode_video_cleanup(decode_video_t *v)
   if (v->hw_device) av_buffer_unref(&v->hw_device);
 
   avcodec_free_context(&v->video.av_ctx);
-  // avcodec_free_context(&v->audio->av_ctx);
+  avcodec_free_context(&v->audio.av_ctx);
 
   if (v->av_format_ctx)
     avformat_close_input(&v->av_format_ctx);
   if (v->av_pkt)
     av_packet_free(&v->av_pkt);
+  free(v->audio_buf);
   memset(v, 0, sizeof(*v));
 }

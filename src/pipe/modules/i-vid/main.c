@@ -163,9 +163,9 @@ void modify_roi_out(
     .colour_primaries = prim,
     .colour_trc       = trc,
 
-    // .snd_samplerate = d->actx ? d->actx->sample_rate : 0,
-    // .snd_format     = av_sample_fmt_to_alsa(d->actx ? d->actx->sample_fmt : -1),
-    // .snd_channels   = d->actx ? d->actx->ch_layout.nb_channels : 0,
+    .snd_samplerate = d->v.sample_rate,
+    .snd_format     = d->v.format,
+    .snd_channels   = d->v.channels,
 
     .noise_a = 1.0, // gauss
     .noise_b = 1.0, // poisson
@@ -231,4 +231,16 @@ create_nodes(
   graph->node[d->nid].type = s_node_vid_dec;
   graph->node[d->nid].connector[0].flags = s_conn_protected; // don't overwrite our old frames
   dt_connector_copy(graph, module, 0, d->nid, 1);
+}
+
+uint32_t
+audio(
+    dt_module_t *module,
+    void        *buf,
+    uint32_t     size)
+{
+  vid_data_t *d = module->data;
+  uint32_t s = MIN(size, d->v.audio_size);
+  memcpy(buf, d->v.audio_buf, s);
+  return s;
 }

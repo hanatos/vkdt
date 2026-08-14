@@ -134,11 +134,55 @@ decode_video_send_packets(decode_video_t *v)
       }
       else if(ret == AVERROR(EINVAL)) result = 2; // really broken
     }
+    else if(v->audio.av_ctx && v->av_pkt->stream_index == v->audio.av_stream->index)
+    { // audio packet
+      int ret = avcodec_send_packet(v->audio.av_ctx, v->av_pkt);
+      // if(ret == 0) // success
+      if(ret == AVERROR(EAGAIN)) result = 1; // go to sleep, must call avcodec_receive_frame before we can go on
+      else if(ret == AVERROR_EOF)
+      { // flushed, can't send any more packets
+        avcodec_send_packet(v->audio.av_ctx, 0); // flush
+        return 3;
+      }
+      else if(ret == AVERROR(EINVAL)) result = 2; // really broken
+    }
     av_packet_unref(v->av_pkt);
   }
 
   threads_mutex_unlock(&v->av_mutex);
   return result;
+}
+
+static int // 0 ok, 1 need more packets first, 2 error, 3 eof
+decode_video_receive_frame_audio(
+    decode_video_t *v,
+    dt_graph_t     *graph,
+    dt_node_t      *node)
+{
+  if(!v->audio.av_ctx) return 0;
+  int res = 0;
+  threads_mutex_lock(&v->av_mutex);
+  AVFrame *frame = av_frame_alloc();
+  if (!frame) { res = 2; goto out; }
+
+  res = avcodec_receive_frame(v->audio.av_ctx, frame);
+  if(res == AVERROR(EAGAIN)) { res = 1; goto out; }
+  if(res == AVERROR(EINVAL)) { res = 2; goto out; }
+  if(res == AVERROR_EOF)     { res = 3; goto out; }
+
+  int size = v->audio_stride * frame->nb_samples;
+  if(!v->audio_buf || v->audio_size < size)
+  {
+    free(v->audio_buf);
+    v->audio_buf  = malloc(size);
+    v->audio_size = size;
+  }
+  memcpy(v->audio_buf, frame->data[0], size);
+
+out:
+  av_frame_free(&frame);
+  threads_mutex_unlock(&v->av_mutex);
+  return res;
 }
 
 static int // 0 ok, 1 need more packets first, 2 error, 3 eof
@@ -291,7 +335,9 @@ again:;
     if(res == 2) return 1; // can't recover
   }
 #endif
-  int res = decode_video_receive_frame(v, graph, node);
+  int res = 0;
+  res = decode_video_receive_frame_audio(v, graph, node);
+  res = decode_video_receive_frame(v, graph, node);
   if(res == 1)
   { // need to wait for decoder (thread) to finalise a new frame for us!
     // fprintf(stderr, "XXX requesting more packets! frame %d\n", graph->frame); // happens in bulk, causes stutter

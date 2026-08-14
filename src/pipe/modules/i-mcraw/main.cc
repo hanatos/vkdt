@@ -448,6 +448,7 @@ int read_source(
   return 0;
 }
 
+#if 0
 int audio(
     dt_module_t  *mod,
     uint64_t      sample_beg,
@@ -473,4 +474,5 @@ int audio(
 
   return MIN((int)sample_cnt, (int)(chunk_size - chunk_off));
 }
+#endif
 } // extern "C"
