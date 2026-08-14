@@ -1258,38 +1258,6 @@ darkroom_process()
 #endif
     }
   }
-
-  if(vkdt.state.anim_playing && advance)
-  { // new frame for animations need new audio, too
-    dt_graph_t *g = &vkdt.graph_dev;
-    for(int i=0;i<g->num_modules;i++)
-    { // find first audio module, if any
-      if(g->module[i].name == 0) continue;
-      if(g->module[i].so->audio)
-      {
-        uint16_t *samples;
-        if(g->frame_rate > 0)
-        { // fixed frame rate, maybe video
-          int samples_per_frame = g->module[i].img_param.snd_samplerate / g->frame_rate;
-          uint64_t pos = g->frame * samples_per_frame;
-          uint32_t left = samples_per_frame;
-          while(left)
-          {
-            int cnt = g->module[i].so->audio(g->module+i, pos, left, &samples);
-            left -= cnt; pos += cnt;
-            if(cnt > 0) dt_snd_play(&vkdt.snd, samples, cnt);
-            else break;
-          }
-        }
-        else
-        { // go as fast as we can, probably a game engine. ask only once
-          int cnt = g->module[i].so->audio(g->module+i, 0, 0, &samples);
-          if(cnt > 0) dt_snd_play(&vkdt.snd, samples, cnt);
-        }
-        break;
-      }
-    }
-  }
 }
 
 int
@@ -1568,4 +1536,20 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
 #undef SMOOTH
   }
 #undef PRESSED
+}
+
+uint32_t darkroom_snd_process(void *buf, uint32_t size)
+{
+  if(vkdt.state.anim_playing)
+  { // new frame for animations need new audio, too
+    dt_graph_t *g = &vkdt.graph_dev;
+    for(int i=0;i<g->num_modules;i++)
+    { // find first "main" audio module, if any TODO cache
+      if(g->module[i].name == 0) continue;
+      if(g->module[i].inst != dt_token("main")) continue;
+      if(g->module[i].so->audio)
+        return g->module[i].so->audio(g->module+i, buf, size);
+    }
+  }
+  return 0;
 }
