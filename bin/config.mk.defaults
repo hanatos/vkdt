@@ -56,17 +56,17 @@ export VKDT_USE_V4L2
 
 # we use GPL3 code in the i-mlv magic lantern raw video input
 # module. if you don't want it, leave it disabled here. if
-# you want video, you probably also want VKDT_USE_ALSA=1, see below.
+# you want video, you probably also want VKDT_USE_PIPEWIRE=1, see below.
 VKDT_USE_MLV=1
 export VKDT_USE_MLV
 
 # to play the audio that comes with the mlv video, vkdt uses
 # alsa. this introduces an asound dependency. disable here:
-VKDT_USE_ALSA=$(eval VKDT_USE_ALSA := $$(shell pkg-config --libs alsa && echo 1 || echo 0))$(VKDT_USE_ALSA)
-export VKDT_USE_ALSA
-VKDT_ALSA_CFLAGS=$(eval VKDT_ALSA_CFLAGS := $$(shell pkg-config --cflags alsa))$(VKDT_ALSA_CFLAGS)
-VKDT_ALSA_LDFLAGS=$(eval VKDT_ALSA_LDFLAGS := $$(shell pkg-config --libs alsa))$(VKDT_ALSA_LDFLAGS)
-export VKDT_ALSA_CFLAGS VKDT_ALSA_LDFLAGS
+VKDT_USE_PIPEWIRE=$(eval VKDT_USE_PIPEWIRE := $$(shell pkg-config --libs libpipewire-0.3 && echo 1 || echo 0))$(VKDT_USE_PIPEWIRE)
+export VKDT_USE_PIPEWIRE
+VKDT_PIPEWIRE_CFLAGS=$(eval VKDT_PIPEWIRE_CFLAGS := $$(shell pkg-config --cflags libpipewire-0.3))$(VKDT_PIPEWIRE_CFLAGS)
+VKDT_PIPEWIRE_LDFLAGS=$(eval VKDT_PIPEWIRE_LDFLAGS := $$(shell pkg-config --libs libpipewire-0.3))$(VKDT_PIPEWIRE_LDFLAGS)
+export VKDT_PIPEWIRE_CFLAGS VKDT_PIPEWIRE_LDFLAGS
 
 # build the i-mcraw loader module to load raw video from the motioncam app.
 # it has no additional dependencies but comes with several ten thousand lines of c++ code

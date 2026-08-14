@@ -16,3 +16,4 @@ void dt_view_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstat
 void dt_view_process();
 void dt_view_focus_lost();
 void dt_view_get_cursor_pos(GLFWwindow *window, double *x, double *y);
+uint32_t dt_view_snd_process(void *buf, uint32_t size);
