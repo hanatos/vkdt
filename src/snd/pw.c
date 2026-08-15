@@ -1,4 +1,5 @@
 // pipewire audio output
+#include "core/log.h"
 #include "gui/view.h"
 
 #include <spa/param/audio/format-utils.h>
@@ -9,6 +10,7 @@ typedef struct dt_pw_t
   int sample_rate; // e.g. 44100
   int channels;    // e.g. 2
   int format;      // e.g. SPA_AUDIO_FORMAT_S16
+  int stride;      // sizeof(sample) * channels
   int tid;
   struct pw_main_loop *loop;
   struct pw_stream *stream;
@@ -22,10 +24,11 @@ static void on_process(void *data)
   if(!b) return; // XXX ???
   struct spa_buffer *buf = b->buffer;
   if(!buf->datas[0].data) return; // ???
-  uint32_t stride = sizeof(int16_t) * snd->channels; // XXX adjust stride to format
+  uint32_t stride = snd->stride;
   uint32_t frame_cnt = buf->datas[0].maxsize / stride;
   if(b->requested) frame_cnt = MIN(b->requested, frame_cnt);
 
+  // TODO planar formats?
   uint32_t size = dt_view_snd_process(buf->datas[0].data, frame_cnt * stride);
 
   buf->datas[0].chunk->offset = 0;
@@ -61,7 +64,7 @@ task_snd_work(uint32_t item, void *data)
 
   params[0] = spa_format_audio_raw_build(&b, SPA_PARAM_EnumFormat,
       &SPA_AUDIO_INFO_RAW_INIT(
-        .format   = SPA_AUDIO_FORMAT_S16, // XXX convert these! snd->format,
+        .format   = snd->format, // like SPA_AUDIO_FORMAT_S16
         .channels = snd->channels,
         .rate     = snd->sample_rate));
 
@@ -93,6 +96,27 @@ int dt_snd_init(
   pw->sample_rate = snd->sample_rate = sample_rate;
   pw->channels = snd->channels = channels;
   pw->format = snd->format = format;
+  int size = 0;
+  switch(pw->format) {
+    case SPA_AUDIO_FORMAT_U8:     size = 1; dt_log(s_log_pipe, "pw audio u8");  break;
+    case SPA_AUDIO_FORMAT_S16_LE: size = 2; dt_log(s_log_pipe, "pw audio s16"); break;
+    case SPA_AUDIO_FORMAT_S32_LE: size = 4; dt_log(s_log_pipe, "pw audio s32"); break;
+    case SPA_AUDIO_FORMAT_F32_LE: size = 4; dt_log(s_log_pipe, "pw audio f32"); break;
+    case SPA_AUDIO_FORMAT_F64_LE: size = 8; dt_log(s_log_pipe, "pw audio f64"); break;
+    // FIXME planar formats won't make it through now:
+    // case SPA_AUDIO_FORMAT_U8P:    size = 1; break;
+    // case SPA_AUDIO_FORMAT_S16P:   size = 2; break;
+    // case SPA_AUDIO_FORMAT_S32P:   size = 4; break;
+    // case SPA_AUDIO_FORMAT_F32P:   size = 4; break;
+    // case SPA_AUDIO_FORMAT_F64P:   size = 8; break;
+    default: size = 0;
+  }
+  if(size == 0)
+  {
+    fprintf(stderr, "XXX unsupported audio format!\n");
+    return 0; // unsupported sample format
+  }
+  pw->stride = channels * size;
   fprintf(stderr, "XXX starting pipewire task!\n");
   pw->tid = threads_task("snd", 1, -1, pw, &task_snd_work, 0);
   return 0;
