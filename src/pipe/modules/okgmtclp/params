@@ -1,0 +1,7 @@
+mode:int:1:0
+L0:int:1:0
+project:int:1:0
+alpha:float:1:0.02
+dspyl:float:1:0.02
+dspyc:float:1:0.02
+dspyh:float:1:0.02

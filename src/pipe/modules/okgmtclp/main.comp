@@ -1,0 +1,49 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  int mode;
+  int L0;
+  int projection;
+  float alpha;
+  vec4 picked;
+} params;
+
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+layout(set = 1, binding = 2) uniform sampler2D img_pick;
+
+#include "clip.glsl"
+
+void
+main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+
+  vec3 rgb_gamut;
+
+  if (params.mode == 0) {
+    rgb_gamut = gamut_clip_preserve_chroma(rgb);
+  } else {
+    if (params.projection == 0) { // single point
+      if (params.L0 == 0)           // L0 = 0.5
+        rgb_gamut = gamut_clip_project_to_L0_0_5(rgb);
+      else                          // L0 = L_cusp
+        rgb_gamut = gamut_clip_project_to_L_cusp(rgb);
+    } else {                      // adaptive
+      if (params.L0 == 0)           // L0 = 0.5
+        rgb_gamut = gamut_clip_adaptive_L0_0_5(rgb, params.alpha);
+      else                          // L0 = L_cusp
+        rgb_gamut = gamut_clip_adaptive_L0_L_cusp(rgb, params.alpha);
+    }
+  }
+
+  imageStore(img_out, ipos, vec4(rgb_gamut, 1));
+}

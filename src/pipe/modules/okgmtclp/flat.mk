@@ -1,0 +1,1 @@
+MOD_LDFLAGS=-lm
