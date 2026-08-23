@@ -379,19 +379,14 @@ jobs:
 
           for dtExecutable in $(find "$APP_DIR" -type f -print0 | xargs -0 file | grep Mach-O | cut -d : -f 1); do
             if [[ -f "$dtExecutable" ]]; then
-              install_dependencies "$dtExecutable"
+            install_dependencies "$dtExecutable"
             fi
           done
-      - name: modify dependency load paths
+      - name: modify dependency load paths to be relative
         run: |
           for depender in $(find "$APP_DIR" -type f -print0 | xargs -0 file | grep Mach-O | cut -d : -f 1); do
-            loadCommands="$(otool -l $depender 2> /dev/null)"
-            runtimeSearchPath="$(echo "$loadCommands" | grep "LC_RPATH" -A 2 | awk '/path/ { print $2}')"
-            if [[ (-n "$runtimeSearchPath") && ("$runtimeSearchPath" != "@executable_path/../Frameworks") ]]; then
-              install_name_tool -rpath "$runtimeSearchPath" "@executable_path/../Frameworks" "$depender"
-            fi
-            for dependency in $(echo "$loadCommands" | grep "LC_LOAD_DYLIB" -A 2 | awk '/name/ && !/\/System\// && !/\/usr\/lib\// { print $2 }' | sort -u); do
-              install_name_tool -change "$dependency" @rpath/"$(basename $dependency)" "$depender"
+            for dependency in $(otool -l $depender 2> /dev/null | grep "LC_LOAD_DYLIB" -A 2 | awk '/name/ && !/\/System\// && !/\/usr\/lib\// { print $2 }' | sort -u); do
+              install_name_tool -change $dependency @rpath/$(basename $dependency) $depender
             done
           done
       - name: build dmg image
@@ -403,7 +398,7 @@ jobs:
           <plist version="1.0">
           <dict>
             <key>CFBundleDevelopmentRegion</key>
-            <string>en</string>
+            <string>English</string>
             <key>CFBundleExecutable</key>
             <string>vkdt</string>
             <key>CFBundleIconFile</key>
@@ -424,19 +419,10 @@ jobs:
             <array>
               <dict>
                 <key>CFBundleTypeRole</key>
-                <string>Editor</string>
-                <key>LSItemContentTypes</key>
-                <array>
-                  <string>public.camera-raw-image</string>
-                  <string>com.ilm.openexr-image</string>
-                  <string>public.jpeg</string>
-                </array>
-              </dict>
-              <dict>
-                <key>CFBundleTypeRole</key>
                 <string>Viewer</string>
                 <key>LSItemContentTypes</key>
                 <array>
+                  <string>public.image</string>
                   <string>public.directory</string>
                 </array>
               </dict>
@@ -464,6 +450,7 @@ jobs:
 
           hdiutil create -srcfolder vkdt-${{ env.VERSION }} -format UDSB vkdt-${{ env.VERSION }}.sparsebundle
           hdiutil convert vkdt-${{ env.VERSION }}.sparsebundle -format ULMO -o vkdt-${{ env.VERSION }}-${{ matrix.os }}.dmg
+          # TODO: codesign --force -s - /path/to/dylib on every dylib
       - name: package upload
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
