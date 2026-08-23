@@ -44,14 +44,12 @@ jobs:
         run: |
           # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
           sudo sed -i 's/azure\.//' /etc/apt/sources.list
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-          sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main"
-          sudo apt-get update
-          sudo apt-get -y install \
+          sudo apt update
+          sudo apt -y install \
             ${{ matrix.compiler.packages }}
       - name: install base dependencies
         run: |
-          sudo apt-get -y install \
+          sudo apt -y install \
             build-essential \
             appstream-util \
             git \
@@ -71,14 +69,14 @@ jobs:
       - name: install extra deps for rawler
         if: matrix.raw.backend == 'rawler'
         run: |
-          sudo apt-get -y install \
+          sudo apt -y install \
             rustc \
             cargo
           curl https://sh.rustup.rs -sSf | sh -s -- -y
       - name: install extra deps for rawspeed
         if: matrix.raw.backend == 'rawspeed'
         run: |
-          sudo apt-get -y install \
+          sudo apt -y install \
             libpugixml-dev \
             libexiv2-dev
       - uses: actions/checkout@v4
@@ -104,7 +102,7 @@ jobs:
       - name: build new glfw without pentablet support
         if: matrix.glfw.package != 'pentablet'
         run: |
-          sudo apt-get -y install libglfw3-dev libxrandr-dev
+          sudo apt -y install libglfw3-dev libxrandr-dev
           git clone --branch master https://github.com/glfw/glfw glfw
           cd glfw
           git checkout 3.4
@@ -115,7 +113,7 @@ jobs:
       - name: build glfw with pentablet support
         if: matrix.glfw.package == 'pentablet'
         run: |
-          sudo apt-get -y install libglfw3-dev libxrandr-dev
+          sudo apt -y install libglfw3-dev libxrandr-dev
           git clone --branch master --depth 1 https://github.com/hanatos/glfw glfw
           cd glfw
           cmake -S . -B build -DGLFW_BUILD_WAYLAND=1 -DGLFW_BUILD_X11=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
@@ -157,7 +155,7 @@ jobs:
         run: |
           ./vkdt-*.AppImage --version
           # *sigh* we'd like to do this but the github runners don't have a gpu:
-          # sudo apt-get -y remove \
+          # sudo apt -y remove \
           #   git \
           #   glslang-tools \
           #   libvulkan-dev \
