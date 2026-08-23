@@ -46,7 +46,7 @@ void write_sink(
 
   const dt_colour_primaries_t primaries =  module->img_param.colour_primaries;
   const dt_colour_trc_t trc = module->img_param.colour_trc;
-  
+
   char filename[512];
   snprintf(filename, sizeof(filename), "%s.jxl", basename);
 
@@ -63,10 +63,10 @@ void write_sink(
   void *runner = JxlResizableParallelRunnerCreate(NULL);
   JxlResizableParallelRunnerSetThreads(runner, num_threads);
   if(JxlAssert(JxlEncoderSetParallelRunner(encoder,
-                                        JxlResizableParallelRunner,
-                                        runner),
-            encoder,
-            __LINE__))
+                                           JxlResizableParallelRunner,
+                                           runner),
+               encoder,
+               __LINE__))
   {
     error = 1;
     goto end;
@@ -88,23 +88,14 @@ void write_sink(
 
   JxlPixelFormat pixel_format = { 3, JXL_TYPE_FLOAT16, JXL_NATIVE_ENDIAN, 0 };
 
-  // Set encoder basic info, just f16 for now
+  // Set encoder basic info, just f16 for now.
+  // To my understanding, JXL always stores at f32 precision in lossy mode.
   JxlBasicInfo basic_info;
   JxlEncoderInitBasicInfo(&basic_info);
   basic_info.xsize = width;
   basic_info.ysize = height;
   basic_info.bits_per_sample = 16;
   basic_info.exponent_bits_per_sample = 5;
-
-  // Codestream level should be chosen automatically given the settings
-  if(JxlAssert(JxlEncoderSetBasicInfo(encoder,
-                                      &basic_info),
-               encoder,
-               __LINE__))
-  {
-    error = 1;
-    goto end;
-  }
 
 
 
@@ -115,23 +106,46 @@ void write_sink(
   // JXL natively uses ‘distance’ a [0:25] value. This aims to estimate a distance
   // roughly equivalent to what would be obtained with libjpeg-turbo with the same quality parameter.
   const float distance = JxlEncoderDistanceFromQuality(quality);
-  if(JxlAssert(JxlEncoderSetFrameDistance(frame_settings,
-                                          distance),
-            encoder,
-            __LINE__))
+
+  if(quality == 100)
+  {
+    if(JxlAssert(JxlEncoderSetFrameLossless(frame_settings,
+                                            1),
+              encoder,
+              __LINE__))
+    {
+    error = 1;
+    goto end;
+    }
+    basic_info.uses_original_profile = 1;
+  }
+  else
+  {
+    if(JxlAssert(JxlEncoderSetFrameDistance(frame_settings,
+                                            distance),
+              encoder,
+              __LINE__))
+    {
+    error = 1;
+    goto end;
+    }
+  }
+
+   // Codestream level should be chosen automatically given the settings
+  if(JxlAssert(JxlEncoderSetBasicInfo(encoder,
+                                      &basic_info),
+               encoder,
+               __LINE__))
   {
     error = 1;
     goto end;
   }
-  if(quality == 100)
-  {
-    // HAVE NOT DONE LOSSLESS
-  }
-  
+
   // Don’t know how to create GUI sliders, so just setting the default effort of 7.
+  const unsigned effort = 7;// dt_module_param_int(module, dt_module_get_param(module->so, dt_token("effort")))[0];
   if(JxlAssert(JxlEncoderFrameSettingsSetOption(frame_settings,
                                                 JXL_ENC_FRAME_SETTING_EFFORT,
-                                                7),
+                                                effort),
                encoder,
                __LINE__))
   {
@@ -270,15 +284,15 @@ void write_sink(
   }
 
   if(JxlAssert(JxlEncoderAddImageFrame(frame_settings,
-                                    &pixel_format,
-                                    pixels,
-                                    pixels_size),
-            encoder,
-            __LINE__))
+                                       &pixel_format,
+                                       pixels,
+                                       pixels_size),
+               encoder,
+               __LINE__))
   {
-      error = 1;
-      goto end;
-    }
+    error = 1;
+    goto end;
+  }
 
   // No more image frames nor metadata boxes to add
   JxlEncoderCloseInput(encoder);
@@ -302,6 +316,8 @@ void write_sink(
 
       out_len += chunk_size;
       out_buf = realloc(out_buf, out_len);
+      if(!out_buf)
+        fprintf(stderr, "could not reallocate codestream buffer to size %zu", out_len);
       out_cur = out_buf + offset;
       out_avail = out_len - offset;
 
@@ -330,7 +346,7 @@ void write_sink(
 
 
 
-    // Straight from o-jpg, with a bad error check thing because the `end` has to run before this and I don’t know how to do error handling properly, and [o-jpg] changed to [o-jxl]. 
+  // Straight from o-jpg, with a bad error check thing because the `end` has to run before this and I don’t know how to do error handling properly, and [o-jpg] changed to [o-jxl]. 
 #ifndef __ANDROID__
   const int copy_exif = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("exif")))[0];
   if(copy_exif && !error)
@@ -381,4 +397,3 @@ void write_sink(
 #endif
 }
 
-  
