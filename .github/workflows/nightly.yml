@@ -393,9 +393,14 @@ jobs:
           done
       - name: modify dependency load paths to be relative
         run: |
-          for depender in $(find "$APP_DIR" -type f -print0 | xargs -0 file | grep Mach-O | cut -d : -f 1); do
-            for dependency in $(otool -l $depender 2> /dev/null | grep "LC_LOAD_DYLIB" -A 2 | awk '/name/ && !/\/System\// && !/\/usr\/lib\// { print $2 }' | sort -u); do
-              install_name_tool -change $dependency @rpath/$(basename $dependency) $depender
+          for depender in $(find "$appDirectory" -type f -print0 | xargs -0 file | grep Mach-O | cut -d : -f 1); do
+            loadCommands="$(otool -l $depender 2> /dev/null)"
+            runtimeSearchPath="$(echo "$loadCommands" | grep "LC_RPATH" -A 2 | awk '/path/ { print $2}')"
+            if [[ (-n "$runtimeSearchPath") && ("$runtimeSearchPath" != "@executable_path/../Frameworks") ]]; then
+              install_name_tool -rpath "$runtimeSearchPath" "@executable_path/../Frameworks" "$depender"
+            fi
+            for dependency in $(echo "$loadCommands" | grep "LC_LOAD_DYLIB" -A 2 | awk '/name/ && !/\/System\// && !/\/usr\/lib\// { print $2 }' | sort -u); do
+              install_name_tool -change "$dependency" @rpath/"$(basename $dependency)" "$depender"
             done
           done
       - name: build dmg image
