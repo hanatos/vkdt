@@ -393,7 +393,7 @@ jobs:
           done
       - name: modify dependency load paths to be relative
         run: |
-          for depender in $(find "$appDirectory" -type f -print0 | xargs -0 file | grep Mach-O | cut -d : -f 1); do
+          for depender in $(find "$APP_DIR" -type f -print0 | xargs -0 file | grep Mach-O | cut -d : -f 1); do
             loadCommands="$(otool -l $depender 2> /dev/null)"
             runtimeSearchPath="$(echo "$loadCommands" | grep "LC_RPATH" -A 2 | awk '/path/ { print $2}')"
             if [[ (-n "$runtimeSearchPath") && ("$runtimeSearchPath" != "@executable_path/../Frameworks") ]]; then
