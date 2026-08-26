@@ -12,6 +12,8 @@ VKDT_JPEG_LDFLAGS=$(eval VKDT_JPEG_LDFLAGS := $$(shell pkg-config --libs libjpeg
 export VKDT_JPEG_CFLAGS VKDT_JPEG_LDFLAGS
 
 # Similar for finding libjxl
+# VKDT_JXL_CFLAGS=$(eval VKDT_JXL_CFLAGS := $$(shell pkg-config --with-path="/usr/local/lib/pkgconfig/" --cflags libjxl libjxl_threads))$(VKDT_JXL_CFLAGS)
+# VKDT_JXL_LDFLAGS=$(eval VKDT_JXL_LDFLAGS := $$(shell pkg-config --with-path="/usr/local/lib/pkgconfig/" --libs libjxl libjxl_threads))$(VKDT_JXL_LDFLAGS)
 VKDT_JXL_CFLAGS=$(eval VKDT_JXL_CFLAGS := $$(shell pkg-config --cflags libjxl libjxl_threads))$(VKDT_JXL_CFLAGS)
 VKDT_JXL_LDFLAGS=$(eval VKDT_JXL_LDFLAGS := $$(shell pkg-config --libs libjxl libjxl_threads))$(VKDT_JXL_LDFLAGS)
 export VKDT_JXL_CFLAGS VKDT_JXL_LDFLAGS

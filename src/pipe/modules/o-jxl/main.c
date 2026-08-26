@@ -2,6 +2,7 @@
 
 #include <jxl/encode.h>
 #include <jxl/resizable_parallel_runner.h>
+#include <jxl/version.h> // Annoying
 
 #include <stddef.h>
 #include <stdint.h>
@@ -14,6 +15,18 @@
 // Mostly copying from darktable (and thus GPLv3), but also  o-jpg, o-exr and o-pfm.
 // Cobbled together by me, with very limited C or programming knowledge (but not an LLM!).
 // Currently very basic. And bad.
+
+
+
+#if JPEGXL_NUMERIC_VERSION < JPEGXL_COMPUTE_NUMERIC_VERSION(0, 9, 0)
+float JxlEncoderDistanceFromQuality(float quality)
+{
+  return quality >= 100.0 ? 0.0
+         : quality >= 30
+             ? 0.1 + (100 - quality) * 0.09
+             : 53.0 / 3000.0 * quality * quality - 23.0 / 20.0 * quality + 25.0;
+}
+#endif
 
 
 
@@ -72,18 +85,6 @@ void write_sink(
     goto end;
   }
 
-  // JXL works as a raw codestream (and information necessary for display, like colour space and orientation
-  // are stored in the codestream), but using the container allows EXIF data, etc.
-  // exiftool can add it later, but it issues a minor error. So just setting it at the start..
-  if(JxlAssert(JxlEncoderUseContainer(encoder,
-                                      1),
-               encoder,
-               __LINE__))
-  {
-    error = 1;
-    goto end;
-  }
-
 
 
   JxlPixelFormat pixel_format = { 3, JXL_TYPE_FLOAT16, JXL_NATIVE_ENDIAN, 0 };
@@ -96,6 +97,8 @@ void write_sink(
   basic_info.ysize = height;
   basic_info.bits_per_sample = 16;
   basic_info.exponent_bits_per_sample = 5;
+  basic_info.have_container = 1; // Minimal overhead, and needed for EXIF data.
+                                 // exiftool can add it later, but it issues a minor error.
 
 
 
