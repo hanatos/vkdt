@@ -1,3 +1,4 @@
+#include "jxl/types.h"
 #include "modules/api.h"
 
 #include <jxl/encode.h>
@@ -18,6 +19,8 @@
 
 
 
+// Reason for the inclusion of `version.h`, this function isn’t in versions < 0.9.0. This is [copied from libjxl](https://github.com/libjxl/libjxl/blob/aea3a06e281fdee13e04815bfbf4f4132e7f59ea/lib/jxl/encode.cc#L1626).
+// Copyright (c) the JPEG XL Project Authors. All rights reserved.
 #if JPEGXL_NUMERIC_VERSION < JPEGXL_COMPUTE_NUMERIC_VERSION(0, 9, 0)
 float JxlEncoderDistanceFromQuality(float quality)
 {
@@ -97,8 +100,18 @@ void write_sink(
   basic_info.ysize = height;
   basic_info.bits_per_sample = 16;
   basic_info.exponent_bits_per_sample = 5;
-  basic_info.have_container = 1; // Minimal overhead, and needed for EXIF data.
-                                 // exiftool can add it later, but it issues a minor error.
+
+
+  // Container isn’t necessary but has minimal overhead, and is needed for EXIF data.
+  // exiftool can add it later, but it issues a minor error.
+  if(JxlAssert(JxlEncoderUseContainer(encoder,
+                                   JXL_TRUE),
+            encoder,
+            __LINE__))
+  {
+    error = 1;
+    goto end;
+  }
 
 
 
@@ -113,7 +126,7 @@ void write_sink(
   if(quality == 100)
   {
     if(JxlAssert(JxlEncoderSetFrameLossless(frame_settings,
-                                            1),
+                                            JXL_TRUE),
               encoder,
               __LINE__))
     {
@@ -144,8 +157,7 @@ void write_sink(
     goto end;
   }
 
-  // Don’t know how to create GUI sliders, so just setting the default effort of 7.
-  const unsigned effort = 7;// dt_module_param_int(module, dt_module_get_param(module->so, dt_token("effort")))[0];
+  const int effort = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("effort")))[0];
   if(JxlAssert(JxlEncoderFrameSettingsSetOption(frame_settings,
                                                 JXL_ENC_FRAME_SETTING_EFFORT,
                                                 effort),
