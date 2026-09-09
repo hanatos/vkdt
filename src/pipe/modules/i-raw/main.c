@@ -217,8 +217,13 @@ void modify_roi_out(
   mod->img_param.whitebalance[3] /= mod->img_param.whitebalance[1];
   mod->img_param.whitebalance[1] = 1.0f;
   mod->img_param.filters = mod_data->img.filters;
-
-  if(mod_data->img.cpp == 3)
+  
+  if(!mod_data->img.filters && mod_data->img.cpp == 1)
+  {
+    mod->connector[0].chan = dt_token("r");
+    mod->img_param.filters = 0;
+  }
+  else if(mod_data->img.cpp == 3)
   {
     mod->connector[0].chan = dt_token("rgba");
     mod->img_param.filters = 0;
@@ -256,6 +261,11 @@ void modify_roi_out(
   mat3mul(cam_to_rec2020, xyz_to_rec2020, cam_to_xyz);
   for(int k=0;k<9;k++)
     mod->img_param.cam_to_rec2020[k] = cam_to_rec2020[k];
+  if(!mod_data->img.filters && mod_data->img.cpp == 1)
+  { // fake greyscale matrix:
+    float grey_to_rec2020[] = { 1, 0, 0, 1, 0, 0, 1, 0, 0 };
+    memcpy(mod->img_param.cam_to_rec2020, grey_to_rec2020, sizeof(float)*9);
+  }
 }
 
 int read_source(
