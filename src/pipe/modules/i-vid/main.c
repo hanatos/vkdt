@@ -238,7 +238,7 @@ void modify_roi_out(
     .noise_b = 1.0, // poisson
   };
   fs_createdate(filename, mod->img_param.datetime);
-  int64_t frame_cnt = d->v.video.av_stream->nb_frames;
+  int64_t frame_cnt = 0;//d->v.video.av_stream->nb_frames; // unreliable :(
   if(!frame_cnt)
   {
     double time_base = av_q2d(d->v.video.av_stream->time_base);
@@ -246,7 +246,7 @@ void modify_roi_out(
     frame_cnt = duration * d->v.fps;
   }
   // don't overwrite user settings:
-  if(mod->graph->frame_cnt <= 1)
+  if(mod->graph->frame_cnt <= 1) // 1 is the default
     mod->graph->frame_cnt = frame_cnt;
   if(mod->graph->frame_rate == 0)
     mod->graph->frame_rate = d->v.fps;
@@ -283,6 +283,7 @@ commit_params(
     if(abs(delta) > 2) decode_seek(&d->v, graph->frame / d->v.fps);
     decode_video_graph_run_pre_node(&d->v, graph, graph->node+d->nid); // submit video decoding command buffer, if any
   }
+  // FIXME: in case we are at 0 already but then revert to beginning, we'd have to fill the other double buffer!
   d->frame = graph->frame;
 }
 
@@ -310,13 +311,24 @@ audio(
   decode_video_t *v = &d->v;
   uint32_t res = 0;
   threads_mutex_lock(&v->av_mutex);
+  // double pts_our = module->graph->frame / v->fps;
+  // double time_base = av_q2d(v->audio.av_stream->time_base);
   while(res < size)
   {
-    // FIXME this has lag! 
-    // TODO get presentation timestamp on frame and make sure it matches the rendered frame!
     AVFrame *frame = v->arb.frame[v->arb.rdi];
     if(!frame) goto out;
     if(v->arb.rdi == v->arb.wri) goto out;
+#if 0
+    // FIXME: apparently sometimes there are video frames in the stream like mad and audio lags significantly.
+    // buffer audio in full?
+    double pts_snd = frame->pts * time_base;
+    fprintf(stderr, "timestamp frame %g timestamp snd %g\n", pts_our, pts_snd);
+    if(pts_our - 2.0/v->fps > pts_snd && v->arb.rdi < v->arb.wri-1) // FIXME some modulo logic broken
+    {
+      fprintf(stderr, "skipping audio ahead! %d -> %d\n", v->arb.rdi, v->arb.wri);
+      goto next_frame;
+    }
+#endif
 
     int frame_size = v->audio_stride * frame->nb_samples;
     int new_res = res + frame_size - v->arb.rpos;
@@ -328,6 +340,7 @@ audio(
 
     if(v->arb.rpos >= frame_size)
     {
+// next_frame:
       v->arb.rdi = (v->arb.rdi+1)%LENGTH(v->arb.frame);
       v->arb.rpos = 0;
     }
