@@ -114,11 +114,10 @@ int dt_snd_init(
   }
   if(size == 0)
   {
-    fprintf(stderr, "XXX unsupported audio format!\n");
+    dt_log(s_log_snd, "unsupported audio format!");
     return 0; // unsupported sample format
   }
   pw->stride = channels * size;
-  fprintf(stderr, "XXX starting pipewire task!\n");
   pw->tid = threads_task("snd", 1, -1, pw, &task_snd_work, 0);
   return 0;
 }
