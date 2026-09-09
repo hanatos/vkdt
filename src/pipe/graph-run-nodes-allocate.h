@@ -957,7 +957,9 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
     dt_connector_t *c = node->connector+cid;
     dt_cid_t owner = dt_connector_find_owner(graph, (dt_cid_t){nid, cid});
     if(dt_cid_unset(owner)) return VK_INCOMPLETE; // not connected
-    if(c->frames == 2 || c->type == dt_token("source") ||
+    if(c->frames == 2 ||
+       c->type == dt_token("source") ||
+       c->type == dt_token("sink")   || // copy away to swapchain sync realm after graph finished running
        node->name == dt_token("bvh") || // ray tracing nodes require the vertex data
       (graph->node[owner.i].connector[owner.c].flags & s_conn_dynamic_array))
     {

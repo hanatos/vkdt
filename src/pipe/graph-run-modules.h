@@ -43,8 +43,6 @@ create_nodes(dt_graph_t *graph, dt_module_t *module, uint64_t *uniform_offset)
     module->param_size;
   u_size = (u_size + qvk.uniform_alignment-1) & -qvk.uniform_alignment;
   *uniform_offset += u_size;
-  // TODO: if roi size/scale does not match, insert resample node!
-  // TODO: where? inside create_nodes? or we fix it afterwards?
   if(module->disabled)
   {
     int mc_in = -1, mc_out = -1;
