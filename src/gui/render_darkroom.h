@@ -1637,6 +1637,7 @@ static inline void render_darkroom_widgets(
         int wd = vkdt.state.panel_wd;
         int ht = wd * out_dspy->connector[0].roi.full_ht / (float)out_dspy->connector[0].roi.full_wd; // image aspect
         nk_layout_row_dynamic(ctx, ht, 1);
+        vkdt.wstate.active_dspy_bound = nk_widget_bounds(ctx);
         dt_image(ctx, &imgw, out_dspy, 0, 0, 0);
       }
     }
