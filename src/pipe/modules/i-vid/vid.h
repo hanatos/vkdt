@@ -16,10 +16,17 @@ typedef struct decode_state_t
   AVStream       *av_stream;
   AVCodecContext *av_ctx;
   const AVCodec  *av_codec;
-  // TODO flags like eof?
-  // TODO timestamps?
 }
 decode_state_t;
+
+typedef struct decode_audio_ringbuffer_t
+{
+  AVFrame *frame[100]; // list of pointers to av frames allocated/freed by decode_video_receive_frame_audio
+  int      rdi;        // next frame index to be read
+  int      wri;        // next frame index to be received
+  int      rpos;       // next reading position within frame
+}
+decode_audio_ringbuffer_t;
 
 typedef struct decode_video_t
 {
@@ -44,10 +51,11 @@ typedef struct decode_video_t
   int decode_tid; // task id for the decoder thread (av send packet), if not stopped
   threads_mutex_t av_mutex; // sync calls to av libs
 
+  decode_audio_ringbuffer_t  arb;
+
   const AVCodecHWConfig   *hw_config;
   AVBufferRef             *hw_device;
   AVBufferRef             *frame_ctx;
-  const AVCodec           *cached_av_codec;
 
   VkCommandBuffer          cmd;
   VkCommandPool            cmd_pool;

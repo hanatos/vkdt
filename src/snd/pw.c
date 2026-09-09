@@ -28,6 +28,7 @@ static void on_process(void *data)
   uint32_t frame_cnt = buf->datas[0].maxsize / stride;
   if(b->requested) frame_cnt = MIN(b->requested, frame_cnt);
 
+  // TODO pass pointers for planes!
   // TODO planar formats?
   uint32_t size = dt_view_snd_process(buf->datas[0].data, frame_cnt * stride);
 
