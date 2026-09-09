@@ -246,7 +246,7 @@ void modify_roi_out(
     frame_cnt = duration * d->v.fps;
   }
   // don't overwrite user settings:
-  if(mod->graph->frame_cnt == 0)
+  if(mod->graph->frame_cnt <= 1)
     mod->graph->frame_cnt = frame_cnt;
   if(mod->graph->frame_rate == 0)
     mod->graph->frame_rate = d->v.fps;
@@ -307,9 +307,32 @@ audio(
     uint32_t     size)
 {
   vid_data_t *d = module->data;
-  // FIXME: just a tad too simple here.
-  // TODO need a ring buffer/queue of some kind, keep track of what we already collected here
-  uint32_t s = MIN(size, d->v.audio_size);
-  memcpy(buf, d->v.audio_buf, s);
-  return s;
+  decode_video_t *v = &d->v;
+  uint32_t res = 0;
+  threads_mutex_lock(&v->av_mutex);
+  while(res < size)
+  {
+    // FIXME this has lag! 
+    // TODO get presentation timestamp on frame and make sure it matches the rendered frame!
+    AVFrame *frame = v->arb.frame[v->arb.rdi];
+    if(!frame) goto out;
+    if(v->arb.rdi == v->arb.wri) goto out;
+
+    int frame_size = v->audio_stride * frame->nb_samples;
+    int new_res = res + frame_size - v->arb.rpos;
+    new_res = MIN(size, new_res);
+    int inc = new_res - res;
+    memcpy(buf + res, frame->data[0] + v->arb.rpos, inc);
+    res = new_res;
+    v->arb.rpos += inc;
+
+    if(v->arb.rpos >= frame_size)
+    {
+      v->arb.rdi = (v->arb.rdi+1)%LENGTH(v->arb.frame);
+      v->arb.rpos = 0;
+    }
+  }
+out:
+  threads_mutex_unlock(&v->av_mutex);
+  return res;
 }

@@ -162,25 +162,16 @@ decode_video_receive_frame_audio(
   if(!v->audio.av_ctx) return 0;
   int res = 0;
   threads_mutex_lock(&v->av_mutex);
-  AVFrame *frame = av_frame_alloc();
-  if (!frame) { res = 2; goto out; }
+  if(v->arb.frame[v->arb.wri]) av_frame_free(v->arb.frame + v->arb.wri);
+  v->arb.frame[v->arb.wri] = av_frame_alloc();
+  if (!v->arb.frame[v->arb.wri]) res = 2;
+  else res = avcodec_receive_frame(v->audio.av_ctx, v->arb.frame[v->arb.wri]);
+  if(res == AVERROR(EAGAIN)) res = 1;
+  if(res == AVERROR(EINVAL)) res = 2;
+  if(res == AVERROR_EOF)     res = 3;
+  
+  if(!res) v->arb.wri = (v->arb.wri+1)%LENGTH(v->arb.frame);
 
-  res = avcodec_receive_frame(v->audio.av_ctx, frame);
-  if(res == AVERROR(EAGAIN)) { res = 1; goto out; }
-  if(res == AVERROR(EINVAL)) { res = 2; goto out; }
-  if(res == AVERROR_EOF)     { res = 3; goto out; }
-
-  int size = v->audio_stride * frame->nb_samples;
-  if(!v->audio_buf || v->audio_size < size)
-  {
-    free(v->audio_buf);
-    v->audio_buf  = malloc(size);
-    v->audio_size = size;
-  }
-  memcpy(v->audio_buf, frame->data[0], size);
-
-out:
-  av_frame_free(&frame);
   threads_mutex_unlock(&v->av_mutex);
   return res;
 }
@@ -356,6 +347,7 @@ decode_video_stop(decode_video_t *v)
   // threads_wait(v->decode_tid);
   // v->decode_tid = -1; // should have been done in decode_task_done already, but hey.
   avcodec_flush_buffers(v->video.av_ctx);
+  v->arb.rdi = v->arb.wri = v->arb.rpos = 0;
 }
 
 void
@@ -370,6 +362,7 @@ decode_seek(decode_video_t *v, double ts)
     return;
   }
   avcodec_flush_buffers(v->video.av_ctx);
+  v->arb.rdi = v->arb.wri = v->arb.rpos = 0;
 }
 
 #if 0

@@ -2,6 +2,7 @@
 #include "qvk/qvk.h"
 #include "pipe/graph.h"
 
+#if 0
 static enum AVPixelFormat
 decode_get_pixel_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
 {
@@ -35,6 +36,7 @@ decode_get_pixel_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
 
   return AV_PIX_FMT_NONE;
 }
+#endif
 
 // init ffmpeg vulkan hardware decoder, or fail
 int decode_video_init(decode_video_t *v, dt_graph_t *graph, const char *filename)
@@ -144,7 +146,7 @@ int decode_video_init(decode_video_t *v, dt_graph_t *graph, const char *filename
   }
 
   // XXX callback needed?
-  v->video.av_ctx->get_format    = decode_get_pixel_format;
+  // v->video.av_ctx->get_format    = decode_get_pixel_format;
   v->video.av_ctx->hw_device_ctx = av_buffer_ref(v->hw_device);
 
   if (avcodec_open2(v->video.av_ctx, v->video.av_codec, 0) < 0)
@@ -215,6 +217,9 @@ void decode_video_cleanup(decode_video_t *v)
   vkDestroyPipelineLayout        (qvk.device, v->pipeline_layout, 0);
   vkDestroyPipeline              (qvk.device, v->pipeline, 0);
   vkDestroyDescriptorSetLayout   (qvk.device, v->dset_layout, 0);
+
+  for(int i=0;i<LENGTH(v->arb.frame);i++)
+    if(v->arb.frame[i]) av_frame_free(v->arb.frame + i);
 
   threads_mutex_destroy(&v->av_mutex);
   if (v->frame_ctx) av_buffer_unref(&v->frame_ctx);
