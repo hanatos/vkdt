@@ -2,7 +2,7 @@
 #include "qvk/qvk.h"
 #include "pipe/graph.h"
 
-#if 0
+#if 1
 static enum AVPixelFormat
 decode_get_pixel_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
 {
@@ -145,8 +145,7 @@ int decode_video_init(decode_video_t *v, dt_graph_t *graph, const char *filename
     return 1;
   }
 
-  // XXX callback needed?
-  // v->video.av_ctx->get_format    = decode_get_pixel_format;
+  v->video.av_ctx->get_format    = decode_get_pixel_format; // needed to discard unsupported formats last minute
   v->video.av_ctx->hw_device_ctx = av_buffer_ref(v->hw_device);
 
   if (avcodec_open2(v->video.av_ctx, v->video.av_codec, 0) < 0)
