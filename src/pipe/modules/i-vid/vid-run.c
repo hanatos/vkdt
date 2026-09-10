@@ -176,40 +176,19 @@ decode_video_receive_frame_audio(
   return res;
 }
 
-static int // 0 ok, 1 need more packets first, 2 error, 3 eof
-decode_video_receive_frame(
+// XXX need av mutex locked?
+static VkResult
+decode_video_copy_img_cmd(
     decode_video_t *v,
     dt_graph_t     *graph,
-    dt_node_t      *node)
+    dt_node_t      *node,
+    AVFrame        *frame)
 {
-  int res = 0;
-  threads_mutex_lock(&v->av_mutex);
-  AVFrame *frame = av_frame_alloc();
-  if (!frame) { res = 2; goto out; }
-
-  // need to call send_packet and receive_frame from same thread, apparently.
-  res = avcodec_receive_frame(v->video.av_ctx, frame);
-  if(res == AVERROR(EAGAIN)) { res = 1; goto out; }
-  if(res == AVERROR(EINVAL)) { res = 2; goto out; }
-  if(res == AVERROR_EOF)     { res = 3; goto out; }
-  assert(res == 0);
-
-#if 1 // make sure pts_img is not lagging behind
-  // generally we receive these frames in order from ffmpeg/vkdec
-  double pts_our = graph->frame / v->fps;
-  double time_base = av_q2d(v->video.av_stream->time_base);
-  double pts_img = frame->pts * time_base;
-  if(pts_our > pts_img + time_base) { res = 1; goto out; }
-  // fprintf(stderr, "timestamps %g %g\n", pts_our, pts_img); // perfect match
-#endif
-
   AVHWFramesContext *frames = (AVHWFramesContext *)v->video.av_ctx->hw_frames_ctx->data;
   AVVulkanFramesContext *vk = (AVVulkanFramesContext *)frames->hwctx;
   AVVkFrame       *vk_frame = (AVVkFrame *)frame->data[0];
-
   vk->lock_frame(frames, vk_frame);
 
-  decode_video_create_sampler(v, vk->format[0], graph, node); // create ycbcr conversion if we don't have it yet
   // have to re-create these because ffmpeg will hand us different vkimages over time
   VkSamplerYcbcrConversionInfo ycbcr_info = {
     .sType      = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
@@ -305,6 +284,41 @@ decode_video_receive_frame(
   qvk_queue_name_t submit_queue = graph->use_graphics_queue ? s_queue_graphics : graph->queue_name;
   QVKLR(&qvk.queue[qvk.qid[submit_queue]].mutex,
       vkQueueSubmit(qvk.queue[qvk.qid[submit_queue]].queue, 1, &submit, 0));
+  return VK_SUCCESS;
+}
+
+static int // 0 ok, 1 need more packets first, 2 error, 3 eof
+decode_video_receive_frame(
+    decode_video_t *v,
+    dt_graph_t     *graph,
+    dt_node_t      *node)
+{
+  int res = 0;
+  threads_mutex_lock(&v->av_mutex);
+
+  AVFrame *frame = av_frame_alloc();
+  if (!frame) { res = 2; goto out; }
+
+  // need to call send_packet and receive_frame from same thread, apparently.
+  res = avcodec_receive_frame(v->video.av_ctx, frame);
+  if(res == AVERROR(EAGAIN)) { res = 1; goto out; }
+  if(res == AVERROR(EINVAL)) { res = 2; goto out; }
+  if(res == AVERROR_EOF)     { res = 3; goto out; }
+  assert(res == 0);
+
+#if 0 // make sure pts_img is not lagging behind
+  // generally we receive these frames in order from ffmpeg/vkdec
+  double pts_our = graph->frame / v->fps;
+  double time_base = av_q2d(v->video.av_stream->time_base);
+  double pts_img = frame->pts * time_base;
+  if(pts_our > pts_img + time_base) { res = 1; goto out; }
+  fprintf(stderr, "timestamps %g %g\n", pts_our, pts_img); // perfect match
+#endif
+
+  AVHWFramesContext *frames = (AVHWFramesContext *)v->video.av_ctx->hw_frames_ctx->data;
+  AVVulkanFramesContext *vk = (AVVulkanFramesContext *)frames->hwctx;
+  decode_video_create_sampler(v, vk->format[0], graph, node); // create ycbcr conversion if we don't have it yet
+  decode_video_copy_img_cmd(v, graph, node, frame);
 out:
   av_frame_free(&frame);
   threads_mutex_unlock(&v->av_mutex);

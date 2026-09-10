@@ -51,7 +51,7 @@ typedef struct decode_video_t
   int decode_tid; // task id for the decoder thread (av send packet), if not stopped
   threads_mutex_t av_mutex; // sync calls to av libs
 
-  decode_audio_ringbuffer_t  arb;
+  decode_audio_ringbuffer_t  arb; // cached audio
 
   const AVCodecHWConfig   *hw_config;
   AVBufferRef             *hw_device;
