@@ -209,6 +209,7 @@ void modify_roi_out(
     default: format = 0;                             
   }
 
+  mod->connector[0].flags = s_conn_protected; // don't overwrite our old frames
   mod->connector[0].roi.full_wd = d->v.wd;
   mod->connector[0].roi.full_ht = d->v.ht;
   float b = 0.0, w = 1.0f;
@@ -283,7 +284,6 @@ commit_params(
     if(abs(delta) > 2) decode_seek(&d->v, graph->frame / d->v.fps);
     decode_video_graph_run_pre_node(&d->v, graph, graph->node+d->nid); // submit video decoding command buffer, if any
   }
-  // FIXME: in case we are at 0 already but then revert to beginning, we'd have to fill the other double buffer!
   d->frame = graph->frame;
 }
 
@@ -297,7 +297,8 @@ create_nodes(
       module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 1,
       "output", "write", "rgba", "f16", &module->connector[0].roi);
   graph->node[d->nid].type = s_node_vid_dec;
-  graph->node[d->nid].connector[0].flags = s_conn_protected; // don't overwrite our old frames
+  // will be copied over from module. in fact setting it on the node is ineffective:
+  // graph->node[d->nid].connector[0].flags = s_conn_protected; // don't overwrite our old frames
   dt_connector_copy(graph, module, 0, d->nid, 1);
 }
 
@@ -320,6 +321,7 @@ audio(
     if(v->arb.rdi == v->arb.wri) goto out;
 #if 0
     // FIXME: apparently sometimes there are video frames in the stream like mad and audio lags significantly.
+    // TODO: also check video lag (timestamps vs graph frame). do we need some warmup phase?
     // buffer audio in full?
     double pts_snd = frame->pts * time_base;
     fprintf(stderr, "timestamp frame %g timestamp snd %g\n", pts_our, pts_snd);

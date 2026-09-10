@@ -10,3 +10,8 @@ compressed video streams as input.
 * `bitdepth` readonly: bit depth of the input video stream (actually immutable but displayed here for your information)
 * `chroma` readonly: subsampling of the chroma planes (actually immutable but displayed here for your information)
 * `colrange` readonly: the colour range (full or restricted)
+
+## TODO
+
+* create sampler should respect full/mpeg range and YCBCR 709 vs 2020
+* bg thread for video decoder
