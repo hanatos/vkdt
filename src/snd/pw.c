@@ -97,6 +97,7 @@ int dt_snd_init(
   pw->sample_rate = snd->sample_rate = sample_rate;
   pw->channels = snd->channels = channels;
   pw->format = snd->format = format;
+  pw->tid = -1;
   int size = 0;
   switch(pw->format) {
     case SPA_AUDIO_FORMAT_U8:     size = 1; dt_log(s_log_pipe, "pw audio u8");  break;
