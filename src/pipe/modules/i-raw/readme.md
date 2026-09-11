@@ -39,3 +39,5 @@ hotkey to create keyframes from the gui when hovering over controls.
 to update to upstream rawler, delete the `Cargo.lock` file in the `rawloader-c` subdirectory.
 the `Cargo.toml` file points to the main git branch already and will update during the next
 build (regular top level `make`).
+
+nixos requires an updated hash in `flake.nix` too.
