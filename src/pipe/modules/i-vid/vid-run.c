@@ -194,6 +194,14 @@ decode_video_copy_img_cmd(
     .sType      = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
     .conversion = v->ycbcr_conversion,
   };
+  // cpu-wait for any prior submission (uses image view + cmd buf)
+  VkSemaphoreWaitInfo wait_info = {
+    .sType          = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+    .semaphoreCount = 1,
+    .pSemaphores    = &graph->semaphore_extra,
+    .pValues        = &graph->semaphore_extra_val,
+  };
+  VkResult res = vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30);
   if(v->view) vkDestroyImageView(qvk.device, v->view, 0);
   v->view = 0;
   VkImageViewUsageCreateInfo usage = {
@@ -295,13 +303,18 @@ decode_video_copy_img_cmd(
   deps.imageMemoryBarrierCount = 1;
   vkCmdPipelineBarrier2(cmd_buf, &deps);
 
-  VkSemaphoreSubmitInfo sem_wait = {
+  VkSemaphoreSubmitInfo sem_wait[] = {{
     .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
     .semaphore = vk_frame->sem[0],
     .value     = vk_frame->sem_value[0],
     // this appears to be *our* stage, not what ran before and we're waiting on:
     .stageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,//VK_PIPELINE_STAGE_2_VIDEO_DECODE_BIT_KHR,
-  };
+  },{
+    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+    .semaphore = graph->semaphore_extra,
+    .value     = graph->semaphore_extra_val,
+    .stageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+  }};
   VkCommandBufferSubmitInfo cmdinfo = {
     .sType         = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
     .commandBuffer = cmd_buf,
@@ -319,8 +332,8 @@ decode_video_copy_img_cmd(
   }};
   VkSubmitInfo2 submit = {
     .sType                    = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-    .waitSemaphoreInfoCount   = 1,
-    .pWaitSemaphoreInfos      = &sem_wait,
+    .waitSemaphoreInfoCount   = 2,
+    .pWaitSemaphoreInfos      = sem_wait,
     .commandBufferInfoCount   = 1,
     .pCommandBufferInfos      = &cmdinfo,
     .signalSemaphoreInfoCount = 2,
