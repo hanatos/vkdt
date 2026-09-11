@@ -121,6 +121,7 @@ int decode_video_init(decode_video_t *v, dt_graph_t *graph, const char *filename
     vk->act_dev = qvk.device;
     vk->phys_dev = qvk.physical_device;
 
+    // XXX try again with correct queues handed over:
     // since KHR_internally_synchronized_queues doesn't seem to work with ffmpeg 9 yet:
 _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
     vk->lock_queue = lock_queue;
@@ -133,26 +134,23 @@ _Pragma("GCC diagnostic pop")
     vk->enabled_dev_extensions     = qvk.dev_extension;
     vk->nb_enabled_dev_extensions  = qvk.dev_extension_cnt;
 
-    // XXX does ffmpeg profit from any more?
     vk->nb_qf = 3;
     vk->qf[0] = (AVVulkanDeviceQueueFamily){
-      .idx = qvk.queue_family_graphics, // qvk.queue[qvk.qid[qvk.queue_family_graphics]].family,
-      .num = 1,//qvk.queue[qvk.qid[s_queue_graphics]].num, // XXX seems wrong here
+      .idx = qvk.queue_family_graphics,
+      .num = 1,
       .flags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT,
     };
     vk->qf[1] = (AVVulkanDeviceQueueFamily){
-      .idx = qvk.queue_family_compute, // qvk.queue[qvk.qid[qvk.queue_family_graphics]].family,
-      .num = 1,//qvk.queue[qvk.qid[s_queue_graphics]].num, // XXX seems wrong here
+      .idx = qvk.queue_family_compute,
+      .num = 1,
       .flags = VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT,
     };
     vk->qf[2] = (AVVulkanDeviceQueueFamily){
-      .idx = qvk.queue_family_vid_dec, // qvk.queue[qvk.qid[qvk.queue_family_vid_dec]].family,
-      .num = 1,//qvk.queue[qvk.qid[s_queue_vid_dec]].num,
+      .idx = qvk.queue_family_vid_dec,
+      .num = 1,
       .flags = VK_QUEUE_VIDEO_DECODE_BIT_KHR,
       .video_caps = VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR | VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR | VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR,
     };
-
-    // XXX use VK_KHR_internally_synchronized_queues for the decoder queue? we only have the one thread
 
     if (av_hwdevice_ctx_init(hw_dev) >= 0)
     {
