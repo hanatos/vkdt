@@ -52,6 +52,7 @@ dt_gui_lt_assign_tag()
 static inline void
 dt_gui_lt_select_all()
 {
+  dt_db_selection_clear(&vkdt.db);
   for(uint32_t i=0;i<vkdt.db.collection_cnt;i++)
     dt_db_selection_add(&vkdt.db, i);
   dt_gui_notification("selected %d/%d images", vkdt.db.selection_cnt, vkdt.db.collection_cnt);
