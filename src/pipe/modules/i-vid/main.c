@@ -79,6 +79,7 @@ parse_parameters(
   int *p_chroma   = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("chroma")));
   int *p_colrange = (int *)dt_module_param_int(mod, dt_module_get_param(mod->so, dt_token("colrange")));
 
+  // XXX this is not initialised for vulkan hardware devices:
   switch(d->v.video.av_stream->codecpar->format)
   {
     case AV_PIX_FMT_YUVJ420P:
