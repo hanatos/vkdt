@@ -380,9 +380,16 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     .clusterAccelerationStructure = VK_TRUE,
   };
 #endif
+#if 0
+  qvk.df_sync = (VkPhysicalDeviceInternallySynchronizedQueuesFeaturesKHR) {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INTERNALLY_SYNCHRONIZED_QUEUES_FEATURES_KHR,
+    // .pNext = &qvk.df_cluster_bvh,
+    .internallySynchronizedQueues = VK_TRUE,
+  };
+#endif
   qvk.df_accel = (VkPhysicalDeviceAccelerationStructureFeaturesKHR) {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
-    // .pNext = &qvk.df_cluster_bvh,
+    // .pNext = &qvk.df_sync,
     .accelerationStructure = VK_TRUE,
   };
   qvk.df_ray_query = (VkPhysicalDeviceRayQueryFeaturesKHR) {
@@ -486,6 +493,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME;
     qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME;
     qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME;
+    // qvk.dev_extension[len++] = VK_KHR_INTERNALLY_SYNCHRONIZED_QUEUES_EXTENSION_NAME;
   }
   if(window) qvk.dev_extension[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
   if(enable_hdr_wsi) qvk.dev_extension[len++] = VK_EXT_HDR_METADATA_EXTENSION_NAME;
@@ -507,6 +515,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   {
     queue_create_infos[num_queue_create_infos++] = (VkDeviceQueueCreateInfo) {
       .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+      // ffmpeg doesn't get this:
+      // .flags            = VK_DEVICE_QUEUE_CREATE_INTERNALLY_SYNCHRONIZED_BIT_KHR, // XXX also if it *is* the graphics queue?
       .queueCount       = 1,
       .pQueuePriorities = queue_priorities,
       .queueFamilyIndex = qvk.queue_family_vid_dec,
@@ -543,7 +553,16 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       qvk.queue[k].idx = 0;
       qvk.queue[k].num = queue_vid_dec_cnt;
       qvk.qid[k] = k;
-      vkGetDeviceQueue(qvk.device, qvk.queue_family_vid_dec, 0, &qvk.queue[k].queue);
+      VkDeviceQueueInfo2 qinfo = {
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2,
+        // ffmpeg 9 doesn't pick it up:
+        // .flags = VK_DEVICE_QUEUE_CREATE_INTERNALLY_SYNCHRONIZED_BIT_KHR,
+        .queueFamilyIndex = qvk.queue_family_vid_dec,
+        .queueIndex = 0,
+      };
+      vkGetDeviceQueue2(qvk.device, &qinfo,
+         //  qvk.queue_family_vid_dec, VK_DEVICE_QUEUE_CREATE_INTERNALLY_SYNCHRONIZED_BIT_KHR,
+          &qvk.queue[k].queue);
       threads_mutex_init(&qvk.queue[k].mutex, 0);
       qvk.queue[k].family = qvk.queue_family_vid_dec;
       dt_log(s_log_qvk, "queue %d is idx %d family %d (video decode)", k, qvk.qid[k], qvk.queue_family_vid_dec);

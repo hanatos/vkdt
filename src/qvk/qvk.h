@@ -147,16 +147,17 @@ typedef struct qvk_t
 
   // we need these to share with other vk clients (ffmpeg):
   // VkPhysicalDeviceClusterAccelerationStructureFeaturesNV df_cluster_bvh;
-  VkPhysicalDeviceAccelerationStructureFeaturesKHR       df_accel;
-  VkPhysicalDeviceRayQueryFeaturesKHR                    df_ray_query;
-  VkPhysicalDeviceVulkan14Features                       df_v14;
-  VkPhysicalDeviceVulkan13Features                       df_v13;
-  VkPhysicalDeviceVulkan12Features                       df_v12;
-  VkPhysicalDeviceShaderAtomicFloatFeaturesEXT           df_atomics;
-  VkPhysicalDeviceVulkan11Features                       df_v11;
-  VkPhysicalDeviceCooperativeMatrixFeaturesKHR           df_coopmat;
-  VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR         df_layouts;
-  VkPhysicalDeviceFeatures2                              device_features;
+  VkPhysicalDeviceInternallySynchronizedQueuesFeaturesKHR df_sync;
+  VkPhysicalDeviceAccelerationStructureFeaturesKHR        df_accel;
+  VkPhysicalDeviceRayQueryFeaturesKHR                     df_ray_query;
+  VkPhysicalDeviceVulkan14Features                        df_v14;
+  VkPhysicalDeviceVulkan13Features                        df_v13;
+  VkPhysicalDeviceVulkan12Features                        df_v12;
+  VkPhysicalDeviceShaderAtomicFloatFeaturesEXT            df_atomics;
+  VkPhysicalDeviceVulkan11Features                        df_v11;
+  VkPhysicalDeviceCooperativeMatrixFeaturesKHR            df_coopmat;
+  VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR          df_layouts;
+  VkPhysicalDeviceFeatures2                               device_features;
   const char                 *inst_extension[50];
   int                         inst_extension_cnt;
   const char                 *dev_extension[50];

@@ -245,15 +245,15 @@ graph_teardown_modules(dt_graph_t *g)
   }
 }
 
-void
+VkResult
 dt_graph_cleanup(dt_graph_t *g)
 {
-  if(!g->module) return; // already cleaned up
+  if(!g->module) return VK_SUCCESS; // already cleaned up
 #ifdef DEBUG_MARKERS
   dt_stringpool_cleanup(&g->debug_markers);
 #endif
   g->active_module = -1;
-  if(graph_wait_gpu(g, "graph_cleanup") != VK_SUCCESS) return;
+  if(graph_wait_gpu(g, "graph_cleanup") != VK_SUCCESS) return VK_INCOMPLETE;
   graph_teardown_modules(g);
   for(int i=0;i<g->memory_cnt;i++)
     dt_vkalloc_cleanup(&g->memory[i].heap);
@@ -307,6 +307,7 @@ dt_graph_cleanup(dt_graph_t *g)
     free(g->query[i].kernel);       g->query[i].kernel = 0;
   }
   dt_graph_cleanup_mipmap(g);
+  return VK_SUCCESS;
 }
 
 static inline void *
@@ -1031,14 +1032,14 @@ dt_graph_connector_image(
     graph->node[nid].conn_image[cid] + MAX(1,graph->node[nid].connector[cid].array_length) * frame + array;
 }
 
-void
+VkResult
 dt_graph_repurpose(dt_graph_t *g)
 {
-  if(!g->module) return;
+  if(!g->module) return VK_SUCCESS;
 #ifdef DEBUG_MARKERS
   dt_stringpool_reset(&g->debug_markers);
 #endif
-  if(graph_wait_gpu(g, "graph_repurpose") != VK_SUCCESS) return;
+  if(graph_wait_gpu(g, "graph_repurpose") != VK_SUCCESS) return VK_INCOMPLETE;
   graph_teardown_modules(g);
   // clear logical allocators
   for(int i=0;i<g->memory_cnt;i++)
@@ -1078,6 +1079,7 @@ dt_graph_repurpose(dt_graph_t *g)
   g->history_item_end = 0;
   // keep display_dbuffer/process_dbuffer: semaphore signal values must be
   // strictly increasing, so the next run must continue from the current values
+  return VK_SUCCESS;
 }
 
 void
