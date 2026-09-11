@@ -37,6 +37,8 @@ void main()
 #undef CONV
   // the other primaries are more like input spaces, we don't want to output them.
 
+  if(params.trc != 0) // not linear
+    rgb = max(vec3(0), rgb); // clamp to guard against nan in sqrt() or pow() or log() calls below
   // if(params.trc == 0) // linear
   if(params.trc == 1) // 709
   {
