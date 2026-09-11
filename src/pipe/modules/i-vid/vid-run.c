@@ -196,9 +196,14 @@ decode_video_copy_img_cmd(
   };
   if(v->view) vkDestroyImageView(qvk.device, v->view, 0);
   v->view = 0;
+  VkImageViewUsageCreateInfo usage = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
+    .pNext = &ycbcr_info,
+    .usage = VK_IMAGE_USAGE_SAMPLED_BIT,
+  };
   VkImageViewCreateInfo info = {
     .sType    = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-    .pNext    = &ycbcr_info,
+    .pNext    = &usage,
     .image    = vk_frame->img[0],
     .viewType = VK_IMAGE_VIEW_TYPE_2D,
     .format   = vk->format[0],
@@ -208,8 +213,6 @@ decode_video_copy_img_cmd(
       .layerCount = 1,
     },
   };
-  // XXX we actually don't want this to be a storage image, maybe ffmpeg depends on this?
-  // [qvk] validation layer: vkCreateImageView(): pCreateInfo->format VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16 with tiling VK_IMAGE_TILING_OPTIMAL doesn't support VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT.
   vkCreateImageView(qvk.device, &info, 0, &v->view);
   VkDescriptorImageInfo img_in = {
     .imageView   = v->view,
@@ -242,6 +245,39 @@ decode_video_copy_img_cmd(
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
   };
   QVKR(vkBeginCommandBuffer(cmd_buf, &begin_info));
+
+  VkImageMemoryBarrier2 barrier[] = {{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+    .srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    .oldLayout = VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR,
+    .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .image = vk_frame->img[0],
+    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .subresourceRange.layerCount = 1,
+    .subresourceRange.levelCount = 1,
+  },{
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+    .srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+    .image = img->image,
+    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .subresourceRange.layerCount = 1,
+    .subresourceRange.levelCount = 1,
+  }};
+  VkDependencyInfo deps = {
+    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+    .imageMemoryBarrierCount = 2,
+    .pImageMemoryBarriers    = barrier,
+  };
+  vkCmdPipelineBarrier2(cmd_buf, &deps);
+
   vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, v->pipeline);
   QVK_LOAD(vkCmdPushDescriptorSetKHR);
   qvkCmdPushDescriptorSetKHR(
@@ -253,37 +289,49 @@ decode_video_copy_img_cmd(
       (v->ht + DT_LOCAL_SIZE_Y - 1) / DT_LOCAL_SIZE_Y,
        1);
 
-  VkPipelineStageFlags wait_stage[] = {
-    VK_PIPELINE_STAGE_2_VIDEO_DECODE_BIT_KHR,
-    VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT };
-  uint64_t    val_wait  [] = { vk_frame->sem_value[0] };
-  uint64_t    val_signal[] = { ++vk_frame->sem_value[0], ++graph->semaphore_extra_val };
-  VkSemaphore sem_wait  [] = { vk_frame->sem[0] };
-  VkSemaphore sem_signal[] = { vk_frame->sem[0], graph->semaphore_extra };
-  VkTimelineSemaphoreSubmitInfo timeline_info = {
-    .sType                     = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
-    .waitSemaphoreValueCount   = 1,
-    .pWaitSemaphoreValues      = val_wait,
-    .signalSemaphoreValueCount = 2,
-    .pSignalSemaphoreValues    = val_signal,
+  // silly dance
+  barrier[0].newLayout = VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR,
+  barrier[0].oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+  deps.imageMemoryBarrierCount = 1;
+  vkCmdPipelineBarrier2(cmd_buf, &deps);
+
+  VkSemaphoreSubmitInfo sem_wait = {
+    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+    .semaphore = vk_frame->sem[0],
+    .value     = vk_frame->sem_value[0],
+    // this appears to be *our* stage, not what ran before and we're waiting on:
+    .stageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,//VK_PIPELINE_STAGE_2_VIDEO_DECODE_BIT_KHR,
   };
-  VkSubmitInfo submit = {
-    .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    .pNext                = &timeline_info,
-    .waitSemaphoreCount   = 1,
-    .pWaitSemaphores      = sem_wait,
-    .pWaitDstStageMask    = wait_stage,
-    .commandBufferCount   = 1,
-    .pCommandBuffers      = &cmd_buf,
-    .signalSemaphoreCount = 2,
-    .pSignalSemaphores    = sem_signal,
+  VkCommandBufferSubmitInfo cmdinfo = {
+    .sType         = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+    .commandBuffer = cmd_buf,
+  };
+  VkSemaphoreSubmitInfo sem_signal[] = {{
+    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+    .semaphore = vk_frame->sem[0],
+    .value     = ++vk_frame->sem_value[0],
+    .stageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+  },{
+    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+    .semaphore = graph->semaphore_extra,
+    .value     = ++graph->semaphore_extra_val,
+    .stageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+  }};
+  VkSubmitInfo2 submit = {
+    .sType                    = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+    .waitSemaphoreInfoCount   = 1,
+    .pWaitSemaphoreInfos      = &sem_wait,
+    .commandBufferInfoCount   = 1,
+    .pCommandBufferInfos      = &cmdinfo,
+    .signalSemaphoreInfoCount = 2,
+    .pSignalSemaphoreInfos    = sem_signal,
   };
   vk->unlock_frame(frames, vk_frame);
 
   QVKR(vkEndCommandBuffer(cmd_buf));
   qvk_queue_name_t submit_queue = graph->use_graphics_queue ? s_queue_graphics : graph->queue_name;
   QVKLR(&qvk.queue[qvk.qid[submit_queue]].mutex,
-      vkQueueSubmit(qvk.queue[qvk.qid[submit_queue]].queue, 1, &submit, 0));
+      vkQueueSubmit2(qvk.queue[qvk.qid[submit_queue]].queue, 1, &submit, 0));
   return VK_SUCCESS;
 }
 
