@@ -305,7 +305,7 @@ jobs:
     steps:
       - name: install dependencies
         run: |
-          brew install pkgconf cmake jpeg-turbo jpeg-xl ffmpeg make glfw3 vulkan-validationlayers vulkan-headers rust vulkan-tools exiftool
+          brew install pkgconf cmake jpeg-turbo jpeg-xl ffmpeg glfw3 vulkan-validationlayers vulkan-headers rust vulkan-tools exiftool
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -395,7 +395,7 @@ jobs:
         run: |
           for depender in $(find "$APP_DIR" -type f -print0 | xargs -0 file | grep Mach-O | cut -d : -f 1); do
             loadCommands="$(otool -l $depender 2> /dev/null)"
-            runtimeSearchPath="$(echo "$loadCommands" | grep "LC_RPATH" -A 2 | awk '/path/ { print $2}')"
+            runtimeSearchPath="$(echo "$loadCommands" | grep "LC_RPATH" -A 2 | awk '/path/ { print $2 }')"
             if [[ (-n "$runtimeSearchPath") && ("$runtimeSearchPath" != "@executable_path/../Frameworks") ]]; then
               install_name_tool -rpath "$runtimeSearchPath" "@executable_path/../Frameworks" "$depender"
             fi
@@ -464,7 +464,6 @@ jobs:
 
           hdiutil create -srcfolder vkdt-${{ env.VERSION }} -format UDSB vkdt-${{ env.VERSION }}.sparsebundle
           hdiutil convert vkdt-${{ env.VERSION }}.sparsebundle -format ULMO -o vkdt-${{ env.VERSION }}-${{ matrix.os }}.dmg
-          # TODO: codesign --force -s - /path/to/dylib on every dylib
       - name: package upload
         if: ${{ success() }}
         uses: actions/upload-artifact@v4

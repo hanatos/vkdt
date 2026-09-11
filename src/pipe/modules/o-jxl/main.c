@@ -1,4 +1,3 @@
-#include "jxl/types.h"
 #include "modules/api.h"
 
 #include <jxl/encode.h>
@@ -13,9 +12,8 @@
 
 
 
-// Mostly copying from darktable (and thus GPLv3), but also  o-jpg, o-exr and o-pfm.
-// Cobbled together by me, with very limited C or programming knowledge (but not an LLM!).
-// Currently very basic. And bad.
+// Mostly copying from darktable (and thus GPLv3), but also o-jpg, o-exr and o-pfm.
+// A work in progress.
 
 
 
@@ -106,8 +104,8 @@ void write_sink(
   // exiftool can add it later, but it issues a minor error.
   if(JxlAssert(JxlEncoderUseContainer(encoder,
                                    JXL_TRUE),
-            encoder,
-            __LINE__))
+               encoder,
+               __LINE__))
   {
     error = 1;
     goto end;
@@ -127,11 +125,11 @@ void write_sink(
   {
     if(JxlAssert(JxlEncoderSetFrameLossless(frame_settings,
                                             JXL_TRUE),
-              encoder,
-              __LINE__))
+                 encoder,
+                 __LINE__))
     {
-    error = 1;
-    goto end;
+      error = 1;
+      goto end;
     }
     basic_info.uses_original_profile = 1;
   }
@@ -139,15 +137,15 @@ void write_sink(
   {
     if(JxlAssert(JxlEncoderSetFrameDistance(frame_settings,
                                             distance),
-              encoder,
-              __LINE__))
+                 encoder,
+                 __LINE__))
     {
-    error = 1;
-    goto end;
+      error = 1;
+      goto end;
     }
   }
 
-   // Codestream level should be chosen automatically given the settings
+  // Codestream level should be chosen automatically given the settings
   if(JxlAssert(JxlEncoderSetBasicInfo(encoder,
                                       &basic_info),
                encoder,
@@ -170,7 +168,8 @@ void write_sink(
 
 
 
-  // Only currently support the options shown in the export GUI, except ‘custom’ as I don’t know where the custom values come from.
+  // Only currently support the options shown in the export GUI, except ‘custom’ as I don’t know where the custom values come from,
+  // and XYZ, because of what seems to be a libjxl bug.
   JxlColorEncoding colour_encoding;
 
   colour_encoding.color_space = JXL_COLOR_SPACE_RGB;
@@ -189,14 +188,13 @@ void write_sink(
                                     break;
                                     // Derived from section §4.3.1.1 of [Adobe® RGB (1998) Color Image Encoding]
                                     // (https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf).
-                                    // Output images getting black clipping? Dunno if this, the gamma or something else is wrong.
     case s_colour_primaries_adobe:  nativePrimaries = JXL_PRIMARIES_CUSTOM;
                                     colour_encoding.primaries_red_xy[0] = 0.64;
                                     colour_encoding.primaries_red_xy[1] = 0.33;
                                     colour_encoding.primaries_green_xy[0] = 0.21;
                                     colour_encoding.primaries_green_xy[1] = 0.71;
                                     colour_encoding.primaries_blue_xy[0] = 0.15;
-                                    colour_encoding.primaries_blue_xy[1] = 0.06;
+                                      colour_encoding.primaries_blue_xy[1] = 0.06;
                                     colour_encoding.white_point = JXL_WHITE_POINT_D65;
                                     break;
                                     // Values from §8.1 of ITU-T H.273 (V4) (07/2024). Because I wasn’t sure!
@@ -216,11 +214,10 @@ void write_sink(
                                              sizeof(module->graph->gui_msg_buf),
                                              "[o-jxl] Recieved primaries currently not supported for export! Aborting…");
                                     module->graph->gui_msg = module->graph->gui_msg_buf;
-
-                                {
-                                    error = 1;
-                                    goto end;
-                                  }
+                                    {
+                                      error = 1;
+                                      goto end;
+                                    }
   }
   colour_encoding.primaries = nativePrimaries;
 
@@ -240,12 +237,12 @@ void write_sink(
     case s_colour_trc_HLG:          nativeTRC = JXL_TRANSFER_FUNCTION_HLG;
                                     break;
     case s_colour_trc_gamma:        nativeTRC = JXL_TRANSFER_FUNCTION_GAMMA;
-                                    // Then set gamma value. But I think s_colour_trc_gamma is only for AdobeRGB?.
+                                    // Then set whatever gamma value. But using ~2.2 because s_colour_trc_gamma is currently only for AdobeRGB(?)
                                     // Derived from section §4.3.1.2 of [Adobe® RGB (1998) Color Image Encoding]
                                     // (https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf).
-                                    colour_encoding.gamma = 256.0 / 563.0;
-                                    // Also doesn’t work.
-                                    // colour_encoding.gamma = 1.0 / 2.2;
+                                    // colour_encoding.gamma = 256.0 / 563.0;
+                                    // Actually elsewhere in the codebase this approximation is used, so for consistency:
+                                    colour_encoding.gamma = 1.0 / 2.2;
                                     break;
                                     // Not sure if this is what I should do?
     case s_colour_trc_unknown:      nativeTRC = JXL_TRANSFER_FUNCTION_UNKNOWN;
@@ -254,22 +251,22 @@ void write_sink(
                                              sizeof(module->graph->gui_msg_buf),
                                              "[o-jxl] Recieved trc currently not supported for export! Aborting…");
                                     module->graph->gui_msg = module->graph->gui_msg_buf;
-
-                                {
-                                    error = 1;
-                                    goto end;
-                                  }
+                                    {
+                                      error = 1;
+                                      goto end;
+                                    }
   }
   colour_encoding.transfer_function = nativeTRC;
 
   // Hardcoding as relative for now.
-  // ISO 15076-1:2010, but don’t currently know what they really do and I can’t find any reference to them within vkdt. (They are in darktable).
+  // ISO 15076-1:2010, but don’t currently know what they really do and I can’t find any reference to them within vkdt.
+  // (They are user selectable in darktable but might not be important enough to warrant that).
   colour_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
   
   if(JxlAssert(JxlEncoderSetColorEncoding(encoder,
-                                       &colour_encoding),
-            encoder,
-            __LINE__))
+                                          &colour_encoding),
+               encoder,
+               __LINE__))
   {
     error = 1;
     goto end;
