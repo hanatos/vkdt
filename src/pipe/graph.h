@@ -190,8 +190,8 @@ dt_graph_cmd_buf(const dt_graph_t *g)
     ? g->command_buffer_gfx[g->double_buffer]
     : g->command_buffer    [g->double_buffer];
 }
-void dt_graph_cleanup(dt_graph_t *g);                      // cleanup, free memory
-void dt_graph_repurpose(dt_graph_t *g);                    // reset logical state, keep Vulkan objects
+VkResult dt_graph_cleanup(dt_graph_t *g);   // cleanup, free memory
+VkResult dt_graph_repurpose(dt_graph_t *g); // reset logical state, keep Vulkan objects
 
 dt_node_t *dt_graph_get_display(dt_graph_t *g, dt_token_t  which);
 

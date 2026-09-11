@@ -1,6 +1,7 @@
 #include "vid.h"
 #include "qvk/qvk.h"
 #include "pipe/graph.h"
+#include "core/threads.h"
 
 #if 1
 static enum AVPixelFormat
@@ -37,6 +38,18 @@ decode_get_pixel_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
   return AV_PIX_FMT_NONE;
 }
 #endif
+
+static void lock_queue(AVHWDeviceContext *ctx, uint32_t queue_family, uint32_t index)
+{ // we know this is the video decoding queue. find the mutex:
+  int qid = qvk.qid[s_queue_vid_dec];
+  threads_mutex_lock(&qvk.queue[qid].mutex);
+}
+
+static void unlock_queue(AVHWDeviceContext *ctx, uint32_t queue_family, uint32_t index)
+{
+  int qid = qvk.qid[s_queue_vid_dec];
+  threads_mutex_unlock(&qvk.queue[qid].mutex);
+}
 
 // init ffmpeg vulkan hardware decoder, or fail
 int decode_video_init(decode_video_t *v, dt_graph_t *graph, const char *filename)
@@ -108,6 +121,12 @@ int decode_video_init(decode_video_t *v, dt_graph_t *graph, const char *filename
     vk->act_dev = qvk.device;
     vk->phys_dev = qvk.physical_device;
 
+    // since KHR_internally_synchronized_queues doesn't seem to work with ffmpeg 9 yet:
+_Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+    vk->lock_queue = lock_queue;
+    vk->unlock_queue = unlock_queue;
+_Pragma("GCC diagnostic pop")
+
     vk->device_features            = qvk.device_features;
     vk->enabled_inst_extensions    = qvk.inst_extension;
     vk->nb_enabled_inst_extensions = qvk.inst_extension_cnt;
@@ -115,14 +134,19 @@ int decode_video_init(decode_video_t *v, dt_graph_t *graph, const char *filename
     vk->nb_enabled_dev_extensions  = qvk.dev_extension_cnt;
 
     // XXX does ffmpeg profit from any more?
-    vk->nb_qf = 2;
+    vk->nb_qf = 3;
     vk->qf[0] = (AVVulkanDeviceQueueFamily){
-      .idx = qvk.queue_family_graphics,
+      .idx = qvk.queue_family_graphics, // qvk.queue[qvk.qid[qvk.queue_family_graphics]].family,
       .num = 1,//qvk.queue[qvk.qid[s_queue_graphics]].num, // XXX seems wrong here
       .flags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT,
     };
     vk->qf[1] = (AVVulkanDeviceQueueFamily){
-      .idx = qvk.queue_family_vid_dec,
+      .idx = qvk.queue_family_compute, // qvk.queue[qvk.qid[qvk.queue_family_graphics]].family,
+      .num = 1,//qvk.queue[qvk.qid[s_queue_graphics]].num, // XXX seems wrong here
+      .flags = VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT,
+    };
+    vk->qf[2] = (AVVulkanDeviceQueueFamily){
+      .idx = qvk.queue_family_vid_dec, // qvk.queue[qvk.qid[qvk.queue_family_vid_dec]].family,
       .num = 1,//qvk.queue[qvk.qid[s_queue_vid_dec]].num,
       .flags = VK_QUEUE_VIDEO_DECODE_BIT_KHR,
       .video_caps = VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR | VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR | VK_VIDEO_CODEC_OPERATION_DECODE_AV1_BIT_KHR,
