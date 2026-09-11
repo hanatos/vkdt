@@ -18,7 +18,6 @@ decode_video_create_sampler(
   VkSamplerYcbcrConversionCreateInfo conversion_info = {
     .sType         = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO,
     .format        = format,
-    // XXX these next two can depend on user settings!
     .ycbcrModel    = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709,
     .ycbcrRange    = VK_SAMPLER_YCBCR_RANGE_ITU_FULL,
     .xChromaOffset = cosited ? VK_CHROMA_LOCATION_COSITED_EVEN : VK_CHROMA_LOCATION_MIDPOINT,
@@ -202,6 +201,11 @@ decode_video_copy_img_cmd(
     .pValues        = &graph->semaphore_extra_val,
   };
   VkResult res = vkWaitSemaphores(qvk.device, &wait_info, ((uint64_t)1)<<30);
+  if(res != VK_SUCCESS)
+  {
+    vk->unlock_frame(frames, vk_frame);
+    return res;
+  }
   if(v->view) vkDestroyImageView(qvk.device, v->view, 0);
   v->view = 0;
   VkImageViewUsageCreateInfo usage = {
@@ -252,7 +256,12 @@ decode_video_copy_img_cmd(
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
   };
-  QVKR(vkBeginCommandBuffer(cmd_buf, &begin_info));
+  res = vkBeginCommandBuffer(cmd_buf, &begin_info);
+  if(res != VK_SUCCESS)
+  {
+    vk->unlock_frame(frames, vk_frame);
+    return res;
+  }
 
   VkImageMemoryBarrier2 barrier[] = {{
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
