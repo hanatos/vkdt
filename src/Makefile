@@ -17,6 +17,11 @@ ifeq ($(VKDT_USE_RAWINPUT), 0) # use no raw loading module
   MODULESXX:=$(filter-out i-raw,$(MODULESXX))
   MODULES:=$(filter-out i-raw,$(MODULES))
 endif
+ifneq ($(VKDT_USE_JXL), 1)
+  MODULES:=$(filter-out o-jxl,$(MODULES))
+  READMES:=$(filter-out o-jxl,$(READMES))
+  FLATMK:=$(filter-out o-jxl,$(FLATMK))
+endif
 ifneq ($(VKDT_USE_V4L2), 1)
   MODULES:=$(filter-out i-v4l2,$(MODULES))
 endif

@@ -11,11 +11,6 @@ VKDT_JPEG_CFLAGS=-I/c/msys64/ucrt64/include
 VKDT_JPEG_LDFLAGS=-L/ucrt64/lib -ljpeg
 export VKDT_JPEG_CFLAGS VKDT_JPEG_LDFLAGS
 
-# Similar for finding libjxl
-VKDT_JXL_CFLAGS=-I/c/msys64/ucrt64/include
-VKDT_JXL_LDFLAGS=-L/ucrt64/lib -ljxl -ljxl_threads
-export VKDT_JXL_CFLAGS VKDT_JXL_LDFLAGS
-
 # if you disable this, the i-raw module will not be built
 # and you will be unable to load raw images.
 # note that since this in on by default in here, you'll need
@@ -46,6 +41,14 @@ export VKDT_USE_RAWINPUT
 # VKDT_EXIV2_LDFLAGS=-L/c/msys64/mingw64/lib -l:libexiv2.a -l:libexiv2-xmp.a
 # VKDT_EXIV2_LDFLAGS=-L/ucrt64/bin -lexiv2-28 -lcurl-4 -lexpat-1 -lz
 # export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
+
+# optionally build jpeg-xl output with libjxl, offers improved
+# compression over jpeg, and wide-colour/hdr support.
+VKDT_USE_JXL=1
+export VKDT_USE_JXL
+VKDT_JXL_CFLAGS=-I/c/msys64/ucrt64/include
+VKDT_JXL_LDFLAGS=-L/ucrt64/lib -ljxl -ljxl_threads
+export VKDT_JXL_CFLAGS VKDT_JXL_LDFLAGS
 
 # v4l2 is used to read real-time webcam input in the i-v4l2 module.
 # enable this feature here:

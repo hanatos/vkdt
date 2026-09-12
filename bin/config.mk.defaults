@@ -11,11 +11,6 @@ VKDT_JPEG_CFLAGS=$(eval VKDT_JPEG_CFLAGS := $$(shell pkg-config --cflags libjpeg
 VKDT_JPEG_LDFLAGS=$(eval VKDT_JPEG_LDFLAGS := $$(shell pkg-config --libs libjpeg))$(VKDT_JPEG_LDFLAGS)
 export VKDT_JPEG_CFLAGS VKDT_JPEG_LDFLAGS
 
-# Similar for finding libjxl
-VKDT_JXL_CFLAGS=$(eval VKDT_JXL_CFLAGS := $$(shell pkg-config --cflags libjxl libjxl_threads))$(VKDT_JXL_CFLAGS)
-VKDT_JXL_LDFLAGS=$(eval VKDT_JXL_LDFLAGS := $$(shell pkg-config --libs libjxl libjxl_threads))$(VKDT_JXL_LDFLAGS)
-export VKDT_JXL_CFLAGS VKDT_JXL_LDFLAGS
-
 # if you disable this, the i-raw module will not be built
 # and you will be unable to load raw images.
 # note that since this in on by default in here, you'll need
@@ -45,6 +40,14 @@ export CMAKE
 # VKDT_EXIV2_CFLAGS=$(eval VKDT_EXIV2_CFLAGS := $$(shell pkg-config --cflags exiv2))$(VKDT_EXIV2_CFLAGS)
 # VKDT_EXIV2_LDFLAGS=$(eval VKDT_EXIV2_LDFLAGS := $$(shell pkg-config --libs exiv2))$(VKDT_EXIV2_LDFLAGS)
 # export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
+
+# optionally build jpeg-xl output with libjxl, offers improved
+# compression over jpeg, and wide-colour/hdr support.
+VKDT_USE_JXL=1
+export VKDT_USE_JXL
+VKDT_JXL_CFLAGS=$(eval VKDT_JXL_CFLAGS := $$(shell pkg-config --cflags libjxl libjxl_threads))$(VKDT_JXL_CFLAGS)
+VKDT_JXL_LDFLAGS=$(eval VKDT_JXL_LDFLAGS := $$(shell pkg-config --libs libjxl libjxl_threads))$(VKDT_JXL_LDFLAGS)
+export VKDT_JXL_CFLAGS VKDT_JXL_LDFLAGS
 
 # v4l2 is used to read real-time webcam input in the i-v4l2 module.
 # enable this feature here:
