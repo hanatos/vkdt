@@ -214,7 +214,7 @@ dt_dragkey_commit(dt_dragkey_t *d)
     for(int k = 0; k < j; k++)
       if(d->comp[k].modid == c->modid && d->comp[k].parid == c->parid) { dup = 1; break; }
     if(dup) continue;
-    vkdt.graph_dev.active_module = c->modid;
+    // vkdt.graph_dev.active_module = c->modid;
     dt_graph_history_append(&vkdt.graph_dev, c->modid, c->parid, 0.0);
   }
 }
@@ -254,7 +254,7 @@ dt_dragkey_reset(dt_dragkey_t *d)
     if(vkdt.graph_dev.module[c->modid].so->check_params)
       runflags |= vkdt.graph_dev.module[c->modid].so->check_params(
           vkdt.graph_dev.module + c->modid, c->parid, c->component, &oldval);
-    vkdt.graph_dev.active_module = c->modid;
+    // vkdt.graph_dev.active_module = c->modid;
     dt_graph_history_append(&vkdt.graph_dev, c->modid, c->parid, 0.0);
   }
   vkdt.graph_dev.runflags = runflags;

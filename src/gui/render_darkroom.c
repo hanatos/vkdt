@@ -932,9 +932,9 @@ void render_darkroom()
   dt_menu_process_clicks(&darkroom_menu, hk_darkroom, hk_darkroom_cnt);
   if(vkdt.wstate.pending_modid >= 0)
   {
-    if(vkdt.wstate.dragkey_latched)
-      vkdt.graph_dev.active_module = vkdt.wstate.pending_modid; // just scroll; full activate triggers s_graph_run_all which glitches display
-    else
+    // we want to be able to use drag keys without opening the active module. one use case is for instance
+    // looking at the histogram in `filmcurv` while using exposure to move the data closer to the shoulder of the curve.
+    if(!vkdt.wstate.dragkey_latched)
       dt_darkroom_activate_module(vkdt.wstate.pending_modid);
     vkdt.wstate.pending_modid = -1;
   }
