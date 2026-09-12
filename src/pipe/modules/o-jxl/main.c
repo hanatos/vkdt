@@ -31,6 +31,7 @@ float JxlEncoderDistanceFromQuality(float quality)
 
 
 
+// Probably should use `longjmp` or something but I don’t know how.
 JxlEncoderStatus JxlAssert(JxlEncoderStatus code,
                            JxlEncoder *encoder,
                            int line)
@@ -71,6 +72,8 @@ void write_sink(
   uint8_t *out_buf = NULL;
   FILE *out_file = NULL;
 
+  // For more than one export in a row it should be more efficient to make one encoder and reuse it?
+  // But I think at the moment each image creates and destroys its own encoder.
   JxlEncoder *encoder = JxlEncoderCreate(NULL);
 
   const unsigned num_threads = JxlResizableParallelRunnerSuggestThreads(width, height);
@@ -88,10 +91,12 @@ void write_sink(
 
 
 
+  // Currently only 3 channels, but there is a lot of flexibility for greyscale, alpha, CMYK, etc.
+  // The data_type I’ve kept matched to the connector input. JXL uses f32 internally for lossy, so there’s no point in artifically lowering input precision.
+  // Though for lossless it stores the exact values (well I think the spec only guarantees non NaN or Inf values are preserved fwiw), so lowering input precision would mean smaller files sizes.
+  // But for simplicity I’m just matching the input precision. That way lossless is truly lossless, if quite large.
   JxlPixelFormat pixel_format = { 3, JXL_TYPE_FLOAT16, JXL_NATIVE_ENDIAN, 0 };
 
-  // Set encoder basic info, just f16 for now.
-  // To my understanding, JXL always stores at f32 precision in lossy mode.
   JxlBasicInfo basic_info;
   JxlEncoderInitBasicInfo(&basic_info);
   basic_info.xsize = width;
@@ -119,6 +124,8 @@ void write_sink(
   const float quality = dt_module_param_float(module, 1)[0];
   // JXL natively uses ‘distance’ a [0:25] value. This aims to estimate a distance
   // roughly equivalent to what would be obtained with libjpeg-turbo with the same quality parameter.
+  // This function isn’t available in libjxl versions < 0.9.0.
+  // Could just provide the user with a [0:25] distance slider?
   const float distance = JxlEncoderDistanceFromQuality(quality);
 
   if(quality == 100)
@@ -260,7 +267,7 @@ void write_sink(
 
   // Hardcoding as relative for now.
   // ISO 15076-1:2010, but don’t currently know what they really do and I can’t find any reference to them within vkdt.
-  // (They are user selectable in darktable but might not be important enough to warrant that).
+  // (They are user selectable in darktable but might not be important enough to warrant that?).
   colour_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
   
   if(JxlAssert(JxlEncoderSetColorEncoding(encoder,
