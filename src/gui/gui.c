@@ -70,7 +70,8 @@ window_size_callback(GLFWwindow* w, int width, int height)
   }
 }
 
-void window_content_scale_callback(GLFWwindow* w, float xscale, float yscale)
+static void
+window_content_scale_callback(GLFWwindow* w, float xscale, float yscale)
 {
   if(w == vkdt.win.window)
   {
@@ -83,6 +84,34 @@ void window_content_scale_callback(GLFWwindow* w, float xscale, float yscale)
     vkdt.win1.content_scale[1] = yscale;
   }
   dt_gui_init_fonts(); // content scale scales fonts
+}
+
+void joystick_callback(int js, int event)
+{
+  if(event == GLFW_CONNECTED)
+  {
+    if(glfwJoystickIsGamepad(js))
+    {
+      const char *name = glfwGetJoystickName(js);
+      dt_log(s_log_gui, "found gamepad %s", name);
+      const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 1);
+      if(disable)
+      {
+        vkdt.wstate.have_joystick = 0;
+        dt_log(s_log_gui, "disabling joystick due to explicit config request. enable by");
+        dt_log(s_log_gui, "setting 'intgui/disable_joystick:0' in ~/.config/vkdt/config.rc");
+      }
+      else
+      {
+        vkdt.wstate.have_joystick = 1;
+        vkdt.wstate.joystick_id = js;
+      }
+    }
+  }
+  else if(event == GLFW_DISCONNECTED)
+  {
+    vkdt.wstate.have_joystick = 0;
+  }
 }
 
 static inline void
@@ -295,23 +324,10 @@ int dt_gui_init()
   vkdt.wstate.have_joystick = 0;
   for(int js=GLFW_JOYSTICK_1;!vkdt.wstate.have_joystick&&js<GLFW_JOYSTICK_LAST;js++)
   {
-    if(glfwJoystickPresent(js) && glfwJoystickIsGamepad(js))
+    if(glfwJoystickPresent(js))
     {
-      const char *name = glfwGetJoystickName(js);
-      dt_log(s_log_gui, "found gamepad %s", name);
-      const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 1);
-      if(disable)
-      {
-        vkdt.wstate.have_joystick = 0;
-        dt_log(s_log_gui, "disabling joystick due to explicit config request. enable by");
-        dt_log(s_log_gui, "setting 'intgui/disable_joystick:0' in ~/.config/vkdt/config.rc");
-      }
-      else
-      {
-        vkdt.wstate.have_joystick = 1;
-        vkdt.wstate.joystick_id = js;
-        break;
-      }
+      joystick_callback(js, GLFW_CONNECTED);
+      if(vkdt.wstate.have_joystick) break;
     }
   }
   if(!vkdt.wstate.have_joystick)

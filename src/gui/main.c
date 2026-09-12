@@ -207,6 +207,7 @@ int main(int argc, char *argv[])
   glfwSetScrollCallback(vkdt.win.window, scroll_callback);
   glfwSetWindowCloseCallback(vkdt.win.window, window_close_callback);
   glfwSetWindowFocusCallback(vkdt.win.window, window_focus_callback);
+  glfwSetJoystickCallback(joystick_callback);
 #if VKDT_USE_PENTABLET==1
   glfwSetPenTabletDataCallback(pentablet_data_callback);
   glfwSetPenTabletCursorCallback(pentablet_cursor_callback);

@@ -290,6 +290,9 @@ void dt_gui_style_to_state();
 // return 1 if the given image id is potentially in use by an active command buffer
 int dt_gui_display_in_use(uint64_t val);
 
+// add or remove a gamepad
+void joystick_callback(int js, int event);
+
 // this is only a shorthand for the direct access to vkdt.win*.content_scale
 // selecting the right one based on the glfw window. this is otherwise
 // exactly equivalent to direct variable access.
