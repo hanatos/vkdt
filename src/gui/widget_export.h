@@ -30,24 +30,37 @@ export_render_widget(
   char str[10] = {0};
   memcpy(str, &param->name, 8);
   const dt_token_t widget = param->widget.type;
+  struct nk_context *ctx = &vkdt.ctx;
   if(widget == dt_token("slider"))
   { // distinguish by type:
     if(param->type == dt_token("float"))
-    {
+    { // similar to render_darkroom.h
       float *val = (float*)(pdata + param->offset);
+      struct nk_rect bounds = nk_widget_bounds(ctx);
+      nk_tab_property(float, ctx, str, param->widget.min, val, param->widget.max,
+          (param->widget.max - param->widget.min)/100.0,
+          (param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd));
+      // draw fill level
+      struct nk_color col = nk_rgba(255,255,255,30);
+      struct nk_rect bar = nk_rect(bounds.x + 0.1*bounds.w, bounds.y + 0.15*bounds.h,
+          bounds.w * 0.8*(*val - param->widget.min)/(param->widget.max - param->widget.min), bounds.h * 0.7);
+      nk_fill_rect(nk_window_get_canvas(ctx), bar, 0, col);
+      // draw default value
+      col = nk_rgba(0,0,0,40);
+      float defval = param->val[0];
+      bar = nk_rect(bounds.x + 0.1*bounds.w + bounds.w * 0.8*(defval - param->widget.min)/(param->widget.max - param->widget.min),
+          bounds.y + 0.15*bounds.h, 0.01*bounds.w, 0.7*bounds.h);
+      nk_fill_rect(nk_window_get_canvas(ctx), bar, 0, col);
       dt_tooltip(param->tooltip);
-      nk_slider_float(&vkdt.ctx, param->widget.min, val, param->widget.max, 0.01);
-      if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
-        memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
       nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
     }
     else if(param->type == dt_token("int"))
     {
       int32_t *val = (int32_t*)(pdata + param->offset);
+      nk_tab_property(int, ctx, str, param->widget.min, val, param->widget.max,
+          (int)(1.0+(param->widget.max - param->widget.min)/100.0),
+          ((param->widget.max - param->widget.min)/(0.6*vkdt.state.center_wd)));
       dt_tooltip(param->tooltip);
-      nk_slider_int(&vkdt.ctx, param->widget.min, val, param->widget.max, 1);
-      if(nk_widget_is_mouse_clicked(&vkdt.ctx, NK_BUTTON_DOUBLE))
-        memcpy(pdata + param->offset, param->val, dt_ui_param_size(param->type, param->cnt));
       nk_label(&vkdt.ctx, str, NK_TEXT_LEFT);
     }
   }
