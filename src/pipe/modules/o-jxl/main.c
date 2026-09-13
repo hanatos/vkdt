@@ -2,7 +2,7 @@
 
 #include <jxl/encode.h>
 #include <jxl/resizable_parallel_runner.h>
-#include <jxl/version.h> // Annoying
+#include <jxl/version.h> // Annoying. See first #if.
 
 #include <stddef.h>
 #include <stdint.h>
@@ -12,8 +12,7 @@
 
 
 
-// Mostly copying from darktable (and thus GPLv3), but also o-jpg, o-exr and o-pfm.
-// A work in progress.
+// Mostly just copying from darktable (and thus GPLv3), but also o-jpg, o-exr and o-pfm.
 
 
 
@@ -91,10 +90,7 @@ void write_sink(
 
 
 
-  // Currently only 3 channels, but there is a lot of flexibility for greyscale, alpha, CMYK, etc.
-  // The data_type I’ve kept matched to the connector input. JXL uses f32 internally for lossy, so there’s no point in artifically lowering input precision.
-  // Though for lossless it stores the exact values (well I think the spec only guarantees non NaN or Inf values are preserved fwiw), so lowering input precision would mean smaller files sizes.
-  // But for simplicity I’m just matching the input precision. That way lossless is truly lossless, if quite large.
+  // Currently only 3 channels, but there is a lot of flexibility to add greyscale, alpha, CMYK, etc.
   JxlPixelFormat pixel_format = { 3, JXL_TYPE_FLOAT16, JXL_NATIVE_ENDIAN, 0 };
 
   JxlBasicInfo basic_info;
@@ -125,7 +121,7 @@ void write_sink(
   // JXL natively uses ‘distance’ a [0:25] value. This aims to estimate a distance
   // roughly equivalent to what would be obtained with libjpeg-turbo with the same quality parameter.
   // This function isn’t available in libjxl versions < 0.9.0.
-  // Could just provide the user with a [0:25] distance slider?
+  // Would just provide the user with a [0:25] distance slider, but quality is the common target for other modules.
   const float distance = JxlEncoderDistanceFromQuality(quality);
 
   if(quality == 100)
@@ -193,7 +189,7 @@ void write_sink(
     case s_colour_primaries_2020:   nativePrimaries = JXL_PRIMARIES_2100;
                                     colour_encoding.white_point = JXL_WHITE_POINT_D65;
                                     break;
-                                    // Derived from section §4.3.1.1 of [Adobe® RGB (1998) Color Image Encoding]
+                                    // Derived from §4.3.1.1 of [Adobe® RGB (1998) Color Image Encoding]
                                     // (https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf).
     case s_colour_primaries_adobe:  nativePrimaries = JXL_PRIMARIES_CUSTOM;
                                     colour_encoding.primaries_red_xy[0] = 0.64;
@@ -245,7 +241,7 @@ void write_sink(
                                     break;
     case s_colour_trc_gamma:        nativeTRC = JXL_TRANSFER_FUNCTION_GAMMA;
                                     // Then set whatever gamma value. But using ~2.2 because s_colour_trc_gamma is currently only for AdobeRGB(?)
-                                    // Derived from section §4.3.1.2 of [Adobe® RGB (1998) Color Image Encoding]
+                                    // Derived from §4.3.1.2 of [Adobe® RGB (1998) Color Image Encoding]
                                     // (https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf).
                                     // colour_encoding.gamma = 256.0 / 563.0;
                                     // Actually elsewhere in the codebase this approximation is used, so for consistency:
