@@ -115,8 +115,6 @@ and we may link to some others, too.
   * either rawspeed (depends on pugixml, stdc++, zlib, jpeg, libomp, build-depends on cmake, libomp-dev, optionally libexiv2)
   * or rawler (depends on rust toolchain which will manage their own dependencies)
 * libjpeg
-* video io: libavformat libavcodec (minimum version 6)
-* sound: libasound2
 * build: make, pkg-config, clang, sed, xxd
 
 the full list of packages used to build the nightly appimages can be found in the [workflow yaml file](.github/workflows/nightly.yml).
@@ -126,6 +124,7 @@ optional (configure in `bin/config.mk`):
 * exiv2 (libexiv2-dev) for raw metadata loading to assign noise profiles, only needed for rawspeed builds
 * asound (libasound2) for audio support in video and quake
 * ffmpeg (libavformat-dev libavcodec-dev) for the video io modules `i-vid` and `o-vid`
+* libjxl
 
 you can also build without rawspeed or rawler if that is useful for you.
 
