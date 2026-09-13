@@ -84,6 +84,7 @@ new modules:
 * `hdrmerge` extend dynamic range (phcreery)
 * `overlay` render text and latency data
 * `opendrt` full-featured display transform
+* `o-jxl` jpeg-xl write support
 
 removed modules:
 * `resnet` gmic neural denoiser (weights out of sync with upstream)
