@@ -43,7 +43,7 @@ export CMAKE
 
 # optionally build jpeg-xl output with libjxl, offers improved
 # compression over jpeg, and wide-colour/hdr support.
-VKDT_USE_JXL=1
+VKDT_USE_JXL=$(eval VKDT_USE_JXL := $$(shell pkg-config --libs libjxl && echo 1 || echo 0))$(VKDT_USE_JXL)
 export VKDT_USE_JXL
 VKDT_JXL_CFLAGS=$(eval VKDT_JXL_CFLAGS := $$(shell pkg-config --cflags libjxl libjxl_threads))$(VKDT_JXL_CFLAGS)
 VKDT_JXL_LDFLAGS=$(eval VKDT_JXL_LDFLAGS := $$(shell pkg-config --libs libjxl libjxl_threads))$(VKDT_JXL_LDFLAGS)
