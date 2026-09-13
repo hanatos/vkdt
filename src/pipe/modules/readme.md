@@ -28,6 +28,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [o-copy: copy the input file to a new destination](./o-copy/readme.md)
 * [o-exr: write openexr image files](./o-exr/readme.md)
 * [o-jpg: write jpeg compressed still image](./o-jpg/readme.md)
+* [o-jxl: write jpeg-xl (supports wide gamut/hdr)](./o-jxl/readme.md)
 * [o-lut: write varying precision multi channel luts](./o-lut/readme.md)
 * [o-null: write absolutely nothing](./o-null/readme.md)
 * [o-pfm: write uncompressed 32-bit floating point image](./o-pfm/readme.md)

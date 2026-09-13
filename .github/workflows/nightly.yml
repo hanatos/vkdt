@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   AppImage:
-    if: github.repository == 'WFinster/vkdt'
+    if: github.repository == 'hanatos/vkdt'
     name: nightly appimage
     runs-on: ubuntu-latest
     strategy:
@@ -191,7 +191,7 @@ jobs:
           retention-days: 1
 
   WindowsRawler:
-    if: github.repository == 'WFinster/vkdt'
+    if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt windows with rawler backend
     runs-on: windows-latest
     strategy:
@@ -291,7 +291,7 @@ jobs:
           retention-days: 1
 
   macintosh:
-    if: github.repository == 'WFinster/vkdt'
+    if: github.repository == 'hanatos/vkdt'
     name: nightly vkdt macintosh
     strategy:
       fail-fast: true
