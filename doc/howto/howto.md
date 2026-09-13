@@ -28,6 +28,10 @@ this folder lists quick instructions on a few special topics:
 * [how to customise the default processing graph](./defgraph/readme.md)
 * [how to customise the favourites ui in darkroom mode](./favs/readme.md)
 
+## for developers
+
+* [how to add support for additional file formats](./file-support/readme.md)
+
 
 -- these following topics do not exist yet --
 
