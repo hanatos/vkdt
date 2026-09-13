@@ -1,0 +1,4 @@
+filename:string:256:output
+quality:float:1:100
+effort:int:1:10
+exif:int:1:1

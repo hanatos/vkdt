@@ -192,6 +192,12 @@ endif
 ifeq ($(VKDT_USE_QUAKE), 1)
 	@echo "quake                  : quakespasm"
 endif
+ifeq ($(VKDT_USE_JXL), 0)
+	@echo "jpeg-xl output         : no"
+endif
+ifeq ($(VKDT_USE_JXL), 1)
+	@echo "jpeg-xl output         : yes"
+endif
 ifeq ($(VKDT_USE_V4L2), 0)
 	@echo "webcam                 : no"
 endif

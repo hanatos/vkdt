@@ -41,6 +41,14 @@ export CMAKE
 # VKDT_EXIV2_LDFLAGS=$(eval VKDT_EXIV2_LDFLAGS := $$(shell pkg-config --libs exiv2))$(VKDT_EXIV2_LDFLAGS)
 # export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
 
+# optionally build jpeg-xl output with libjxl, offers improved
+# compression over jpeg, and wide-colour/hdr support.
+VKDT_USE_JXL=1
+export VKDT_USE_JXL
+VKDT_JXL_CFLAGS=$(eval VKDT_JXL_CFLAGS := $$(shell pkg-config --cflags libjxl libjxl_threads))$(VKDT_JXL_CFLAGS)
+VKDT_JXL_LDFLAGS=$(eval VKDT_JXL_LDFLAGS := $$(shell pkg-config --libs libjxl libjxl_threads))$(VKDT_JXL_LDFLAGS)
+export VKDT_JXL_CFLAGS VKDT_JXL_LDFLAGS
+
 # v4l2 is used to read real-time webcam input in the i-v4l2 module.
 # enable this feature here:
 VKDT_USE_V4L2=1

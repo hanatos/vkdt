@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   AppImage:
-    if: github.repository == 'hanatos/vkdt'
+    if: github.repository == 'WFinster/vkdt'
     name: nightly appimage
     runs-on: ubuntu-latest
     strategy:
@@ -57,6 +57,7 @@ jobs:
             git \
             glslang-tools \
             libjpeg-dev \
+            libjxl-dev \
             zlib1g-dev \
             libasound2-dev \
             libavformat-dev \
@@ -190,7 +191,7 @@ jobs:
           retention-days: 1
 
   WindowsRawler:
-    if: github.repository == 'hanatos/vkdt'
+    if: github.repository == 'WFinster/vkdt'
     name: nightly vkdt windows with rawler backend
     runs-on: windows-latest
     strategy:
@@ -226,6 +227,7 @@ jobs:
             vulkan-devel:p
             glslang:p
             libjpeg-turbo:p
+            libjxl:p
             zlib:p
             omp:p
             cmake:p
@@ -289,7 +291,7 @@ jobs:
           retention-days: 1
 
   macintosh:
-    if: github.repository == 'hanatos/vkdt'
+    if: github.repository == 'WFinster/vkdt'
     name: nightly vkdt macintosh
     strategy:
       fail-fast: true
@@ -299,11 +301,11 @@ jobs:
     env:
       SRC_DIR: ${{ github.workspace }}/src
       INSTALL_PREFIX: ${{ github.workspace }}/install
-      APPDIR: ${{ github.workspace }}/vkdt.app
+      APP_DIR: ${{ github.workspace }}/vkdt.app
     steps:
       - name: install dependencies
         run: |
-          brew install pkgconf cmake jpeg-turbo ffmpeg make glfw3 vulkan-validationlayers vulkan-headers rust vulkan-tools
+          brew install pkgconf cmake jpeg-turbo jpeg-xl ffmpeg glfw3 vulkan-validationlayers vulkan-headers rust vulkan-tools exiftool
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -323,18 +325,18 @@ jobs:
       - name: install into appdir
         run: |
           cd ${SRC_DIR}
-          mkdir -p ${APPDIR}/Contents/MacOS
-          mkdir ${APPDIR}/Contents/Frameworks
-          mkdir ${APPDIR}/Contents/Resources
-          make VKDTBIN=/tmp/dontinstall DESTDIR=${APPDIR} prefix=/Contents/MacOS install
-          mv ${APPDIR}/Contents/MacOS/lib/vkdt/* ${APPDIR}/Contents/MacOS/
-          rm -rf ${APPDIR}/Contents/MacOS/lib
-          cp vkdt.png ${APPDIR}/Contents/Resources/vkdt.png
+          mkdir -p ${APP_DIR}/Contents/MacOS
+          mkdir ${APP_DIR}/Contents/Frameworks
+          mkdir ${APP_DIR}/Contents/Resources
+          make VKDTBIN=/tmp/dontinstall DESTDIR=${APP_DIR} prefix=/Contents/MacOS install
+          mv ${APP_DIR}/Contents/MacOS/lib/vkdt/* ${APP_DIR}/Contents/MacOS/
+          rm -rf ${APP_DIR}/Contents/MacOS/lib
+          cp vkdt.png ${APP_DIR}/Contents/Resources/vkdt.png
       - name: bundle moltenvk
         run: |
-          ditto $(brew --prefix)/lib/libMoltenVK.dylib ${APPDIR}/Contents/Frameworks/libMoltenVK.dylib
-          mkdir -p "$APPDIR"/Contents/Resources/vulkan/icd.d
-          cat > ${APPDIR}/Contents/Resources/vulkan/icd.d/MoltenVK_icd.json << EOM
+          ditto $(brew --prefix)/lib/libMoltenVK.dylib ${APP_DIR}/Contents/Frameworks/libMoltenVK.dylib
+          mkdir -p "$APP_DIR"/Contents/Resources/vulkan/icd.d
+          cat > ${APP_DIR}/Contents/Resources/vulkan/icd.d/MoltenVK_icd.json << EOM
           {
             "file_format_version": "1.0.0",
             "ICD": {
@@ -344,39 +346,67 @@ jobs:
             }
           }
           EOM
+      - name: bundle exiftool
+        run: |
+          ditto $(brew --prefix)/bin/exiftool "$APP_DIR"/Contents/MacOS/exiftool
+          chmod +w "$APP_DIR"/Contents/MacOS/exiftool
       - name: copy library dependencies
         run: |
-          BREW_PREFIX=$(brew --prefix)
-          for i in $(seq 1 20)
-          do
-            found=0
-            for exe in ${APPDIR}/Contents/MacOS/vkdt* $(find ${APPDIR} -type f \( -name "*.dylib" -o -name "*.so" \))
-            do
-              [[ $exe == *rawloader-c* ]] && continue
-              # echo "our binary: $exe"
-              for lib in $(otool -L $exe 2>/dev/null | grep '(' | cut -f1 -d" ")
-              do
-                [[ $lib == /* ]] || continue
-                [[ $lib == /*libSystem* ]] && continue
-                [[ $lib == ${BREW_PREFIX}/* ]] || continue
-                # lib=$(echo $lib | awk "/${BREW_PREFIX//\//\\/}/{ gsub(/[[:space:]].*/, \"\", \$1); print \$1 }")
-                name=$(basename "$lib")
-                [[ "$name" = "" ]] && continue
-                echo "lib dependency $lib"
-                echo "name $name"
-                install_name_tool -change $lib @rpath/$name $exe
-                if [ ! -f "${APPDIR}/Contents/Frameworks/${name}" ]; then
-                  cp -L "$lib" "${APPDIR}/Contents/Frameworks/${name}"
-                  found=1
+          function install_dependencies {
+            local hbDependencies
+            absolutePath=$(dirname $(realpath "$1"))
+            # Get dependencies of current executable
+            oToolLDependencies=$(otool -L "$1" 2>/dev/null | grep compatibility | cut -d\( -f1 | sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' | uniq)
+            # Handle library relative paths
+            oToolLDependencies=$(echo "$oToolLDependencies" | sed "s#@loader_path#${absolutePath}#")
+            oToolLDependencies=$(echo "$oToolLDependencies" | sed "s#@rpath#${absolutePath}#")
+            # Filter for homebrew dependencies
+            if [[ "$oToolLDependencies" == *"$(brew --prefix)"* ]]; then
+              hbDependencies=$(echo "$oToolLDependencies" | grep "$(brew --prefix)")
+            fi
+            # Check for any homebrew dependencies
+            if [[ -n "$hbDependencies" && "$hbDependencies" != "" ]]; then
+              # Iterate over homebrew dependencies to install them accordingly
+              for hbDependency in $hbDependencies; do
+                # Skip dependency if it is a dependency of itself
+                if [[ "$hbDependency" != "$1" ]]; then
+                  # Store file name
+                  dynDepOrigFile=$(basename "$hbDependency")
+                  dynDepTargetFile="$APP_DIR/Contents/Frameworks/$dynDepOrigFile"
+                  # Install dependency if not yet existent
+                  if [[ ! -f "$dynDepTargetFile" ]]; then
+                    echo "Installing dependency $hbDependency of $1"
+                    # Copy dependency as not yet existent
+                    ditto "$hbDependency" "$dynDepTargetFile"
+                    # Handle transitive dependencies
+                    install_dependencies "$hbDependency"
+                  fi
                 fi
               done
+            fi
+          }
+
+          for dtExecutable in $(find "$APP_DIR" -type f -print0 | xargs -0 file | grep Mach-O | cut -d : -f 1); do
+            if [[ -f "$dtExecutable" ]]; then
+            install_dependencies "$dtExecutable"
+            fi
+          done
+      - name: modify dependency load paths to be relative
+        run: |
+          for depender in $(find "$APP_DIR" -type f -print0 | xargs -0 file | grep Mach-O | cut -d : -f 1); do
+            loadCommands="$(otool -l $depender 2> /dev/null)"
+            runtimeSearchPath="$(echo "$loadCommands" | grep "LC_RPATH" -A 2 | awk '/path/ { print $2 }')"
+            if [[ (-n "$runtimeSearchPath") && ("$runtimeSearchPath" != "@executable_path/../Frameworks") ]]; then
+              install_name_tool -rpath "$runtimeSearchPath" "@executable_path/../Frameworks" "$depender"
+            fi
+            for dependency in $(echo "$loadCommands" | grep "LC_LOAD_DYLIB" -A 2 | awk '/name/ && !/\/System\// && !/\/usr\/lib\// { print $2 }' | sort -u); do
+              install_name_tool -change "$dependency" @rpath/"$(basename $dependency)" "$depender"
             done
-            [ "$found" = "0" ] && echo "terminating after iteration $i" && break
           done
       - name: build dmg image
         run: |
           cd ${SRC_DIR}
-          cat > ${APPDIR}/Contents/Info.plist << EOM
+          cat > ${APP_DIR}/Contents/Info.plist << EOM
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -414,6 +444,7 @@ jobs:
           </dict>
           </plist>
           EOM
+
           cat > Entitlements.plist << EOM
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -425,15 +456,14 @@ jobs:
           </plist>
           EOM
 
-          find ${APPDIR} -type f -exec codesign -f -s - --entitlements Entitlements.plist -o runtime {} \;
-          codesign -f -s - --entitlements Entitlements.plist -o runtime ${APPDIR}
+          find ${APP_DIR} -type f -exec codesign -f -s - --entitlements Entitlements.plist -o runtime {} \;
+          codesign -f -s - --entitlements Entitlements.plist -o runtime ${APP_DIR}
 
-          mkdir vkdt-image
-          mv ${APPDIR} vkdt-image/vkdt.app
+          mkdir vkdt-${{ env.VERSION }}
+          mv ${APP_DIR} vkdt-${{ env.VERSION }}/vkdt.app
 
-          hdiutil create -srcfolder vkdt-image -format UDSB vkdt-image.sparsebundle
-          hdiutil convert vkdt-image.sparsebundle -format ULMO -o vkdt-${{ env.VERSION }}-${{ matrix.os }}.dmg
-          # TODO: codesign --force -s - /path/to/dylib on every dylib
+          hdiutil create -srcfolder vkdt-${{ env.VERSION }} -format UDSB vkdt-${{ env.VERSION }}.sparsebundle
+          hdiutil convert vkdt-${{ env.VERSION }}.sparsebundle -format ULMO -o vkdt-${{ env.VERSION }}-${{ matrix.os }}.dmg
       - name: package upload
         if: ${{ success() }}
         uses: actions/upload-artifact@v4
