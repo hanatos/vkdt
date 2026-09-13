@@ -1013,6 +1013,7 @@ create_nodes(
   module->connector[3].array_length = graph->node[id_tex].connector[0].array_length;
 }
 
+#if 0
 int audio(
     dt_module_t  *mod,
     uint64_t      unused_sample_beg,
@@ -1043,3 +1044,4 @@ int audio(
   oldtime = newtime;
   return len/4; // return number of samples (compute from byte size /4: stereo and 16 bit)
 }
+#endif

@@ -39,7 +39,6 @@ dt_gui_style_to_state()
     .center_ht  = vkdt.win.height - 2.0f*border,
     .panel_ht   = vkdt.win.height,
     .anim_frame = vkdt.state.anim_frame,
-    .anim_max_frame = vkdt.state.anim_max_frame,
   };
 }
 

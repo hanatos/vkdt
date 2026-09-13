@@ -13,3 +13,4 @@ void darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadsta
 void darkroom_process();
 void darkroom_focus_lost();
 int  darkroom_leave();
+uint32_t darkroom_snd_process(void *buf, uint32_t size);

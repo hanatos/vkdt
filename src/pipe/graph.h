@@ -112,6 +112,8 @@ typedef struct dt_graph_t
   VkCommandPool         command_pool_gfx;
   int                   use_graphics_queue;    // set each run: 1 when s_node_graphics nodes exist and a separate compute family is in use
   VkSemaphore           semaphore_process;   // timeline semaphore indicating that graph processing/double buffer write access is done
+  VkSemaphore           semaphore_extra;     // external sync (wait for video decoder)
+  uint64_t              semaphore_extra_val; // value to wait for
   qvk_queue_name_t      queue_name;
   dt_graph_display_images_t *dspy;           // used for ui synchronisation, if set. owned by the ui.
   uint64_t (*dspy_acquire)(dt_graph_t *g);   // callback to get new frame id/semaphore value
@@ -188,8 +190,8 @@ dt_graph_cmd_buf(const dt_graph_t *g)
     ? g->command_buffer_gfx[g->double_buffer]
     : g->command_buffer    [g->double_buffer];
 }
-void dt_graph_cleanup(dt_graph_t *g);                      // cleanup, free memory
-void dt_graph_repurpose(dt_graph_t *g);                    // reset logical state, keep Vulkan objects
+VkResult dt_graph_cleanup(dt_graph_t *g);   // cleanup, free memory
+VkResult dt_graph_repurpose(dt_graph_t *g); // reset logical state, keep Vulkan objects
 
 dt_node_t *dt_graph_get_display(dt_graph_t *g, dt_token_t  which);
 
@@ -199,7 +201,9 @@ VkResult dt_graph_run(
 
 void dt_token_print(dt_token_t t);
 
-VkResult dt_graph_create_shader_module(
+#ifndef VKDT_DSO_BUILD
+VKDT_API VkResult
+dt_graph_create_shader_module(
     dt_graph_t     *graph,  // only needed for debugging purposes
     dt_token_t      node,
     dt_token_t      kernel,
@@ -207,13 +211,14 @@ VkResult dt_graph_create_shader_module(
     VkShaderModule *shader_module);
 
 // return the memory allocation and VkImage etc corresponding to a node's connector
-dt_connector_image_t*
+VKDT_API dt_connector_image_t*
 dt_graph_connector_image(
     dt_graph_t *graph,
     int         nid,    // node id
     int         cid,    // connector id
     int         array,  // array index
     int         dbuf);  // double buffer index
+#endif
 
 // apply all keyframes found in the module list and write to the modules parameters according to
 // the current frame in the graph (g->frame). floating point parameters will be interpolated.

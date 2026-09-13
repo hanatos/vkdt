@@ -639,6 +639,7 @@ void write_sink(
         if(!ost->swr_ctx)
           frame = ost->frame;
 
+#if 0
         int src_nb_samples = frame->nb_samples;
         while(src_nb_samples > 0)
         { // fill exactly the packet size we can get
@@ -654,6 +655,7 @@ void write_sink(
           ost->sample_pos += sample_cnt;
           src_nb_samples -= sample_cnt;
         }
+#endif
         frame->pts = ost->next_pts;
         ost->next_pts += frame->nb_samples;
 
@@ -693,7 +695,7 @@ void write_sink(
 
         write_frame(dat->oc, c, ost->st, frame, ost->tmp_pkt);
       } // loop audio packets
-no_more_audio:;
+// no_more_audio:;
     } // end audio frame
 
     // prepare for next frame

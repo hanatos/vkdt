@@ -80,7 +80,8 @@ typedef enum qvk_queue_name_t
   s_queue_compute  = 1,
   s_queue_work0    = 2,
   s_queue_work1    = 3,
-  s_queue_cnt      = 4,
+  s_queue_vid_dec  = 4,
+  s_queue_cnt      = 5,
 }
 qvk_queue_name_t;
 
@@ -90,6 +91,7 @@ typedef struct qvk_queue_t
   VkQueue         queue;
   int32_t         family;
   int32_t         idx;
+  int32_t         num;
 }
 qvk_queue_t;
 
@@ -103,6 +105,7 @@ typedef struct qvk_t
   qvk_queue_t                 queue[s_queue_cnt];
   uint32_t                    queue_family_graphics;
   uint32_t                    queue_family_compute;
+  uint32_t                    queue_family_vid_dec;
 
   VkSampler                   tex_sampler;
   VkSampler                   tex_sampler_dspy;
@@ -141,6 +144,24 @@ typedef struct qvk_t
   int                         unified_image_layouts_supported;
   int                         blit_supported;
   int                         hdr_supported;
+
+  // we need these to share with other vk clients (ffmpeg):
+  // VkPhysicalDeviceClusterAccelerationStructureFeaturesNV df_cluster_bvh;
+  VkPhysicalDeviceInternallySynchronizedQueuesFeaturesKHR df_sync;
+  VkPhysicalDeviceAccelerationStructureFeaturesKHR        df_accel;
+  VkPhysicalDeviceRayQueryFeaturesKHR                     df_ray_query;
+  VkPhysicalDeviceVulkan14Features                        df_v14;
+  VkPhysicalDeviceVulkan13Features                        df_v13;
+  VkPhysicalDeviceVulkan12Features                        df_v12;
+  VkPhysicalDeviceShaderAtomicFloatFeaturesEXT            df_atomics;
+  VkPhysicalDeviceVulkan11Features                        df_v11;
+  VkPhysicalDeviceCooperativeMatrixFeaturesKHR            df_coopmat;
+  VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR          df_layouts;
+  VkPhysicalDeviceFeatures2                               device_features;
+  const char                 *inst_extension[50];
+  int                         inst_extension_cnt;
+  const char                 *dev_extension[50];
+  int                         dev_extension_cnt;
 }
 qvk_t;
 

@@ -499,7 +499,7 @@ dt_thumbnails_load_one(
   struct stat statbuf = {0};
   if(stat(imgfilename, &statbuf)) return VK_INCOMPLETE;
 
-  dt_graph_repurpose(graph);
+  QVKR(dt_graph_repurpose(graph));
   int m0 = dt_module_add(graph, dt_token("i-bc1"), dt_token("main"));
   int m1 = dt_module_add(graph, dt_token("thumb"), dt_token("main"));
   if(m0 < 0 || m1 < 0)
@@ -650,7 +650,7 @@ dt_thumbnails_load_one(
 
   // reset here too to make sure cleanup() is called on all modules.
   // this releases file descriptors and webcams etc.
-  dt_graph_repurpose(graph);
+  QVKR(dt_graph_repurpose(graph));
 
   return VK_SUCCESS;
 }
