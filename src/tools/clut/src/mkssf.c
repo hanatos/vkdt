@@ -17,11 +17,12 @@
 // - optimiser: gauss/newton adam nelder/mead
 // - parameter: number of iterations
 static int num_it        = 300;
-static int num_epochs    = 6;
-static int cfa_model     = 2;          // default to gauss
-static int cfa_num_coeff = 30;
-static double cfa_param[3*36] = {0.1}; // init to something. zero has zero derivatives and is thus bad.
-static double learning_rate = 0.0003;  // used only for adam
+static int num_epochs    = 10;
+static int cfa_model     = 4;          // default to plain
+static int cfa_num_coeff = 36;
+static double cfa_param[3*36] = {0.1}; // init to something. zero often has zero derivatives and is thus bad.
+static double learning_rate = 0.001;   // used only for adam
+static double smoothness = 0.3;        // add this much of the smoothness term
 
 static double ill[2][CIE2_SAMPLES];    // tabulated illuminants for the two target shots
 static int ill_cnt = 2;
@@ -274,7 +275,7 @@ void loss(
     }
   }
   // smoothness term:
-  err += 1e-5 * cfa_smoothness(cfa_model, cfa_num_coeff, p);
+  err += smoothness * cfa_smoothness(cfa_model, cfa_num_coeff, p);
   x[0] = err;
 }
 
@@ -306,7 +307,7 @@ void loss_pictures(
     }
   }
   // smoothness term:
-  err += 1e-5 * cfa_smoothness(cfa_model, cfa_num_coeff, p);
+  err += smoothness * cfa_smoothness(cfa_model, cfa_num_coeff, p);
   x[0] = err;
 }
 
@@ -335,7 +336,7 @@ void loss_upsample(
     }
   }
   // smoothness term:
-  err += 1e-5 * cfa_smoothness(cfa_model, cfa_num_coeff, p);
+  err += smoothness * cfa_smoothness(cfa_model, cfa_num_coeff, p);
   x[0] = err;
 }
 
@@ -437,6 +438,7 @@ int main(int argc, char *argv[])
     else if(!strcmp(argv[k], "--cfa-model" ) && k+1 < argc) cfa_model = cfa_model_parse(argv[++k]);
     else if(!strcmp(argv[k], "--num-coeff" ) && k+1 < argc) cfa_num_coeff = CLAMP(atol(argv[++k]), 1, 36);
     else if(!strcmp(argv[k], "--lr"        ) && k+1 < argc) learning_rate = CLAMP(atof(argv[++k]), 1e-30, 100.0);
+    else if(!strcmp(argv[k], "--smooth"    ) && k+1 < argc) smoothness = CLAMP(atof(argv[++k]), 1e-30, 1e10);
     else if(!strcmp(argv[k], "--single-ill")) ill_cnt = 1;
     else if(!strcmp(argv[k], "--opt") && k+1 < argc) optimiser = parse_optimiser(argv[++k]);
     else if(argv[k][0] != '-') model = argv[k];
@@ -464,6 +466,7 @@ int main(int argc, char *argv[])
                     "                             pca, gauss, sigmoid, plain\n"
                     "          --num-coeff <n>    use this number of coefficients in the model\n"
                     "          --lr <l>           learning rate (for adam, default 0.001)\n"
+                    "          --smooth <s>       smoothness term multiplier\n"
                     "          --opt <op>         use as optimiser one of\n"
                     "                             gauss-newton, adam, nelder-mead\n");
 

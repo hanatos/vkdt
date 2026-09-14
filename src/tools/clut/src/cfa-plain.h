@@ -42,6 +42,23 @@ cfa_plain_init(
 }
 
 static inline double
+cfa_plain_all(
+    int           num,         // number of params
+    const double *p,           // parameters
+    double        wavelength)  // evaluate at this wavelength
+{
+  float step = (780.0f - 360.0f) / (num - 1.0f);
+  float ll = (wavelength - 360.0)/step;
+  int l = (int)ll;
+  float f = ll - l;
+  if(l < 0 || l >= num) return 0.0;
+  float v0 = p[l]*p[l];
+  if(l == num-1) return v0;
+  float v1 = p[l+1]*p[l+1];
+  return (1.0f-f)*v0 + f*v1;
+}
+
+static inline double
 cfa_plain_smoothness(
     int num,
     const double *p)
@@ -49,22 +66,24 @@ cfa_plain_smoothness(
   double err = 0.0;
   for(int k=0;k<3;k++)
     for(int i=1;i<num;i++)
-      err += 100*(p[num*k+i]-p[num*k+i-1])*(p[num*k+i]-p[num*k+i-1]) / num;
+      err += (p[num*k+i]-p[num*k+i-1])*(p[num*k+i]-p[num*k+i-1]) / num;
   return err;
 }
 
+#if 0
 static inline double
 cfa_plain_all(
     int           num,         // number of params
     const double *p,           // parameters
     double        wavelength)  // evaluate at this wavelength
 {
-  float step = (730.0f - 380.0f) / (num - 1.0f);
+  float step = (780.0f - 360.0f) / (num - 1.0f);
   int l = (wavelength - 360.0)/step;
-  if(l < 0 || l >= 36) return 0.0;
+  if(l < 0 || l >= num) return 0.0;
   return p[l] * p[l]; // square to force non-negativity
   // return 0.32 * p[l]; // XXX pass through
 }
+#endif
 
 static inline double
 cfa_plain_red(int num, const double *p, double wavelength)
