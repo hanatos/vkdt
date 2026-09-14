@@ -9,8 +9,9 @@ typedef struct dt_pw_t
 {
   int sample_rate; // e.g. 44100
   int channels;    // e.g. 2
+  int planar;      // 0 if inline, 1 if planar data
   int format;      // e.g. SPA_AUDIO_FORMAT_S16
-  int stride;      // sizeof(sample) * channels
+  int stride;      // sizeof(sample) * channels or sizeof(sample) if planar
   int tid;
   struct pw_main_loop *loop;
   struct pw_stream *stream;
@@ -28,13 +29,19 @@ static void on_process(void *data)
   uint32_t frame_cnt = buf->datas[0].maxsize / stride;
   if(b->requested) frame_cnt = MIN(b->requested, frame_cnt);
 
-  // TODO pass pointers for planes!
-  // TODO planar formats?
-  uint32_t size = dt_view_snd_process(buf->datas[0].data, frame_cnt * stride);
+  // pass pointers for planar formats:
+  uint8_t **plane = alloca(sizeof(uint8_t*)*snd->channels);
+  plane[0] = buf->datas[0].data;
+  if(snd->planar) for(int i=1;i<snd->channels;i++)
+    plane[i] = buf->datas[i].data;
+  uint32_t size = dt_view_snd_process(plane, frame_cnt * stride);
 
-  buf->datas[0].chunk->offset = 0;
-  buf->datas[0].chunk->stride = stride;
-  buf->datas[0].chunk->size   = size;
+  for(int i=0;i<(snd->planar ? snd->channels : 1);i++)
+  {
+    buf->datas[i].chunk->offset = 0;
+    buf->datas[i].chunk->stride = stride;
+    buf->datas[i].chunk->size   = size;
+  }
   pw_stream_queue_buffer(snd->stream, b);
 }
 
@@ -96,6 +103,7 @@ int dt_snd_init(
   snd->handle = pw;
   pw->sample_rate = snd->sample_rate = sample_rate;
   pw->channels = snd->channels = channels;
+  pw->planar = snd->planar = 0;
   pw->format = snd->format = format;
   pw->tid = -1;
   int size = 0;
@@ -105,20 +113,29 @@ int dt_snd_init(
     case SPA_AUDIO_FORMAT_S32_LE: size = 4; dt_log(s_log_pipe, "pw audio s32"); break;
     case SPA_AUDIO_FORMAT_F32_LE: size = 4; dt_log(s_log_pipe, "pw audio f32"); break;
     case SPA_AUDIO_FORMAT_F64_LE: size = 8; dt_log(s_log_pipe, "pw audio f64"); break;
-    // FIXME planar formats won't make it through now:
-    // case SPA_AUDIO_FORMAT_U8P:    size = 1; break;
-    // case SPA_AUDIO_FORMAT_S16P:   size = 2; break;
-    // case SPA_AUDIO_FORMAT_S32P:   size = 4; break;
-    // case SPA_AUDIO_FORMAT_F32P:   size = 4; break;
-    // case SPA_AUDIO_FORMAT_F64P:   size = 8; break;
+    case SPA_AUDIO_FORMAT_U8P:    size = 1; dt_log(s_log_pipe, "pw audio planar u8");  break;
+    case SPA_AUDIO_FORMAT_S16P:   size = 2; dt_log(s_log_pipe, "pw audio planar s16"); break;
+    case SPA_AUDIO_FORMAT_S32P:   size = 4; dt_log(s_log_pipe, "pw audio planar s32"); break;
+    case SPA_AUDIO_FORMAT_F32P:   size = 4; dt_log(s_log_pipe, "pw audio planar f32"); break;
+    case SPA_AUDIO_FORMAT_F64P:   size = 8; dt_log(s_log_pipe, "pw audio planar f64"); break;
     default: size = 0;
+  }
+  switch(pw->format) {
+    case SPA_AUDIO_FORMAT_U8P:
+    case SPA_AUDIO_FORMAT_S16P:
+    case SPA_AUDIO_FORMAT_S32P:
+    case SPA_AUDIO_FORMAT_F32P:
+    case SPA_AUDIO_FORMAT_F64P:
+      pw->planar = snd->planar = 1;
+      break;
+    default: pw->planar = snd->planar = 0;
   }
   if(size == 0)
   {
     dt_log(s_log_snd, "unsupported audio format!");
     return 0; // unsupported sample format
   }
-  pw->stride = channels * size;
+  pw->stride = pw->planar ? size : channels * size;
   pw->tid = threads_task("snd", 1, -1, pw, &task_snd_work, 0);
   return 0;
 }

@@ -9,6 +9,7 @@ typedef struct dt_snd_t
   int sample_rate;
   int channels;
   int format;
+  int planar;
 }
 dt_snd_t;
 

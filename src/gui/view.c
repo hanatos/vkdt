@@ -237,7 +237,7 @@ void dt_view_get_cursor_pos(GLFWwindow *window, double *x, double *y)
   *y *= yscale;
 }
 
-uint32_t dt_view_snd_process(void *buf, uint32_t size)
+uint32_t dt_view_snd_process(uint8_t **buf, uint32_t size)
 {
   if(vkdt.view_mode == s_view_darkroom)
     return darkroom_snd_process(buf, size);

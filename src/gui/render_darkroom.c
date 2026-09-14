@@ -1538,7 +1538,7 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
 #undef PRESSED
 }
 
-uint32_t darkroom_snd_process(void *buf, uint32_t size)
+uint32_t darkroom_snd_process(uint8_t **buf, uint32_t size)
 {
   if(vkdt.state.anim_playing)
   { // new frame for animations need new audio, too

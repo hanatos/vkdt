@@ -640,18 +640,19 @@ void write_sink(
           frame = ost->frame;
 
 #if 0
+        const dt_image_params_t *param = &mod->graph->module[dat->audio_mod].img_param;
         int src_nb_samples = frame->nb_samples;
         while(src_nb_samples > 0)
         { // fill exactly the packet size we can get
           uint16_t *samples = 0;
+          uint8_t **plane = alloca(sizeof(uint8_t*)*param->snd_channels);
+          for(int i=0;i<(param->snd_planar?param->snd_channels:1);i++)
+            plane[i] = frame->data[i]
+
           int sample_cnt = mod->graph->module[dat->audio_mod].so->audio(
               mod->graph->module+dat->audio_mod,
-              ost->sample_pos,
-              src_nb_samples,
-              &samples);
+              plane, src_nb_samples);
           if(!sample_cnt) goto no_more_audio;
-          // TODO: support other stereo/int16 configs!
-          memcpy(((int16_t*)frame->data[0]) + 2*(frame->nb_samples - src_nb_samples), samples, 2*sizeof(uint16_t)*sample_cnt);
           ost->sample_pos += sample_cnt;
           src_nb_samples -= sample_cnt;
         }
