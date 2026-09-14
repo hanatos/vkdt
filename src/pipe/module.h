@@ -94,9 +94,10 @@ typedef struct dt_image_params_t
   int colour_trc;             // as the data travels through the graph
 
   // audio information (from ffmpeg or mlv or game code)
-  int snd_format;             // see alsa's snd_pcm_format_t
+  int snd_format;             // see pipewire's format
   int snd_channels;           // 0 1 2..
   int snd_samplerate;         // in Hz
+  int snd_planar;             // audio comes in planes?
 
   // from us:
   float noise_a;              // raw noise estimate, gaussian part

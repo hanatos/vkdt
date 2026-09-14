@@ -235,6 +235,7 @@ void modify_roi_out(
     .snd_samplerate = d->v.sample_rate,
     .snd_format     = format,
     .snd_channels   = d->v.channels,
+    .snd_planar     = d->v.planar,
 
     .noise_a = 1.0, // gauss
     .noise_b = 1.0, // poisson
@@ -306,7 +307,7 @@ create_nodes(
 uint32_t
 audio(
     dt_module_t *module,
-    void        *buf,
+    uint8_t    **buf,
     uint32_t     size)
 {
   vid_data_t *d = module->data;
@@ -337,7 +338,8 @@ audio(
     int new_res = res + frame_size - v->arb.rpos;
     new_res = MIN(size, new_res);
     int inc = new_res - res;
-    memcpy(buf + res, frame->data[0] + v->arb.rpos, inc);
+    for(int i=0;i<(v->planar?v->channels:1);i++)
+      memcpy(buf[i] + res, frame->data[i] + v->arb.rpos, inc);
     res = new_res;
     v->arb.rpos += inc;
 

@@ -45,6 +45,7 @@ typedef struct decode_video_t
   uint8_t *audio_buf;
   int      audio_size;
   int      audio_stride;
+  int      planar;
 
   int flushing;            // we're flushing the av codecs, don't send more packets
 
