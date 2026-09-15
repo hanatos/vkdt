@@ -3,60 +3,9 @@
 #include "vid.h"
 #include "vid-init.c"
 #include "vid-run.c"
+#include "fmtcnv.h"
 
 #include <stdint.h>
-
-enum spa_audio_format_copy {
-	SPA_AUDIO_FORMAT_UNKNOWN,
-	SPA_AUDIO_FORMAT_ENCODED,
-
-	/* interleaved formats */
-	SPA_AUDIO_FORMAT_START_Interleaved	= 0x100,
-	SPA_AUDIO_FORMAT_S8,
-	SPA_AUDIO_FORMAT_U8,
-	SPA_AUDIO_FORMAT_S16_LE,
-	SPA_AUDIO_FORMAT_S16_BE,
-	SPA_AUDIO_FORMAT_U16_LE,
-	SPA_AUDIO_FORMAT_U16_BE,
-	SPA_AUDIO_FORMAT_S24_32_LE,
-	SPA_AUDIO_FORMAT_S24_32_BE,
-	SPA_AUDIO_FORMAT_U24_32_LE,
-	SPA_AUDIO_FORMAT_U24_32_BE,
-	SPA_AUDIO_FORMAT_S32_LE,
-	SPA_AUDIO_FORMAT_S32_BE,
-	SPA_AUDIO_FORMAT_U32_LE,
-	SPA_AUDIO_FORMAT_U32_BE,
-	SPA_AUDIO_FORMAT_S24_LE,
-	SPA_AUDIO_FORMAT_S24_BE,
-	SPA_AUDIO_FORMAT_U24_LE,
-	SPA_AUDIO_FORMAT_U24_BE,
-	SPA_AUDIO_FORMAT_S20_LE,
-	SPA_AUDIO_FORMAT_S20_BE,
-	SPA_AUDIO_FORMAT_U20_LE,
-	SPA_AUDIO_FORMAT_U20_BE,
-	SPA_AUDIO_FORMAT_S18_LE,
-	SPA_AUDIO_FORMAT_S18_BE,
-	SPA_AUDIO_FORMAT_U18_LE,
-	SPA_AUDIO_FORMAT_U18_BE,
-	SPA_AUDIO_FORMAT_F32_LE,
-	SPA_AUDIO_FORMAT_F32_BE,
-	SPA_AUDIO_FORMAT_F64_LE,
-	SPA_AUDIO_FORMAT_F64_BE,
-
-	SPA_AUDIO_FORMAT_ULAW,
-	SPA_AUDIO_FORMAT_ALAW,
-
-	/* planar formats */
-	SPA_AUDIO_FORMAT_START_Planar		= 0x200,
-	SPA_AUDIO_FORMAT_U8P,
-	SPA_AUDIO_FORMAT_S16P,
-	SPA_AUDIO_FORMAT_S24_32P,
-	SPA_AUDIO_FORMAT_S32P,
-	SPA_AUDIO_FORMAT_S24P,
-	SPA_AUDIO_FORMAT_F32P,
-	SPA_AUDIO_FORMAT_F64P,
-	SPA_AUDIO_FORMAT_S8P,
-};
 
 typedef struct vid_data_t
 {
@@ -195,21 +144,7 @@ void modify_roi_out(
   }
 
   parse_parameters(mod, d);
-  int format = 0;
-  switch(d->v.format) {
-    case AV_SAMPLE_FMT_U8:   format = SPA_AUDIO_FORMAT_U8;     break;
-    case AV_SAMPLE_FMT_S16:  format = SPA_AUDIO_FORMAT_S16_LE; break;
-    case AV_SAMPLE_FMT_S32:  format = SPA_AUDIO_FORMAT_S32_LE; break;
-    case AV_SAMPLE_FMT_FLT:  format = SPA_AUDIO_FORMAT_F32_LE; break;
-    case AV_SAMPLE_FMT_DBL:  format = SPA_AUDIO_FORMAT_F64_LE; break;
-    case AV_SAMPLE_FMT_U8P:  format = SPA_AUDIO_FORMAT_U8P;    break;
-    case AV_SAMPLE_FMT_S16P: format = SPA_AUDIO_FORMAT_S16P;   break;
-    case AV_SAMPLE_FMT_S32P: format = SPA_AUDIO_FORMAT_S32P;   break;
-    case AV_SAMPLE_FMT_FLTP: format = SPA_AUDIO_FORMAT_F32P;   break;
-    case AV_SAMPLE_FMT_DBLP: format = SPA_AUDIO_FORMAT_F64P;   break;
-    default: format = 0;                             
-  }
-
+  int format = fmt_pw_from_av(d->v.format);
   mod->connector[0].flags = s_conn_protected; // don't overwrite our old frames
   mod->connector[0].roi.full_wd = d->v.wd;
   mod->connector[0].roi.full_ht = d->v.ht;
