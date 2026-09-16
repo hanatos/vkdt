@@ -229,28 +229,6 @@ lighttable_keyboard(GLFWwindow *w, int key, int scancode, int action, int mods)
 
 void render_lighttable_center()
 { // center image view
-#if 0 // TODO bring back
-  { // assign star rating/colour labels via gamepad:
-    if(ImGui::IsKeyDown(ImGuiKey_GamepadFaceUp))
-    {
-      const uint32_t *sel = dt_db_selection_get(&vkdt.db);
-      int rtdir = 0, lbdir = 0;
-      rtdir -= ImGui::IsKeyPressed(ImGuiKey_GamepadL1);
-      rtdir += ImGui::IsKeyPressed(ImGuiKey_GamepadR1);
-      lbdir -= ImGui::IsKeyPressed(ImGuiKey_GamepadL2);
-      lbdir += ImGui::IsKeyPressed(ImGuiKey_GamepadR2);
-      for(uint32_t i=0;i<vkdt.db.selection_cnt;i++)
-      {
-        vkdt.db.image[sel[i]].rating = CLAMP(vkdt.db.image[sel[i]].rating + rtdir, 0, 5);
-        if(lbdir)
-        vkdt.db.image[sel[i]].labels =
-          vkdt.db.image[sel[i]].labels ?
-          CLAMP(lbdir > 0 ? (vkdt.db.image[sel[i]].labels << 1) :
-                            (vkdt.db.image[sel[i]].labels >> 1), 0, 8) : 1;
-      }
-    }
-  }
-#endif
   struct nk_rect bounds = {vkdt.state.center_x, vkdt.state.center_y, vkdt.state.center_wd, vkdt.state.center_ht};
   const int disabled = vkdt.wstate.popup;
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
@@ -1589,6 +1567,7 @@ int lighttable_enter()
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_left,      "move left");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_right,     "move right");
   dt_gamepadhelp_set(dt_gamepadhelp_R1,              "show/hide right panel");
+  dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L,  "move up/down fast");
   vkdt.wstate.copied_imgid = -1u; // reset to invalid
   vkdt.wstate.lighttable_images_per_row = dt_rc_get_int(&vkdt.rc, "gui/images_per_line", 6);
   dt_gui_read_favs("darkroom.ui"); // read these for fav presets here, too
@@ -1647,4 +1626,13 @@ void lighttable_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepads
     dt_gui_toggle_fullscreen_view();
   }
 #undef PRESSED
+  const float sensitivity = vkdt.wstate.delta_time * dt_rc_get_float(&vkdt.rc, "gui/joystick_sensitivity", 1.0f);
+  float ay = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
+  int delta = 100*sensitivity * SMOOTH(ay); // 100 rows per second if fully extended
+  if(delta)
+  {
+    if(g_image_cursor < 0) g_image_cursor = -2;
+    else g_image_cursor = CLAMP(g_image_cursor+delta*vkdt.wstate.lighttable_images_per_row, 0, vkdt.db.collection_cnt-1);
+  }
 }
