@@ -243,7 +243,7 @@ uint32_t
 audio(
     dt_module_t *module,
     uint8_t    **buf,
-    uint32_t     size)
+    uint32_t     size) // this is the byte size we will write per plane. packed formats will write this once, stereo plane formats will write this twice (once in each plane)
 {
   vid_data_t *d = module->data;
   decode_video_t *v = &d->v;
@@ -251,6 +251,7 @@ audio(
   threads_mutex_lock(&v->av_mutex);
   // double pts_our = module->graph->frame / v->fps;
   // double time_base = av_q2d(v->audio.av_stream->time_base);
+  fprintf(stderr, "process snd for frame %d cache %d pos %d\n", module->graph->frame, v->arb.rdi, v->arb.rpos);
   while(res < size)
   {
     AVFrame *frame = v->arb.frame[v->arb.rdi];

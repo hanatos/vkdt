@@ -218,6 +218,7 @@ _Pragma("GCC diagnostic pop")
     if(av_channel_layout_compare(&v->audio.av_ctx->ch_layout, &stereo)) v->channels = 2;
     v->format = v->audio.av_ctx->sample_fmt; // like AV_SAMPLE_FMT_S16, ffmpeg speak
     v->planar = av_sample_fmt_is_planar (v->audio.av_ctx->sample_fmt);
+    // this plays planar and packed audio:
     v->audio_stride = (v->planar ? 1 : v->channels) * av_get_bytes_per_sample(v->audio.av_ctx->sample_fmt);
     v->sample_rate = v->audio.av_ctx->sample_rate;
     dt_log(s_log_pipe, "audio inited with %s%d channels %d fmt %d stride %d sample rate",
