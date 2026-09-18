@@ -384,7 +384,7 @@ open_audio(
           av_get_sample_fmt_name(src_fmt),
           av_get_sample_fmt_name(c->sample_fmt),
           c->frame_size);
-  nb_samples = 8192;//1024;//2048;//c->frame_size;
+  nb_samples = 1024;
   ost->frame = alloc_audio_frame(c->sample_fmt, &c->ch_layout, c->sample_rate, nb_samples);
   ost->tmp_frame = alloc_audio_frame(src_fmt, &src_layout, src_sample_rate, nb_samples);
 
