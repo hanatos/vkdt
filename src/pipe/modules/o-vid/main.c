@@ -311,6 +311,7 @@ alloc_audio_frame(
     fprintf(stderr, "[o-vid] error allocating an audio buffer\n");
     return 0;
   }
+  fprintf(stderr, "allocated %d samples size %d\n", nb_samples, frame->linesize[0]);
   return frame;
 }
 
@@ -368,6 +369,8 @@ open_audio(
       av_channel_layout_copy(&c->ch_layout, &(AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO);
       ost->st->time_base = (AVRational){ 1, c->sample_rate };
 #endif
+      ost->st->time_base = (AVRational){ 1, c->sample_rate };
+      c->time_base       = ost->st->time_base;
 
   int ret = avcodec_open2(c, codec, &opt);
   av_dict_free(&opt);
@@ -678,6 +681,7 @@ void write_sink(
       c = ost->enc;
       const dt_image_params_t *param = &mod->graph->module[dat->audio_mod].img_param;
       uint8_t **plane = alloca(sizeof(uint8_t*)*param->snd_channels);
+      int pc = param->snd_planar?1:MAX(2,param->snd_channels); // packed channels, max stereo
 
       // keep going encoding audio until we're ahead of / equal to video
       while(av_compare_ts(
@@ -685,15 +689,11 @@ void write_sink(
             dat->audio_stream.next_pts, dat->audio_stream.enc->time_base) > 0) // XXX is this the right time base for next_pts?
       {
         if(!ost->swr_ctx) frame = ost->frame;
-        // XXX we get 1024 samples, 4bps, 4096 line size in the frame
         int src_nb_samples = frame->nb_samples; // per channel
         int src_sample_rate = dat->audio_mod < 0 ? 0 :
           mod->graph->module[dat->audio_mod].img_param.snd_samplerate;
         int bps = av_get_bytes_per_sample(frame->format);
-        // int size = frame->linesize[0];// assume that's the same for all planes
-        // XXX no, that's clearly wrong:
-        int size = src_nb_samples * bps; //* (param->snd_planar?1:param->snd_channels);
-        // fprintf(stderr, "sizes %d %d\n", frame->linesize[0], src_nb_samples * bps);
+        int size = src_nb_samples * bps * pc;
         int off = 0;
         while(size > 0)
         { // fill exactly the packet size we can get
@@ -703,13 +703,19 @@ void write_sink(
               mod->graph->module+dat->audio_mod,
               plane, size);
          fprintf(stderr, "packet wrote %d/%d planar %d\n", written, size, param->snd_planar);
-          if(!written) goto no_more_audio;
+          if(!written && !off) goto no_more_audio;
+          if(!written &&  off) break;
           off += written;
           size -= written;
         }
-        frame->pts = ost->next_pts;
+        // frame->pts = ost->next_pts;
         // ost->next_pts += param->snd_planar ? frame->nb_samples : (frame->nb_samples / 2);
-        ost->next_pts += frame->nb_samples;
+        // ost->next_pts += frame->nb_samples;
+        frame->pts = av_rescale_q(ost->sample_cnt, (AVRational){1, c->sample_rate}, c->time_base);
+        // frame->pts = ost->sample_cnt / c->sample_rate * c->time_base;
+        ost->sample_cnt += frame->nb_samples / pc;
+        fprintf(stderr, "audio timestamp %ld / %ld\n", dat->audio_stream.next_pts, frame->pts);
+        fprintf(stderr, "thats %ld / %d * %d %d\n", ost->sample_cnt, c->sample_rate, c->time_base.num, c->time_base.den);
 
         if(ost->swr_ctx)
         {
