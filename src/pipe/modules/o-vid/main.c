@@ -117,7 +117,6 @@ add_stream(
   {
     case AVMEDIA_TYPE_AUDIO:
     { // ffmpeg 7 way of doing things:
-#if 1
       enum AVSampleFormat *sample_fmts = 0;
       avcodec_get_supported_config(
           c, *codec,
@@ -141,7 +140,6 @@ add_stream(
       // for(int i=0; ch_layouts&&ch_layouts[i]; i++)
       av_channel_layout_copy(&c->ch_layout, &(AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO);
       ost->st->time_base = (AVRational){ 1, c->sample_rate };
-#endif
       break;
     }
     case AVMEDIA_TYPE_VIDEO:
@@ -339,40 +337,7 @@ open_audio(
     (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO :
     (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
 
-#if 0 // XXX DEBUG use source format to avoid resampling:
-  c->sample_fmt = src_fmt;
-  c->sample_rate = src_sample_rate;
-  av_channel_layout_copy(&c->ch_layout, &src_layout);
-#endif
-
-#if 0 // detect supported sample formats and rate
-      c->sample_fmt = -1;
-      c->sample_rate = 48000;
-      enum AVSampleFormat *sample_fmts = 0;
-      avcodec_get_supported_config(
-          c, codec,
-          AV_CODEC_CONFIG_SAMPLE_FORMAT,
-          0, (const void**)&sample_fmts, 0);
-      for(int i=0; sample_fmts&&sample_fmts[i]; i++)
-        if(c->sample_fmt < 0 || sample_fmts[i] == src_fmt) c->sample_fmt = src_fmt;
-      c->bit_rate    = 64000;
-      int *sample_rates = 0;
-      avcodec_get_supported_config(
-          c, codec,
-          AV_CODEC_CONFIG_SAMPLE_RATE,
-          0, (const void**)&sample_rates, 0);
-      for(int i=0; sample_rates&&sample_rates[i]; i++)
-        if (sample_rates[i] == src_sample_rate) c->sample_rate = sample_rates[i];
-      // AVChannelLayout *ch_layouts;
-      // avcodec_get_supported_config(
-      //     c, *codec,
-      //     AV_CODEC_CONFIG_CHANNEL_LAYOUT,
-      //     0, (const void**)&ch_layouts, 0);
-      // for(int i=0; ch_layouts&&ch_layouts[i]; i++)
-      av_channel_layout_copy(&c->ch_layout, &(AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO);
-#endif
-      // ost->st->time_base = (AVRational){ 1, c->sample_rate };
-      c->time_base       = ost->st->time_base;
+  c->time_base = ost->st->time_base;
 
   int ret = avcodec_open2(c, codec, &opt);
   av_dict_free(&opt);
@@ -382,10 +347,6 @@ open_audio(
     return;
   }
 
-      fprintf(stderr, "alloc frames: %s -> %s size %d\n",
-          av_get_sample_fmt_name(src_fmt),
-          av_get_sample_fmt_name(c->sample_fmt),
-          c->frame_size);
   nb_samples = 1024;
   ost->frame = alloc_audio_frame(c->sample_fmt, &c->ch_layout, c->sample_rate, nb_samples);
   ost->tmp_frame = alloc_audio_frame(src_fmt, &src_layout, src_sample_rate, nb_samples);
@@ -420,28 +381,6 @@ open_audio(
       fprintf(stderr, "[o-vid] failed to initialise the resampling context\n");
       return;
     }
-      fprintf(stderr, "swr ctx: %s -> %s\n",
-          av_get_sample_fmt_name(src_fmt),
-          av_get_sample_fmt_name(c->sample_fmt));
-  }
-}
-
-static inline int
-get_audio_pcm_codec(int fmt)
-{
-  switch(fmt)
-  {
-    case AV_SAMPLE_FMT_U8:   return AV_CODEC_ID_PCM_U8;
-    case AV_SAMPLE_FMT_S16:  return AV_CODEC_ID_PCM_S16LE;
-    case AV_SAMPLE_FMT_S32:  return AV_CODEC_ID_PCM_S32LE;
-    case AV_SAMPLE_FMT_FLT:  return AV_CODEC_ID_PCM_F32LE;
-    case AV_SAMPLE_FMT_DBL:  return AV_CODEC_ID_PCM_F64LE;
-    case AV_SAMPLE_FMT_U8P:  return 0;//AV_CODEC_ID_PCM_U8_PLANAR; // does not exist
-    case AV_SAMPLE_FMT_S16P: return AV_CODEC_ID_PCM_S16LE_PLANAR;
-    case AV_SAMPLE_FMT_S32P: return AV_CODEC_ID_PCM_S32LE_PLANAR;
-    case AV_SAMPLE_FMT_FLTP: return 0;//AV_CODEC_ID_PCM_F32LE_PLANAR; // does not exist
-    case AV_SAMPLE_FMT_DBLP: return 0;//AV_CODEC_ID_PCM_F64LE_PLANAR; // neither that
-    default: return 0;
   }
 }
 
@@ -473,12 +412,7 @@ open_file(dt_module_t *mod)
   enum AVCodecID codec_id = AV_CODEC_ID_H264;
   if(p_codec == 0) codec_id = AV_CODEC_ID_PRORES;
   add_stream(mod, &dat->video_stream, dat->oc, &dat->video_codec, codec_id);
-  // TODO all these pcm but with _PLANAR or not
-  // int src_fmt = dat->audio_mod < 0 ? 0 :
-  //   fmt_av_from_pw(mod->graph->module[dat->audio_mod].img_param.snd_format);
-  add_stream(mod, &dat->audio_stream, dat->oc, &dat->audio_codec, // AV_CODEC_ID_PCM_S32LE);//fmt->audio_codec); // AV_CODEC_ID_OPUS
-      fmt->audio_codec);
-      // get_audio_pcm_codec(src_fmt));
+  add_stream(mod, &dat->audio_stream, dat->oc, &dat->audio_codec, fmt->audio_codec);
 
   AVDictionary *opt = NULL;
   open_video(mod, dat->oc, dat->video_codec, &dat->video_stream, opt);
@@ -687,7 +621,7 @@ void write_sink(
       // keep going encoding audio until we're ahead of / equal to video
       while(av_compare_ts(
             dat->video_stream.next_pts, dat->video_stream.enc->time_base,
-            dat->audio_stream.next_pts, dat->audio_stream.enc->time_base) > 0) // XXX is this the right time base for next_pts?
+            dat->audio_stream.next_pts, dat->audio_stream.enc->time_base) > 0)
       {
         AVFrame *frame = ost->tmp_frame;
         if(!ost->swr_ctx) frame = ost->frame;
@@ -704,16 +638,11 @@ void write_sink(
           int written = mod->graph->module[dat->audio_mod].so->audio(
               mod->graph->module+dat->audio_mod,
               plane, size);
-         fprintf(stderr, "packet wrote %d/%d(%d %d) planar %d\n", written, size, frame->linesize[0], frame->linesize[1], param->snd_planar);
           if(!written && !off) goto no_more_audio;
           if(!written &&  off) break;
           off += written;
           size -= written;
         }
-        // frame->pts = ost->next_pts;
-        // ost->next_pts += param->snd_planar ? frame->nb_samples : (frame->nb_samples / 2);
-        // ost->next_pts += frame->nb_samples;
-        // frame->pts = ost->sample_cnt / c->sample_rate * c->time_base;
 
         if(ost->swr_ctx)
         {
@@ -740,8 +669,6 @@ void write_sink(
           }
 
           ost->frame->pts = av_rescale_q(ost->sample_cnt, (AVRational){1, c->sample_rate}, c->time_base);
-          // ost->frame->pts = ost->sample_cnt;// ???
-          // fprintf(stderr, "pts = %ld\n", ost->frame->pts);
           ost->sample_cnt += dst_nb_samples;
           write_frame(dat->oc, c, ost->st, ost->frame, ost->tmp_pkt);
         }
@@ -749,12 +676,8 @@ void write_sink(
         {
           frame->pts = av_rescale_q(ost->sample_cnt, (AVRational){1, c->sample_rate}, c->time_base);
           ost->sample_cnt += frame->nb_samples / pc;
-          // dst_nb_samples = frame->nb_samples;
-          // ost->sample_cnt += dst_nb_samples;
           write_frame(dat->oc, c, ost->st, frame, ost->tmp_pkt);
         }
-        fprintf(stderr, "audio timestamp %ld / %ld\n", dat->audio_stream.next_pts, frame->pts);
-        fprintf(stderr, "thats %ld / %d * %d %d\n", ost->sample_cnt, c->sample_rate, c->time_base.num, c->time_base.den);
       } // loop audio packets
 no_more_audio:;
     } // end audio frame
