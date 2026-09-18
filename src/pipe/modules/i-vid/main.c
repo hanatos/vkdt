@@ -234,9 +234,9 @@ create_nodes(
       module->connector[0].roi.wd, module->connector[0].roi.ht, 1, 0, 0, 1,
       "output", "write", "rgba", "f16", &module->connector[0].roi);
   graph->node[d->nid].type = s_node_vid_dec;
+  dt_connector_copy(graph, module, 0, d->nid, 0);
   // will be copied over from module. in fact setting it on the node is ineffective:
-  // graph->node[d->nid].connector[0].flags = s_conn_protected; // don't overwrite our old frames
-  dt_connector_copy(graph, module, 0, d->nid, 1);
+  graph->node[d->nid].connector[0].flags = s_conn_protected; // don't overwrite our old frames
 }
 
 uint32_t
