@@ -251,12 +251,12 @@ audio(
   threads_mutex_lock(&v->av_mutex);
   // double pts_our = module->graph->frame / v->fps;
   // double time_base = av_q2d(v->audio.av_stream->time_base);
-  fprintf(stderr, "process snd for frame %d cache %d pos %d\n", module->graph->frame, v->arb.rdi, v->arb.rpos);
   while(res < size)
   {
     AVFrame *frame = v->arb.frame[v->arb.rdi];
     if(!frame) goto out;
     if(v->arb.rdi == v->arb.wri) goto out;
+  fprintf(stderr, "process snd for frame %d cache %d pos %d ts %ld stride %d\n", module->graph->frame, v->arb.rdi, v->arb.rpos, frame->pts, v->audio_stride);
 #if 0
     // FIXME: apparently sometimes there are video frames in the stream like mad and audio lags significantly.
     // TODO: also check video lag (timestamps vs graph frame). do we need some warmup phase?
