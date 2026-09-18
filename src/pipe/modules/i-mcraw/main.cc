@@ -33,6 +33,7 @@ struct buf_t
   dt_image_metadata_dngop_t dngop;
   dt_dng_opcode_list_t     *oplist;
   dt_dng_gain_map_t        *gainmap[4];
+  int64_t sample_pos;  // position in audio stream
 };
 
 #if 0
@@ -242,7 +243,7 @@ void modify_roi_out(
     .aperture       = cmeta["apertures"][0],
     .iso            = 100.0f, // this is per frame really
     .focal_length   = cmeta["focalLengths"][0],
-    .snd_format     = 2, // ==SND_PCM_FORMAT_S16_LE,
+    .snd_format     = 0x103, // == SPA_AUDIO_FORMAT_S16_LE,
     .snd_channels   = dat->dec->numAudioChannels(),
     .snd_samplerate = dat->dec->audioSampleRateHz(),
 
@@ -448,11 +449,10 @@ int read_source(
   return 0;
 }
 
-int audio(
-    dt_module_t  *mod,
-    uint64_t      sample_beg,
-    uint32_t      sample_cnt,
-    uint8_t     **samples)
+uint32_t audio(
+    dt_module_t *mod,
+    uint8_t    **buf,
+    uint32_t     size)
 {
   buf_t *dat = (buf_t *)mod->data;
   if(!dat || !dat->filename[0]) return 0;
@@ -461,16 +461,23 @@ int audio(
   int pid_start = dt_module_get_param(mod->so, dt_token("start"));
   int start = MAX(dt_module_param_int(mod, pid_start)[0], 0);
   int mxcnt = dat->dec->getFrames().size();
-  float t = start / (float)mxcnt;
 
-  int channels   = dat->dec->numAudioChannels();
-  int chunk_size = dat->audio_chunks[0].second.size() / channels; // is in number of samples, but already vec<int16>
-  sample_beg += t * chunk_size * dat->audio_chunks.size();
+  int chunk_size = dat->audio_chunks[0].second.size() * sizeof(uint16_t);
+  double t = (mod->graph->frame + start)/(double)mxcnt; // fraction
+  int64_t sample_beg = (int64_t)(t * chunk_size * dat->audio_chunks.size()); // where the frame begins
+  int spf = 1.0/mxcnt * chunk_size * dat->audio_chunks.size(); // audio samples per frame
+
+  // if last thing is give or take same frame as requested, continue *exactly* from where we left off:
+  if(abs(dat->sample_pos - sample_beg) < 4*spf)
+    sample_beg = dat->sample_pos;
+
   int chunk_id   = CLAMP((int)(sample_beg / chunk_size), (int)0, (int)(dat->audio_chunks.size()-1));
   int chunk_off  = CLAMP((int)(sample_beg - chunk_id * chunk_size), (int)0, (int)(chunk_size-1));
   // find right audio chunk for frame by timestamp, i.e. audio_chunk.first (so far they seem to be always zero?)
-  *samples = (uint8_t*)(dat->audio_chunks[chunk_id].second.data() + chunk_off);
-
-  return MIN((int)sample_cnt, (int)(chunk_size - chunk_off));
+  // *samples = (uint8_t*)(dat->audio_chunks[chunk_id].second.data() + chunk_off);
+  size = MIN(size, (int)(chunk_size - chunk_off));
+  memcpy(buf[0], (uint8_t*)(dat->audio_chunks[chunk_id].second.data()) + chunk_off, size);
+  dat->sample_pos = sample_beg + size;
+  return size;
 }
 } // extern "C"

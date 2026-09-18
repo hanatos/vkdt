@@ -61,7 +61,6 @@ typedef struct dt_gui_state_t
 
   // animation state
   int   anim_playing;        // playing yes/no
-  int   anim_max_frame;      // last frame in animation
   int   anim_frame;          // current frame in animation
   int   anim_no_keyframes;   // used to temporarily switch off keyframes (during grabbed input for instance)
 }

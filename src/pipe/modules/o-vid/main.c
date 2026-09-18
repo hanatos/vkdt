@@ -14,6 +14,7 @@
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswresample/swresample.h>
+#include "../i-vid/fmtcnv.h"
 
 typedef struct output_stream_t
 { // a wrapper around a single output AVStream
@@ -22,7 +23,6 @@ typedef struct output_stream_t
 
   /* pts of the next frame that will be generated */
   int64_t next_pts;
-  uint64_t sample_pos; // used to compute time stamp for audio and query the audio module
   uint64_t sample_cnt; // how many samples written to output
 
   AVFrame *frame;
@@ -123,7 +123,6 @@ add_stream(
           AV_CODEC_CONFIG_SAMPLE_FORMAT,
           0, (const void**)&sample_fmts, 0);
       c->sample_fmt = sample_fmts && (sample_fmts[0] != AV_SAMPLE_FMT_NONE) ? sample_fmts[0] : AV_SAMPLE_FMT_S16;
-      // c->sample_fmt  = AV_SAMPLE_FMT_S16;
       c->bit_rate    = 64000;
       c->sample_rate = 48000;
       int *sample_rates = 0;
@@ -310,6 +309,7 @@ alloc_audio_frame(
     fprintf(stderr, "[o-vid] error allocating an audio buffer\n");
     return 0;
   }
+  fprintf(stderr, "allocated %d samples size %d\n", nb_samples, frame->linesize[0]);
   return frame;
 }
 
@@ -322,13 +322,24 @@ open_audio(
   buf_t *dat = mod->data;
   AVCodecContext *c;
   int nb_samples;
-  int ret;
   AVDictionary *opt = NULL;
 
   c = ost->enc;
 
   av_dict_copy(&opt, opt_arg, 0);
-  ret = avcodec_open2(c, codec, &opt);
+  // this is the frame as it comes from our audio module: we need to init it according to audio_mod img_param sound properties:
+  int src_fmt = dat->audio_mod < 0 ? 0 :
+    fmt_av_from_pw(mod->graph->module[dat->audio_mod].img_param.snd_format);
+  int src_sample_rate = dat->audio_mod < 0 ? 0 :
+    mod->graph->module[dat->audio_mod].img_param.snd_samplerate;
+  AVChannelLayout src_layout = dat->audio_mod < 0 ||
+    mod->graph->module[dat->audio_mod].img_param.snd_channels == 2 ?
+    (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO :
+    (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
+
+  c->time_base = ost->st->time_base;
+
+  int ret = avcodec_open2(c, codec, &opt);
   av_dict_free(&opt);
   if (ret < 0)
   {
@@ -336,20 +347,8 @@ open_audio(
     return;
   }
 
-  nb_samples = c->frame_size;
-
+  nb_samples = 1024;
   ost->frame = alloc_audio_frame(c->sample_fmt, &c->ch_layout, c->sample_rate, nb_samples);
-  // this is the frame as it comes from our audio module: we need to init it according to audio_mod img_param sound properties:
-  int src_fmt = dat->audio_mod < 0 ? AV_SAMPLE_FMT_S16 :
-    mod->graph->module[dat->audio_mod].img_param.snd_format == 2 ? // TODO: support others
-    AV_SAMPLE_FMT_S16 : 0;
-  int src_sample_rate = dat->audio_mod < 0 ? 48000 :
-    mod->graph->module[dat->audio_mod].img_param.snd_samplerate;
-
-  AVChannelLayout src_layout = dat->audio_mod < 0 ||
-    mod->graph->module[dat->audio_mod].img_param.snd_channels == 2 ?
-    (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO :
-    (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
   ost->tmp_frame = alloc_audio_frame(src_fmt, &src_layout, src_sample_rate, nb_samples);
 
   /* copy the stream parameters to the muxer */
@@ -364,24 +363,19 @@ open_audio(
     (av_channel_layout_compare(&src_layout, &c->ch_layout) ||
      src_sample_rate != c->sample_rate ||
      src_fmt != c->sample_fmt))
-  {
-    /* create resampler context */
+  { // create resampler context
     ost->swr_ctx = swr_alloc();
     if (!ost->swr_ctx)
     {
       fprintf(stderr, "[o-vid] could not allocate resampler context\n");
       return;
     }
-
-    /* set options */
     av_opt_set_chlayout  (ost->swr_ctx, "in_chlayout",       &src_layout,        0);
     av_opt_set_int       (ost->swr_ctx, "in_sample_rate",     src_sample_rate,   0);
     av_opt_set_sample_fmt(ost->swr_ctx, "in_sample_fmt",      src_fmt,           0);
     av_opt_set_chlayout  (ost->swr_ctx, "out_chlayout",      &c->ch_layout,      0);
     av_opt_set_int       (ost->swr_ctx, "out_sample_rate",    c->sample_rate,    0);
     av_opt_set_sample_fmt(ost->swr_ctx, "out_sample_fmt",     c->sample_fmt,     0);
-
-    /* initialize the resampling context */
     if ((ret = swr_init(ost->swr_ctx)) < 0)
     {
       fprintf(stderr, "[o-vid] failed to initialise the resampling context\n");
@@ -399,15 +393,6 @@ open_file(dt_module_t *mod)
   dat->audio_mod = -1;
   for(int i=0;i<mod->graph->num_modules;i++)
     if(mod->graph->module[i].name && mod->graph->module[i].so->audio) { dat->audio_mod = i; break; }
-  if(dat->audio_mod >= 0)
-  { // TODO: support others (and switch internal representation from alsa to ffmpeg?)
-    if(mod->graph->module[dat->audio_mod].img_param.snd_format != 2)
-      dat->audio_mod = -1;
-    if(mod->graph->module[dat->audio_mod].img_param.snd_samplerate != 48000)
-      dat->audio_mod = -1;
-    if(dat->audio_mod < 0)
-      fprintf(stderr, "[o-vid] no audio because unsupported format!\n");
-  }
   const char *basename  = dt_module_param_string(mod, 0);
   char filename[512];
   const int p_codec = dt_module_param_int(mod, 2)[0];
@@ -460,6 +445,7 @@ write_frame(
   if (ret < 0)
   {
     fprintf(stderr, "[o-vid] error sending a frame to the encoder: %s\n", av_err2str(ret));
+    assert(0);
     return 1;
   }
 
@@ -625,50 +611,51 @@ void write_sink(
     { // write audio frame
       output_stream_t *ost = &dat->audio_stream;
       AVCodecContext *c;
-      AVFrame *frame = ost->tmp_frame;
-      int ret;
       int dst_nb_samples;
 
       c = ost->enc;
+      const dt_image_params_t *param = &mod->graph->module[dat->audio_mod].img_param;
+      uint8_t **plane = alloca(sizeof(uint8_t*)*param->snd_channels);
+      int pc = param->snd_planar?1:MAX(2,param->snd_channels); // packed channels, max stereo
 
       // keep going encoding audio until we're ahead of / equal to video
       while(av_compare_ts(
             dat->video_stream.next_pts, dat->video_stream.enc->time_base,
-            dat->audio_stream.next_pts, dat->audio_stream.enc->time_base) > 0) // XXX is this the right time base for next_pts?
+            dat->audio_stream.next_pts, dat->audio_stream.enc->time_base) > 0)
       {
-        if(!ost->swr_ctx)
-          frame = ost->frame;
-
-        int src_nb_samples = frame->nb_samples;
-        while(src_nb_samples > 0)
+        AVFrame *frame = ost->tmp_frame;
+        if(!ost->swr_ctx) frame = ost->frame;
+        int src_nb_samples = frame->nb_samples; // per channel
+        int src_sample_rate = dat->audio_mod < 0 ? 0 :
+          mod->graph->module[dat->audio_mod].img_param.snd_samplerate;
+        int bps = av_get_bytes_per_sample(frame->format);
+        int size = src_nb_samples * bps * pc;
+        int off = 0;
+        while(size > 0)
         { // fill exactly the packet size we can get
-          uint16_t *samples = 0;
-          int sample_cnt = mod->graph->module[dat->audio_mod].so->audio(
+          for(int i=0;i<(param->snd_planar?param->snd_channels:1);i++)
+            plane[i] = frame->data[i] + off;
+          int written = mod->graph->module[dat->audio_mod].so->audio(
               mod->graph->module+dat->audio_mod,
-              ost->sample_pos,
-              src_nb_samples,
-              &samples);
-          if(!sample_cnt) goto no_more_audio;
-          // TODO: support other stereo/int16 configs!
-          memcpy(((int16_t*)frame->data[0]) + 2*(frame->nb_samples - src_nb_samples), samples, 2*sizeof(uint16_t)*sample_cnt);
-          ost->sample_pos += sample_cnt;
-          src_nb_samples -= sample_cnt;
+              plane, size);
+          if(!written && !off) goto no_more_audio;
+          if(!written &&  off) break;
+          off += written;
+          size -= written;
         }
-        frame->pts = ost->next_pts;
-        ost->next_pts += frame->nb_samples;
 
         if(ost->swr_ctx)
         {
           /* convert samples from native format to destination codec format, using the resampler */
           /* compute destination number of samples */
           dst_nb_samples = av_rescale_rnd(swr_get_delay(ost->swr_ctx, c->sample_rate) + frame->nb_samples,
-              c->sample_rate, c->sample_rate, AV_ROUND_UP);
+              c->sample_rate, src_sample_rate, AV_ROUND_UP);
           av_assert0(dst_nb_samples == frame->nb_samples);
 
           // when we pass a frame to the encoder, it may keep a reference to it
           // internally;
           // make sure we do not overwrite it here
-          ret = av_frame_make_writable(ost->frame);
+          int ret = av_frame_make_writable(ost->frame);
           if (ret < 0) return;
 
           /* convert to destination format */
@@ -680,18 +667,17 @@ void write_sink(
             fprintf(stderr, "[o-vid] error while resampling sound\n");
             return;
           }
-          frame = ost->frame;
 
-          frame->pts = av_rescale_q(ost->sample_cnt, (AVRational){1, c->sample_rate}, c->time_base);
+          ost->frame->pts = av_rescale_q(ost->sample_cnt, (AVRational){1, c->sample_rate}, c->time_base);
           ost->sample_cnt += dst_nb_samples;
+          write_frame(dat->oc, c, ost->st, ost->frame, ost->tmp_pkt);
         }
         else
         {
-          dst_nb_samples = frame->nb_samples;
-          ost->sample_cnt += dst_nb_samples;
+          frame->pts = av_rescale_q(ost->sample_cnt, (AVRational){1, c->sample_rate}, c->time_base);
+          ost->sample_cnt += frame->nb_samples / pc;
+          write_frame(dat->oc, c, ost->st, frame, ost->tmp_pkt);
         }
-
-        write_frame(dat->oc, c, ost->st, frame, ost->tmp_pkt);
       } // loop audio packets
 no_more_audio:;
     } // end audio frame

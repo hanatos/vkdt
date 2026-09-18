@@ -30,7 +30,7 @@ typedef enum threads_task_state_t
 }
 threads_task_state_t;
 
-// task to work on, task:thread is 1:1
+// task to work on
 typedef struct threads_task_t
 {
   atomic_uint     work_item;     // work item counter (if not referring to another task)
