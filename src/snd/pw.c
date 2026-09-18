@@ -89,6 +89,8 @@ task_snd_work(uint32_t item, void *data)
   pw_stream_destroy(snd->stream);
   pw_main_loop_destroy(snd->loop);
   snd->tid = -1;
+  snd->loop = 0;
+  snd->stream = 0;
 }
 
 int dt_snd_init(
@@ -144,7 +146,7 @@ void dt_snd_cleanup(dt_snd_t *snd)
 {
   dt_pw_t *pw = snd->handle;
   if(!pw) return;
-  if(pw->tid >= 0)
+  if(pw->tid >= 0 && pw->stream && pw->loop)
   {
     pw_main_loop_quit(pw->loop);
     threads_wait(pw->tid);
