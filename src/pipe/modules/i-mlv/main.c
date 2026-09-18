@@ -18,6 +18,7 @@ typedef struct buf_t
 {
   char         filename[256]; // opened mlv if any
   mlv_header_t video;
+  int64_t      sample_pos;
 }
 buf_t;
 
@@ -134,7 +135,7 @@ void modify_roi_out(
     .iso            = dat->video.EXPO.isoValue,
     .focal_length   = dat->video.LENS.focalLength,
     .snd_samplerate = dat->video.WAVI.samplingRate,
-    .snd_format     = 2, // ==SND_PCM_FORMAT_S16_LE, // XXX use dat->video.WAVI.bytesPerSample
+    .snd_format     = 0x103, // == SPA_AUDIO_FORMAT_S16_LE,
     .snd_channels   = dat->video.WAVI.channels,
 
     .noise_a = 1.0, // gauss
@@ -211,21 +212,28 @@ int read_source(
   return read_frame(mod, mapped);
 }
 
-#if 0
-int audio(
-    dt_module_t  *mod,
-    uint64_t      sample_beg,
-    uint32_t      sample_cnt,
-    uint8_t     **samples)
+uint32_t audio(
+    dt_module_t *mod,
+    uint8_t    **buf,
+    uint32_t     size)
 {
   buf_t *dat = mod->data;
   if(!dat || !dat->filename[0] || !dat->video.audio_data || !dat->video.audio_size)
     return 0;
   int bytes_per_sample = dat->video.WAVI.bytesPerSecond / dat->video.WAVI.samplingRate;
-  *samples = dat->video.audio_data + sample_beg * bytes_per_sample;
-  if(*samples >= dat->video.audio_data + dat->video.audio_size) return 0;
 
-  return MIN(sample_cnt, 
-    MAX(0, dat->video.audio_data + dat->video.audio_size - *samples))/bytes_per_sample;
+  int start = 0;
+  double t = (mod->graph->frame + start)/(double)dat->video.MLVI.videoFrameCount;
+  int64_t sample_beg = (int64_t)(t * dat->video.audio_size);
+  int spf = bytes_per_sample * dat->video.WAVI.samplingRate / dat->video.frame_rate; // audio bytes per frame
+
+  // if last thing is give or take same frame as requested, continue *exactly* from where we left off:
+  if(labs(dat->sample_pos - sample_beg) < 4*spf)
+    sample_beg = dat->sample_pos;
+
+  if(dat->video.audio_size <= sample_beg) return 0;
+  size = MIN(size, (int)(dat->video.audio_size - sample_beg));
+  memcpy(buf[0], (uint8_t*)(dat->video.audio_data + sample_beg), size);
+  dat->sample_pos = sample_beg + size;
+  return size;
 }
-#endif
