@@ -19,7 +19,7 @@ triangle at the bottom to compare):
 
 ## parameters
 
-* `detail` modulate wavelet details at every scale, coarse (left) to fine (right), hold shift to lockstep
+* `detail` modulate wavelet details at every scale, coarse (top) to fine (bottom)
 * `edges` how much to preserve edges in the process. set to zero for unconstrained blur
 
 ## connectors
