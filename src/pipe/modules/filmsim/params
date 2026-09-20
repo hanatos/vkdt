@@ -47,3 +47,4 @@ scan ill:float:1:5000
 scne ill:float:1:0
 film ill:float:1:0
 pad:float:1:0
+input:int:1:0

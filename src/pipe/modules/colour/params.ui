@@ -1,4 +1,4 @@
-exposure:slider:-5:5
+exposure:slider:-15:15
 sat:slider:0.0:3.0
 picked:combo:ignore:white balance:deflicker:both:temp
 matrix:combo:rec2020:image:XYZ:rec709:clut

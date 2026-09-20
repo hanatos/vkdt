@@ -15,6 +15,7 @@
 #include "core/clip.h"
 #include "core/half.h"
 #include "core/threads.h"
+#include "clut/src/spectrum.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -25,6 +26,10 @@
 const int res = 1024;
 const int max_l = CIE_SAMPLES*2;
 const int incres = 8.0;//64.0;
+
+double cfa_spec[1000][4];
+int cfa_spec_cnt = 0;
+double cfa_norm = 1.0;
 
 void parallel_run(uint32_t item, void *data)
 {
@@ -46,6 +51,7 @@ void parallel_run(uint32_t item, void *data)
 
     double X, Y, Z;
     X = Y = Z = 0.0;
+    // XXX TODO adjust these ranges to the loaded spectrum dimensions!
     for(int l=0;l<5*CIE_SAMPLES;l++)
     {
       const float ll = l / (5.0f*CIE_SAMPLES - 1.0f);
@@ -59,9 +65,18 @@ void parallel_run(uint32_t item, void *data)
       { // dip
         if(lambda <= lambda1 || lambda > lambda0) p = 1.0f;
       }
-      X += p * cie_x[l/5] * 1.0f/106.89;
-      Y += p * cie_y[l/5] * 1.0f/106.89;
-      Z += p * cie_z[l/5] * 1.0f/106.89;
+      if(cfa_spec_cnt)
+      {
+        X += p * cfa_norm * spectrum_interp(cfa_spec, cfa_spec_cnt, 0, lambda);
+        Y += p * cfa_norm * spectrum_interp(cfa_spec, cfa_spec_cnt, 1, lambda);
+        Z += p * cfa_norm * spectrum_interp(cfa_spec, cfa_spec_cnt, 2, lambda);
+      }
+      else
+      {
+        X += p * cie_x[l/5] * 1.0f/106.89;
+        Y += p * cie_y[l/5] * 1.0f/106.89;
+        Z += p * cie_z[l/5] * 1.0f/106.89;
+      }
     }
 
     const float b = X+Y+Z;
@@ -88,7 +103,32 @@ void parallel_run(uint32_t item, void *data)
 
 int main(int argc, char *argv[])
 {
+  const char *ssf_filename = 0;
+  if(argc > 1) ssf_filename = argv[1];
   float *buf = calloc(sizeof(float), 4*res*res);
+
+  if(ssf_filename)
+  {
+    cfa_spec_cnt = spectrum_load(ssf_filename, cfa_spec);
+    if(!cfa_spec_cnt)
+    {
+      fprintf(stderr, "could not load %s\n", ssf_filename);
+      exit(1);
+    }
+#if 1 // normalise to unit integral:
+    double cf[3] = {0,0,1}; // constant spectrum 0.85 or so
+    double cfa_r = spectrum_integrate(cfa_spec, 0, cfa_spec_cnt, cf, 3);
+    double cfa_g = spectrum_integrate(cfa_spec, 1, cfa_spec_cnt, cf, 3);
+    double cfa_b = spectrum_integrate(cfa_spec, 2, cfa_spec_cnt, cf, 3);
+    fprintf(stderr, "cfa norms: %g %g %g\n", cfa_r, cfa_g, cfa_b);
+    cfa_norm = 1.0/MAX(cfa_r, MAX(cfa_g, cfa_b));
+#endif
+#if 0 // normalise to max 1 (such as cie cmf)
+    double mv = 0.0;
+    for(int i=0;i<cfa_spec_cnt;i++) mv = MAX(mv, cfa_spec[2][i]);
+    cfa_norm = 1.0 / mv;
+#endif
+  }
 
   // threads_global_init();
   const uint32_t work_item_cnt = incres * (max_l/2-1)+1;
@@ -112,14 +152,16 @@ int main(int argc, char *argv[])
   };
   dt_inpaint(&inpaint_buf);
 
-  // clear out of gamut values again
-  for(int j=0;j<res;j++)
-    for(int i=0;i<res;i++)
-      if(dt_spectrum_outside(
-            (i+.5) / (float)res,
-            (j+.5) / (float)res))
-        for(int c=0;c<3;c++)
-          buf[4*(j*res+i)+c] = 0.0f;
+  if(!ssf_filename)
+  { // clear out of gamut values again. only if we're working in cie xyz.
+    for(int j=0;j<res;j++)
+      for(int i=0;i<res;i++)
+        if(dt_spectrum_outside(
+              (i+.5) / (float)res,
+              (j+.5) / (float)res))
+          for(int c=0;c<3;c++)
+            buf[4*(j*res+i)+c] = 0.0f;
+  }
 
   // blur 5x5 to smooth over cmf resolution
   float *smooth = calloc(sizeof(float), res*res);
@@ -164,23 +206,13 @@ int main(int argc, char *argv[])
     .wd       = res,
     .ht       = res,
   };
-  FILE *f = fopen("macadam.lut", "wb");
+  FILE *f = fopen(ssf_filename ? "macadam-cam.lut" : "macadam.lut", "wb");
   if(f)
   {
     fwrite(&head, sizeof(head), 1, f);
     fwrite(b16, size, 1, f);
     fclose(f);
   }
-#if 0 // debug, can look at this with eu:
-  FILE *pfm = fopen("macadam.pfm", "wb");
-  if(pfm)
-  {
-    fprintf(pfm, "PF\n%d %d\n-1.0\n", res, res);
-    for(int k=0;k<res*res;k++) for(int c=0;c<3;c++)
-      fwrite(smooth+k, sizeof(float), 1, pfm);
-    fclose(pfm);
-  }
-#endif
   free(b16);
   free(smooth);
   // threads_global_cleanup();

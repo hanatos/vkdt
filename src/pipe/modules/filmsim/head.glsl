@@ -70,6 +70,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float scene_ill;
   float film_ill;
   float pad0; // pads the block out to a whole number of vec4s
+  int   input_colour;
 } params;
 const int s_paper_offset = 22; // first paper in data list/lut; == len(film_stocks) in mklut-profiles.py
 

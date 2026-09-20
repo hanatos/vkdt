@@ -7,9 +7,10 @@ void tri2quad(inout vec2 tc)
   tc.x = (1.0-tc.x)*(1.0-tc.x);
 }
 
-vec4 fetch_coeff(sampler2D img_coeff, vec3 rgb)
+vec4 fetch_coeff(
+    sampler2D img_coeff, // spectral upsampling table texture (see mkspectra)
+    vec3      xyz)       // xyz coordinate, depending on texture means CIE XYZ or camera rgb (replacing cmf with cfa ssf)
 {
-  vec3 xyz = matrix_rec2020_to_xyz * rgb;
   float b = dot(vec3(1),xyz);
   vec2 tc = xyz.xy/b;
   tri2quad(tc);

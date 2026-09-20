@@ -220,6 +220,7 @@ block) and print paper options (second block).
 * `scan ill` colour temperature (K) of the viewing/scanning illuminant. 5000 (D50) is the neutral reference setting
 * `scne ill` colour temperature (K) of the light the scene was shot under, for correcting an unbalanced capture back to neutral. 0 is no correction; below 4000K it is modelled as a blackbody, at or above 4000K as CIE daylight.
 * `film ill` colour temperature (K) to expose the film under instead of its own reference, for simulating a mismatched film/light combo (independent of `scne ill`). 0 is no effect (shot under the stock's own reference); below 4000K it is modelled as a blackbody, at or above 4000K as CIE daylight.
+* `input` colour space of the input. either bt2020 (after a colour module) or straight camera rgb (after denoise or crop). wire either the spectral upsampling table for bt2020 or a table specifically created for the spectral sensitivity functions of your camera to the spectra connector.
 
 ## licence
 

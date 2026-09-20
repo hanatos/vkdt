@@ -75,3 +75,4 @@ enlarge:combo:1x resolution:2x resolution:4x resolution
 scan ill:slider:2000:10000
 pad_cp:hidden
 pad:hidden
+input:combo:bt2020:camera rgb

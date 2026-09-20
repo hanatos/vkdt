@@ -149,7 +149,7 @@ dt_adam(
     void (*f_callback)(double *p, double *f, int m, int n, void *data),
     void (*J_callback)(double *p, double *J, int m, int n, void *data),
     double       *p,      // initial paramters, will be overwritten
-    const double *t,      // target values
+    const double *t,      // target value (if loss < that, we are done)
     const int     m,      // number of parameters
     const int     n,      // number of data points
     const double *lb,     // m lower bound constraints
@@ -183,6 +183,7 @@ dt_adam(
       best = f[0];
       memcpy(bp, p, sizeof(double)*m);
     }
+    if(f[0] < t[0]) break;
 #if 0
     else if(bad++ > 200)
     {
@@ -209,11 +210,11 @@ dt_adam(
     // fprintf(stderr, "[solve] adam: m: ");
     // for(int i=0;i<m;i++) fprintf(stderr, "%g ", mt[i]);
     // fprintf(stderr, "\n");
-    fprintf(stderr, "[solve %d/%d] adam: loss %g best %g\r", it, num_it, f[0], best);
+    // fprintf(stderr, "[solve %d/%d] adam: loss %g best %g\r", it, num_it, f[0], best);
     // if(f[0] <= 0.0) return f[0];
     if(abort && *abort) break;
   }
-  fprintf(stderr, "\n");
+  // fprintf(stderr, "\n");
 #if 1 // for stochastic gradient descent this is questionable. may only return whatever happened to be good for the subset seen at the time:
   if(best < f[0])
   {
