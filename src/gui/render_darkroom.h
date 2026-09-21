@@ -1166,6 +1166,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       if(nk_button_label(ctx, string))
       {
         widget_end();
+        vkdt.graph_dev.runflags |= s_graph_run_record_cmd_buf;
         dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
       }
       nk_style_pop_style_item(ctx);
