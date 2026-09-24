@@ -34,13 +34,12 @@ main()
     vec3 rgb = vec3(0);
     uvec4 aabb = uvec4(params.spot[i] * textureSize(img_in, 0).xxyy);
 
-    float cnt = (aabb.y - aabb.x)*(aabb.w - aabb.z); // how many pixels in patch
-    float scale = 1.0/cnt;
+    uint cnt = (aabb.y - aabb.x + 1)*(aabb.w - aabb.z + 1); // how many pixels in patch
 
     // check whether we're inside the 2D AABB
     if(ipos.x >= aabb.x && ipos.x <= aabb.y &&
        ipos.y >= aabb.z && ipos.y <= aabb.w)
-      rgb = texelFetch(img_in, ipos, 0).rgb * scale;
+      rgb = texelFetch(img_in, ipos, 0).rgb / cnt;
 
     subgroupBarrier();
     rgb = subgroupAdd(rgb);
