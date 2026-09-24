@@ -141,6 +141,7 @@ dt_db_accept_filename(
          !strcasecmp(f2, ".dng") ||
          !strcasecmp(f2, ".raf") ||
          !strcasecmp(f2, ".rw2") ||
+         !strcasecmp(f2, ".rwl") || // some leicas (same container as rw2)
          !strcasecmp(f2, ".lut") || // vkdt luts
          !strcasecmp(f2, ".bc1") || // vkdt thumbnails
          !strcasecmp(f2, ".pfm") || // floating point dumps
