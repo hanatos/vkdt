@@ -354,10 +354,14 @@ void modify_roi_out(
     mod->img_param.filters = 0;
     mod->connector[0].chan = dt_token("rgba");
   }
-  else if(mod->img_param.filters != 9u)
-    mod->img_param.filters = rawspeed::ColorFilterArray::shiftDcrawFilter(
-        mod_data->d->mRaw->cfa.getDcrawFilter(),
-        cropTL.x, cropTL.y);
+  else
+  {
+    mod->connector[0].chan = dt_token("rggb");
+    if(mod->img_param.filters != 9u)
+      mod->img_param.filters = rawspeed::ColorFilterArray::shiftDcrawFilter(
+          mod_data->d->mRaw->cfa.getDcrawFilter(),
+          cropTL.x, cropTL.y);
+  }
 
   // now we need to account for the pixel shift due to an offset filter:
   dt_roi_t *ro = &mod->connector[0].roi;
