@@ -20,7 +20,7 @@
 #include "shared/q2t.h"
 #include "core/half.h"
 #include "core/core.h"
-#include "shared/xrand.h"
+#include "core/xrand.h"
 
 int use_bad_cmf = 0;
 // for fast gpu conversion, we use the abbridged versions of the cie functions:
