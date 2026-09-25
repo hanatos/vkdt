@@ -226,7 +226,7 @@ write_descriptor_sets(
         {
           int frame = MIN(f, graph->node[owner.i].connector[owner.c].frames-1);
           if(c->flags & s_conn_feedback)
-          { // feedback connections cross the frame wires:
+          { // feedback connections cross the frame wires on the input:
             frame = 1-f;
             // this should be ensured during connection:
             assert(c->frames == 2); 
@@ -677,7 +677,7 @@ alloc_descriptor_sets(dt_graph_t *graph, dt_node_t *node)
       .range       = node->module->uniform_size ? node->module->uniform_size : graph->uniform_global_size,
     },{
       .buffer      = graph->uniform_buffer,
-      .offset      = graph->uniform_size + node->bref_size ? node->bref_offset : 0,
+      .offset      = graph->uniform_size + (node->bref_size ? node->bref_offset : 0),
       .range       = node->bref_size ? node->bref_size : graph->uniform_global_size,
     }};
     VkWriteDescriptorSet buf_dset[] = {{
@@ -1528,18 +1528,26 @@ dt_graph_run_nodes_allocate(
     for(int i=0;i<cnt;i++)
     {
       const int nid = nodeid[i];
-      int j = 0;
-      for(int f=0;f<2;f++) for(int cid=0;cid<graph->node[nid].num_connectors;cid++)
-      { // don't support ssbo arrays
-        if(dt_connector_ssbo(graph->node[nid].connector+cid))
-        {
-          dt_connector_image_t *img = dt_graph_connector_image(graph, nid, cid, 0, f);
-          VkBufferDeviceAddressInfo address_info = {
-            .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
-            .buffer = img->buffer,
-          };
-          int idx = (f*graph->uniform_size + graph->node[nid].bref_offset)/sizeof(uint64_t) + j++;
-          map[idx] = vkGetBufferDeviceAddress(qvk.device, &address_info);
+      for(int f=0;f<2;f++)
+      { // write both uniform blocks
+        int j = 0;
+        for(int cid=0;cid<graph->node[nid].num_connectors;cid++) // all connectors
+        { // don't support ssbo arrays
+          if(dt_connector_ssbo(graph->node[nid].connector+cid))
+          {
+            int dbuf = f;
+            if(dt_connector_input(graph->node[nid].connector+cid) &&
+                graph->node[nid].connector[cid].frames > 1 &&
+                graph->node[nid].connector[cid].flags & s_conn_feedback)
+                dbuf = 1-f;
+            dt_connector_image_t *img = dt_graph_connector_image(graph, nid, cid, 0, dbuf);
+            VkBufferDeviceAddressInfo address_info = {
+              .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+              .buffer = img->buffer,
+            };
+            int idx = (f*graph->uniform_size + graph->node[nid].bref_offset)/sizeof(uint64_t) + j++;
+            map[idx] = vkGetBufferDeviceAddress(qvk.device, &address_info);
+          }
         }
       }
     }

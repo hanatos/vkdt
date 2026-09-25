@@ -94,7 +94,8 @@ dt_graph_run_nodes_upload(
           const int c = 0;
           // remember that we need to copy staging -> ssbo in the command buffer:
           if(run_node && !(node->connector[c].array_length > 1))
-            if(node->module->flags & s_module_request_read_source)
+            if((node->module->flags & s_module_request_read_source) ||
+               (node->flags & s_module_request_read_source))
               node->flags |= s_module_request_copy_staging;
           if(run_node || (dynamic_array && (node->connector[c].flags & s_conn_dynamic_array)))
           {

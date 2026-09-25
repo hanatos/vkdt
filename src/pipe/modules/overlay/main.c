@@ -167,7 +167,6 @@ void modify_roi_out(
     dt_module_t *module)
 {
   module->connector[0].roi = (dt_roi_t){ .full_wd = 1024, .full_ht = 1024, .marker = s_roi_mark_dontcare };
-  commit_params(graph, module); // call once to init vertex lists
   overlay_t *ov = module->data;
   const int pid_font = dt_module_get_param(module->so, dt_token("font"));
   const char *p_font = dt_module_param_string(module, pid_font);
@@ -330,4 +329,6 @@ create_nodes(
   dt_connector_copy(graph, module, 0, id_overlay, 2);
   graph->node[id_overlay].connector[2].flags |= s_conn_clear; // we rasterise only the glyphs, need to clear the bg
   graph->node[id_vtx].flags |= s_module_request_read_source;
+  commit_params(graph, module); // call once to init strings
+  commit_params(graph, module); // call once more to propagate to vertex counts
 }
