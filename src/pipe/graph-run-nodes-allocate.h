@@ -13,6 +13,12 @@
 // fixed-size sub-allocator that makes aliasing in further pipeline processing
 // impossible, so it is only really useful for dynamic texture caches that go
 // directly from CPU to the consumer node.
+//
+// feedback connections: employ a double buffered resource to route previously
+// written data back as input in the next frame of an animation. the contract is:
+// * modules write straight to their double buffer index (dbuf).
+//   that also means if the s_conn_clear flag is set it clears the straight dbuf before writing.
+// * modules read with wires crossed (1-dbuf) in case of a feedback connection.
 
 static inline VkFormat
 dt_connector_vkformat(const dt_connector_t *c)

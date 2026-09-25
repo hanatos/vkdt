@@ -107,16 +107,12 @@ record_command_buffer(dt_graph_t *graph, dt_node_t *node, int runflag)
         for(int k=0;k<MAX(1,node->connector[i].array_length);k++)
         {
           VkBuffer buf = dt_graph_connector_image(graph, node-graph->node, i, k,
-              (node->connector[i].flags & s_conn_feedback) ?
-              1-(graph->double_buffer & 1) :
               graph->double_buffer)->buffer;
           vkCmdFillBuffer(cmd_buf, buf, 0, VK_WHOLE_SIZE, 0);
           BARRIER_COMPUTE_BUFFER(buf);
           if((node->connector[i].flags & s_conn_clear_once) && graph->frame == 0)
-          { // at startup, also clear double buffer
+          { // at startup, also clear the other double buffer
             VkBuffer buf = dt_graph_connector_image(graph, node-graph->node, i, k,
-                (node->connector[i].flags & s_conn_feedback) ?
-                graph->double_buffer :
                 1-(graph->double_buffer & 1))->buffer;
             vkCmdFillBuffer(cmd_buf, buf, 0, VK_WHOLE_SIZE, 0);
             BARRIER_COMPUTE_BUFFER(buf);
