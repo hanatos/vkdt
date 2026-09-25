@@ -8,6 +8,7 @@
 #include "db/hash.h"
 #include "db/exif.h"
 #include "core/fs.h"
+#include "core/xrand.h"
 #include "pipe/graph-defaults.h"
 #include "gui/render_view.h"
 #include "gui/hotkey.h"
@@ -1631,7 +1632,7 @@ void lighttable_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepads
   int sign = ay > 0 ? 1 : -1;
 #define SMOOTH(X) MAX(0.0f, fabsf(X) - 0.05f)
   float df = 80*sensitivity * SMOOTH(ay); // 100 rows per second if fully extended
-  if(df > drand48()) // also move for super fast frame rates
+  if(df > xrand()) // also move for super fast frame rates
   {
     int delta = sign * (int)(df+1.0);
     if(g_image_cursor < 0) g_image_cursor = -2;

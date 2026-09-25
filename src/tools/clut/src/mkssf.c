@@ -2,6 +2,7 @@
 #include "core/solve.h"
 #include "core/lut.h"
 #include "core/fs.h"
+#include "core/xrand.h"
 #include "cie1931.h"
 #include "cc24.h"
 #include "sigmoid.h"
@@ -9,7 +10,6 @@
 #include "matrices.h"
 #include "dngproc.h"
 #include "cfa.h"
-#include "xrand.h"
 #include "upsample.h"
 
 // global configuration:

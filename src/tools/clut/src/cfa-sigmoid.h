@@ -1,6 +1,6 @@
 #pragma once
 #include "sigmoid.h"
-#include "xrand.h"
+#include "core/xrand.h"
 
 static inline void
 cfa_sigmoid_init(

@@ -4,7 +4,7 @@
 #include "core/core.h"
 #include "core/solve.h"
 #include "spectrum.h"
-#include "xrand.h"
+#include "core/xrand.h"
 #include <stdlib.h>
 #include <stdio.h>
 // #define USE_LEVMAR
