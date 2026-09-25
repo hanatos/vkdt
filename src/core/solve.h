@@ -9,7 +9,7 @@
 #include <float.h>
 
 #include "core.h"
-#include "../tools/clut/src/xrand.h"
+#include "xrand.h"
 
 // conjugate gradient solve:
 static inline double

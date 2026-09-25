@@ -13,10 +13,10 @@
 #include <stdint.h>
 #include "core/core.h"
 #include "core/solve.h"
+#include "core/xrand.h"
 #include "spectrum.h"
 #include "cc24.h"
 #include "cie1931.h"
-#include "xrand.h"
 
 static uint32_t cfa_cnt;
 static double   cfa_buf[100][4];

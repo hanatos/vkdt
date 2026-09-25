@@ -1,5 +1,5 @@
 #pragma once
-#include "xrand.h"
+#include "core/xrand.h"
 
 static inline void
 cfa_plain_init(
