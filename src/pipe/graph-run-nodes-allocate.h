@@ -323,12 +323,12 @@ bind_buffers_to_memory(
   if(!dt_connector_owner(c)) return VK_SUCCESS;
   if(f > 0 && c->frames < 2) return VK_SUCCESS; // this is just a copy, not a real double buffer
   dt_connector_image_t *img = dt_graph_connector_image(graph, node - graph->node, c - node->connector, k, f);
-  // fprintf(stderr, "conn %"PRItkn" %"PRItkn" %"PRItkn" off %ld..%ld\n",
+  VkDeviceMemory mem = img->mem->memory->vkmem;
+  // fprintf(stderr, "conn %"PRItkn" %"PRItkn" %"PRItkn" off %ld..%ld vkmem %lx\n",
   //     dt_token_str(node->module->name),
   //     dt_token_str(node->module->inst),
   //     dt_token_str(node->kernel),
-  //     img->offset, img->offset + img->size);
-  VkDeviceMemory mem = img->mem->memory->vkmem;
+  //     img->offset, img->offset + img->size, mem);
   
   if(dt_connector_ssbo(c))
   { // storage buffer
@@ -593,7 +593,7 @@ alloc_alias_memory(dt_graph_t *graph, dt_node_t *node)
       c->offset_staging[0] = c->mem_staging->offset;
       c->offset_staging[1] = need_dbuf ? c->mem_staging->offset + mem_req.size : c->mem_staging->offset;
       // fprintf(stderr, "allocing staging dbuf %d %"PRItkn"_%"PRItkn"_%"PRItkn"@%d [%ld,%ld)\n",
-      //     need_dbuf, dt_token_str(node->module->name), dt_token_str(node->kernel), dt_token_str(c->name),
+      //     need_dbuf, dt_token_str(node->module->name), dt_token_str(node->module->inst), dt_token_str(c->name),
       //     0, c->mem_staging->offset, c->mem_staging->offset + staging_size);
     }
   }
