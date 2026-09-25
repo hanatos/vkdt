@@ -50,13 +50,14 @@
 
             buildInputs = with pkgs; [
               exiftool
-              alsa-lib
               ffmpeg
               glfw
               libjpeg
+              libjxl
               libmad
               libvorbis
               llvmPackages.openmp
+              pipewire
               vulkan-headers
               vulkan-loader
               vulkan-tools
