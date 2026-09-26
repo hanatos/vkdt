@@ -56,17 +56,17 @@ export VKDT_USE_V4L2
 
 # we use GPL3 code in the i-mlv magic lantern raw video input
 # module. if you don't want it, leave it disabled here. if
-# you want video, you probably also want VKDT_USE_ALSA=1, see below.
+# you want video, you probably also want VKDT_USE_PIPEWIRE=1, see below.
 VKDT_USE_MLV=1
 export VKDT_USE_MLV
 
 # to play the audio that comes with the mlv video, vkdt uses
 # alsa. this introduces an asound dependency. disable here:
-VKDT_USE_ALSA=$(eval VKDT_USE_ALSA := $$(shell pkg-config --libs alsa && echo 1 || echo 0))$(VKDT_USE_ALSA)
-export VKDT_USE_ALSA
-VKDT_ALSA_CFLAGS=$(eval VKDT_ALSA_CFLAGS := $$(shell pkg-config --cflags alsa))$(VKDT_ALSA_CFLAGS)
-VKDT_ALSA_LDFLAGS=$(eval VKDT_ALSA_LDFLAGS := $$(shell pkg-config --libs alsa))$(VKDT_ALSA_LDFLAGS)
-export VKDT_ALSA_CFLAGS VKDT_ALSA_LDFLAGS
+VKDT_USE_PIPEWIRE=$(eval VKDT_USE_PIPEWIRE := $$(shell pkg-config --libs libpipewire-0.3 &>/dev/null && echo 1 || echo 0))$(VKDT_USE_PIPEWIRE)
+export VKDT_USE_PIPEWIRE
+VKDT_PIPEWIRE_CFLAGS=$(eval VKDT_PIPEWIRE_CFLAGS := $$(shell pkg-config --cflags libpipewire-0.3))$(VKDT_PIPEWIRE_CFLAGS)
+VKDT_PIPEWIRE_LDFLAGS=$(eval VKDT_PIPEWIRE_LDFLAGS := $$(shell pkg-config --libs libpipewire-0.3))$(VKDT_PIPEWIRE_LDFLAGS)
+export VKDT_PIPEWIRE_CFLAGS VKDT_PIPEWIRE_LDFLAGS
 
 # build the i-mcraw loader module to load raw video from the motioncam app.
 # it has no additional dependencies but comes with several ten thousand lines of c++ code
@@ -79,8 +79,8 @@ export VKDT_USE_MCRAW
 FFMPEG_VERSION=$(shell ffmpeg -version | head -1 | cut -f 3 -d' ' | cut -d. -f1|tr -d 'n')
 VKDT_USE_FFMPEG=$(eval VKDT_USE_FFMPEG := $$(shell [ $(FFMPEG_VERSION) -gt 5 ] && echo 1 || echo 0))$(VKDT_USE_FFMPEG)
 export VKDT_USE_FFMPEG
-VKDT_AV_CFLAGS=$(eval VKDT_AV_CFLAGS := $$(shell pkg-config --cflags libavformat --cflags libavcodec --cflags libswresample))$(VKDT_AV_CFLAGS)
-VKDT_AV_LDFLAGS=$(eval VKDT_AV_LDFLAGS := $$(shell pkg-config --libs libavformat --libs libavcodec --libs libswresample))$(VKDT_AV_LDFLAGS)
+VKDT_AV_CFLAGS=$(eval VKDT_AV_CFLAGS := $$(shell pkg-config --cflags libavformat --cflags libavcodec --cflags libavutil))$(VKDT_AV_CFLAGS)
+VKDT_AV_LDFLAGS=$(eval VKDT_AV_LDFLAGS := $$(shell pkg-config --libs libavformat --libs libavcodec --libs libavutil))$(VKDT_AV_LDFLAGS)
 export VKDT_AV_CFLAGS VKDT_AV_LDFLAGS
 
 # where to find glfw for the gui:
@@ -113,9 +113,9 @@ export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS
 CC=clang
 CXX=clang++
 GLSLC=glslangValidator
-GLSLC_FLAGS=--target-env vulkan1.3
+GLSLC_FLAGS=--target-env vulkan1.4
 # GLSLC=glslc
-# GLSLC_FLAGS=--target-env=vulkan1.3
+# GLSLC_FLAGS=--target-env=vulkan1.4
 
 # optimised flags, you may want to use -march=x86-64 for distro builds.
 # it is set to "native" here to transparently support local arm builds for instance

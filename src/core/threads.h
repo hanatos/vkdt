@@ -27,7 +27,7 @@ extern _Thread_local threads_tls_t thr_tls;
 void threads_global_init();
 void threads_global_cleanup();
 
-// push a new task (task < threads_num()) with given function and argument.
+// push a new task (task < 10*threads_num()) with given function and argument.
 // one task is going to be worked on by one thread. if you want multiple threads
 // do the same job, call this multiple times and pass the same work_item
 // and done pointers.

@@ -13,15 +13,18 @@ typedef enum dt_node_type_t
   s_node_geometry   = 2,  // generates geometry for ray tracing
 //  s_node_raytracing = 4,  // ray traces
 //  s_node_animation  = 8,  // create/modify ray tracing geometry gpu side
+  s_node_vid_dec    = 16, // decode video
 }
 dt_node_type_t;
+
+typedef struct decode_video_t decode_video_t; // fwd declare
 
 typedef struct dt_node_t
 {
   dt_token_t            name;      // name of the node
   dt_token_t            kernel;    // modules/<name>/<kernel>.comp is the file name of the compute shader
 
-  dt_module_t          *module;  // reference back to module and class
+  dt_module_t          *module;    // reference back to module and class
 
   dt_connector_t        connector [DT_MAX_CONNECTORS];
   uint32_t              conn_image[DT_MAX_CONNECTORS]; // start offset for connector into graph's connector allocation pool

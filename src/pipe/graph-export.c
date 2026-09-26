@@ -236,6 +236,7 @@ dt_graph_export(
       dt_module_set_param_float(graph->module+mod_out[i], dt_token("quality"), param->output[i].quality);
   }
 
+#if 0
   int audio_mod = -1;
   uint16_t *audio_samples;
   for(int i=0;i<graph->num_modules;i++)
@@ -247,6 +248,7 @@ dt_graph_export(
   const int audio_bps = audio_mod < 0 ? 0 : graph->module[audio_mod].img_param.snd_channels * sizeof(int16_t);
   const int audio_spf = audio_mod < 0 ? 0 : graph->module[audio_mod].img_param.snd_samplerate / graph->frame_rate;
   uint64_t audio_pos = 0;
+#endif
 
   if(graph->frame_cnt > 1)
   {
@@ -254,6 +256,7 @@ dt_graph_export(
     dt_graph_apply_keyframes(graph);
     dt_graph_run(graph, s_graph_run_all
         ^(param->last_frame_only ? s_graph_run_download_sink : 0));
+#if 0 // TODO
     if(audio_f)
     {
       for(int audio_cnt=audio_spf;audio_cnt;)
@@ -265,6 +268,7 @@ dt_graph_export(
         audio_cnt -= delta; audio_pos += delta;
       }
     }
+#endif
     for(int f=1;f<graph->frame_cnt;f++)
     {
       if(param->p_abort && param->p_abort[0]) break; // abort signal triggered
@@ -298,6 +302,7 @@ dt_graph_export(
           s_graph_run_download_sink : 0) |
           s_graph_run_wait_done);
       if(res != VK_SUCCESS) goto done;
+#if 0 // TODO
       if(audio_f)
       {
         for(int audio_cnt=audio_spf;audio_cnt;)
@@ -309,13 +314,16 @@ dt_graph_export(
           audio_cnt -= delta; audio_pos += delta;
         }
       }
+#endif
       if(param->progress) param->progress();
       if(param->print_progress)
         fprintf(stderr, "\r[export] processing frame %d/%d", graph->frame, graph->frame_cnt-1);
     }
     if(param->print_progress) fprintf(stderr, "\n");
 done:
+#if 0
     if(audio_f) fclose(audio_f);
+#endif
     return res;
   }
   else
