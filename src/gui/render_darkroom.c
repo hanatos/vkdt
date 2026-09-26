@@ -530,8 +530,9 @@ void render_darkroom()
         }
 
         if(action >= 2)
-        { // read previous cfg or factory default cfg, first init modules to their default state:
-          for(uint32_t m=0;m<vkdt.graph_dev.num_modules;m++) dt_module_reset_params(vkdt.graph_dev.module+m);
+        { // read previous cfg or factory default cfg into an empty graph, so modules added since are gone too
+          dt_graph_repurpose(&vkdt.graph_dev);
+          vkdt.graph_dev.gui_attached = 1;
           dt_graph_read_config_ascii(&vkdt.graph_dev, graph_cfg);
         }
 
