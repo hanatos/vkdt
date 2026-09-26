@@ -213,6 +213,15 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
   { // active widget grabs controls
     if(action == GLFW_PRESS && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_CAPS_LOCK))
     { // abort all widget interaction
+      int modid = vkdt.wstate.active_widget_modid;
+      int parid = vkdt.wstate.active_widget_parid;
+      if(vkdt.graph_dev.module[modid].so->param[parid]->widget.type == dt_token("pers"))
+      { // perspective: put back the quad, rotation and crop saved at start
+        memcpy(vkdt.wstate.state, vkdt.wstate.state+14, sizeof(float)*8);
+        dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), vkdt.wstate.state[9]);
+        dt_module_set_param_float_n(vkdt.graph_dev.module+modid, dt_token("crop"), vkdt.wstate.state+10, 4);
+        vkdt.graph_dev.runflags = s_graph_run_all;
+      }
       widget_end();
     }
     else if(action == GLFW_PRESS && key == GLFW_KEY_ENTER)

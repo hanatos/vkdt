@@ -934,8 +934,9 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         vkdt.wstate.active_widget_parid = parid;
         vkdt.wstate.active_widget_parnm = 0;
         vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
-        // copy to quad state
+        // copy to quad state, and keep the original for escape
         memcpy(vkdt.wstate.state, v, sizeof(float)*8);
+        memcpy(vkdt.wstate.state+14, v, sizeof(float)*8);
         float rot = dt_module_param_float(vkdt.graph_dev.module+modid, dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("rotate")))[0];
         dt_module_set_param_float(vkdt.graph_dev.module+modid, dt_token("rotate"), 0.0f);
         vkdt.wstate.state[9] = rot;
