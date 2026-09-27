@@ -1473,9 +1473,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         vkdt.wstate.mapped = v; // map state
       }
     }
-    if(vkdt.wstate.mapped)
+    if(vkdt.wstate.mapped && vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
-      nk_labelf(ctx, NK_TEXT_LEFT, "%d/10000 verts", ((uint32_t *)vkdt.wstate.mapped)[0]);
+      nk_labelf(ctx, NK_TEXT_LEFT, "%d/%d verts", ((uint32_t *)vkdt.wstate.mapped)[0],
+          (int)(vkdt.wstate.mapped_size/sizeof(uint32_t) - 2)/2);
     }
     num = count;
   }
