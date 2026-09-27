@@ -1,0 +1,36 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: enable
+
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std140, set = 0, binding = 1) uniform params_t
+{
+  int channel;
+  int invert;
+} params;
+layout(push_constant, std140) uniform push_t { ivec2 net; int ch; } push;
+layout(std430, set = 1, binding = 0) readonly buffer buf_t { float16_t v[]; } buf;
+layout(set = 1, binding = 1) uniform writeonly image2D img_out;
+
+float mask(ivec2 p)
+{
+  p = clamp(p, ivec2(0), push.net-1);
+  const int c = clamp(params.channel, 0, push.ch-1);
+  return 1.0/(1.0 + exp(-float(buf.v[push.ch * (push.net.x * p.y + p.x) + c])));
+}
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  const vec2 pos = (ipos + 0.5) * vec2(push.net) / vec2(imageSize(img_out)) - 0.5;
+  const ivec2 p0 = ivec2(floor(pos));
+  const vec2 f = pos - p0;
+  float m = mix(
+      mix(mask(p0),              mask(p0 + ivec2(1, 0)), f.x),
+      mix(mask(p0 + ivec2(0, 1)), mask(p0 + ivec2(1, 1)), f.x), f.y);
+  if(params.invert != 0) m = 1.0 - m;
+  imageStore(img_out, ipos, vec4(m));
+}

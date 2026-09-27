@@ -100,6 +100,7 @@ also see the [list of presets shipped with vkdt](../../../doc/howto/presets/pres
 * [guided: guided filter blur module, useful for refining drawn masks](./guided/readme.md)
 * [inpaint: smooth reconstruction of masked out areas](./inpaint/readme.md)
 * [mask: create parametric masks from colour images for use with blending](./mask/readme.md)
+* [segment: masks of people, sky, vegetation, buildings and more, using a neural network](./segment/readme.md)
 * [select: select an object by clicking on it, using a neural network](./select/readme.md)
 * [wavelet: skin retouching](./wavelet/readme.md)
 
