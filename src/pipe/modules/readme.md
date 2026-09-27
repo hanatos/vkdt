@@ -240,6 +240,8 @@ the ui supports the following widgets
 * `slider` takes `min:max` as range argument
 * `vslider` a vertical slider. takes `min:max` as range argument
 * `callback` a special button that triggers the `ui_callback` function in the module
+* `click` add to or remove from a selection by clicking on the image, drag a box
+  around the object into the `box` parameter of the same module
 * `colour` 
 * `combo` a combobox. takes the `:`-separated list of string entries as argument
 * `crop` the crop tool of the crop/rotate module
