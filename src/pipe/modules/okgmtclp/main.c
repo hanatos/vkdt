@@ -11,23 +11,25 @@ input(
   float *l = (float *)dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("dspyl")));
   float *c = (float *)dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("dspyc")));
 
-  static bool active = false;
+  // static bool active = false;
+  static int active = -1;
 
   if(p->type == 1)
   { // mouse button
     if(p->action == 1)
     { // if button pressed and point selected, mark it as active
-      active = true;
+      active = 1;
     }
-    else if(p->action == 0 && p->mbutton == 0 && active)
+    else if(p->action == 0 && p->mbutton == 0 && active != -1)
     { // released after selection
-      active = false;
+      active = -1;
+      return s_graph_run_record_cmd_buf;
     }
-    else active = false; // no mouse down no active vertex
+    else active = -1; // no mouse down no active vertex
   }
   else if(p->type == 2)
   { // mouse position
-    if(active)
+    if(active != -1)
     { // move active point around
       float l_max = 1.0f;
       float l_min = 0.0f;

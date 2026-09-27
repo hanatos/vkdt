@@ -22,7 +22,6 @@
  */
 
 
-// #include "common.glsl"
 #include "common-precomp.glsl"
 
 vec2 gamut_clip_preserve_chroma(float a_, float b_, float L1, float C1)

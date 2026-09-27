@@ -119,6 +119,21 @@ optional (configure in `bin/config.mk`):
 
 you can also build without rawspeed or rawler if that is useful for you.
 
+### fedora
+
+```
+sudo dnf install vulkan-tools glslang-tools libvulkan-devel glfw-devel libjpeg-turbo-devel alsa-lib-devel clang make pkg-config
+```
+
+for raw support, install either:
+```
+sudo dnf install rawspeed-devel pugixml-devel libomp-devel libexiv2-devel
+```
+
+or rust toolchain for rawler. for video support:
+```
+sudo dnf install ffmpeg-devel
+```
 
 ## faq
 * **which platforms are supported**
