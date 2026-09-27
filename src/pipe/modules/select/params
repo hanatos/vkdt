@@ -1,0 +1,5 @@
+click:float:64:0
+box:float:4:-1:-1:-1:-1
+draw:int:8192:0
+radius:float:1:0.02
+zoom:int:1:1
