@@ -183,6 +183,7 @@ decode_video_copy_img_cmd(
     dt_node_t      *node,
     AVFrame        *frame)
 {
+  if(!qvk.video_supported) return 1;
   AVHWFramesContext *frames = (AVHWFramesContext *)v->video.av_ctx->hw_frames_ctx->data;
   AVVulkanFramesContext *vk = (AVVulkanFramesContext *)frames->hwctx;
   AVVkFrame       *vk_frame = (AVVkFrame *)frame->data[0];
@@ -401,6 +402,7 @@ decode_video_graph_run_pre_node(
     dt_graph_t     *graph,
     dt_node_t      *node)
 {
+  if(!qvk.video_supported) return 1;
 again:;
 #if 1
   { // XXX DEBUG run inline instead of in decoder thread:
@@ -426,6 +428,7 @@ again:;
 void
 decode_video_stop(decode_video_t *v)
 {
+  if(!qvk.video_supported) return;
   // TODO threading stuff:
   // if(v->decode_tid < 0) return; // XXX race condition?
   // threads_wait(v->decode_tid);
@@ -437,6 +440,7 @@ decode_video_stop(decode_video_t *v)
 void
 decode_seek(decode_video_t *v, double ts)
 {
+  if(!qvk.video_supported) return;
   if (!v->av_format_ctx) return;
   if (ts < 0.0) ts = 0.0;
   int64_t target_ts = (int64_t)(AV_TIME_BASE * ts);

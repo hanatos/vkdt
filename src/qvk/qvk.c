@@ -207,6 +207,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   VkPhysicalDevice *devices = alloca(sizeof(VkPhysicalDevice) *num_devices);
   QVKR(vkEnumeratePhysicalDevices(qvk.instance, &num_devices, devices));
 
+  qvk.video_supported = 0;
   qvk.raytracing_supported = 0;
   qvk.subgroup_size_control_supported = 0;
   qvk.shader64bit_indexing_supported = 0;
@@ -339,7 +340,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     }
   }
   
-  int vid_dec_family_index = queue_family_index;
+  int vid_dec_family_index = -1;
   for(int i = 0; i < num_queue_families; i++)
   {
     if(queue_families[i].queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR)
@@ -485,8 +486,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
 #ifdef __APPLE__
   qvk.dev_extension[len++] = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
 #endif
-  int vid_dec = 1;
-  if(vid_dec)
+  if(qvk.queue_family_vid_dec >= 0)
   {
     qvk.dev_extension[len++] = VK_KHR_VIDEO_QUEUE_EXTENSION_NAME;
     qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME;
@@ -494,6 +494,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME;
     qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME;
     // qvk.dev_extension[len++] = VK_KHR_INTERNALLY_SYNCHRONIZED_QUEUES_EXTENSION_NAME;
+    qvk.video_supported = 1;
   }
   if(window) qvk.dev_extension[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
   if(enable_hdr_wsi) qvk.dev_extension[len++] = VK_EXT_HDR_METADATA_EXTENSION_NAME;
@@ -511,7 +512,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       .queueFamilyIndex = qvk.queue_family_compute,
     };
   }
-  if(qvk.queue_family_vid_dec != qvk.queue_family_graphics)
+  if(qvk.queue_family_vid_dec >= 0 && qvk.queue_family_vid_dec != qvk.queue_family_graphics)
   {
     queue_create_infos[num_queue_create_infos++] = (VkDeviceQueueCreateInfo) {
       .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -548,7 +549,9 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       qvk.queue[k].family = qvk.queue_family_compute;
       dt_log(s_log_qvk, "queue %d is idx %d family %d (async compute)", k, qvk.qid[k], qvk.queue_family_compute);
     }
-    else if(k == s_queue_vid_dec && qvk.queue_family_vid_dec != qvk.queue_family_graphics)
+    else if(k == s_queue_vid_dec &&
+        qvk.queue_family_vid_dec >= 0 &&
+        qvk.queue_family_vid_dec != qvk.queue_family_graphics)
     {
       qvk.queue[k].idx = 0;
       qvk.queue[k].num = queue_vid_dec_cnt;

@@ -56,6 +56,7 @@ int decode_video_init(decode_video_t *v, dt_graph_t *graph, const char *filename
 {
   memset(v, 0, sizeof(*v));
   v->decode_tid = -1; // no decode task started
+  if(!qvk.video_supported) return 1;
 
   threads_mutex_init(&v->av_mutex, 0);
 
@@ -230,6 +231,7 @@ _Pragma("GCC diagnostic pop")
 void decode_video_cleanup(decode_video_t *v)
 {
   if(!v) return;
+  if(!qvk.video_supported) return;
   decode_video_stop(v); // needs mutex?
   // TODO make sure to wait on all semaphores before cleanup?
   vkDestroyImageView             (qvk.device, v->view, 0);

@@ -144,6 +144,7 @@ typedef struct qvk_t
   int                         unified_image_layouts_supported;
   int                         blit_supported;
   int                         hdr_supported;
+  int                         video_supported;
 
   // we need these to share with other vk clients (ffmpeg):
   // VkPhysicalDeviceClusterAccelerationStructureFeaturesNV df_cluster_bvh;
