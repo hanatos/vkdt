@@ -400,7 +400,7 @@ add_geo(
     // fprintf(stderr, "alias origin and angles %g %g %g -- %g %g %g\n",
     //     ent->origin[0], ent->origin[1], ent->origin[2],
     //     ent->angles[0], ent->angles[1], ent->angles[2]);
-    aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata(ent->model);
+    aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata(ent->model); // we also do this up front in animate() once to prefetch textures!
     aliasmesh_t *desc = (aliasmesh_t *) ((uint8_t *)hdr + hdr->meshdesc);
     // the plural here really hurts but it's from quakespasm code:
     int16_t *indexes = (int16_t *) ((uint8_t *) hdr + hdr->indexes);
@@ -784,6 +784,20 @@ void modify_roi_out(
   mod->connector[2].roi = roi_geo;
 }
 
+static inline void
+prefetch_geo_textures(
+    entity_t  *ent)
+{
+  if(!ent) return;
+  qmodel_t *m = ent->model;
+  if (!m) return;
+  if(qs_data.worldspawn) return;
+  if(m->type == mod_alias)
+  { // let this one prefetch extra textures early:
+    aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata(ent->model);
+  }
+}
+
 void animate(
     dt_graph_t  *graph,
     dt_module_t *module)
@@ -860,6 +874,12 @@ void animate(
     p_armor[0] = sv_player->v.armorvalue;
     if((graph->frame % 20) == 0) p_duration[0] = VectorLength(sv_player->v.velocity);
   }
+
+  prefetch_geo_textures(&cl.viewent);
+  for(int i=0;i<cl_numvisedicts;i++)
+    prefetch_geo_textures(cl_visedicts[i]);
+  for(int i=0; i<cl.num_statics; i++)
+    prefetch_geo_textures(cl_static_entities+i);
 }
 
 void commit_params(
@@ -931,7 +951,7 @@ int read_source(
     // fprintf(stderr, "quake read source tex %d connector length %d %d x %d\n", p->a, p->node->connector[0].array_length,
     //     d->tex_dim[2*p->a], d->tex_dim[2*p->a+1]);
     memcpy(mapped, d->tex[p->a], sizeof(uint32_t)*d->tex_dim[2*p->a]*d->tex_dim[2*p->a+1]);
-    p->node->flags &= ~s_module_request_read_source; // done uploading textures
+    // p->node->flags &= ~s_module_request_read_source; // done uploading textures
   }
   uint32_t tri_cnt = 0;
   geo_tri_t *tri = mapped;

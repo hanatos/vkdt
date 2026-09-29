@@ -853,8 +853,6 @@ VkResult dt_graph_run(
     QVKR(dt_graph_run_nodes_allocate(graph, &run, nodeid, cnt, &dynamic_array));
 
     // upload all source data to staging memory
-    // XXX FIXME: this calls quake -> read_source -> loads model extra data -> loads QS_texture_load
-    // XXX invalidates texture!
     QVKR(dt_graph_run_nodes_upload(graph, run, nodeid, cnt, module_flags, dynamic_array));
 
     // now upload uniform data before submitting the command buffer. this runs

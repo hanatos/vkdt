@@ -1493,6 +1493,8 @@ dt_graph_run_nodes_allocate(
             img->mem->memory = c->array_mem->memory;
             img->offset = img->mem->offset + c->array_mem->offset;
             img->size   = dt_connector_bufsize(c, wd, ht);
+            img->wd = wd;
+            img->ht = ht;
             QVKR(bind_buffers_to_memory(graph, node, c, graph->double_buffer, aid));
           }
         }
