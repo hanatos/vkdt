@@ -33,6 +33,10 @@ that holds these codepoints:
 bin/msdf-atlas-gen -outerpxpadding 2 -size 64 -yorigin top -type msdf -format png -imageout atlas.png -json metrics.json -font 'NotoSansSC-Regular.ttf' -chars "[' ','~'],[0x4E00,0x9fd0]" -fontscale 1 -and -font MaterialIcons-Regular.ttf -chars 0xe01f,0xe020,0xe034,0xe037,0xe042,0xe044,0xe045,0xe047,0xe15b,0xe5e0,0xe5e1,0xe612,0xe836,0xe838 -fontscale 1
 ```
 note that this can take a few minutes.
+similarly, for german extra symbols use the extra range `[0x00a0,0x00ff]`:
+```
+bin/msdf-atlas-gen -outerpxpadding 2 -size 64 -yorigin top -type msdf -format png -imageout atlas.png -json metrics.json -font 'Roboto-Regular.ttf' -chars "[' ','~'],[0x00a0,0x00ff]" -fontscale 1 -and -font MaterialIcons-Regular.ttf -chars 0xe01f,0xe020,0xe034,0xe037,0xe042,0xe044,0xe045,0xe047,0xe15b,0xe5e0,0xe5e1,0xe612,0xe836,0xe838 -fontscale 1
+```
 
 the material icon codepoints are needed for vkdt's ui rendering:
 ```
