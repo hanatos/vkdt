@@ -105,7 +105,7 @@ typedef struct qvk_t
   qvk_queue_t                 queue[s_queue_cnt];
   uint32_t                    queue_family_graphics;
   uint32_t                    queue_family_compute;
-  uint32_t                    queue_family_vid_dec;
+  int32_t                     queue_family_vid_dec;
 
   VkSampler                   tex_sampler;
   VkSampler                   tex_sampler_dspy;
