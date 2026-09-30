@@ -58,6 +58,11 @@ dt_graph_replace_display(
     CONN(dt_module_connect(graph, m0, o0, m1, i1));
     m0 = m1;
     o0 = o1;
+    dt_module_t *mod_res = graph->module+m1;
+    int *p_wd = (int*)dt_module_param_int(mod_res, dt_module_get_param(mod_res->so, dt_token("width")));
+    int *p_ht = (int*)dt_module_param_int(mod_res, dt_module_get_param(mod_res->so, dt_token("height")));
+    p_wd[0] = max_wd;
+    p_ht[0] = max_ht;
   }
 
   // new module export with same inst
