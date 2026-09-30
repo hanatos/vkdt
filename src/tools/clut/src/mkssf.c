@@ -192,6 +192,21 @@ void integrate_cfa_upsample(
       (double)cc24_nwavelengths;
 }
 
+// integrate white patch against illuminant to compute relative exposure
+double integrate_exposure_delta(
+    const double *ill)        // pass cie_a or cie_d65 here
+{
+  double v = 0.0;
+  for(int i=0;i<cc24_nwavelengths;i++)
+  {
+    const int s = 18; // brightest white patch
+    v += cc24_spectra[s][i] * cie_interp(ill, cc24_wavelengths[i]);
+  }
+  v *= (cc24_wavelengths[cc24_nwavelengths-1] - cc24_wavelengths[0]) /
+    (double)cc24_nwavelengths;
+  return v;
+}
+
 // integrate with cfa in the loop: cc24 * (A|D65) * cfa = camera rgb
 void integrate_cfa(
     double        res[24][3], // output results in camera rgb
@@ -529,6 +544,23 @@ int main(int argc, char *argv[])
     fscanf(f, "param:pick:01:picked:%lf:%lf:%lf",   &ref_picked_d65[0][0], &ref_picked_d65[0][1], &ref_picked_d65[0][2]);
     for(int i=1;i<24;i++) fscanf(f, ":%lf:%lf:%lf", &ref_picked_d65[i][0], &ref_picked_d65[i][1], &ref_picked_d65[i][2]);
     fclose(f);
+
+    // normalise a/d65 by integrating cc24 white against cie_d65 and cie_a, deriving a relative exposure,
+    // and applying the same relative exposure to all picked_a vs picked_d65 patches
+    double v_d65 = integrate_exposure_delta(cie_d65);
+    double v_a   = integrate_exposure_delta(cie_a);
+    double rel_v = v_d65 / v_a;
+    double rel_d = ref_picked_d65[18][1]/ref_picked_a[18][1];
+    fprintf(stderr, "relative exposure of white patch in reference: %g/%g = %g and data %g/%g = %g\n",
+        v_d65, v_a, rel_v,
+        ref_picked_d65[18][1], ref_picked_a[18][1],
+        ref_picked_d65[18][1]/ref_picked_a[18][1]);
+    for(int i=0;i<24;i++)
+      for(int k=0;k<3;k++)
+        ref_picked_a[i][k] *= rel_d / rel_v;
+    fprintf(stderr, "normalised relative exposure in data %g/%g = %g\n",
+        ref_picked_d65[18][1], ref_picked_a[18][1],
+        ref_picked_d65[18][1]/ref_picked_a[18][1]);
   }
 
   // init ref by integrating against cie observer
@@ -590,7 +622,10 @@ int main(int argc, char *argv[])
   fprintf(fh, "<html><body><h1>%s</h1>\n", profile_a.model);
   fprintf(fh, "<div style='width:30%%;float:left'>\n");
   fprintf(fh, "<h2>A | CIE | D65</h2>\n");
-  fprintf(fh, "<p>illuminant A + cfa + dng profile, illuminant D65 + cfa + dng profile, vs. ground truth cie observer in the middle</p>\n");
+  if(pick_a)
+    fprintf(fh, "<p>illuminant A &times; cfa, illuminant D65 &times; cfa, vs. cie observer in the middle</p>\n");
+  else
+    fprintf(fh, "<p>illuminant A &times; cfa + dng profile, illuminant D65 &times; cfa + dng profile, vs. ground truth cie observer in the middle</p>\n");
   fprintf(fh, "<table style='border-spacing:0;border-collapse:collapse'><tr>\n");
   double res[240][3];
   double rgb_a[240][3], rgb_d65[240][3], rgb_cie[240][3];
@@ -604,6 +639,7 @@ int main(int argc, char *argv[])
     normalise_col(xyz);
     mat3_mulv(xyz_to_srgb, xyz, rgb_a[s]); // really not d50 xyz but whatever for debug
   }
+  if(pick_a) for(int s=0;s<24;s++) for(int k=0;k<3;k++) rgb_a[s][k] = res[s][k]; // no dng profile
   integrate_cfa(res, cfa_param, cie_d65);
   // integrate_cfa_upsample(res, cfa_param, cie_d65);
   for(int s=0;s<24;s++)
@@ -612,6 +648,7 @@ int main(int argc, char *argv[])
     normalise_col(xyz);
     mat3_mulv(xyz_to_srgb, xyz, rgb_d65[s]);
   }
+  if(pick_a) for(int s=0;s<24;s++) for(int k=0;k<3;k++) rgb_d65[s][k] = res[s][k]; // no dng profile
   for(int s=0;s<24;s++)
     mat3_mulv(xyz_to_srgb, ref[s], rgb_cie[s]);
 
