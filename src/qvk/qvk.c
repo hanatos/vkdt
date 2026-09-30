@@ -246,6 +246,8 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       qvk.subgroup_size_control_supported = 0;
       qvk.shader64bit_indexing_supported = 0;
       qvk.unified_image_layouts_supported = 0;
+      qvk.video_supported = 0;
+      int num_vid_ext = 0; // count all of them
       for(int k=0;k<num_ext;k++)
       {
         if (!strcmp(ext_properties[k].extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME))
@@ -260,7 +262,20 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
           // qvk.shader64bit_indexing_supported = 1;
         else if (!strcmp(ext_properties[k].extensionName, VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME))
           qvk.unified_image_layouts_supported = 1;
+        else if (!strcmp(ext_properties[k].extensionName, VK_KHR_VIDEO_QUEUE_EXTENSION_NAME))
+          num_vid_ext++;
+        else if (!strcmp(ext_properties[k].extensionName, VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME))
+          num_vid_ext++;
+        else if (!strcmp(ext_properties[k].extensionName, VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME))
+          num_vid_ext++;
+        else if (!strcmp(ext_properties[k].extensionName, VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME))
+          num_vid_ext++;
+        else if (!strcmp(ext_properties[k].extensionName, VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME))
+          num_vid_ext++;
+        // else if (!strcmp(ext_properties[k].extensionName, VK_KHR_INTERNALLY_SYNCHRONIZED_QUEUES_EXTENSION_NAME))
+          // num_vid_ext++; // currenly unused
       }
+      if(num_vid_ext == 5) qvk.video_supported = 1;
       picked_device = i;
       if(preferred_device_name)
         dt_log(s_log_qvk, "selecting device %s by explicit request", preferred_device_name);
@@ -340,9 +355,9 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     }
   }
   
-  int vid_dec_family_index = -1;
-  for(int i = 0; i < num_queue_families; i++)
-  {
+  int vid_dec_family_index = queue_family_index;
+  if(qvk.video_supported) for(int i = 0; i < num_queue_families; i++)
+  { // only need to look for queue if we found all required extensions above
     if(queue_families[i].queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR)
     {
       queue_vid_dec_cnt = queue_families[i].queueCount;
@@ -456,10 +471,11 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     qvk.subgroup_size_control_supported = 0;
   }
 
-  dt_log(s_log_qvk, "picked device %d %s ray tracing and %s float atomics and %s coopmat support", picked_device,
-      qvk.raytracing_supported    ? "with" : "without",
-      qvk.float_atomics_supported ? "with" : "without",
-      qvk.coopmat_supported       ? "with" : "without");
+  dt_log(s_log_qvk, "picked device %d: %s", picked_device, qvk.device_name);
+  dt_log(s_log_qvk, "  raytracing    : %s", qvk.raytracing_supported    ? "yes" : "no");
+  dt_log(s_log_qvk, "  float atomics : %s", qvk.float_atomics_supported ? "yes" : "no");
+  dt_log(s_log_qvk, "  coop matrices : %s", qvk.coopmat_supported       ? "yes" : "no");
+  dt_log(s_log_qvk, "  video decode  : %s", qvk.video_supported         ? "yes" : "no");
 
   int len = 0;
   qvk.dev_extension[len++] = VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME;   // intel doesn't have it pre 2015 (hd 520)
@@ -486,7 +502,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
 #ifdef __APPLE__
   qvk.dev_extension[len++] = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
 #endif
-  if(qvk.queue_family_vid_dec >= 0)
+  if(qvk.video_supported)
   {
     qvk.dev_extension[len++] = VK_KHR_VIDEO_QUEUE_EXTENSION_NAME;
     qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME;
@@ -494,7 +510,6 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME;
     qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME;
     // qvk.dev_extension[len++] = VK_KHR_INTERNALLY_SYNCHRONIZED_QUEUES_EXTENSION_NAME;
-    qvk.video_supported = 1;
   }
   if(window) qvk.dev_extension[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
   if(enable_hdr_wsi) qvk.dev_extension[len++] = VK_EXT_HDR_METADATA_EXTENSION_NAME;
@@ -512,7 +527,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       .queueFamilyIndex = qvk.queue_family_compute,
     };
   }
-  if(qvk.queue_family_vid_dec >= 0 && qvk.queue_family_vid_dec != qvk.queue_family_graphics)
+  if(qvk.video_supported && qvk.queue_family_vid_dec != qvk.queue_family_graphics)
   {
     queue_create_infos[num_queue_create_infos++] = (VkDeviceQueueCreateInfo) {
       .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -550,7 +565,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       dt_log(s_log_qvk, "queue %d is idx %d family %d (async compute)", k, qvk.qid[k], qvk.queue_family_compute);
     }
     else if(k == s_queue_vid_dec &&
-        qvk.queue_family_vid_dec >= 0 &&
+        qvk.video_supported &&
         qvk.queue_family_vid_dec != qvk.queue_family_graphics)
     {
       qvk.queue[k].idx = 0;
