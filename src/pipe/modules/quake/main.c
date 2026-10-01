@@ -795,6 +795,7 @@ prefetch_geo_textures(
   if(m->type == mod_alias)
   { // let this one prefetch extra textures early:
     aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata(ent->model);
+    (void)hdr;
   }
 }
 

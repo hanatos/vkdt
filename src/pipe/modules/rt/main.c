@@ -262,7 +262,7 @@ create_nodes(
   dt_roi_t roi_mat = { .wd = wd, .ht = ht * sizeof(struct gbuf_t) };
   int id_gbuf = dt_node_add(graph, module, "rt", "gbuf", wd, ht, 1, 0, 0, 3,
       "dn",  "write", "rg",   "f32", &module->connector[0].roi,
-      "tex", "read",  "*",    "*",    dt_no_roi,
+      "tex", "read",  "rgba", "*",    dt_no_roi,
       "mat", "write", "ssbo", "u8",  &roi_mat);
   dt_connector_copy(graph, module, 1, id_gbuf, 1); // tex
   int id_main = -1;

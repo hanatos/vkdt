@@ -37,10 +37,14 @@ layout(set = 1, binding = 5) uniform sampler2D img_dn;
 
 layout(std430, buffer_reference, buffer_reference_align = 8) readonly buffer bref_fb_t  { float v[]; };
 layout(std430, buffer_reference, buffer_reference_align = 8) readonly buffer bref_mat_t { gbuf_t v[]; };
+layout(std430, buffer_reference, buffer_reference_align = 8) buffer bref_mc_t { MCState mc_states[]; };
+layout(std430, buffer_reference, buffer_reference_align = 8) buffer bref_lc_t { LightCacheVertex light_cache[]; };
 layout(set = 0, binding = 2) uniform bref_t
 {
   bref_fb_t  fb;
   bref_mat_t mat;
+  bref_mc_t  mc;
+  bref_lc_t  lc;
 } bref;
 
 #include "shared/fb.glsl" // depends on buf_fb
