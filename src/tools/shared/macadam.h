@@ -60,6 +60,7 @@ void macadam_work(uint32_t item, void *data)
     tri2quad(&x,&y);
     // rasterize into map
     const int i = x*d->res+0.5f, j = y*d->res+0.5f;
+    // fprintf(stdout, "%g %g %g %g %g\n", x, y, b, lambda0, lambda1); // visualise strange gamuts
     if(i>=0 && i<d->res && j>=0 && j<d->res)
     { // compute radial bin
       if(d->iteration == 2)
