@@ -114,10 +114,10 @@ void render_files()
         dt_tooltip(mounted ? "click to unmount" : "click to mount");
         if(nk_button_label(ctx, mounted ? "unmount" : "mount"))
         {
-          if(mounted) snprintf(command, sizeof(command), "/usr/bin/udisksctl unmount -b %s", devname[i]);
+          if(mounted) snprintf(command, sizeof(command), "udisksctl unmount -b %s", devname[i]);
           // TODO: use -f for lazy unmounting?
           // TODO: also send a (blocking?) power-off command right after that?
-          else    snprintf(command, sizeof(command), "/usr/bin/udisksctl mount -b %s", devname[i]);
+          else    snprintf(command, sizeof(command), "udisksctl mount -b %s", devname[i]);
           FILE *f = popen(command, "r");
           if(f)
           {
