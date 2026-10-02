@@ -173,23 +173,24 @@ Panasonic DC-S9, ssf guessed by mkssf:
 <td><a href="img_0008.jpg"><img src="img_0008-small.jpg"/></a></td>
 </tr>
 </table>
+images: mine, except portrait of woman: signatureedits.com free-raw-photos
 
 ## setup cheat sheet
 
 ### matrix
 * `denoise` -> `colour` -> `filmsim`
-* `colour:matrix:`image`
-* `filmsim:input:bt2020`
+* `param:colour:matrix:image`
+* `param:filmsim:input:bt2020`
 * `spectra-em.lut` -> `filmsim`
 
 ### clut
 * `denoise` -> `colour` -> `filmsim`
-* `colour:matrix:clut`
-* `filmsim:input:bt2020`
+* `param:colour:matrix:clut`
+* `param:filmsim:input:bt2020`
 * `spectra-em.lut` -> `filmsim`
 * lut specific to camera -> `colour`
 
 ### direct
 * `denoise` -> `filmsim`
-* `filmsim:input:camera rgb`
+* `param:filmsim:input:camera rgb`
 * spectra lut specific to camera model -> `filmsim`
