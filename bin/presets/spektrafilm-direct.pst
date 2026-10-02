@@ -1,0 +1,13 @@
+# spektrafilm simulation with direct upsampling from camera rgb
+# see [how to create the upsampling table](../../../doc/howto/colour-spec/readme.md)
+module:filmsim:01:1056:401.3
+module:i-lut:filmsim:751:613
+module:i-lut:spectem:754:795
+connect:filmsim:01:output:hist:01:input
+connect:filmsim:01:output:display:main:input
+connect:crop:01:output:filmsim:01:input
+connect:i-lut:filmsim:output:filmsim:01:filmsim
+connect:i-lut:spectem:output:filmsim:01:spectra
+param:filmsim:01:input:1
+param:i-lut:filmsim:filename:data/filmsim.lut
+param:i-lut:spectem:filename:data/${maker} ${model}-em.lut

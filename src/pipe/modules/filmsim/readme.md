@@ -1,4 +1,4 @@
-# filmsim: artic's sophisticated spectral analog film simulation
+# filmsim: arctic's sophisticated spectral analog film simulation (spektrafilm)
 
 this is an implementation of Andrea Volpato's [spektrafilm](https://github.com/andreavolpato/spektrafilm/).
 for a nice introduction see [this post](https://discuss.pixls.us/t/spectral-film-simulations-from-scratch/48209/1).
