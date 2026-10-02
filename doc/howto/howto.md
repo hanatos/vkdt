@@ -12,6 +12,7 @@ this folder lists quick instructions on a few special topics:
 
 * [display colour management](./colour-display/readme.md)
 * [how to characterise the colour response of your camera](./colour-input/readme.md)
+* [use spektrafilm from camera rgb directly](./colour-spec/readme.md)
 
 ## processing topics
 
