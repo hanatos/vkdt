@@ -7,24 +7,22 @@ reference input device transform
 
 ## image formation in a camera device
 
-TODO keep the double-dollars around
-TODO include like this
-```
- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.9/dist/katex.min.css" integrity="sha384-lPx0C4zIUZLpveABMwOFcFeGZwsvKBJfhJ85FN1PYOV7xApBcFMhcAEMVKF8loOI" crossorigin="anonymous">
+$$\int_\Lambda P(\lambda) d\lambda$$
 
-    <!-- The loading of KaTeX is deferred to speed up page rendering -->
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.9/dist/katex.min.js" integrity="sha384-19KE2cFb3U+RUWmyhBz7aLOGDG8WrRC6hE3oY/HTZZlAAVWYTdmvLC//+TIV3zUx" crossorigin="anonymous"></script>
+<img src="overview.svg" style="width:100%"/>
 
-    <!-- To automatically render math in text elements, include the auto-render extension: -->
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.9/dist/contrib/auto-render.min.js" integrity="sha384-bjyGPfbij8/NDKJhSGZNP/khQVgtHUE5exjm4Ydllo42FwIgYsdLO2lXGmRBf5Mz" crossorigin="anonymous"
-        onload="renderMathInElement(document.body);"></script>
-```
-better to get a release from
-```
-https://github.com/KaTeX/KaTeX/releases
-```
-and see which of the files we wish to keep
-does this work? $$\int_\Lambda P(\lambda) d\lambda$$
+metameric failure in (c) camera rgb and in (e) XYZ.
+
+the input device transform from camera rgb to observer space (f)
+maps camera input to calibrated XYZ, but collecting some metamer issues.
+
+upsampling in (g) reconstructs a credible spectrum from (c) or (e).
+a side constraint is that the upsampled spectrum is metameric with the
+real stimulus (a), under the camera CFA (b) or the CIE observer (d).
+
+clearly the path `(a)->(b)->(c)->(f)->(e)->(g)->` collects more error than
+`(a)->(b)->(c)->(g)->`. also, (g) will work on the correct assumptions
+when trying to come up with a plausible spectrum similar to (a).
 
 
 ## spektrafilm
