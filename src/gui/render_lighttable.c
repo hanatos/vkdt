@@ -314,7 +314,7 @@ void render_lighttable_center()
   // the cache noticed it is too small. internally it reset all the thumbnail references to zero, so they will not
   // be picked up by further command buffer dispatches. now of course we'll have to wait for the currently pending
   // ones to finish before we can actually delete/reallocate the vulkan resources for thumbnails.
-  if(thumb_res == VK_ERROR_OUT_OF_DATE_KHR)
+  if(thumb_res == VK_ERROR_OUT_OF_DATE_KHR && !triggered_rebuild)
     triggered_rebuild = vkdt.win.frame_global; // timeline semaphore of last frame
   cacheline += iv;
   if(cacheline > vkdt.db.collection_cnt) cacheline = 0;

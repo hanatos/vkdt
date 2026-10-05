@@ -158,7 +158,7 @@ typedef struct dt_gui_win_t
   VkImage            swap_chain_images[QVK_MAX_SWAPCHAIN_IMAGES];
   VkImageView        swap_chain_image_views[QVK_MAX_SWAPCHAIN_IMAGES];
   VkFramebuffer      framebuffer[QVK_MAX_SWAPCHAIN_IMAGES];    // tied to the swapchain
-  int                swapchain_image_cnt;                      // might be < QVK_MAX_SWPCHAIN_IMAGES
+  uint32_t           swapchain_image_cnt;                      // might be < QVK_MAX_SWPCHAIN_IMAGES
 
   VkRenderPass       render_pass;
   VkPipelineCache    pipeline_cache;
