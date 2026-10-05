@@ -2,111 +2,159 @@
 
 in this article we show how to render an image from camera rgb without using matrices.
 
-reference mkssf
-reference input device transform
+this is highly related to [input device colour management](../colour-input/readme.md), and
+the `vkdt mkssf` tool which creates plausible spectral sensitivity functions for a camera
+from either matrices in a dcp profile or colour checker calibration shots.
+
 
 ## image formation in a camera device
 
-$$\int_\Lambda P(\lambda) d\lambda$$
-
 <img src="overview.svg" style="width:100%"/>
 
-metameric failure in (c) camera rgb and in (e) XYZ.
+rendering an image from a photographic measurement works in several steps.
+the source stimulus in the scene (a) is imaged through a device (b) with certain
+spectral sensitivity in the colour filter array (CFA). this results in
+tristimulus values, three numbers representing the stimulus in camera rgb.
 
-the input device transform from camera rgb to observer space (f)
-maps camera input to calibrated XYZ, but collecting some metamer issues.
+this will in general be somewhat different to imaging the same stimulus
+through a human observer (d). in particular, due to the reduction in
+dimensionality, a set of spectra will collapse to the same tristimulus values
+both in camera rgb (c) and in observer space (e). unfortunately these
+aren't the same sets, they both have different metameric failures.
 
-upsampling in (g) reconstructs a credible spectrum from (c) or (e).
-a side constraint is that the upsampled spectrum is metameric with the
+input device transforms (such as the one vkdt's `vkdt mkclut` generates)
+will map camera rgb to XYZ, but unavoidably collect metameric failure
+on the way.
+
+upsampling (g) the tristimulus values reconstructs a credible spectrum from (c)
+or (e). a side constraint is that the upsampled spectrum is metameric with the
 real stimulus (a), under the camera CFA (b) or the CIE observer (d).
-
-clearly the path `(a)->(b)->(c)->(f)->(e)->(g)->` collects more error than
-`(a)->(b)->(c)->(g)->`. also, (g) will work on the correct assumptions
-when trying to come up with a plausible spectrum similar to (a).
+this spectrum can be used for more accurate spectral processing.
 
 
 ## spektrafilm
 
-implemented in the `filmsim` module.
-spectral image processing via upsampling of the input.
-supply upsampling table as input connector `spectra`. that is `xy` -> `c0 c1 c2 c3`
+such spectral processing is for instance the *spektrafilm* film simulation,
+implemented in the `filmsim` module. the spectral upsampling is performed
+within the module, and it requires a look up table to do this computation. the
+lut is supplied as input connector `spectra` and contains a mapping `xy` → `c0
+c1 c2 c3`, where `c*` are coefficients for a function space representing smooth
+emissive spectra (sigmoidal + scale).
 
-normally done by daisy-chaining input device transform and then upsampling from the observer space.
-nice and general, but inherits the problems of the IDT:
-* out of gamut values for matrices
+the process is normally done by daisy-chaining input device transform (IDT in
+the `colour` module) and then upsampling from the observer space. this is nice
+and general, but inherits the problems of the IDT:
+
+* out of gamut values for matrix transforms
 * metameric failure is of the camera CFA *and* of the transform to observer coordinates XYZ.
+
+taking a picture will always take the path `(a)→(b)→(c)`. there are multiple
+paths from camera rgb (c) to upsampled spectrum (g). clearly the path
+`→(f)→(e)→(g)→` collects more error than `→(g)→`. this is regardless of how
+accurate we design (f), due to the double metameric failure involved here.
+also, (g) will work on the correct assumptions when trying to come up with a
+plausible spectrum similar to (a).
+
+let's first look at our options for the IDT (f).
 
 
 
 ## input device transform recap
 
-and how matrix transforms break stuff bad.
+mapping camera rgb to observer space is a necessary step so subsequent tools as
+well as the display colour management can work on some known and
+camera-indepenent tristimulus space. most often, this is done by using a simple
+3x3 matrix transform from camera rgb to XYZ. this matrix can for instance be
+found by fitting the matrix coefficients to a picture of a colour checker
+target with known XYZ reflectances, taken under known illuminant. this is a
+smooth mapping with no additional metameric failure introduced (all camera rgb
+values will receive their individual XYZ output values). unfortunately it
+mostly works for moderate chromaticity.
 
-show blue images
+consider this image under blue led illumination, with the standard D65 matrix
+applied as IDT:
 
-"matrix" approach
+<img style="width:100%" src="out-of-gamut-warm.jpg"/>
 
-first: out of spectral locus colour coordinates after transform:
+you'll notice how the more extreme blues are pushed way out of spectral locus
+in the CIE xy chromaticity chart in the top right corner.
 
-![](out-of-gamut-warm.jpg)
-![](out-of-gamut-cold.jpg)
+we can try to white balance this with more matrix math (CAT16):
 
-outcome: these values will be clamped and result in flat, constant-colour, even noise-free regions. very distracting.
+<img style="width:100%" src="out-of-gamut-cold.jpg"/>
 
-note that this data was good before we applied the matrix:
-![](out-of-gamut-camera-rgb.jpg)
+with, let's say, mediocre success.
+the outcome: high-chroma values will be clamped and result in flat,
+constant-colour, even noise-free regions. very distracting.
 
-want: in gamut! white balance!
+note that the input data from camera was good before we applied the matrix.
+here is the camera rgb buffer re-interpreted as bt2020:
 
-second: metameric failure, induced by observer
+<img style="width:100%" src="out-of-gamut-camera-rgb.jpg"/>
 
-Canon EOS 5D Mark II, response to MacAdam style box spectra:
+this means we actively broke the data during IDT. the obvious wishlist:
+all values inside spectral locus! white balance without destructive matrices!
+
+
+## matrix as input device transform
+
+this is the "matrix" approach in the results below.
+since spectral sensitivity data is not always available, this is the
+default code path today.
+
+graph wiring:
+
+![](graph-matrix.jpg)
+
+parameters: set
+```
+colour:01:matrix to image
+filmsim:01:input to bt2020
+```
+inputs: connect
+```
+spectra-em.lut to filmsim:01:spectra
+```
+
+the spektrafilm upsampling table is extended smoothly to imaginary colours
+(negative spectral energy). it does *something* for extreme chroma, but likely
+collapses some of these to very similar spectra, much like clamping.
+
+
+
+## colour lut from spectral sensitivity functions as input device transform
+
+this is the "clut" approach in the results section.
+
+consider the Canon EOS 5D Mark II's response to MacAdam style box spectra:
+
 ![](macadam-5dm2.png)
+
 this plots camera rgb r+g as x axis, and r+g+b (some measure of overall spectral energy) as y axis.
 for better display, the colour is the rising-edge wavelength of the box spectra.
 
 especially see the red bulge to the left where a chromaticity coordinate of (r,g) (x-axis) can be
 reached by two different box spectra (points on the y-axis above each other).
 
-this particular kind of metameric failure we don't have with the CIE observer.
+this particular kind of metameric failure we don't have with the CIE observer,
+and it results in some ambiguity in the mapping from camera rgb to cie observer space.
 
+note that all conventionally used colour spaces (xyz, srgb, prophotorgb,
+adobergb, bt2020, etc..) are metameric to the observer, i.e. a simple linear
+transform away (multiply a matrix, and that is the *definition* of the
+transform, no errors introduced, no additional metamers collapsed).
 
-## matrix as input device transform
-
-"matrix" approach
-
-the spektrafilm upsampling table is extended smoothly to imaginary colours (negative spectral energy). it does *something*:
-
-graph wiring:
-![](graph-matrix.jpg)
-
-parameters:
-set
-```
-colour:01:matrix to image
-filmsim:01:input to bt2020
-```
-
-
-## colour lut from spectral sensitivity functions as input device transform
-
-"clut" approach
-
-mention observer metamerism and how metameric failure results in some ambiguity
-in the mapping camera rgb -> cie observer space. note that all conventionally
-used colour spaces (xyz, srgb, prophotorgb, adobergb, bt2020, etc..) are
-metameric to the observer, i.e. a simple linear transform away (multiply a
-matrix, and that is the *definition* of the transform, no errors introduced, no
-additional metamers collapsed).
-
-this approach is accurate where it is (and disregards possible other metamers completely).
+the colour lookup table (clut) approach is accurate where it is (and disregards
+possible other metamers completely). it maps each camera rgb coordinate to exactly one
+XYZ coordinate, where both may have been the result of the same spectrum as stimulus.
 
 assumption: need to know ssf
 
-approximation: assume a certain function space of likely spectra that go with observer xyz coordinates.
+approximation: assume a certain function space of likely spectra that go with observer XYZ coordinates.
 
 
-graph wiring:
+graph wiring remains much as above:
+
 ![](graph-clut.jpg)
 
 set
@@ -114,17 +162,25 @@ set
 colour:01:matrix to clut
 filmsim:01:input to bt2020
 ```
+inputs: connect
+```
+spectra-em.lut to filmsim:01:spectra
+${maker} ${model}.lut to colour:01:clut
+```
+(see the `clut.pst` preset)
 
-use the `clut.pst` preset and a custom `.lut` file as input to the `colour` module, see XXX
-
-no out of gamut, but suffer metameric failure *twice* by daisy-chaining spectrum to camera rgb to observer space.
+use the `clut.pst` preset and a custom `.lut` file as input to the `colour`
+module, see [docs about input device transform](../colour-input/readme.md).
+no out of gamut, but suffer metameric failure *twice* by daisy-chaining
+spectrum to camera rgb to observer space.
 
 
 ## direct spectral upsampling of camera rgb
 
-"direct" approach
+this is the "direct" approach.
 
 graph wiring:
+
 ![](graph-direct.jpg)
 
 i.e. *no* `colour` module in the loop
@@ -134,12 +190,20 @@ wire a spectral upsampling lut to the `filmsim` module that is created specifica
 cd src/
 ./mkspectra tools/clut/data/Canon_EOS_5D_Mark_II
 ```
+and if you don't have an ssf, dream one up for instance via `vkdt mkssf`.
 
-set `filmsim:01:input` to `camera rgb`
+set
+```
+filmsim:01:input to camera rgb
+```
+and connect
+```
+${maker} ${model}-em.lut to filmsim:01:spectra
+```
+(see the `spektrafilm-direct.pst` preset)
 
-XXX see mkssf
-
-suffer from metameric failure, but only once and only the one by the camera. no out of gamut madness.
+this approach also suffers from metameric failure, but only once and only the
+unavoidable one by the camera. no out of gamut madness.
 
 
 ## comparing the three methods
