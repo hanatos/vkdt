@@ -340,7 +340,7 @@ int dt_gui_init()
 static inline VkResult
 dt_gui_destroy_swapchain(dt_gui_win_t *win)
 {
-  for(int i = 0; i < QVK_MAX_SWAPCHAIN_IMAGES; i++)
+  for(int i = 0; i < win->swapchain_image_cnt; i++)
   {
     if(win->swap_chain_image_views[i]) vkDestroyImageView  (qvk.device, win->swap_chain_image_views[i], 0);
     if(win->framebuffer[i])            vkDestroyFramebuffer(qvk.device, win->framebuffer[i], 0);
@@ -362,8 +362,9 @@ dt_gui_create_swapchain(dt_gui_win_t *win)
   QVKL(&qvk.queue[s_queue_graphics].mutex, vkQueueWaitIdle(qvk.queue[s_queue_graphics].queue));
 
   if(old_swap_chain)
-    for(int i = 0; i < QVK_MAX_SWAPCHAIN_IMAGES; i++)
-      vkDestroyImageView(qvk.device, win->swap_chain_image_views[i], 0);
+    for(int i = 0; i < win->swapchain_image_cnt; i++)
+      if(win->swap_chain_image_views[i])
+        vkDestroyImageView(qvk.device, win->swap_chain_image_views[i], 0);
 
   /* create swapchain */
   VkSurfaceCapabilitiesKHR surf_capabilities;
@@ -490,12 +491,12 @@ out:;
 
   QVKR(vkCreateSwapchainKHR(qvk.device, &swpch_create_info, NULL, &win->swap_chain));
 
-  uint32_t num_swap_chain_images = QVK_MAX_SWAPCHAIN_IMAGES;
-  QVKR(vkGetSwapchainImagesKHR(qvk.device, win->swap_chain, &num_swap_chain_images, NULL));
-  assert(num_swap_chain_images == QVK_MAX_SWAPCHAIN_IMAGES);
-  QVKR(vkGetSwapchainImagesKHR(qvk.device, win->swap_chain, &num_swap_chain_images, win->swap_chain_images));
+  win->swapchain_image_cnt = QVK_MAX_SWAPCHAIN_IMAGES;
+  QVKR(vkGetSwapchainImagesKHR(qvk.device, win->swap_chain, &win->swapchain_image_cnt, NULL));
+  assert(win->swapchain_image_cnt <= QVK_MAX_SWAPCHAIN_IMAGES);
+  QVKR(vkGetSwapchainImagesKHR(qvk.device, win->swap_chain, &win->swapchain_image_cnt, win->swap_chain_images));
 
-  for(int i = 0; i < QVK_MAX_SWAPCHAIN_IMAGES; i++)
+  for(int i = 0; i < win->swapchain_image_cnt; i++)
   {
     VkImageViewCreateInfo img_create_info = {
       .sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -525,7 +526,7 @@ VkResult
 dt_gui_recreate_swapchain(dt_gui_win_t *win)
 {
   QVKLR(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
-  for(int i = 0; i < QVK_MAX_SWAPCHAIN_IMAGES; i++)
+  for(int i = 0; i < win->swapchain_image_cnt; i++)
     vkDestroyFramebuffer(qvk.device, win->framebuffer[i], 0);
   if(win->render_pass)
     vkDestroyRenderPass(qvk.device, win->render_pass, 0);
@@ -584,7 +585,7 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
     .height          = win->height,
     .layers          = 1,
   };
-  for(int i = 0; i < QVK_MAX_SWAPCHAIN_IMAGES; i++)
+  for(int i = 0; i < win->swapchain_image_cnt; i++)
   {
     if(win->sem_signal [i]) vkDestroySemaphore(qvk.device, win->sem_signal [i], 0);
     VkSemaphoreCreateInfo semaphore_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
@@ -622,7 +623,7 @@ dt_gui_recreate_swapchain(dt_gui_win_t *win)
 static inline void
 dt_gui_win_cleanup(dt_gui_win_t *win)
 {
-  for(int i=0;i<QVK_MAX_SWAPCHAIN_IMAGES;i++)
+  for(int i = 0; i < win->swapchain_image_cnt; i++)
   {
     vkDestroySemaphore(qvk.device, win->sem_signal[i], 0);
     win->sem_signal[i] = 0;
