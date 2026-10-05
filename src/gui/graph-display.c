@@ -68,11 +68,14 @@ dt_graph_display_image_init(
       | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
       | VK_IMAGE_USAGE_TRANSFER_DST_BIT
       | VK_IMAGE_USAGE_SAMPLED_BIT,
-    .sharingMode           = VK_SHARING_MODE_CONCURRENT,
-    .queueFamilyIndexCount = 2,
-    .pQueueFamilyIndices   = queue_indices,
     .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
   };
+  if(queue_indices[0] != queue_indices[1])
+  {
+    images_create_info.sharingMode           = VK_SHARING_MODE_CONCURRENT;
+    images_create_info.queueFamilyIndexCount = 2;
+    images_create_info.pQueueFamilyIndices   = queue_indices;
+  }
   QVKR(vkCreateImage(qvk.device, &images_create_info, 0, &d->con.image));
   VkMemoryRequirements mem_req;
   vkGetImageMemoryRequirements(qvk.device, d->con.image, &mem_req);
