@@ -496,6 +496,7 @@ memory_arena(dt_graph_t *graph, uint32_t type, const dt_graph_memory_request_t *
   assert(graph->memory_cnt < DT_GRAPH_MAX_MEMORY_ARENAS);
   dt_graph_memory_t *m = graph->memory + graph->memory_cnt++;
   *m = (dt_graph_memory_t){ .memory_type = type, .persistent = request->persistent, .low_32bit_offsets = request->low_32bit_offsets };
+  // XXX breaks cpu implementations such as llvmpipe:
   dt_vkalloc_init(&m->heap, qvk.mem_properties.memoryTypes[type].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT ? 100 : 16000, ((uint64_t)1)<<40);
   return m;
 }

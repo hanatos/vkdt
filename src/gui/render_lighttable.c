@@ -289,10 +289,13 @@ void render_lighttable_center()
   // resources)
   if(triggered_rebuild)
   {
-    uint64_t v0, v1;
-    vkGetSemaphoreCounterValue(qvk.device, vkdt.win.sem_frame_complete[0], &v0);
-    vkGetSemaphoreCounterValue(qvk.device, vkdt.win.sem_frame_complete[1], &v1);
-    if(MIN(v0, v1) >= triggered_rebuild)
+    uint64_t vmin = -1u, v;
+    for(int k=0;k<DT_GUI_MAX_FRAMES_IN_FLIGHT;k++)
+    {
+      vkGetSemaphoreCounterValue(qvk.device, vkdt.win.sem_frame[k], &v);
+      vmin = MIN(vmin, v);
+    }
+    if(vmin >= triggered_rebuild)
     { // triggered a reset
       uint64_t heap_size = 2*vkdt.thumbnails.alloc.heap_size, pool_size = 2*vkdt.thumbnails.alloc.pool_size;
       uint32_t wd = vkdt.thumbnails.thumb_wd, ht = vkdt.thumbnails.thumb_ht;

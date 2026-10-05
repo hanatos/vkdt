@@ -15,7 +15,7 @@
 #include <GLFW/glfw3.h>
 
 // max images in flight in vulkan pipeline/swap chain
-#define DT_GUI_MAX_IMAGES QVK_MAX_SWAPCHAIN_IMAGES
+#define DT_GUI_MAX_FRAMES_IN_FLIGHT QVK_MAX_SWAPCHAIN_IMAGES
 #define NK_UPDATE_ACTIVE do {if(vkdt.ctx.current && (vkdt.ctx.current->property.active || vkdt.ctx.current->edit.active)) vkdt.wstate.nk_active_next = 1;} while(0)
 
 // view modes, lighttable, darkroom, ..
@@ -155,27 +155,24 @@ typedef struct dt_gui_win_t
   VkSwapchainKHR     swap_chain;
   VkSurfaceFormatKHR surf_format;
   VkPresentModeKHR   present_mode;
-  uint32_t           num_swap_chain_images;
   VkImage            swap_chain_images[QVK_MAX_SWAPCHAIN_IMAGES];
   VkImageView        swap_chain_image_views[QVK_MAX_SWAPCHAIN_IMAGES];
+  VkFramebuffer      framebuffer[QVK_MAX_SWAPCHAIN_IMAGES];    // tied to the swapchain
 
   VkRenderPass       render_pass;
   VkPipelineCache    pipeline_cache;
   VkDescriptorPool   descriptor_pool;
 
   uint32_t           frame_index;
-  VkFence            fence         [DT_GUI_MAX_IMAGES];
-  VkCommandPool      command_pool  [DT_GUI_MAX_IMAGES];
-  VkCommandBuffer    command_buffer[DT_GUI_MAX_IMAGES];
-  VkFramebuffer      framebuffer   [DT_GUI_MAX_IMAGES];
-  uint64_t           display_in_use[DT_GUI_MAX_IMAGES];
+  VkFence            fence         [DT_GUI_MAX_FRAMES_IN_FLIGHT];
+  VkCommandPool      command_pool  [DT_GUI_MAX_FRAMES_IN_FLIGHT];
+  VkCommandBuffer    command_buffer[DT_GUI_MAX_FRAMES_IN_FLIGHT];
+  uint64_t           display_in_use[DT_GUI_MAX_FRAMES_IN_FLIGHT]; // note which timestamp is displayed by each frame in flight
 
-  uint64_t           frame_global;
-  uint32_t           sem_index;
-  VkSemaphore        sem_image_acquired [DT_GUI_MAX_IMAGES];
-  VkSemaphore        sem_render_complete[DT_GUI_MAX_IMAGES];
-  VkSemaphore        sem_frame_complete [DT_GUI_MAX_IMAGES];
-  uint32_t           sem_fence[DT_GUI_MAX_IMAGES];
+  uint64_t           frame_global; // for sem_frame
+  VkSemaphore        sem_acquire[DT_GUI_MAX_FRAMES_IN_FLIGHT];
+  VkSemaphore        sem_frame  [DT_GUI_MAX_FRAMES_IN_FLIGHT];  // global timeline to sync thumbnail memory reallocation in lighttable mode
+  VkSemaphore        sem_signal [QVK_MAX_SWAPCHAIN_IMAGES];     // see https://docs.vulkan.org/guide/latest/swapchain_semaphore_reuse.html
 
   uint32_t           fullscreen;
 }
@@ -240,11 +237,8 @@ VkResult dt_gui_recreate_swapchain(dt_gui_win_t *win);
 // draws nuklear things, implemented in render.c
 void dt_gui_render_frame_nk();
 
-// records and submits command buffer
-VkResult dt_gui_render();
-
-// waits for semaphore and presents framebuffer
-VkResult dt_gui_present();
+// records and submits command buffer, presents framebuffer
+void dt_gui_render();
 
 // add a widget for the given module instance and parameter name
 void dt_gui_add_widget(

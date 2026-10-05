@@ -336,8 +336,7 @@ int main(int argc, char *argv[])
     if(vkdt.graph_dev.gui_msg && vkdt.graph_dev.gui_msg[0]) dt_gui_notification(vkdt.graph_dev.gui_msg);
     // double t1 = dt_time();
 
-    if(dt_gui_render() == VK_SUCCESS)
-      dt_gui_present();
+    dt_gui_render();
     // double t2 = dt_time();
     // dt_log(s_log_perf, "frame cpu: process\t%8.3f ms  render\t%8.3f ms", 1000.0*(t1-t0), 1000.0*(t2-t1));
 

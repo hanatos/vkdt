@@ -97,7 +97,7 @@ void dt_gui_init_fonts()
     const char *fontfile = dt_rc_get(&vkdt.rc, "gui/msdffont", "font");
     threads_mutex_lock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
     int ret = nk_glfw3_font_load(fontfile, fontsize,
-        vkdt.win.command_buffer[vkdt.win.frame_index%DT_GUI_MAX_IMAGES],
+        vkdt.win.command_buffer[vkdt.win.frame_index],
         qvk.queue[qvk.qid[s_queue_graphics]].queue);
     threads_mutex_unlock(&qvk.queue[qvk.qid[s_queue_graphics]].mutex);
     nk_style_set_font(&vkdt.ctx, nk_glfw3_font(0));
@@ -191,8 +191,8 @@ int dt_gui_init_nk()
       vkdt.win.render_pass,
       vkdt.win.window,
       qvk.device, qvk.physical_device,
-      vkdt.win.num_swap_chain_images * 2560*1024,
-      vkdt.win.num_swap_chain_images * 640*1024);
+      DT_GUI_MAX_FRAMES_IN_FLIGHT * 2560*1024,
+      DT_GUI_MAX_FRAMES_IN_FLIGHT * 640*1024);
 
   dt_gui_update_cm();
 
