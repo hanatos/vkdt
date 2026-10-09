@@ -10,8 +10,10 @@ typedef struct dt_widget_descriptor_t
   float      min;   // min slider value
   float      max;   // max slider value
   int        grpid; // param id: group this widget belongs to, or -1
-  int        mode;  // widget only shows if int group param is in this mode
+  int        grp;   // widget only shows if int group param is in this mode
   int        cntid; // param id: this integer param holds the multiplicity of this widget, or -1
+  int        tabid; // param id: this widget belongs to a tab controlled by this parameter, or -1
+  int        tab;   // widget only shown if this tab number is active
   int        sep;   // widget wants a separator to be drawn after it
   void      *data;  // any extra data a widget might need to initialise (strings for combo boxes)
 }

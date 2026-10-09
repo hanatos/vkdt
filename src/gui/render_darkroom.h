@@ -143,10 +143,15 @@ dt_gui_widget_is_visible(int modid, int parid)
 {
   const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
   if(!param) return 0;
+  if(param->widget.tabid >= 0)
+  { // are we in the currently visible tab?
+    int tab = dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.tabid)[0];
+    if(param->widget.tab != tab) return 0;
+  }
   if(param->widget.grpid == -1) return 1;
   int grpval = dt_module_param_int(vkdt.graph_dev.module + modid, param->widget.grpid)[0];
-  if(param->widget.mode <  100 && grpval != param->widget.mode) return 0;
-  if(param->widget.mode >= 100 && grpval == param->widget.mode - 100) return 0;
+  if(param->widget.grp <  100 && grpval != param->widget.grp) return 0;
+  if(param->widget.grp >= 100 && grpval == param->widget.grp - 100) return 0;
   return dt_gui_widget_is_visible(modid, param->widget.grpid);
 }
 
@@ -157,7 +162,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   if(!param) return;
   struct nk_context *ctx = &vkdt.ctx;
 
-  // skip if group mode or any parent group mode does not match:
+  // skip if group or any parent group mode does not match:
   if(!dt_gui_widget_is_visible(modid, parid)) return;
 
 #define CONTEXTMENU(rect) \
@@ -804,6 +809,66 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       dt_tooltip(param->tooltip);
       KEYFRAME
       nk_label(ctx, str, NK_TEXT_LEFT);
+    }
+  }
+  else if(param->widget.type == dt_token("tabs"))
+  { // tab header
+    if(param->type == dt_token("int"))
+    {
+      int32_t *val = (int32_t*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
+      int32_t oldval = *val;
+      RESETBLOCK
+
+      float bw = 0.333f*wds[0]-2.0f/3.0f*ctx->style.window.spacing.x;
+      float r4[] = {bw, bw, bw, wds[1]}; // good idea to align with the rest but make last one different size?
+      nk_layout_row(ctx, NK_STATIC, row_height, 4, r4);
+      const char *c = (const char *)param->widget.data;
+      int rowidx = 0;
+      int rw = 4; // fixed number per row for now
+      int idx = 0;
+      while(1)
+      {
+        if(c[0])
+        {
+          const int sel = *val == idx;
+          if(sel)
+          {
+            nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_BUTTON_ACTIVE]));
+            nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT_ACTIVE]);
+          }
+          dt_tooltip(param->tooltip);
+          if(nk_button_label(ctx, c))
+          {
+            *val = idx;
+            change = 1;
+          }
+          if(sel)
+          {
+            nk_style_pop_style_item(ctx);
+            nk_style_pop_color(ctx);
+          }
+          idx++;
+          rowidx++;
+        }
+        if(!c[0] || (rowidx % rw) == 0)
+        { // second null byte found or row complete
+          rowidx = 0;
+          if(!c[0]) break;
+        }
+        while(*c) c++;
+        c++; // skip null byte
+      }
+
+      if(change)
+      {
+        dt_graph_run_t flags = s_graph_run_none;
+        if(vkdt.graph_dev.module[modid].so->check_params)
+          flags = vkdt.graph_dev.module[modid].so->check_params(vkdt.graph_dev.module+modid, parid, num, &oldval);
+        vkdt.graph_dev.runflags |= flags | s_graph_run_record_cmd_buf;
+        vkdt.graph_dev.active_module = modid;
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        vkdt.wstate.busy += 2;
+      }
     }
   }
   else if(param->widget.type == dt_token("btngrid"))

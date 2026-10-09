@@ -1,4 +1,5 @@
 process:int:1:0
+tabs:int:1:0
 film:int:1:4
 ev film:float:1:0
 f base:float:1:1.0

@@ -160,7 +160,7 @@ dt_module_so_load(
       .min  = 0.0f,
       .max  = 1.0f,
       .grpid = -1,
-      .mode  = 0,
+      .tabid = -1,
       .cntid = -1,
     };
   if(f)
@@ -180,8 +180,13 @@ dt_module_so_load(
     // if tkn==-1, the group resets to all visible.
     // a line "---" can be used before a widget definition to insert a separator space
     // before this widget in the ui.
-    int grpid = -1;
-    int mode = 0;
+    // one more way of hiding ui elements are tabs: a line
+    //  tab:tkn:int
+    // makes the subsequent widgets appear only in the tab identified by tabid=tkn when tab=int.
+    //  tab:-1:0
+    // resets, i.e. ends the tabs. a "tabs" widget is much like a "combo" widget but will display as tab header.
+    int grpid = -1, tabid = -1;
+    int grp   =  0, tab   =  0;
     int have_sep = 0;
     while(!feof(f))
     {
@@ -201,7 +206,13 @@ dt_module_so_load(
       if(parm == dt_token("group"))
       {
         grpid = dt_module_get_param(mod, type);
-        mode = dt_read_int(b, &b);
+        grp   = dt_read_int(b, &b);
+        continue;
+      }
+      else if(parm == dt_token("tab"))
+      {
+        tabid = dt_module_get_param(mod, type);
+        tab   = dt_read_int(b, &b);
         continue;
       }
       else if(type == dt_token("slider")
@@ -212,7 +223,10 @@ dt_module_so_load(
         min = dt_read_float(b, &b);
         max = dt_read_float(b, &b);
       }
-      else if(type == dt_token("combo") || type == dt_token("bitmask") || type == dt_token("btngrid"))
+      else if(type == dt_token("combo")
+           || type == dt_token("bitmask")
+           || type == dt_token("btngrid")
+           || type == dt_token("tabs"))
       { // read list of names of all entries
         size_t len = 0;
         for(len=0;len<sizeof(line) - (b-line);len++)
@@ -263,8 +277,10 @@ dt_module_so_load(
         .min   = min,
         .max   = max,
         .grpid = grpid,
-        .mode  = mode,
+        .grp   = grp,
         .cntid = cntid,
+        .tabid = tabid,
+        .tab   = tab,
         .sep   = have_sep,
         .data  = data,
       };

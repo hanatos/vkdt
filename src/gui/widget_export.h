@@ -14,12 +14,12 @@ export_render_widget(
   const dt_ui_param_t *param = mso->param[parid];
   if(!param) return;
 
-  // skip if group mode does not match:
+  // skip if group does not match:
   if(param->widget.grpid != -1)
   {
-    if(param->widget.mode <  100 && *(const int32_t *)(pdata + mso->param[param->widget.grpid]->offset) != param->widget.mode)
+    if(param->widget.grp <  100 && *(const int32_t *)(pdata + mso->param[param->widget.grpid]->offset) != param->widget.grp)
       return;
-    if(param->widget.mode >= 100 && *(const int32_t *)(pdata + mso->param[param->widget.grpid]->offset) == param->widget.mode-100)
+    if(param->widget.grp >= 100 && *(const int32_t *)(pdata + mso->param[param->widget.grpid]->offset) == param->widget.grp-100)
       return;
   }
 

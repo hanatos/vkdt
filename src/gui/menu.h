@@ -703,8 +703,8 @@ dt_menu_param_visible(dt_module_t *mod, const dt_ui_param_t *param)
 {
   if(param->widget.grpid == -1) return 1;
   int grpval = dt_module_param_int(mod, param->widget.grpid)[0];
-  if(param->widget.mode < 100 && grpval != param->widget.mode) return 0;
-  if(param->widget.mode >= 100 && grpval == param->widget.mode - 100) return 0;
+  if(param->widget.grp <  100 && grpval != param->widget.grp) return 0;
+  if(param->widget.grp >= 100 && grpval == param->widget.grp - 100) return 0;
   return 1;
 }
 

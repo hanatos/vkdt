@@ -174,6 +174,7 @@ this module has a lot of parameters. they are grouped into film options (first
 block) and print paper options (second block).
 
 * `process` determine the input and the output of the processing done here: (0) input raw image and output print on paper, (1) input raw image and output virtual negative (or, for a positive/reversal stock, the final scanned slide), (2) input scan of real film negative and output virtual print on paper.
+* `tabs` use these tabs to navigate through the long list of options
 * `film` the film id in the datafile
 * `ev film` exposure correction when exposing the film
 * `g film` gamma correction for exposing the film, use to adjust dynamic range
