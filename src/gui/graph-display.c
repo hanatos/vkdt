@@ -148,6 +148,9 @@ dt_graph_display_image_cmd_copy(
     dt_graph_display_image_cleanup(graph->dspy, d);
     dt_graph_display_image_init(d, graph, node);
     BARRIER_IMG_LAYOUT(d->con.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, d->con.mip_levels);
+    // dt_graph_generate_mipmaps() starts with a barrier from img->layout. if that still says UNDEFINED
+    // it discards the copy below (nvidia really does: blank/flickering display images).
+    d->con.layout = VK_IMAGE_LAYOUT_GENERAL;
   }
   d->val = val;
 

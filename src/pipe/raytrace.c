@@ -218,7 +218,7 @@ dt_raytrace_graph_init(
   if(graph->rt.dset_layout) vkDestroyDescriptorSetLayout(qvk.device, graph->rt.dset_layout, 0);
   QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &graph->rt.dset_layout));
 
-  size_t uniform_alignment = 64;
+  size_t uniform_alignment = MAX(64, qvk.uniform_alignment); // used as descriptor offsets, see alloc_outputs()
   graph->uniform_size = uniform_alignment*((graph->uniform_size + uniform_alignment-1)/uniform_alignment);
   graph->rt.bref_offset = graph->uniform_size;
   graph->uniform_size += sizeof(uint64_t); // bref_geo_t reference to buffer holding all the geo buffer references

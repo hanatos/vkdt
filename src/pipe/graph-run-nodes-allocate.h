@@ -955,7 +955,9 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
   int drawn_connector = -1;
   VkDescriptorSetLayoutBinding bindings[DT_MAX_CONNECTORS] = {{0}};
   const int nid = node - graph->node;
-  const size_t uniform_alignment = 64;
+  // bref sections and the second per-frame slice (offset uniform_size) are bound as uniform buffer
+  // descriptors, so they need minUniformBufferOffsetAlignment (256 on nvidia, only 64 elsewhere).
+  const size_t uniform_alignment = MAX(64, qvk.uniform_alignment);
   graph->uniform_size = uniform_alignment*((graph->uniform_size + uniform_alignment-1)/uniform_alignment);
   node->bref_offset = graph->uniform_size;
   for(int cid=0;cid<node->num_connectors;cid++)

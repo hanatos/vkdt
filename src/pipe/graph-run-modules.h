@@ -660,7 +660,10 @@ dt_graph_run_modules(
     graph->conn_image_end = 0;
     for(int i=0;i<cnt;i++)
       for(int j=0;j<graph->module[modid[i]].num_connectors;j++)
+      {
         graph->module[modid[i]].connector[j].associated = s_cid_unset;
+        graph->module[modid[i]].connector[j].bypass = s_cid_unset;
+      }
     for(int i=0;i<graph->num_nodes;i++)
     {
       for(int j=0;j<graph->node[i].num_connectors;j++)
