@@ -38,7 +38,6 @@ hal mids:float:1:0.0
 hal bnc:int:1:3
 hal dec:float:1:0.5
 scat amt:float:1:0.2
-pad_cp:float:1:0
 strength:float:4:1.0:1.0:1.0:0
 grain:int:1:1
 size:float:1:1.0
