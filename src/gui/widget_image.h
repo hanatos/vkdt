@@ -414,7 +414,7 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
     w->look_at_x = w->old_look_x-img1[0]+img0[0];
     w->look_at_y = w->old_look_y-img1[1]+img0[1];
   }
-  dt_image_clamp_zoom(w, vkdt.wstate.color_assessment);
+  dt_image_clamp_zoom(w, main && vkdt.wstate.color_assessment);
 }
 
 static inline void
@@ -423,7 +423,7 @@ dt_image(
     dt_image_widget_t *w,
     dt_node_t         *out,     // output display node
     int                events,  // if !=0 provide zoom/pan interaction
-    int                main,    // if !=0 do on-canvas ui elements
+    int                main,    // if !=0 do on-canvas ui elements and colour assessment
     int         center_display) // if !=0 allow mouse events not only on the image but on the full center canvas
 {
   if(!out) return;
@@ -431,8 +431,9 @@ dt_image(
   w->wd = (float)out->connector[0].roi.wd;
   w->ht = (float)out->connector[0].roi.ht;
   struct nk_rect wb = nk_widget_bounds(ctx);
-  dt_image_clamp_zoom(w, vkdt.wstate.color_assessment);
-  if (vkdt.wstate.color_assessment)
+  const int color_assessment = main && vkdt.wstate.color_assessment;
+  dt_image_clamp_zoom(w, color_assessment);
+  if (color_assessment)
   {
     dt_image_layout_color_assessment(w, wb.x, wb.y, wb.w, wb.h, vkdt.style.color_assessment_margin, vkdt.style.color_assessment_frame_wd);
   }
@@ -465,7 +466,7 @@ dt_image(
     disp.w = (int)(ns * subimg.w); disp.h = (int)(ns * subimg.h);
   }
   struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
-  if (vkdt.wstate.color_assessment)
+  if (color_assessment)
   {
     struct nk_color gray_bg = { 119, 119, 119, 255 }; // middle gray
     nk_fill_rect(buf, wb, 0.0f, gray_bg);
