@@ -150,7 +150,7 @@ void modify_roi_out(
     mod->flags = s_module_request_read_source;
   }
   
-  if(load_raw(mod, id + graph->frame, filename)) return;
+  if(load_raw(mod, id + graph->frame, fname)) return;
   rawinput_buf_t *mod_data = (rawinput_buf_t *)mod->data;
   // we know we only have one connector called "output" (see our "connectors" file)
   mod->connector[0].roi.full_wd = mod_data->img.width;
@@ -275,10 +275,7 @@ int read_source(
 {
   const int   id    = dt_module_param_int(mod, 3)[0];
   const char *fname = dt_module_param_string(mod, 0);
-  char        filename[2*PATH_MAX+10];
-  if(dt_graph_get_resource_filename(mod, fname, id + mod->graph->frame, filename, sizeof(filename)))
-    return 1;
-  int err = load_raw(mod, id + mod->graph->frame, filename);
+  int err = load_raw(mod, id + mod->graph->frame, fname);
   if(err) return 1;
   // TODO: if img.data_type == 1 it's an f32 buffer instead.
   uint16_t *buf = (uint16_t *)mapped;

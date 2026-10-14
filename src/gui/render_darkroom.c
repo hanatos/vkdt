@@ -1165,26 +1165,21 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
 
 static inline void
 clear_runflags()
-{ // graph_run has completed, now we need to check what happened:
-  if(vkdt.graph_dev.runflags & s_graph_run_create_nodes)
-  {
+{ // graph_run has completed (and cleared runflags already)
+#if 1
+    // TODO put this somewhere else (the graph, e.g.)
     // if no external resources are allocated, does nothing:
     dt_graph_print_external_resources(&vkdt.graph_dev);
     dt_graph_free_external_resources(&vkdt.graph_dev);
-
-    if(!dt_graph_get_display(&vkdt.graph_dev, dt_token("main")))
-      dt_gui_notification("graph does not contain a display:main node!");
-
-    // do this after running the graph, it may only know
-    // after initing say the output roi, after loading an input file
-    if(vkdt.graph_dev.frame_cnt == 1) dt_gui_dr_hide_dopesheet();
-
-    // rebuild gui specific to this image
-    dt_gui_rebuild_fav();
-#if 1//ndef QVK_ENABLE_VALIDATION // debug build does not reset zoom (reload shaders keeping focus is nice)
-    dt_image_reset_zoom(&vkdt.wstate.img_widget);
 #endif
-  }
+
+  if(!dt_graph_get_display(&vkdt.graph_dev, dt_token("main")))
+    dt_gui_notification("graph does not contain a display:main node!");
+
+  // do this after running the graph, it may only know
+  // after initing say the output roi, after loading an input file
+  if(vkdt.graph_dev.frame_cnt == 1) dt_gui_dr_hide_dopesheet();
+
   vkdt.graph_dev.runflags = 0; // in any case we processed this.
   if(vkdt.graph_res[vkdt.graph_dev.double_buffer] != VK_SUCCESS)
     dt_gui_notification("running the graph failed (%s)!",
@@ -1250,6 +1245,11 @@ darkroom_process()
     int have_free = dt_graph_display_have_free_process(&vkdt.graph_dev);
     if(needs_run && have_free)
     { // double buffered async compute
+      if(vkdt.graph_dev.runflags & s_graph_run_create_nodes)
+      {
+        dt_gui_rebuild_fav(); // rebuild gui specific to this module list
+        // dt_image_reset_zoom(&vkdt.wstate.img_widget); // not sure if helpful at all
+      }
       vkdt.graph_dev.double_buffer ^= 1; // work on the one that's not currently locked
       vkdt.graph_res[vkdt.graph_dev.double_buffer] =
         dt_graph_run(&vkdt.graph_dev, (vkdt.graph_dev.runflags & ~s_graph_run_wait_done));
@@ -1376,7 +1376,7 @@ darkroom_enter()
   }
 
   // do this to track usage of external files. not sure how to best wire it in the ui:
-  // dt_graph_alloc_external_resources(&vkdt.graph_dev);
+  dt_graph_alloc_external_resources(&vkdt.graph_dev);
   dt_gui_set_lod(vkdt.wstate.lod_fine);
   vkdt.graph_dev.runflags = s_graph_run_all;
   vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate

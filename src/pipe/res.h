@@ -94,7 +94,7 @@ dt_graph_get_resource_filename(
     snprintf(ret, ret_size, tmp, frame);
     FILE *f = fopen(ret, "rb");
     if(!f) return 1;
-    dt_graph_append_external_resource(mod->graph, ret);
+    dt_graph_append_external_resource(mod->graph, fname);
     fclose(f);
   }
   else
@@ -102,7 +102,7 @@ dt_graph_get_resource_filename(
     snprintf(ret, ret_size, fname, frame);
     FILE *f = fopen(ret, "rb");
     if(!f) return 1;
-    dt_graph_append_external_resource(mod->graph, ret);
+    dt_graph_append_external_resource(mod->graph, fname);
     fclose(f);
   }
   return 0;
