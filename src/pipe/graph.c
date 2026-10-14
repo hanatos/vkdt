@@ -137,6 +137,8 @@ dt_graph_init(dt_graph_t *g, qvk_queue_name_t qname)
   g->lod_scale = 1;
   g->active_module = -1;
   dt_graph_init_mipmap(g);
+
+  dt_graph_alloc_external_resources(g);
 }
 
 // Destroy per-image/per-graph-structure Vulkan resources: connector images,
@@ -307,6 +309,8 @@ dt_graph_cleanup(dt_graph_t *g)
     free(g->query[i].kernel);       g->query[i].kernel = 0;
   }
   dt_graph_cleanup_mipmap(g);
+  // if no external resources are allocated, does nothing:
+  dt_graph_free_external_resources(g);
   return VK_SUCCESS;
 }
 
@@ -1075,6 +1079,7 @@ dt_graph_repurpose(dt_graph_t *g)
   g->thumbnail_image = 0; // owned externally
   g->history_item_cur = 0;
   g->history_item_end = 0;
+  if(g->ext_files) dt_stringpool_reset(g->ext_files);
   // keep display_dbuffer/process_dbuffer: semaphore signal values must be
   // strictly increasing, so the next run must continue from the current values
   return VK_SUCCESS;

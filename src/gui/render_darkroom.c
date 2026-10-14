@@ -1166,13 +1166,6 @@ darkroom_mouse_position(GLFWwindow* window, double x, double y)
 static inline void
 clear_runflags()
 { // graph_run has completed (and cleared runflags already)
-#if 1
-    // TODO put this somewhere else (the graph, e.g.)
-    // if no external resources are allocated, does nothing:
-    dt_graph_print_external_resources(&vkdt.graph_dev);
-    dt_graph_free_external_resources(&vkdt.graph_dev);
-#endif
-
   if(!dt_graph_get_display(&vkdt.graph_dev, dt_token("main")))
     dt_gui_notification("graph does not contain a display:main node!");
 
@@ -1375,8 +1368,6 @@ darkroom_enter()
     else vkdt.graph_dev.active_module = -1;
   }
 
-  // do this to track usage of external files. not sure how to best wire it in the ui:
-  dt_graph_alloc_external_resources(&vkdt.graph_dev);
   dt_gui_set_lod(vkdt.wstate.lod_fine);
   vkdt.graph_dev.runflags = s_graph_run_all;
   vkdt.graph_res[0] = vkdt.graph_res[1] = VK_INCOMPLETE; // invalidate
