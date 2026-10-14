@@ -61,7 +61,6 @@ layout(std140, set = 0, binding = 1) uniform params_t
   int   hal_bnc;
   float hal_dec;
   float scat_amt;
-  float pad_cp0;
   vec4  halation_strength;
   int   grain;
   float grain_size;
