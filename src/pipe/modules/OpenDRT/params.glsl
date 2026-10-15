@@ -1,5 +1,6 @@
 layout(std140, set = 0, binding = 1) uniform params_t
 {
+  int tab;
   int i_gamut;
   int i_oetf;
   float tn_Lp;
