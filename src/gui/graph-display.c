@@ -3,6 +3,7 @@
 #include "pipe/modules/api.h"
 #include "pipe/graph.h"
 #include "pipe/graph-run-nodes-allocate.h"
+#include "pipe/buffer.h"
 #include "gui/graph-display.h"
 #include <inttypes.h>
 

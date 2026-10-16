@@ -1,5 +1,6 @@
 PIPE_O=\
 pipe/alloc.o\
+pipe/buffer.o\
 pipe/connector.o\
 pipe/global.o\
 pipe/graph.o\
