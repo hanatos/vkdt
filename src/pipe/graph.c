@@ -364,17 +364,20 @@ dt_graph_create_shader_module(
   free(data);
 #if 0 // def DEBUG_MARKERS
 #ifdef QVK_ENABLE_VALIDATION
-  char name[100];
-  const char *dedup;
-  snprintf(name, sizeof(name), "%"PRItkn"_%"PRItkn, dt_token_str(node), dt_token_str(kernel));
-  dt_stringpool_get(&graph->debug_markers, name, strlen(name), 0, &dedup);
-  VkDebugMarkerObjectNameInfoEXT name_info = {
-    .sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
-    .object = (uint64_t) shader_module,
-    .objectType = VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT,
-    .pObjectName = dedup,
-  };
-  qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
+  if(graph)
+  {
+    char name[100];
+    const char *dedup;
+    snprintf(name, sizeof(name), "%"PRItkn"_%"PRItkn, dt_token_str(node), dt_token_str(kernel));
+    dt_stringpool_get(&graph->debug_markers, name, strlen(name), 0, &dedup);
+    VkDebugMarkerObjectNameInfoEXT name_info = {
+      .sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT,
+      .object = (uint64_t) shader_module,
+      .objectType = VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT,
+      .pObjectName = dedup,
+    };
+    qvkDebugMarkerSetObjectNameEXT(qvk.device, &name_info);
+  }
 #endif
 #endif
   return VK_SUCCESS;

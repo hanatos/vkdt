@@ -1420,13 +1420,17 @@ darkroom_leave()
     gui.active_instance = vkdt.graph_dev.module[vkdt.graph_dev.active_module].inst;
   }
 
-  // TODO: start from already loaded/inited graph instead of from scratch!
+  // cpu synced thumbnail update: just grab the current display image and write to bc1:
+  dt_graph_display_write_thumbnail();
+#if 0
+  // this re-decodes the raw file and introduces like an extra 1s lag while doing so:
   const uint32_t imgid = dt_db_current_imgid(&vkdt.db);
   dt_thumbnails_cache_list(
       &vkdt.thumbnail_gen,
       &vkdt.db,
       &imgid, 1,
       &glfwPostEmptyEvent);
+#endif
 
   dt_graph_repurpose(&vkdt.graph_dev);
   dt_graph_history_cleanup(&vkdt.graph_dev);

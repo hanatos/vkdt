@@ -50,6 +50,10 @@ typedef struct dt_graph_display_images_t
   uint64_t timeline_process; // this is the image currently in flight for graph dispatch (>=timeline_display, == if done and not rendering)
   VkDescriptorPool dset_pool;
   dt_graph_display_image_t display_image[s_graph_display_cnt][3];
+
+  VkPipeline            readback_pipeline;
+  VkPipelineLayout      readback_pipeline_layout;
+  VkDescriptorSetLayout readback_dset_layout;
 }
 dt_graph_display_images_t;
 
@@ -100,3 +104,6 @@ VkDescriptorSet
 dt_graph_display_get_dset(
     dt_graph_t *g,
     dt_token_t  name);
+
+VkResult // write current display as new thumbnail on disk
+dt_graph_display_write_thumbnail();

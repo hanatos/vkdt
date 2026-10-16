@@ -1,0 +1,31 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_shader_16bit_storage    : enable
+#extension GL_EXT_shader_8bit_storage     : enable
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(set = 0, binding = 0) uniform sampler2D img_in;
+layout(std430, buffer_reference, buffer_reference_align = 8) writeonly buffer out_t
+{
+  u8vec4 p[];
+};
+layout(push_constant, std140) uniform push_t
+{
+  out_t img;
+  int   lod;
+  int   wd;
+  int   ht;
+} push;
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, uvec2(push.wd, push.ht)))) return;
+  vec2 pos = (ipos + 0.5)/textureSize(img_in, push.lod);
+  vec4 rgba = vec4(textureLod(img_in, pos, push.lod).rgb, 1);
+  // thumbnails stay in bt2020, but for better quantisation of the 8-bit values, we apply the srgb trc:
+  rgba.rgb = mix(rgba.rgb * 12.92, pow(rgba.rgb, vec3(1.0/2.4))*1.055-0.055, greaterThan(rgba.rgb, vec3(0.0031308)));
+  uint idx = push.wd * ipos.y + ipos.x;
+  push.img.p[idx] = u8vec4(uvec4(clamp(256.0*rgba, 0.0, 255.0)));
+}

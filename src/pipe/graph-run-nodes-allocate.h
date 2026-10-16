@@ -1198,7 +1198,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       vkDestroyShaderModule(qvk.device, shader_module_vert, 0);
       vkDestroyShaderModule(qvk.device, shader_module_frag, 0);
     }
-    else
+    else if(!(node->type & s_node_vid_dec))
     { // create the compute shader stage
       VkShaderModule shader_module;
       QVKR(dt_graph_create_shader_module(graph, node->name, node->kernel, "comp", &shader_module));

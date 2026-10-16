@@ -4,6 +4,60 @@
 #include "pipe/graph.h"
 #include "pipe/graph-run-nodes-allocate.h"
 #include "gui/graph-display.h"
+#include <inttypes.h>
+
+static inline VkResult
+dt_graph_display_init_thumbnail(dt_graph_display_images_t *dspy)
+{
+  VkShaderModule shader_module;
+  QVKR(dt_graph_create_shader_module(0, dt_token("display"), dt_token("readback"), "comp", &shader_module));
+  VkDescriptorSetLayoutBinding bindings = {
+    .binding = 0,
+    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_ALL,
+  };
+  VkDescriptorSetLayoutCreateInfo dset_layout_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
+    .bindingCount = 1,
+    .pBindings = &bindings,
+  };
+  QVKR(vkCreateDescriptorSetLayout(qvk.device, &dset_layout_info, 0, &dspy->readback_dset_layout));
+  VkPushConstantRange pcrange = {
+    .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+    .size       = 5*sizeof(uint32_t),
+  };
+  VkPipelineLayoutCreateInfo pipeline_layout_info = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .setLayoutCount = 1,
+    .pSetLayouts = &dspy->readback_dset_layout,
+    .pushConstantRangeCount = 1,
+    .pPushConstantRanges    = &pcrange,
+  };
+  QVKR(vkCreatePipelineLayout(qvk.device, &pipeline_layout_info, 0, &dspy->readback_pipeline_layout));
+  VkComputePipelineCreateInfo pipeline_info = {
+    .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+    .stage = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+      .module = shader_module,
+      .pName = "main",
+    },
+    .layout = dspy->readback_pipeline_layout,
+  };
+  QVKR(vkCreateComputePipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, 0, &dspy->readback_pipeline));
+  vkDestroyShaderModule(qvk.device, shader_module, 0);
+  return VK_SUCCESS;
+}
+
+static inline void
+dt_graph_display_cleanup_thumbnail(dt_graph_display_images_t *dspy)
+{
+  if(dspy->readback_pipeline)        vkDestroyPipeline           (qvk.device, dspy->readback_pipeline,        0);
+  if(dspy->readback_pipeline_layout) vkDestroyPipelineLayout     (qvk.device, dspy->readback_pipeline_layout, 0);
+  if(dspy->readback_dset_layout)     vkDestroyDescriptorSetLayout(qvk.device, dspy->readback_dset_layout,     0);
+}
 
 void
 dt_graph_display_image_cleanup(
@@ -17,6 +71,16 @@ dt_graph_display_image_cleanup(
   for(int m=0;m<LENGTH(d->con.mipmap_views);m++)
     if(d->con.mipmap_views[m]) vkDestroyImageView(qvk.device, d->con.mipmap_views[m], 0);
   memset(d, 0, sizeof(*d));
+}
+
+void
+dt_graph_display_images_cleanup(dt_graph_display_images_t *dspy)
+{
+  dt_graph_display_cleanup_thumbnail(dspy);
+  for(int k=0;k<s_graph_display_cnt;k++)
+    for(int i=0;i<3;i++)
+      dt_graph_display_image_cleanup(dspy, &dspy->display_image[k][i]);
+  vkDestroyDescriptorPool(qvk.device, dspy->dset_pool, 0);
 }
 
 int // return 1 if display image is compatible with given display node
@@ -357,13 +421,99 @@ VkResult dt_graph_display_images_init(dt_graph_display_images_t *dspy)
     .maxSets       = 3*s_graph_display_cnt,
   };
   QVKR(vkCreateDescriptorPool(qvk.device, &pool_info, 0, &dspy->dset_pool));
+  QVKR(dt_graph_display_init_thumbnail(dspy));
   return VK_SUCCESS;
 }
 
-void dt_graph_display_images_cleanup(dt_graph_display_images_t *dspy)
+VkResult dt_graph_display_write_thumbnail()
 {
-  for(int k=0;k<s_graph_display_cnt;k++)
-    for(int i=0;i<3;i++)
-      dt_graph_display_image_cleanup(dspy, &dspy->display_image[k][i]);
-  vkDestroyDescriptorPool(qvk.device, dspy->dset_pool, 0);
+  uint32_t imgid = dt_db_current_imgid(&vkdt.db);
+  dt_graph_t *g = &vkdt.graph_dev;
+  dt_graph_display_image_t *img = 0;
+  VkDescriptorSet dset;
+  uint64_t tv = 0;
+  for(int k=0;k<3;k++)
+  { // grab latest display buffer
+    if((g->dspy->display_image[0][k].val > tv) &&
+       (g->dspy->display_image[0][k].val == g->dspy->timeline_display))
+    {
+      tv   =  g->dspy->display_image[0][k].val;
+      img  = &g->dspy->display_image[0][k];
+      dset =  g->dspy->display_image[0][k].dset;
+    }
+  }
+  if(!img) return VK_INCOMPLETE;
+  int wd = img->con.wd, ht = img->con.ht, mip = 0;
+  while(wd/2 > vkdt.thumbnail_gen.thumb_wd && ht/2 > vkdt.thumbnail_gen.thumb_ht)
+  { // find mipmap level that seems appropriate in size
+    wd /= 2; ht /= 2; mip++;
+  }
+  dt_buffer_t staging = {0};
+  size_t size = wd * ht * 4;
+  dt_buffer_alloc(&staging, size, 
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      s_buffer_flag_host_visible | s_buffer_flag_mapped);
+  VkCommandBuffer cmd = dt_graph_cmd_buf(g);
+  VkCommandBufferBeginInfo begin_info = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+  };
+  QVKR(vkBeginCommandBuffer(cmd, &begin_info));
+
+  int32_t push[] = { 0, 0, mip, wd, ht};
+  uint64_t *p64 = (uint64_t*)push;
+  p64[0] = staging.adr;
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
+      g->dspy->readback_pipeline_layout, 0, 1, &dset, 0, 0);
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, g->dspy->readback_pipeline);
+  vkCmdPushConstants(cmd, g->dspy->readback_pipeline_layout,
+      VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push), push);
+  vkCmdDispatch(cmd,
+      (wd + DT_LOCAL_SIZE_X - 1)/DT_LOCAL_SIZE_X,
+      (ht + DT_LOCAL_SIZE_Y - 1)/DT_LOCAL_SIZE_Y, 1);
+  VkMemoryBarrier mem_barrier = {
+    .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+    .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+    .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+  };
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+      VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &mem_barrier, 0, 0, 0, 0);
+  QVKR(vkEndCommandBuffer(cmd));
+  VkFence fence;
+  VkFenceCreateInfo fence_info = {
+    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+  };
+  QVKR(vkCreateFence(qvk.device, &fence_info, 0, &fence));
+  VkSubmitInfo submit = {
+    .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    .commandBufferCount   = 1,
+    .pCommandBuffers      = &cmd,
+  };
+  qvk_queue_name_t submit_queue = g->use_graphics_queue ? s_queue_graphics : g->queue_name;
+  QVKLR(&qvk.queue[qvk.qid[submit_queue]].mutex,
+      vkQueueSubmit(qvk.queue[qvk.qid[submit_queue]].queue, 1, &submit, fence));
+  QVKR(vkWaitForFences(qvk.device, 1, &fence, VK_TRUE, UINT64_MAX));
+  vkDestroyFence(qvk.device, fence, 0);
+
+  // write bc1 thumbnail
+  dt_module_t o_bc1 = { .name = dt_token("o-bc1"), .inst = dt_token("thumb") };
+  for(int i=0;i<dt_pipe.num_modules&&!o_bc1.so;i++)
+    if(o_bc1.name == dt_pipe.module[i].name)
+      o_bc1.so = dt_pipe.module + i;
+  if(!o_bc1.so) return VK_INCOMPLETE;
+  o_bc1.connector[0].roi.wd = wd;
+  o_bc1.connector[0].roi.ht = ht;
+  char filename[PATH_MAX];
+  dt_db_image_path(&vkdt.db, imgid, filename, sizeof(filename));
+  uint64_t hash = hash64(filename); // same as thumbnails.c would write:
+  if(snprintf(filename, sizeof(filename), "%s/%"PRIx64".bc1", vkdt.thumbnail_gen.cachedir, hash) >= sizeof(filename))
+    return VK_INCOMPLETE;
+  o_bc1.param = (uint8_t *)filename;
+  o_bc1.so->write_sink(&o_bc1, staging.map, 0);
+  dt_buffer_free(&staging);
+
+  threads_mutex_lock(&vkdt.db.image_mutex);
+  vkdt.db.image[imgid].thumbnail = 0; // invalidate old in-memory thumbnail
+  threads_mutex_unlock(&vkdt.db.image_mutex);
+  return VK_SUCCESS;
 }
