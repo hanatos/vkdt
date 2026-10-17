@@ -13,7 +13,7 @@ layout(std430, buffer_reference, buffer_reference_align = 8) writeonly buffer ou
 layout(push_constant, std140) uniform push_t
 {
   out_t img;
-  int   lod;
+  float lod;
   int   wd;
   int   ht;
 } push;
@@ -22,7 +22,7 @@ void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, uvec2(push.wd, push.ht)))) return;
-  vec2 pos = (ipos + 0.5)/textureSize(img_in, push.lod);
+  vec2 pos = (ipos + 0.5)/vec2(push.wd, push.ht);
   vec4 rgba = vec4(textureLod(img_in, pos, push.lod).rgb, 1);
   // thumbnails stay in bt2020, but for better quantisation of the 8-bit values, we apply the srgb trc:
   rgba.rgb = mix(rgba.rgb * 12.92, pow(rgba.rgb, vec3(1.0/2.4))*1.055-0.055, greaterThan(rgba.rgb, vec3(0.0031308)));

@@ -444,11 +444,12 @@ VkResult dt_graph_display_write_thumbnail()
     }
   }
   if(!img) return VK_INCOMPLETE;
-  int wd = img->con.wd, ht = img->con.ht, mip = 0;
-  while(wd/2 > vkdt.thumbnail_gen.thumb_wd && ht/2 > vkdt.thumbnail_gen.thumb_ht)
-  { // find mipmap level that seems appropriate in size
-    wd /= 2; ht /= 2; mip++;
-  }
+  float scale = MAX(
+      img->con.wd / (float)vkdt.thumbnail_gen.thumb_wd,
+      img->con.ht / (float)vkdt.thumbnail_gen.thumb_ht);
+  float mip = log2f(scale);
+  int wd = img->con.wd / scale;
+  int ht = img->con.ht / scale;
   dt_buffer_t staging = {0};
   size_t size = wd * ht * 4;
   dt_buffer_alloc(&staging, size, 
@@ -461,9 +462,9 @@ VkResult dt_graph_display_write_thumbnail()
   };
   QVKR(vkBeginCommandBuffer(cmd, &begin_info));
 
-  int32_t push[] = { 0, 0, mip, wd, ht};
-  uint64_t *p64 = (uint64_t*)push;
-  p64[0] = staging.adr;
+  int32_t push[] = { 0, 0, 0, wd, ht};
+  uint64_t *p64 = (uint64_t *)push; p64[0] = staging.adr;
+  float    *pf  = (float    *)push; pf[2]  = mip;
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
       g->dspy->readback_pipeline_layout, 0, 1, &dset, 0, 0);
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, g->dspy->readback_pipeline);
