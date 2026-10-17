@@ -300,6 +300,7 @@ void dt_db_load_directory(
       break; // no use trying again
     }
   }
+  closedir(dp);
   clock_t end = clock();
   dt_log(s_log_perf|s_log_db, "time to load images %2.3fs", (end-beg)/(double)CLOCKS_PER_SEC);
 
