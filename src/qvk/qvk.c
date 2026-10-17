@@ -484,11 +484,11 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   if(qvk.unified_image_layouts_supported)
     qvk.dev_extension[len++] = VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME; // general image layouts
   qvk.dev_extension[len++] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
+  qvk.dev_extension[len++] = VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME;
   if(qvk.raytracing_supported)
   {
     qvk.dev_extension[len++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
     qvk.dev_extension[len++] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
-    qvk.dev_extension[len++] = VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME;
     qvk.dev_extension[len++] = VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME;
     qvk.dev_extension[len++] = VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME;
     qvk.dev_extension[len++] = VK_KHR_RAY_QUERY_EXTENSION_NAME;
