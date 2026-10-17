@@ -65,8 +65,7 @@ VkResult dt_buffer_alloc_debug(
     .sType  = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
     .buffer = b->buf,
   };
-  QVK_LOAD(vkGetBufferDeviceAddressKHR);
-  b->adr = qvkGetBufferDeviceAddressKHR(qvk.device, &address_info);
+  b->adr = vkGetBufferDeviceAddress(qvk.device, &address_info);
 #ifdef DEBUG_MARKERS
 #ifdef QVK_ENABLE_VALIDATION
   VkDebugMarkerObjectNameInfoEXT name_info = {
