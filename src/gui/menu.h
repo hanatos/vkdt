@@ -43,7 +43,7 @@ typedef struct dt_menu_entry_t
   int16_t     first_child;    // index of first child, -1 = leaf
   int16_t     next_sibling;   // next entry at same level, -1 = last
   const char *label;          // display text (null-terminated); if NULL, check label_tkn
-  dt_token_t  label_tkn;     // non-zero: display token as label
+  dt_token_t  label_tkn;      // non-zero: display token as label
   const char *tooltip;        // hover tooltip, or NULL (from stringpool)
   int         hotkey_index;   // for leaves: index into view's hk[] array, -1 = provider action
   char        action_buf[64]; // for provider leaves: action string copy (stable storage)
