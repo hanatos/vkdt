@@ -123,22 +123,8 @@ dt_gui_paste_history()
           fn[len-3] = 0;
           len -= 3;
         }
-        if(len > 4 && !strncasecmp(fn+len-4, ".mlv", 4))
-          fprintf(fout, "param:i-mlv:main:filename:%s\n", fn);
-        else if(len > 6 && !strncasecmp(fn+len-6, ".mcraw", 6))
-          fprintf(fout, "param:i-mcraw:main:filename:%s\n", fn);
-        else if(len > 4 && !strncasecmp(fn+len-4, ".pfm", 4))
-          fprintf(fout, "param:i-pfm:main:filename:%s\n", fn);
-        else if(len > 4 && !strncasecmp(fn+len-4, ".exr", 4))
-          fprintf(fout, "param:i-exr:main:filename:%s\n", fn);
-        else if(len > 4 && !strncasecmp(fn+len-4, ".lut", 4))
-          fprintf(fout, "param:i-lut:main:filename:%s\n", fn);
-        else if(len > 4 && !strncasecmp(fn+len-4, ".bc1", 4))
-          fprintf(fout, "param:i-bc1:main:filename:%s\n", fn);
-        else if(len > 4 && !strncasecmp(fn+len-4, ".jpg", 4))
-          fprintf(fout, "param:i-jpg:main:filename:%s\n", fn);
-        else
-          fprintf(fout, "param:i-raw:main:filename:%s\n", fn);
+        dt_token_t defmod = dt_graph_default_input_module(fn);
+        fprintf(fout, "param:%"PRItkn":main:filename:%s\n", dt_token_str(defmod), fn);
         fn[len] = '.'; // put .cfg back
       }
       fclose(fout);

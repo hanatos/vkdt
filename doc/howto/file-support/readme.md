@@ -22,4 +22,3 @@ to the correct files.
 * `src/pipe/graph-defaults.h`: registry to map file extension to input module
 * `bin/default.i-*`: default processing graph for thumbnails with given input module
 * `bin/default-darkroom.i-*`: default processing graph when entering darkroom mode
-* `src/gui/api-gui.h` `dt_gui_paste_history()`: take care of correct input module when copy/pasting history between images
