@@ -15,13 +15,12 @@ layout(std140, set = 0, binding = 1) uniform params_t
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
-shared float shm_black[2];
+shared float shm_black[DT_LOCAL_SIZE_X*DT_LOCAL_SIZE_Y];
 
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
-  vec3 rgb = texelFetch(img_in, ipos, 0).rgb;
+  vec3 rgb = texelFetch(img_in, min(ipos, imageSize(img_out)-1), 0).rgb;
 
   vec3 A = max(vec3(1e-3), params.haze.rgb);
   float black = min(rgb.r/A.r, min(rgb.g/A.g, rgb.b/A.b));
@@ -29,7 +28,9 @@ void main()
   if(gl_SubgroupInvocationID == 0)
     shm_black[gl_SubgroupID] = black;
   barrier();
-  black = min(shm_black[0], shm_black[1]);
+  black = shm_black[0];
+  for(int i=1;i<gl_NumSubgroups;i++) black = min(black, shm_black[i]);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
 
   float t = 1.0 - params.strength * black;
   // unfortunately using a guided blur on a downsampled buffer comes out broken (blur downsamples too much)
