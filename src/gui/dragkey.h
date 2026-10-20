@@ -358,13 +358,49 @@ dt_dragkey_activate_named(dt_dragkeys_t *dk, const char *name)
   return 1;
 }
 
+static inline void
+dt_dragkey_set_value_internal(
+    dt_dragkeys_t *dk,
+    float new_val,
+    int   step_axis,
+    int   dir)
+{
+  dt_dragkey_t *d = &dk->menu_dk;
+  char msg[128];
+  int off = snprintf(msg, sizeof(msg), "%s:", d->name);
+  dt_graph_run_t runflags = s_graph_run_record_cmd_buf;
+  for(int j = 0; j < d->comp_cnt; j++)
+  {
+    dt_dragkey_comp_t *c = d->comp + j;
+    if(c->modid < 0 || c->parid < 0 || c->axis != step_axis) continue;
+    float *val = (float *)dt_module_param_float(vkdt.graph_dev.module + c->modid, c->parid);
+    if(!val) continue;
+    if(dir) new_val = val[c->component] + dir * c->sensitivity * DT_DRAGKEY_ARROW_STEP * (dk->shift ? DT_DRAGKEY_SHIFT_MULT : 1.0f);
+    if(c->min_val < c->max_val) new_val = CLAMP(new_val, c->min_val, c->max_val);
+    float oldval = val[c->component];
+    val[c->component] = new_val;
+    if(vkdt.graph_dev.module[c->modid].so->check_params)
+    runflags |= vkdt.graph_dev.module[c->modid].so->check_params(
+        vkdt.graph_dev.module + c->modid, c->parid, c->component, &oldval);
+    if(off < (int)sizeof(msg) - 20)
+      off += snprintf(msg + off, sizeof(msg) - off, " %.3f", new_val);
+  }
+  vkdt.graph_dev.runflags = runflags;
+  dt_gui_notification("%s", msg);
+  dt_dragkeys_reanchor(dk); // re-anchor so subsequent mouse movement starts from the stepped value
+}
+
 // called from darkroom_keyboard. returns 1 if the event was consumed.
 static inline int
 dt_dragkey_keyboard(dt_dragkeys_t *dk, int key, int action, int mods)
 {
   (void)mods;
+  static char number[32] = {0};
+  static int  number_pos = 0;
   if(action == GLFW_PRESS && !dk->latched)
   {
+    number[0] = 0;
+    number_pos = 0;
     for(int i = 0; i < dk->cnt; i++)
     {
       if(dk->dk[i].key != key) continue;
@@ -387,34 +423,23 @@ dt_dragkey_keyboard(dt_dragkeys_t *dk, int key, int action, int mods)
     { // step the parameter and stay armed (hold for repeat)
       int step_axis = (is_ydec || is_yinc) ? 1 : 0;
       float dir = (is_xinc || is_yinc) ? 1.0f : -1.0f;
-      dt_dragkey_t *d = &dk->menu_dk;
-      char msg[128];
-      int off = snprintf(msg, sizeof(msg), "%s:", d->name);
-      dt_graph_run_t runflags = s_graph_run_record_cmd_buf;
-      for(int j = 0; j < d->comp_cnt; j++)
-      {
-        dt_dragkey_comp_t *c = d->comp + j;
-        if(c->modid < 0 || c->parid < 0) continue;
-        if(c->axis != step_axis) continue;
-        float *val = (float *)dt_module_param_float(vkdt.graph_dev.module + c->modid, c->parid);
-        if(!val) continue;
-        float new_val = val[c->component] + dir * c->sensitivity * DT_DRAGKEY_ARROW_STEP * (dk->shift ? DT_DRAGKEY_SHIFT_MULT : 1.0f);
-        if(c->min_val < c->max_val)
-        {
-          if(new_val < c->min_val) new_val = c->min_val;
-          if(new_val > c->max_val) new_val = c->max_val;
-        }
-        float oldval = val[c->component];
-        val[c->component] = new_val;
-        if(vkdt.graph_dev.module[c->modid].so->check_params)
-          runflags |= vkdt.graph_dev.module[c->modid].so->check_params(
-              vkdt.graph_dev.module + c->modid, c->parid, c->component, &oldval);
-        if(off < (int)sizeof(msg) - 20)
-          off += snprintf(msg + off, sizeof(msg) - off, " %.3f", new_val);
-      }
-      vkdt.graph_dev.runflags = runflags;
-      dt_dragkeys_reanchor(dk); // re-anchor so subsequent mouse movement starts from the stepped value
-      dt_gui_notification("%s", msg);
+      dt_dragkey_set_value_internal(dk, 0, step_axis, dir);
+      return 1;
+    }
+    else if((action == GLFW_PRESS &&
+          ((key >= GLFW_KEY_0 && key <= GLFW_KEY_9) ||
+           (key == GLFW_KEY_PERIOD) ||
+           (key == GLFW_KEY_MINUS))))
+    { // typed number, write into a string, parse it and put into value
+      char c = 0;
+      if(key == GLFW_KEY_PERIOD) c = '.';
+      else if(key == GLFW_KEY_MINUS) c = '-';
+      else if(key >= GLFW_KEY_0) c = '0' + key - GLFW_KEY_0;
+      number[number_pos] = c;
+      if(number_pos < sizeof(number)-1) number_pos++;
+      number[number_pos] = 0;
+      float new_val = atof(number);
+      dt_dragkey_set_value_internal(dk, new_val, 0, 0);
       return 1;
     }
     if(key == GLFW_KEY_LEFT_SHIFT || key == GLFW_KEY_RIGHT_SHIFT)
@@ -433,6 +458,8 @@ dt_dragkey_keyboard(dt_dragkeys_t *dk, int key, int action, int mods)
       return 1; // other modifier keys don't commit
     if(action == GLFW_PRESS)
     { // any other key: confirm (esc = cancel/restore)
+      number[0] = 0;
+      number_pos = 0;
       dt_dragkeys_exit(dk, key != GLFW_KEY_ESCAPE);
       return 1;
     }
