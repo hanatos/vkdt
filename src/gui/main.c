@@ -357,6 +357,7 @@ int main(int argc, char *argv[])
   dt_rc_set_int(&vkdt.rc, "gui/wd", vkdt.win.width/vkdt.win.content_scale[0]);
   dt_rc_set_int(&vkdt.rc, "gui/ht", vkdt.win.height/vkdt.win.content_scale[1]);
 
+  dt_snd_cleanup(&vkdt.snd);
   threads_shutdown();
   threads_global_cleanup(); // join worker threads before killing their resources
   dt_thumbnails_cleanup(&vkdt.thumbnails);

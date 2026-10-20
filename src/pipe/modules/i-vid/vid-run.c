@@ -19,7 +19,10 @@ decode_video_create_sampler(
     .sType         = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO,
     .format        = format,
     .ycbcrModel    = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709,
-    .ycbcrRange    = VK_SAMPLER_YCBCR_RANGE_ITU_FULL,
+    .ycbcrRange    = 
+      v->video.av_stream->codecpar->color_range == AVCOL_RANGE_MPEG ?
+      VK_SAMPLER_YCBCR_RANGE_ITU_NARROW:
+      VK_SAMPLER_YCBCR_RANGE_ITU_FULL,
     .xChromaOffset = cosited ? VK_CHROMA_LOCATION_COSITED_EVEN : VK_CHROMA_LOCATION_MIDPOINT,
     .yChromaOffset = cosited ? VK_CHROMA_LOCATION_COSITED_EVEN : VK_CHROMA_LOCATION_MIDPOINT,
     .chromaFilter  = VK_FILTER_LINEAR,
