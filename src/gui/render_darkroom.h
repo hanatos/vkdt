@@ -582,7 +582,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         float dx = ctx->input.mouse.pos.x - ctx->input.mouse.prev.x;
         float dy = ctx->input.mouse.pos.y - ctx->input.mouse.prev.y;
         int shift = nk_input_is_key_down(&ctx->input, NK_KEY_SHIFT);
-        float sens = shift ? 0.15f : 0.005f;
+        float sens = 0.15f * (shift ? NK_PROPERTY_FINE_SCALE : 1.0f);
         float sx = dx / (radius * 2.0f) * sens;
         float sy = dy / (radius * 2.0f) * sens;
         // constrained so sum of R+G+B deltas stays 0 (chromaticity only)
@@ -633,7 +633,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
           float mo  = val[3];
           float dx  = ctx->input.mouse.pos.x - ctx->input.mouse.prev.x;
           int shift = nk_input_is_key_down(&ctx->input, NK_KEY_SHIFT);
-          float sens = m_rng * (shift ? 0.002f : 0.0002f);
+          float sens = m_rng * 0.0002f * (shift ? NK_PROPERTY_FINE_SCALE : 1.0f);
           val[3] = CLAMP(val[3] + dx * sens, m_min, m_max);
           if(val[3] != mo) change = 1;
         }
