@@ -245,6 +245,11 @@ extern "C" {
 #ifndef NK_SCROLLBAR_HIDING_TIMEOUT
   #define NK_SCROLLBAR_HIDING_TIMEOUT 4.0f
 #endif
+/* scale applied to the drag sensitivity of properties/sliders while shift is held,
+ * for fine adjustment of the value (holds for keyboard and mouse dragging) */
+#ifndef NK_PROPERTY_FINE_SCALE
+  #define NK_PROPERTY_FINE_SCALE 0.1f
+#endif
 /*
  * ==============================================================
  *
@@ -21485,14 +21490,25 @@ nk_drag_behavior(nk_flags *state, const struct nk_input *in,
 
     if (left_mouse_down && left_mouse_click_in_cursor) {
         float delta, pixels;
-        pixels = in->mouse.delta.x;
+        /* hold shift for fine adjustment: the value changes more slowly with the cursor */
+        pixels = in->mouse.delta.x *
+            (nk_input_is_key_down(in, NK_KEY_SHIFT) ? NK_PROPERTY_FINE_SCALE : 1.0f);
         delta = pixels * inc_per_pixel;
         switch (variant->kind) {
         default: break;
-        case NK_PROPERTY_INT:
-            variant->value.i = variant->value.i + (int)delta;
-            variant->value.i = NK_CLAMP(variant->min_value.i, variant->value.i, variant->max_value.i);
-            break;
+        case NK_PROPERTY_INT: {
+            /* fine drags can be smaller than one step: carry the remainder over to the next frame */
+            static float residual = 0.0f;
+            if (nk_input_is_mouse_click_down_in_rect(in, NK_BUTTON_LEFT, drag, nk_true))
+                residual = 0.0f; /* new drag */
+            residual += delta;
+            int step = (int)residual;
+            if (step) {
+                residual -= (float)step;
+                variant->value.i = variant->value.i + step;
+                variant->value.i = NK_CLAMP(variant->min_value.i, variant->value.i, variant->max_value.i);
+            }
+            break; }
         case NK_PROPERTY_FLOAT:
             variant->value.f = variant->value.f + (float)delta;
             variant->value.f = NK_CLAMP(variant->min_value.f, variant->value.f, variant->max_value.f);
