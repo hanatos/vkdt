@@ -212,6 +212,15 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   qvk.subgroup_size_control_supported = 0;
   qvk.shader64bit_indexing_supported = 0;
   qvk.unified_image_layouts_supported = 0;
+  const char *vid_ext[] = {
+    VK_KHR_VIDEO_QUEUE_EXTENSION_NAME,
+    VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME,
+    VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME,
+    VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME,
+    VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME,
+    // VK_KHR_INTERNALLY_SYNCHRONIZED_QUEUES_EXTENSION_NAME, // currently unused
+  };
+  int vid_ext_supported[20] = {0};
   int picked_device = -1;
   for(int i = 0; i < num_devices; i++)
   {
@@ -247,7 +256,6 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       qvk.shader64bit_indexing_supported = 0;
       qvk.unified_image_layouts_supported = 0;
       qvk.video_supported = 0;
-      int num_vid_ext = 0; // count all of them
       for(int k=0;k<num_ext;k++)
       {
         if (!strcmp(ext_properties[k].extensionName, VK_KHR_RAY_QUERY_EXTENSION_NAME))
@@ -262,20 +270,9 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
           // qvk.shader64bit_indexing_supported = 1;
         else if (!strcmp(ext_properties[k].extensionName, VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME))
           qvk.unified_image_layouts_supported = 1;
-        else if (!strcmp(ext_properties[k].extensionName, VK_KHR_VIDEO_QUEUE_EXTENSION_NAME))
-          num_vid_ext++;
-        else if (!strcmp(ext_properties[k].extensionName, VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME))
-          num_vid_ext++;
-        else if (!strcmp(ext_properties[k].extensionName, VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME))
-          num_vid_ext++;
-        else if (!strcmp(ext_properties[k].extensionName, VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME))
-          num_vid_ext++;
-        else if (!strcmp(ext_properties[k].extensionName, VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME))
-          num_vid_ext++;
-        // else if (!strcmp(ext_properties[k].extensionName, VK_KHR_INTERNALLY_SYNCHRONIZED_QUEUES_EXTENSION_NAME))
-          // num_vid_ext++; // currenly unused
+        else for(int j=0;j<LENGTH(vid_ext);j++)
+          if (!strcmp(ext_properties[k].extensionName, vid_ext[j])) vid_ext_supported[j] = 1;
       }
-      if(num_vid_ext == 5) qvk.video_supported = 1;
       picked_device = i;
       if(preferred_device_name)
         dt_log(s_log_qvk, "selecting device %s by explicit request", preferred_device_name);
@@ -284,6 +281,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
     }
     free(ext_properties);
   }
+  if(vid_ext_supported[0] && vid_ext_supported[1]) qvk.video_supported = 1; // really low bar
 
   if(picked_device < 0)
   {
@@ -503,14 +501,9 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   qvk.dev_extension[len++] = VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME;
 #endif
   if(qvk.video_supported)
-  {
-    qvk.dev_extension[len++] = VK_KHR_VIDEO_QUEUE_EXTENSION_NAME;
-    qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME;
-    qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME;
-    qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME;
-    qvk.dev_extension[len++] = VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME;
-    // qvk.dev_extension[len++] = VK_KHR_INTERNALLY_SYNCHRONIZED_QUEUES_EXTENSION_NAME;
-  }
+    for(int k=0;k<LENGTH(vid_ext);k++)
+      if(vid_ext_supported[k])
+        qvk.dev_extension[len++] = vid_ext[k];
   if(window) qvk.dev_extension[len++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
   if(enable_hdr_wsi) qvk.dev_extension[len++] = VK_EXT_HDR_METADATA_EXTENSION_NAME;
 
