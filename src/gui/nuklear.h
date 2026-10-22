@@ -21426,6 +21426,15 @@ nk_edit_buffer(struct nk_context *ctx, nk_flags flags,
 
     filter = (!filter) ? nk_filter_default: filter;
     prev_state = (unsigned char)edit->active;
+    /* a click anywhere else drops the keyboard focus. do this from the global input state,
+     * because widgets in read-only windows (cursor is elsewhere: the widget reports
+     * NK_WIDGET_ROM) would otherwise never see the click and stay focused forever. */
+    if (edit->active &&
+        ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked &&
+        ctx->input.mouse.buttons[NK_BUTTON_LEFT].down &&
+        !NK_INBOX(ctx->input.mouse.pos.x, ctx->input.mouse.pos.y,
+            bounds.x, bounds.y, bounds.w, bounds.h))
+        edit->active = nk_false;
     in = (flags & NK_EDIT_READ_ONLY) ? 0: in;
     ret_flags = nk_do_edit(&ctx->last_widget_state, &win->buffer, bounds, flags,
                     filter, edit, &style->edit, in, style->font);
@@ -21922,6 +21931,21 @@ nk_property(struct nk_context *ctx, const char *name, struct nk_property_variant
     ctx->text_edit.clip = ctx->clip;
     in = ((s == NK_WIDGET_ROM && !win->property.active) ||
         layout->flags & NK_WINDOW_ROM || s == NK_WIDGET_DISABLED) ? 0 : &ctx->input;
+    /* a click anywhere else finishes editing and applies the typed value. do this from the
+     * global input state, because widgets in read-only windows (cursor is elsewhere: the
+     * widget reports NK_WIDGET_ROM) would otherwise never see the click. */
+    if (hot && *state == NK_PROPERTY_EDIT &&
+        ctx->input.mouse.buttons[NK_BUTTON_LEFT].clicked &&
+        ctx->input.mouse.buttons[NK_BUTTON_LEFT].down &&
+        !NK_INBOX(ctx->input.mouse.pos.x, ctx->input.mouse.pos.y,
+            bounds.x, bounds.y, bounds.w, bounds.h))
+    {
+        nk_property_save(variant, buffer, *len);
+        win->property.select_start = win->property.select_end = 0;
+        win->property.active = 0;
+        *state = NK_PROPERTY_DEFAULT;
+        in = 0; // just draw the committed value
+    }
     nk_do_property(&ctx->last_widget_state, &win->buffer, bounds, name,
         variant, inc_per_pixel, buffer, len, state, cursor, select_begin,
         select_end, &style->property, filter, in, style->font, &ctx->text_edit,
