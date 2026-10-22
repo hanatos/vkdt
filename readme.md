@@ -121,8 +121,7 @@ the full list of packages used to build the nightly appimages can be found in th
 
 optional (configure in `bin/config.mk`):
 
-* exiv2 (libexiv2-dev) for raw metadata loading to assign noise profiles, only needed for rawspeed builds
-* asound (libasound2) for audio support in video and quake
+* pipewire (libpipewire-0.3.so) for audio support in video and quake
 * ffmpeg (libavformat-dev libavcodec-dev) for the video io modules `i-vid` and `o-vid`
 * libjxl
 
