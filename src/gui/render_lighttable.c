@@ -303,6 +303,8 @@ void render_lighttable_center()
       dt_thumbnails_cleanup(&vkdt.thumbnails);
       // re-allocate
       dt_thumbnails_init(&vkdt.thumbnails, wd, ht, pool_size, heap_size);
+      uint32_t id = 0;
+      dt_thumbnails_load_one(&vkdt.thumbnails, "data/busybee.bc1", &id);
       triggered_rebuild = 0;
     }
   }
@@ -353,6 +355,12 @@ void render_lighttable_center()
 
     uint32_t tid = vkdt.db.image[vkdt.db.collection[i]].thumbnail;
     if(tid == -1u) tid = 0; // busybee
+    if(!vkdt.thumbnails.thumb[tid].image_view) tid = 0;
+    if(!vkdt.thumbnails.thumb[tid].image_view)
+    {
+      nk_label(&vkdt.ctx, "", 0);
+      continue;
+    }
     if(tid == 0 && !force_local_cacheline) force_local_cacheline = cacheline = i;
     struct nk_color col = vkdt.style.colour[NK_COLOR_BUTTON];
     struct nk_color hov = vkdt.style.colour[NK_COLOR_BUTTON_HOVER];
