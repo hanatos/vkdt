@@ -128,6 +128,15 @@ optional (configure in `bin/config.mk`):
 you can also build without rawspeed or rawler if that is useful for you.
 
 
+## llm use / contributing
+pull requests are generally welcome! please try to do them without llm use if
+you can. as a researcher, the deskilling issue is especially worrying to me,
+but also consider the environmental impact (gas turbines! water use!) and how
+the new hardware costs affect all of us normal people.
+if you do, please clearly state in the comments/discussion which parts
+were stochastically generated.
+
+
 ## faq
 * **which platforms are supported**
 `vkdt` has native support for nix os, arch linux via aur, and builds and runs
