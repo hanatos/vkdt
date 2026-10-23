@@ -227,7 +227,7 @@ void render_nodes()
       if(graph->module[mod_id[m]].gui_x == 0 && graph->module[mod_id[m]].gui_y == 0)
       {
         graph->module[mod_id[m]].gui_x = nodew*(m+0.25-pos);
-        graph->module[mod_id[m]].gui_x = 2*nodey;
+        graph->module[mod_id[m]].gui_y = 2*nodey;
       }
     }
   }
