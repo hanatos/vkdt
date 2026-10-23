@@ -282,7 +282,8 @@ main()
     vec3 JCH = xyY_to_dt_UCS_JCH(xyY, 1.0);
     JCH.y = clamp(JCH.y * params.saturation, 0, 1.0);
     xyY = dt_UCS_JCH_to_xyY(JCH, 1.0);
-    rgb = xyY_to_rec2020(xyY);
+    vec3 sat = xyY_to_rec2020(xyY);
+    if(!any(isnan(sat)) && !any(isinf(sat))) rgb = sat;
   }
   else if(push.have_abney == 1 && (params.saturation != 1.0 || params.gamut_mode > 0))
   { // saturation with hue constancy by dominant wavelength and gamut compression
@@ -331,7 +332,8 @@ main()
     }
     sl.x = clamp(sl.x, 0.0, (size.x-3.0)/size.x); // make sure we don't hit the last column (gamut limits stored there)
     xyY.xy = texture(img_abney, sl).rg; // use lambda/sat lut to get new xy chroma values
-    rgb = xyY_to_rec2020(xyY);
+    vec3 sat = xyY_to_rec2020(xyY);
+    if(!any(isnan(sat)) && !any(isinf(sat))) rgb = sat;
   }
 
   // emergency overflow clamping:
