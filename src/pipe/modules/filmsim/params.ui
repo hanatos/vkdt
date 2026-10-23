@@ -13,6 +13,7 @@ exhaust:slider:0:1
 hl boost:slider:0:10
 tab:tabs:6
 scne ill:slider:2000:10000
+tint:slider:-1:1
 film ill:slider:2000:10000
 group:-1:-1
 ---

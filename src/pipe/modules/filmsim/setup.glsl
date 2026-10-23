@@ -247,10 +247,18 @@ void setup_expose_film(int film)
     vec3 env_sens = fetch_sensitivity(film, tid) * envelope(lambda);
     vec3 factor = env_sens;
     // Correct the capture to D65.
-    if (params.scene_ill != 0.0)
+    if (params.scene_ill != 0.0 || params.scene_tint != 0.0)
     {
       float scene_illuminant = eval_illuminant_spd(params.scene_ill, lambda, tid, m_scene);
       float d65_illuminant   = eval_illuminant_spd(d65_cct, lambda, tid, m_d65);
+      vec4 c_purple = vec4( 0.007, -7.236, 1818.0, 1);
+      vec4 c_green  = vec4(-0.002,  2.052, -526.0, 1);
+      // the tint parameter mixes in 0 or 100% of a purple or green gel in front of the
+      // scene illuminant. this slightly odd dance is because the <4000K blackbody has
+      // a different normalisation than the >=4000K daylight functions.
+      float t = abs(params.scene_tint);
+      vec4 c = params.scene_tint < 0 ? c_green : c_purple;
+      scene_illuminant = mix(scene_illuminant, scene_illuminant*sigmoid_eval(c,  lambda), t);
       factor *= d65_illuminant / max(scene_illuminant, 1e-6);
     }
     // Convert the reconstructed reflectance to radiance under the film's own
