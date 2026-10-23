@@ -15,7 +15,9 @@ layout(std140, set = 0, binding = 1) uniform params_t
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
-shared float shm_black[DT_LOCAL_SIZE_X*DT_LOCAL_SIZE_Y];
+// we'd actually want gl_NumSubgroups, but that's not constant.
+// assume a minimum subgroup size of 4 (llvm lavapipe)
+shared float shm_black[DT_LOCAL_SIZE_X*DT_LOCAL_SIZE_Y/4];
 
 void main()
 {
