@@ -223,10 +223,7 @@ void dt_db_load_directory(
 {
   uint32_t id = 0;
   if(dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id) != VK_SUCCESS)
-  {
-    dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
-    return;
-  }
+    dt_log(s_log_db, "could not load thumbnail symbols, the gui will rebuild the thumbnail cache");
 
   DIR *dp = dirname ? opendir(dirname) : 0;
   if(!dp)
@@ -324,10 +321,7 @@ int dt_db_load_image(
 
   uint32_t id = 0;
   if(dt_thumbnails_load_one(thumbnails, "data/busybee.bc1", &id) != VK_SUCCESS)
-  {
-    dt_log(s_log_err|s_log_db, "could not load required thumbnail symbols!");
-    return 1;
-  }
+    dt_log(s_log_db, "could not load thumbnail symbols, the gui will rebuild the thumbnail cache");
 
   db->image = malloc(sizeof(dt_image_t)*db->image_max);
   memset(db->image, 0, sizeof(dt_image_t)*db->image_max);
