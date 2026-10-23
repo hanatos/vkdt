@@ -161,7 +161,6 @@ dt_vkalloc(dt_vkalloc_t *a, uint64_t size, uint64_t alignment)
     }
     l = l->next;
   }
-  assert(0 && "out of memory slots!");
   return 0;
 }
 

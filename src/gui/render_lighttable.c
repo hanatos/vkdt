@@ -297,7 +297,7 @@ void render_lighttable_center()
     }
     if(vmin >= triggered_rebuild)
     { // triggered a reset
-      uint64_t heap_size = 2*vkdt.thumbnails.alloc.heap_size, pool_size = 2*vkdt.thumbnails.alloc.pool_size;
+      uint64_t heap_size = 2*vkdt.thumbnails.alloc.heap_size, pool_size = 2*vkdt.thumbnails.thumb_max;
       uint32_t wd = vkdt.thumbnails.thumb_wd, ht = vkdt.thumbnails.thumb_ht;
       // kill them all
       dt_thumbnails_cleanup(&vkdt.thumbnails);

@@ -224,7 +224,8 @@ int main(int argc, char *argv[])
   dt_thumbnails_init(&vkdt.thumbnail_gen, 400, 400, 0, 0);
   // start out with 200/16MB images:
   uint64_t tncs = CLAMP(dt_rc_get_int(&vkdt.rc, "gui/thumbnail_cache_MB", 16), 1, 2048);
-  dt_thumbnails_init(&vkdt.thumbnails, 400, 400, tncs*16, tncs*(1ul<<20));
+  // a bc1 is usually like 50k in size for the 400x400 window. that's 20 images, give it a bit more:
+  dt_thumbnails_init(&vkdt.thumbnails, 400, 400, tncs*21, tncs*(1ul<<20));
   dt_db_init(&vkdt.db);
   char *filename = 0;
   {
