@@ -9,6 +9,7 @@
 #include "widget_radial_menu_dr-fwd.h"
 #include "nk.h"
 #include "graph-display.h"
+#include "screencast.h"
 
 #include <vulkan/vulkan.h>
 #include <math.h>
@@ -54,7 +55,7 @@ dt_gui_style_t;
 typedef struct dt_gui_state_t
 {
   // center window configuration
-  int   center_x, center_y;
+  int   center_x,  center_y;
   int   center_wd, center_ht;
   int   panel_wd;
   int   panel_ht;
@@ -134,7 +135,7 @@ typedef struct dt_gui_wstate_t
   int   dragkey_latched;        // non-zero when a dragkey is armed (blocks image pan/zoom)
   float chord_menu_scroll;      // accumulated scroll delta while menu is open
   int   scroll_busy;            // dynamic LOD countdown
-  int   pending_modid;           // module to activate in right panel (-1 = none), set by menu/dragkey
+  int   pending_modid;          // module to activate in right panel (-1 = none), set by menu/dragkey
   int   pending_widget_modid;   // module to start interactive widget for (-1 = none)
   int   pending_widget_parid;   // param index for pending widget start
 
@@ -224,6 +225,8 @@ typedef struct dt_gui_t
   char tag[10][30];
 
   int  session_type;     // 0: running on xorg, 1: wayland, maybe extend for macos and windows too, -1 unknown
+
+  dt_screencast_t screencast;   // render overlay with input history for screencasts
 }
 dt_gui_t;
 

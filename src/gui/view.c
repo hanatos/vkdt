@@ -65,6 +65,7 @@ dt_view_switch(dt_gui_view_t view)
 void
 dt_view_mouse_button(GLFWwindow *window, int button, int action, int mods)
 {
+  dt_screencast_event(s_screencast_mouse, button, action, mods);
   if(vkdt.wstate.popup) return;
   switch(vkdt.view_mode)
   {
@@ -138,6 +139,7 @@ dt_view_char(GLFWwindow *window, unsigned int c)
 void
 dt_view_keyboard(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+  dt_screencast_event(s_screencast_keyboard, key, action, mods);
   if(dt_actionkey_keyboard(&actionkeys, key, action)) return;
   switch(vkdt.view_mode)
   {

@@ -278,6 +278,8 @@ void dt_gui_render_frame_nk()
   }
   threads_mutex_unlock(&vkdt.wstate.notification_mutex);
 
+  dt_screencast_render();
+
   // nuklear requires the input, when modifying a text edit etc:
   vkdt.wstate.nk_active = vkdt.wstate.nk_active_next;
   vkdt.wstate.nk_active_next = 0;

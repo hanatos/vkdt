@@ -1,11 +1,12 @@
 GUI_O=gui/gui.o\
       gui/graph-display.o\
+      gui/main.o\
       gui/render.o\
       gui/render_lighttable.o\
       gui/render_darkroom.o\
       gui/render_files.o\
       gui/render_nodes.o\
-      gui/main.o\
+      gui/screencast.o\
       gui/view.o
 GUI_H=gui/gui.h\
       gui/menu.h\
@@ -20,6 +21,7 @@ GUI_H=gui/gui.h\
       gui/hotkey.h\
       gui/job_copy.h\
       gui/keyaccel.h\
+      gui/screencast.h\
       gui/widget_dopesheet.h\
       gui/widget_draw.h\
       gui/widget_export.h\
