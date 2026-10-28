@@ -27,8 +27,24 @@ void dt_screencast_event(
   }
   else if(dev == s_screencast_gamepad)
   {
-    // TODO something button id to text
-    snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), "gamepad"); // XXX dummy
+    // TODO special something for axes
+    const char *val = ".";
+    if     (key == GLFW_GAMEPAD_BUTTON_A) val = "a";
+    else if(key == GLFW_GAMEPAD_BUTTON_B) val = "b";
+    else if(key == GLFW_GAMEPAD_BUTTON_X) val = "x";
+    else if(key == GLFW_GAMEPAD_BUTTON_Y) val = "y";
+    else if(key == GLFW_GAMEPAD_BUTTON_LEFT_BUMPER)  val = "l1";
+    else if(key == GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER) val = "r1";
+    else if(key == GLFW_GAMEPAD_BUTTON_BACK)         val = "bck";
+    else if(key == GLFW_GAMEPAD_BUTTON_START)        val = "srt";
+    else if(key == GLFW_GAMEPAD_BUTTON_GUIDE)        val = "gde";
+    else if(key == GLFW_GAMEPAD_BUTTON_LEFT_THUMB)   val = "l3";
+    else if(key == GLFW_GAMEPAD_BUTTON_RIGHT_THUMB)  val = "r3";
+    else if(key == GLFW_GAMEPAD_BUTTON_DPAD_UP)      val = "up";
+    else if(key == GLFW_GAMEPAD_BUTTON_DPAD_DOWN)    val = "dn";
+    else if(key == GLFW_GAMEPAD_BUTTON_DPAD_LEFT)    val = "lf";
+    else if(key == GLFW_GAMEPAD_BUTTON_DPAD_RIGHT)   val = "rg";
+    snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), "%s", val);
   }
   else return;
   vkdt.screencast.ts[i] = dt_time();
@@ -39,7 +55,7 @@ void dt_screencast_event(
 void dt_screencast_render()
 {
   int hist_size = LENGTH(vkdt.screencast.ts);
-  int off_y = vkdt.state.center_y + vkdt.state.center_ht * 0.8;
+  int off_y = vkdt.state.center_y + vkdt.state.center_ht * 0.6;
   int off_x = vkdt.state.center_x + vkdt.state.center_wd * 0.1;
   int lineht = vkdt.state.center_ht * 0.1;
   static struct nk_user_font font; // memory needs to stay valid during cmd exec

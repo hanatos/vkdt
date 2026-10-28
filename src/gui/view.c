@@ -201,6 +201,8 @@ dt_view_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *cu
 #define PRESSED(A) curr->buttons[A] && !last->buttons[A]
   if(PRESSED(GLFW_GAMEPAD_BUTTON_GUIDE))
     vkdt.wstate.show_gamepadhelp ^= 1;
+  for(int i=0;i<LENGTH(curr->buttons);i++)
+    if(PRESSED(i)) dt_screencast_event(s_screencast_gamepad, i, GLFW_PRESS, 0);
 #undef PRESSED
 
   switch(vkdt.view_mode)
