@@ -9,15 +9,21 @@ void dt_screencast_event(
   if(dev == s_screencast_mouse)
   {
     if(action != GLFW_PRESS) return;
-    if(key == 0) snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), "|..");
-    if(key == 1) snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), "..|");
-    if(key == 2) snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), ".|.");
+    if(key == 0) snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), "\\||");
+    if(key == 1) snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), "||\\");
+    if(key == 2) snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), "|\\|");
   }
   else if(dev == s_screencast_keyboard)
   {
-    // TODO print shift/ctrl/esc correctly!
     if(action != GLFW_PRESS) return;
-    snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), "%c", CLAMP(key, ' ', '~'));
+    if     (key == GLFW_KEY_ESCAPE)
+      snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), "esc");
+    else if(key == GLFW_KEY_LEFT_SHIFT || key == GLFW_KEY_RIGHT_SHIFT)
+      snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), "shf");
+    else if(key == GLFW_KEY_LEFT_CONTROL || key == GLFW_KEY_RIGHT_CONTROL)
+      snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), "ctl");
+    else
+      snprintf(vkdt.screencast.event[i], sizeof(vkdt.screencast.event[i]), "%c", CLAMP(key, ' ', '~'));
   }
   else if(dev == s_screencast_gamepad)
   {
@@ -64,9 +70,10 @@ void dt_screencast_render()
     struct nk_rect rect = { x, y, linewd, lineht };
     nk_fill_rect(cmd, rect, lineht*0.2, bg);
     nk_stroke_rect(cmd, rect, lineht*0.2, lineht*0.02, fg);
-    rect.x += rect.w/2-font.height/2; rect.y += rect.h/2-font.height/2;
+    int len = strlen(vkdt.screencast.event[i]);
+    rect.x += rect.w/2-(font.height/2*len)/2; rect.y += rect.h/2-font.height/2;
     nk_draw_text(cmd, rect,
-        vkdt.screencast.event[i], strlen(vkdt.screencast.event[i]),
+        vkdt.screencast.event[i], len,
         &font,
         (struct nk_color){0,0,0,0xff},
         fg);
