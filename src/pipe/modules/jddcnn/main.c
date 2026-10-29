@@ -60,6 +60,7 @@ get_model(dt_module_t *mod)
     // 0x13b5 - arm
     // 0x5143 - qualcomm
   }
+  if(!qvk.coopmat_supported) par_arch = 1;
   if(par_arch == 1 && !xtr && !par_vari) return s_arch_gbyc;
   if(par_arch == 1 && !xtr &&  par_vari) return s_arch_gbyn;
   if(par_arch == 1 &&  xtr && !par_vari) return s_arch_gxtc;

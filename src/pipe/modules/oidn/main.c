@@ -39,6 +39,7 @@ get_model(dt_module_t *mod)
     // 0x13b5 - arm
     // 0x5143 - qualcomm
   }
+  if(!qvk.coopmat_supported) par_arch = 1;
   if(par_arch == 1 && par_model == 0) return s_arch_gldrs;
   if(par_arch == 1 && par_model == 1) return s_arch_gldr;
   if(par_arch == 2 && par_model == 0) return s_arch_nldrs;
