@@ -404,12 +404,12 @@ void dt_gamepadhelp()
       if(k > 4 && map_button[k] >= 0 &&
          gamepad.buttons[map_button[k]])
         c = vkdt.style.colour[NK_COLOR_DT_ACCENT];
-      if((k == 0 && fabsf(gamepad.axes[GLFW_GAMEPAD_AXIS_LEFT_X]) > 0.02) ||
-         (k == 0 && fabsf(gamepad.axes[GLFW_GAMEPAD_AXIS_LEFT_Y]) > 0.02) ||
-         (k == 1 && fabsf(gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_X]) > 0.02) ||
-         (k == 1 && fabsf(gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]) > 0.02) ||
-         (k == 2 && gamepad.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER]  > -0.98) ||
-         (k == 3 && gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > -0.98))
+      if((k == 0 && fabsf(gamepad.axes[GLFW_GAMEPAD_AXIS_LEFT_X]) > 0.05) ||
+         (k == 0 && fabsf(gamepad.axes[GLFW_GAMEPAD_AXIS_LEFT_Y]) > 0.05) ||
+         (k == 1 && fabsf(gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_X]) > 0.05) ||
+         (k == 1 && fabsf(gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]) > 0.05) ||
+         (k == 2 && gamepad.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER]  > -0.95) ||
+         (k == 3 && gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > -0.95))
         c = vkdt.style.colour[NK_COLOR_DT_ACCENT];
       dt_draw(&vkdt.ctx, dt_draw_list_gamepad_arrow[k], NK_LEN(dt_draw_list_gamepad_arrow[k]), c, m);
       struct nk_vec2 v = {dt_draw_list_gamepad_arrow[k][8], dt_draw_list_gamepad_arrow[k][9]};
@@ -421,6 +421,32 @@ void dt_gamepadhelp()
       rect.h = rect.y + 300;
       rect.y -= 0.03*vkdt.state.center_ht;
       nk_draw_text(buf, rect, g_gamepadhelp.help[g_gamepadhelp.sp][k], strlen(g_gamepadhelp.help[g_gamepadhelp.sp][k]), nk_glfw3_font(1), nk_rgb(0,0,0), c);
+      if(k <= 3)
+      { // axis?
+        struct nk_vec2 u = {dt_draw_list_gamepad_arrow[k][0], dt_draw_list_gamepad_arrow[k][1]};
+        struct nk_rect rectc = {
+          .x = u.x * m[3*0 + 0] + u.y * m[3*0 + 1] + m[3*0 + 2],
+          .y = u.x * m[3*1 + 0] + u.y * m[3*1 + 1] + m[3*1 + 2],
+        };
+        float r = 0.02*vkdt.state.center_ht;
+        rectc.x -= r;
+        rectc.y -= r;
+        rectc.w = 2*r;
+        rectc.h = 2*r;
+        if(k==0)
+        {
+          rectc.x += r*gamepad.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
+          rectc.y += r*gamepad.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+        }
+        else if(k==1)
+        {
+          rectc.x += r*gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_X];
+          rectc.y += r*gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y];
+        }
+        else if(k == 2) rectc.y += r*gamepad.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER];
+        else if(k == 3) rectc.y += r*gamepad.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER];
+        nk_stroke_circle(buf, rectc, 0.2*r, c);
+      }
     }
   }
 }
