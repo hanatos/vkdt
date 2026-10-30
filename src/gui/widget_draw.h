@@ -159,13 +159,14 @@ dt_draw(
     const int          cnt, // number of commands
     // const int          det, // detail/how many points per bezier
     struct nk_color    col,
+    const float        th,  // thickness
     const float       *m)   // 3x2 affine transform, optional
 {
   struct nk_command_buffer *buf = nk_window_get_canvas(ctx);
   float stack[10];
   const int stacksize = NK_LEN(stack);
   int sp = 0;
-  const float thickness = vkdt.state.center_ht / 300.0f;
+  const float thickness = th;
   struct nk_vec2 pos = {0};
   struct nk_vec2 beg = {0};
   for(int i=0;i<cnt;i++)

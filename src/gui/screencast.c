@@ -1,9 +1,20 @@
 #include "screencast.h"
 #include "gui.h"
+void dt_screencast_init()
+{
+  vkdt.screencast.enable = dt_rc_get_int(&vkdt.rc, "gui/screencast", 0);
+}
+
+void dt_screencast_cleanup()
+{
+  dt_rc_set_int(&vkdt.rc, "gui/screencast", vkdt.screencast.enable);
+}
+
 void dt_screencast_event(
     dt_screencast_device_t dev, 
     int key, int action, int mods)
 {
+  if(!vkdt.screencast.enable) return;
   int hist_size = LENGTH(vkdt.screencast.ts);
   int i = (vkdt.screencast.curr+1) % hist_size;
   if(dev == s_screencast_mouse)
@@ -27,7 +38,6 @@ void dt_screencast_event(
   }
   else if(dev == s_screencast_gamepad)
   {
-    // TODO special something for axes
     const char *val = ".";
     if     (key == GLFW_GAMEPAD_BUTTON_A) val = "a";
     else if(key == GLFW_GAMEPAD_BUTTON_B) val = "b";
@@ -54,6 +64,7 @@ void dt_screencast_event(
 
 void dt_screencast_render()
 {
+  if(!vkdt.screencast.enable) return;
   int hist_size = LENGTH(vkdt.screencast.ts);
   int off_y = vkdt.state.center_y + vkdt.state.center_ht * 0.6;
   int off_x = vkdt.state.center_x + vkdt.state.center_wd * 0.1;

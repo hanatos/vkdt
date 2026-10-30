@@ -20,6 +20,7 @@ typedef struct dt_screencast_t
   double ts [HIST_SIZE]; // time stamps
   dt_screencast_device_t device[HIST_SIZE];
   int curr; // pointer to head of ringbuffer
+  int enable;
 }
 dt_screencast_t;
 
@@ -28,4 +29,6 @@ void dt_screencast_event(
     int key, int action, int mods);
 
 void dt_screencast_render();
+void dt_screencast_init();
+void dt_screencast_cleanup();
 #undef HIST_SIZE
