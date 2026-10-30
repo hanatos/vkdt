@@ -247,6 +247,7 @@ int dt_gui_init()
   char configfile[512];
   if(snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir) < 512)
     dt_rc_read(&vkdt.rc, configfile);
+  dt_screencast_init();
 
   vkdt.style.color_assessment_margin = dt_rc_get_float(&vkdt.rc, "gui/color_assessment_margin", 0.10f);
   vkdt.style.color_assessment_frame_wd = dt_rc_get_float(&vkdt.rc, "gui/color_assessment_frame_wd", 0.03f);
@@ -663,6 +664,7 @@ void dt_gui_cleanup()
   char configfile[512];
   if(snprintf(configfile, sizeof(configfile), "%s/config.rc", dt_pipe.homedir) < 512)
     dt_rc_write(&vkdt.rc, configfile);
+  dt_screencast_cleanup();
   dt_rc_cleanup(&vkdt.rc);
   dt_graph_cleanup(&vkdt.graph_dev);
   dt_graph_display_images_cleanup(&vkdt.dspy);
