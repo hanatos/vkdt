@@ -1,0 +1,15 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+
+#include "shared.glsl"
+#include "params.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(std430, set = 1, binding = 0) writeonly buffer buf_t { vec4 c[]; } buf;
+
+// region the network sees and region of the mask fed back into it
+void main()
+{
+  if(any(notEqual(gl_GlobalInvocationID.xy, uvec2(0)))) return;
+  buf.c[0] = buf.c[1] = crop();
+  buf.c[2] = vec4(0.0);
+}

@@ -1,0 +1,52 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: enable
+
+#include "shared.glsl"
+#include "params.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(push_constant, std140) uniform push_t { int grid; } push;
+layout(std430, set = 1, binding = 0) readonly buffer buf_t  { float16_t v[]; } buf;
+layout(std430, set = 1, binding = 1) readonly buffer zoom_t { float16_t v[]; } zbuf;
+layout(std430, set = 1, binding = 2) readonly buffer crop_t { vec4 c[]; } reg;
+layout(set = 1, binding = 3) uniform writeonly image2D img_out;
+
+float mask(int z, ivec2 p)
+{
+  p = clamp(p, ivec2(0), ivec2(push.grid-1));
+  const int i = push.grid * p.y + p.x;
+  return 1.0/(1.0 + exp(-float(z > 0 ? zbuf.v[i] : buf.v[i])));
+}
+
+// mask at image position u from logits covering region r, empty outside of it
+float mask(int z, vec2 u, vec4 r)
+{
+  if(any(lessThan(u, r.xy)) || any(greaterThan(u, r.zw))) return 0.0;
+  const vec2 pos = (u - r.xy) / (r.zw - r.xy) * push.grid - 0.5;
+  const ivec2 p0 = ivec2(floor(pos));
+  const vec2 f = pos - p0;
+  return mix(
+      mix(mask(z, p0),              mask(z, p0 + ivec2(1, 0)), f.x),
+      mix(mask(z, p0 + ivec2(0, 1)), mask(z, p0 + ivec2(1, 1)), f.x), f.y);
+}
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  if(clk(0) < 1.0 && !has_box() && !has_draw()) { imageStore(img_out, ipos, vec4(0.0)); return; }
+
+  // first run on the region in c[1], zoomed in run on c[0]
+  const vec2 u = (ipos + 0.5) / vec2(imageSize(img_out));
+  const vec4 r0 = reg.c[1], r1 = reg.c[0];
+  float m = mask(0, u, r0);
+  if(reg.c[2].x > 0.0 && all(greaterThan(u, r1.xy)) && all(lessThan(u, r1.zw)))
+  { // refine where the first mask is unsure, feather the edges of the zoomed region inside the first one
+    vec4 d = vec4(u - r1.xy, r1.zw - u) / (r1.zw - r1.xy).xyxy;
+    d = mix(d, vec4(1.0), lessThan(abs(r1 - r0), vec4(1e-4)));
+    const float w = smoothstep(0.0, 0.1, min(min(d.x, d.y), min(d.z, d.w)))
+      * clamp(5.0*(1.0 - abs(2.0*m - 1.0)), 0.0, 1.0);
+    m = mix(m, mask(1, u, r1), w);
+  }
+  imageStore(img_out, ipos, vec4(m));
+}

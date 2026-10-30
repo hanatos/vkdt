@@ -1,0 +1,2 @@
+#pragma once
+#define DENOX_NSEG_WEIGHTS_SIZE 25379744

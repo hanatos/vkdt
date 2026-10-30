@@ -1423,6 +1423,56 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       }
     }
   }
+  else if(param->widget.type == dt_token("click"))
+  { // clicks on the image, stored as count followed by x y label, and an optional box
+    nk_layout_row_dynamic(ctx, row_height, 3);
+    float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
+    const int bid = dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("box"));
+    float *b = (float *)dt_module_param_float(vkdt.graph_dev.module+modid, bid);
+    if(vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
+    {
+      nk_style_push_style_item(ctx, &ctx->style.button.normal, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_ACCENT]));
+      nk_style_push_color(ctx, &ctx->style.button.text_normal, vkdt.style.colour[NK_COLOR_DT_ACCENT_TEXT]);
+      if(nk_button_label(ctx, "done"))
+      {
+        widget_end();
+        dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+        if(b) dt_graph_history_append(&vkdt.graph_dev, modid, bid, throttle);
+      }
+      nk_style_pop_style_item(ctx);
+      nk_style_pop_color(ctx);
+    }
+    else
+    {
+      dt_tooltip("left click on the image to add to the selection\n"
+          "right click to remove from it\n"
+          "left drag to select within a box");
+      if(nk_button_label(ctx, "select"))
+      {
+        widget_end(); // if another one is still in progress, end that now
+        vkdt.wstate.active_widget_modid = modid;
+        vkdt.wstate.active_widget_parid = parid;
+        vkdt.wstate.active_widget_parnm = 0;
+        vkdt.wstate.active_widget_parsz = dt_ui_param_size(param->type, param->cnt);
+        vkdt.wstate.mapped_size = dt_ui_param_size(param->type, param->cnt);
+        vkdt.wstate.mapped = v;
+      }
+    }
+    if(nk_button_label(ctx, "clear"))
+    {
+      const int did = dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("draw"));
+      int32_t *d = (int32_t *)dt_module_param_int(vkdt.graph_dev.module+modid, did);
+      v[0] = 0.0f;
+      if(b) b[0] = b[1] = b[2] = b[3] = -1.0f;
+      if(d) d[0] = 0;
+      vkdt.graph_dev.runflags = s_graph_run_all; // the module may run a different number of passes
+      dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+      if(b) dt_graph_history_append(&vkdt.graph_dev, modid, bid, throttle);
+      if(d) dt_graph_history_append(&vkdt.graph_dev, modid, did, throttle);
+    }
+    nk_labelf(ctx, NK_TEXT_LEFT, "%d clicks", (int)v[0]);
+    num = count;
+  }
   else if(param->widget.type == dt_token("draw"))
   {
     nk_layout_row(ctx, NK_STATIC, row_height, 2, wds);
@@ -1473,9 +1523,10 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
         vkdt.wstate.mapped = v; // map state
       }
     }
-    if(vkdt.wstate.mapped)
+    if(vkdt.wstate.mapped && vkdt.wstate.active_widget_modid == modid && vkdt.wstate.active_widget_parid == parid)
     {
-      nk_labelf(ctx, NK_TEXT_LEFT, "%d/10000 verts", ((uint32_t *)vkdt.wstate.mapped)[0]);
+      nk_labelf(ctx, NK_TEXT_LEFT, "%d/%d verts", ((uint32_t *)vkdt.wstate.mapped)[0],
+          (int)(vkdt.wstate.mapped_size/sizeof(uint32_t) - 2)/2);
     }
     num = count;
   }
