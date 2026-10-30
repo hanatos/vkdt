@@ -67,7 +67,7 @@ void dt_screencast_render()
   if(!vkdt.screencast.enable) return;
   int hist_size = LENGTH(vkdt.screencast.ts);
   int off_y = vkdt.state.center_y + vkdt.state.center_ht * 0.6;
-  int off_x = vkdt.state.center_x + vkdt.state.center_wd * 0.1;
+  int off_x = vkdt.state.center_x + vkdt.state.center_wd * 0.6;
   int lineht = vkdt.state.center_ht * 0.1;
   static struct nk_user_font font; // memory needs to stay valid during cmd exec
   font = *nk_glfw3_font(0);
@@ -83,14 +83,14 @@ void dt_screencast_render()
     double age = off_now - vkdt.screencast.ts[i];
 
     vkdt.wstate.busy = 3; // we draw some stuff, it needs constant updating
+    int linewd = lineht;
     float off = 0.9*dt/max_t;
-    int x = off_x + vkdt.state.center_wd * off;
+    int x = off_x - linewd - vkdt.state.center_wd * off;
     int y = off_y + vkdt.screencast.device[i] * lineht;
 
-    int linewd = lineht;
     float fade = expf(-age/max_t * 5.545f); // drops below 1/256 after max_t seconds
     uint8_t alpha = CLAMP(256.0*fade, 0, 255);
-    struct nk_color fg = vkdt.style.colour[NK_COLOR_DT_ACCENT];
+    struct nk_color fg = ii ? vkdt.style.colour[NK_COLOR_TEXT] : vkdt.style.colour[NK_COLOR_DT_ACCENT];
     struct nk_color bg = vkdt.style.colour[NK_COLOR_DT_BACKGROUND];
     fg.a = alpha;
     bg.a = alpha;
@@ -104,7 +104,7 @@ void dt_screencast_render()
         &font,
         (struct nk_color){0,0,0,0xff},
         fg);
-    off_x = x + linewd;
+    off_x = x;
     off_ts = vkdt.screencast.ts[i];
   }
 }
