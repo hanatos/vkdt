@@ -26,7 +26,7 @@ shared vec3 shared_halation_strength;
 shared vec4 shared_expose_factor_r[11];
 shared vec4 shared_expose_factor_g[11];
 shared vec4 shared_expose_factor_b[11];
-shared float shared_expose_autoexp_norm;
+shared vec3 shared_expose_neutral;
 shared vec4 shared_reduce_acc[32];
 
 shared mat3 shared_M;
@@ -231,21 +231,21 @@ void setup_expose_film(int film)
   {
     FILMSIM_ZERO_BANDS(shared_expose_factor, tid);
   }
-  vec4 ref_tx = texelFetch(img_filmsim, ivec2(22, film * 3 + s_density_model), 0);
-  float ref_cct = ref_tx.w;
-  vec3 expose_norm = max(ref_tx.rgb, vec3(1e-6));
+  float ref_cct = texelFetch(img_filmsim, ivec2(22, film * 3 + s_density_model), 0).w;
   vec2 m_scene  = eval_illuminant_m(params.scene_ill);
   vec2 m_d65    = daylight_weights(d65_cct);
+  vec2 m_ref    = eval_illuminant_m(ref_cct);
   float target_cct = (params.film_ill != 0.0) ? params.film_ill : ref_cct;
   vec2 m_target = eval_illuminant_m(target_cct);
   barrier();
 
-  float ae_val = 0.0;
+  float lambda = 380.0 + tid * 10.0;
+  vec3 factor = vec3(0.0);
+  vec3 neutral = vec3(0.0);
   if (tid < n_expose_bands)
   {
-    float lambda = 380.0 + tid * 10.0;
     vec3 env_sens = fetch_sensitivity(film, tid) * envelope(lambda);
-    vec3 factor = env_sens;
+    factor = env_sens;
     // Correct the capture to D65.
     if (params.scene_ill != 0.0 || params.scene_tint != 0.0)
     {
@@ -263,20 +263,19 @@ void setup_expose_film(int film)
     }
     // Convert the reconstructed reflectance to radiance under the film's own
     // illuminant, or a simulated one from film_ill.
-    {
-      float target_illuminant = eval_illuminant_spd(target_cct, lambda, tid, m_target);
-      factor *= target_illuminant;
-    }
-    factor /= expose_norm;
-    FILMSIM_PACK_BANDS(shared_expose_factor, tid, factor);
-    ae_val = dot(factor, rec2020_luma);
+    factor *= eval_illuminant_spd(target_cct, lambda, tid, m_target);
+    float white = 1.0;
+    if (params.input_colour == 0)
+      white = sigmoid_eval(fetch_coeff(img_coeff, matrix_rec2020_to_xyz * vec3(1.0)), lambda);
+    neutral = 0.184 * env_sens * white * eval_illuminant_spd(ref_cct, lambda, tid, m_ref);
   }
+  SUBGROUP_REDUCE(vec3, xyz, vec3(0.0), neutral, shared_expose_neutral);
 
-  SUBGROUP_REDUCE(float, x, 0.0, ae_val, shared_expose_autoexp_norm);
+  if (tid < n_expose_bands)
+    FILMSIM_PACK_BANDS(shared_expose_factor, tid, factor / max(shared_expose_neutral, vec3(1e-12)));
 
   if (tid == 0)
   {
-    shared_expose_autoexp_norm = max(1e-6, 0.18 * shared_expose_autoexp_norm);
     prep.film.hl_boost_k_gain = 0.003224982 * (exp2(params.hl_boost_ev) - 1.0);
   }
   barrier();

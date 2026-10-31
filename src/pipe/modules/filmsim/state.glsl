@@ -2,7 +2,6 @@
 struct filmsim_film_state_t
 {
   vec4  expose_factor_r[11], expose_factor_g[11], expose_factor_b[11];
-  float expose_autoexp_norm;
   float hl_boost_k_gain;
 
   vec3  model_scale_film[3], model_bias_film[3], model_amps_film[3];

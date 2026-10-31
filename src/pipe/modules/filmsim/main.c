@@ -235,10 +235,12 @@ build_setup_node(dt_graph_t *graph, dt_module_t *module, int id_curvewarp, const
 {
   dt_roi_t roi_prep_buf   = (dt_roi_t){ .full_wd = FILMSIM_PREP_BUF_SIZE, .full_ht = 1, .wd = FILMSIM_PREP_BUF_SIZE, .ht = 1 };
   const int pc[] = { plan->iwd, plan->iht, plan->owd, plan->oht };
-  const int id_setup = dt_node_add(graph, module, "filmsim", "setup", 1, 1, 1, sizeof(pc), pc, 2,
+  const int id_setup = dt_node_add(graph, module, "filmsim", "setup", 1, 1, 1, sizeof(pc), pc, 3,
       "filmsim",   "read",  "*",    "*",    dt_no_roi,
-      "prep",      "write", "ssbo", "f32",  &roi_prep_buf);
+      "prep",      "write", "ssbo", "f32",  &roi_prep_buf,
+      "spectra",   "read",  "*",    "*",    dt_no_roi);
   filmsim_bind_dummy(graph, module, id_setup, 0);
+  dt_connector_copy(graph, module, s_port_spectra, id_setup, 2);
   if (id_curvewarp >= 0) // cwarp needs prep's density-model center offset
     CONN(dt_node_connect_named(graph, id_setup, "prep", id_curvewarp, "prep"));
   return id_setup;
