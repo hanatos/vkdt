@@ -27,6 +27,7 @@ shared vec4 shared_expose_factor_r[11];
 shared vec4 shared_expose_factor_g[11];
 shared vec4 shared_expose_factor_b[11];
 shared vec3 shared_expose_neutral;
+shared vec4 shared_expose_spd_y;
 shared vec4 shared_reduce_acc[32];
 
 shared mat3 shared_M;
@@ -239,18 +240,18 @@ void setup_expose_film(int film)
   vec2 m_target = eval_illuminant_m(target_cct);
   barrier();
 
+  // Correct the capture to D65, then relight it by film_ill or the film's own illuminant.
   float lambda = 380.0 + tid * 10.0;
-  vec3 factor = vec3(0.0);
+  vec3 env_sens = vec3(0.0);
+  vec4 spd = vec4(0.0); // d65, corrected d65, target, reference
   vec3 neutral = vec3(0.0);
   if (tid < n_expose_bands)
   {
-    vec3 env_sens = fetch_sensitivity(film, tid) * envelope(lambda);
-    factor = env_sens;
-    // Correct the capture to D65.
-    if (params.scene_ill != 0.0 || params.scene_tint != 0.0)
+    env_sens = fetch_sensitivity(film, tid) * envelope(lambda);
+    spd.x = eval_illuminant_spd(d65_cct, lambda, tid, m_d65);
+    float scene = (params.scene_ill != 0.0) ? eval_illuminant_spd(params.scene_ill, lambda, tid, m_scene) : spd.x;
+    if (params.scene_tint != 0.0)
     {
-      float scene_illuminant = eval_illuminant_spd(params.scene_ill, lambda, tid, m_scene);
-      float d65_illuminant   = eval_illuminant_spd(d65_cct, lambda, tid, m_d65);
       vec4 c_purple = vec4( 0.007, -7.236, 1818.0, 1);
       vec4 c_green  = vec4(-0.002,  2.052, -526.0, 1);
       // the tint parameter mixes in 0 or 100% of a purple or green gel in front of the
@@ -258,21 +259,26 @@ void setup_expose_film(int film)
       // a different normalisation than the >=4000K daylight functions.
       float t = abs(params.scene_tint);
       vec4 c = params.scene_tint < 0 ? c_green : c_purple;
-      scene_illuminant = mix(scene_illuminant, scene_illuminant*sigmoid_eval(c,  lambda), t);
-      factor *= d65_illuminant / max(scene_illuminant, 1e-6);
+      scene = mix(scene, scene*sigmoid_eval(c,  lambda), t);
     }
-    // Convert the reconstructed reflectance to radiance under the film's own
-    // illuminant, or a simulated one from film_ill.
-    factor *= eval_illuminant_spd(target_cct, lambda, tid, m_target);
+    spd.y = spd.x * spd.x / max(scene, 1e-12);
+    spd.z = eval_illuminant_spd(target_cct, lambda, tid, m_target);
+    spd.w = eval_illuminant_spd(ref_cct, lambda, tid, m_ref);
     float white = 1.0;
     if (params.input_colour == 0)
       white = sigmoid_eval(fetch_coeff(img_coeff, matrix_rec2020_to_xyz * vec3(1.0)), lambda);
-    neutral = 0.184 * env_sens * white * eval_illuminant_spd(ref_cct, lambda, tid, m_ref);
+    neutral = 0.184 * env_sens * white * spd.w;
   }
+  SUBGROUP_REDUCE(vec4, xyzw, vec4(0.0), cmf_1931(lambda).y * spd, shared_expose_spd_y);
   SUBGROUP_REDUCE(vec3, xyz, vec3(0.0), neutral, shared_expose_neutral);
 
   if (tid < n_expose_bands)
-    FILMSIM_PACK_BANDS(shared_expose_factor, tid, factor / max(shared_expose_neutral, vec3(1e-12)));
+  {
+    vec4 spd_y = max(shared_expose_spd_y, vec4(1e-12));
+    vec3 expose_norm = max(shared_expose_neutral / spd_y.w, vec3(1e-12));
+    vec3 factor = env_sens * (spd.z / spd_y.z) * (spd.y / spd_y.y) / max(spd.x / spd_y.x, 1e-12);
+    FILMSIM_PACK_BANDS(shared_expose_factor, tid, factor / expose_norm);
+  }
 
   if (tid == 0)
   {
