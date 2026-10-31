@@ -212,7 +212,7 @@ vec3 fetch_sensitivity(int stock, int tid)
 vec4 fetch_dye_density(int stock, int tid, out bool missing)
 {
   vec4 dye_density = texelFetch(img_filmsim, ivec2(tid * 2, stock * 3 + s_dye_density), 0);
-  missing = any(isnan(dye_density.xyz));
+  missing = any(isnan(dye_density));
   dye_density = mix(dye_density, vec4(0.0), isnan(dye_density));
   dye_density.xyz *= log2_10;
   return dye_density;
