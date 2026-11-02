@@ -62,6 +62,7 @@ void write_sink(
   const dt_colour_trc_t trc = module->img_param.colour_trc;
 
   const int bits = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("bits")))[0];
+  const int custom_intensity = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("custom i")))[0];
   const float target_intensity = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("target i")))[0];
 
   char filename[512];
@@ -119,7 +120,7 @@ void write_sink(
                       break;
     default:          snprintf(module->graph->gui_msg_buf,
                                sizeof(module->graph->gui_msg_buf),
-                               "[o-jxl] Recieved invalid bits value! Aborting…");
+                               "[o-jxl] Recieved unsupported bits value! Aborting…");
                       module->graph->gui_msg = module->graph->gui_msg_buf;
                       {
                         error = 1;
@@ -179,24 +180,22 @@ void write_sink(
   // Only currently support the options shown in the export GUI, except ‘custom’ as I don’t know where the custom values come from,
   // and XYZ, because of what seems to be a libjxl bug.
   JxlColorEncoding colour_encoding;
-
   colour_encoding.color_space = JXL_COLOR_SPACE_RGB;
   
-  JxlPrimaries nativePrimaries = 0;
   switch(primaries)
   {
-    case s_colour_primaries_srgb:   nativePrimaries = JXL_PRIMARIES_SRGB;
+    case s_colour_primaries_srgb:   colour_encoding.primaries = JXL_PRIMARIES_SRGB;
                                     colour_encoding.white_point = JXL_WHITE_POINT_D65;
                                     break;
-    case s_colour_primaries_P3:     nativePrimaries = JXL_PRIMARIES_P3;
+    case s_colour_primaries_P3:     colour_encoding.primaries = JXL_PRIMARIES_P3;
                                     colour_encoding.white_point = JXL_WHITE_POINT_D65;
                                     break;
-    case s_colour_primaries_2020:   nativePrimaries = JXL_PRIMARIES_2100;
+    case s_colour_primaries_2020:   colour_encoding.primaries = JXL_PRIMARIES_2100;
                                     colour_encoding.white_point = JXL_WHITE_POINT_D65;
                                     break;
                                     // Derived from §4.3.1.1 of [Adobe® RGB (1998) Color Image Encoding]
                                     // (https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf).
-    case s_colour_primaries_adobe:  nativePrimaries = JXL_PRIMARIES_CUSTOM;
+    case s_colour_primaries_adobe:  colour_encoding.primaries = JXL_PRIMARIES_CUSTOM;
                                     colour_encoding.primaries_red_xy[0] = 0.64;
                                     colour_encoding.primaries_red_xy[1] = 0.33;
                                     colour_encoding.primaries_green_xy[0] = 0.21;
@@ -209,7 +208,7 @@ void write_sink(
                                     // But not working because [0.0 not an allowed primary?](https://github.com/libjxl/libjxl/blob/e4b66d30278df6050137a4529e5efde5ef691f32/lib/jxl/cms/color_encoding_cms.h#L402_)
                                     // Escpecially weird becuase libjxl (does exactly this)[https://github.com/libjxl/libjxl/blob/e4b66d30278df6050137a4529e5efde5ef691f32/lib/extras/dec/apng.cc#L171].
                                     // Disabled for now.
-    /* case s_colour_primaries_XYZ:    nativePrimaries = JXL_PRIMARIES_CUSTOM;
+    /* case s_colour_primaries_XYZ:    colour_encoding.primaries = JXL_PRIMARIES_CUSTOM;
                                     colour_encoding.primaries_red_xy[0] = 1;
                                     colour_encoding.primaries_red_xy[1] = 0;
                                     colour_encoding.primaries_green_xy[0] = 0;
@@ -227,7 +226,6 @@ void write_sink(
                                       goto end;
                                     }
   }
-  colour_encoding.primaries = nativePrimaries;
 
   switch(trc)
   {
@@ -242,7 +240,6 @@ void write_sink(
     case s_colour_trc_DCI:          colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_DCI;
                                     break;
     case s_colour_trc_HLG:          colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_HLG;
-                                    basic_info.intensity_target = target_intensity;
                                     break;
     case s_colour_trc_gamma:        colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_GAMMA;
                                     // Then set whatever gamma value. But using ~2.2 because s_colour_trc_gamma is currently only for AdobeRGB(?)
@@ -263,6 +260,11 @@ void write_sink(
                                       error = 1;
                                       goto end;
                                     }
+  }
+
+  if(custom_intensity)
+  {
+    basic_info.intensity_target = target_intensity;
   }
 
   // ISO 15076-1:2010

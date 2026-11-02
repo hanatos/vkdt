@@ -1,5 +1,8 @@
 filename:filename
 effort:slider:1:10
 bits:combo:f16 (original):u16:u12:u10:u8
+custom i:combo:default:custom
+group:custom i:1
 target i:slider:1:10000
+group:-1:-1
 exif:combo:leave empty:copy from main input
