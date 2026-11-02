@@ -116,10 +116,10 @@ GLSLC=/ucrt64/bin/glslangValidator.exe
 GLSLC_FLAGS=--target-env vulkan1.3
 # GLSLC=glslc
 # GLSLC_FLAGS=--target-env=vulkan1.3
-CFLAGS=-I/c/msys64/ucrt64/include -I. -D_POSIX_C_SOURCE
-CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -I/c/msys64/ucrt64/include
+BASE_CFLAGS=-I/c/msys64/ucrt64/include -I. -D_POSIX_C_SOURCE
+BASE_CXXFLAGS=-Wall -pipe -I. -D_GNU_SOURCE -I/c/msys64/ucrt64/include
 LDFLAGS=-L/c/msys64/ucrt64/lib -lregex
-export CFLAGS CXXFLAGS LDFLAGS
+export BASE_CFLAGS BASE_CXXFLAGS LDFLAGS
 
 # optimised flags, you may want to use -march=x86-64 for distro builds:
 OPT_CFLAGS=-Wall -pipe -O3 -march=native -DNDEBUG

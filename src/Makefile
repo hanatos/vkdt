@@ -83,35 +83,36 @@ distclean: clean
 	rm -f core/version.h
 
 # GNU_SOURCE for sched_affinity
-CFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c11
-CXXFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c++17
+# CFLAGS/CXXFLAGS passed in by the user are appended to these
+BASE_CFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c11
+BASE_CXXFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c++17
 EXE_CFLAGS?=-fPIC
 # LDFLAGS=
 VK_CFLAGS:=$(VKDT_VULKAN_CFLAGS)
 
 qvk/%.o: qvk/%.c Makefile $(QVK_H) qvk/flat.mk
-	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(QVK_CFLAGS) -c $< -o $@
+	$(CC) $(BASE_CFLAGS) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(QVK_CFLAGS) -c $< -o $@
 
 core/%.o: core/%.c Makefile $(CORE_H) core/flat.mk
-	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(CORE_CFLAGS) -c $< -o $@
+	$(CC) $(BASE_CFLAGS) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(CORE_CFLAGS) -c $< -o $@
 
 snd/%.o: snd/%.c Makefile $(SND_H) snd/flat.mk
-	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(SND_CFLAGS) -c $< -o $@
+	$(CC) $(BASE_CFLAGS) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(SND_CFLAGS) -c $< -o $@
 
 pipe/%.o: pipe/%.c Makefile $(PIPE_H) $(CORE_H) pipe/flat.mk
-	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(PIPE_CFLAGS) -c $< -o $@
+	$(CC) $(BASE_CFLAGS) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(PIPE_CFLAGS) -c $< -o $@
 
 db/%.o: db/%.c Makefile $(DB_H) db/flat.mk
-	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(DB_CFLAGS) -c $< -o $@
+	$(CC) $(BASE_CFLAGS) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(DB_CFLAGS) -c $< -o $@
 
 cli/%.o: cli/%.c Makefile $(CLI_H) cli/flat.mk
-	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(CLI_CFLAGS) -c $< -o $@
+	$(CC) $(BASE_CFLAGS) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(CLI_CFLAGS) -c $< -o $@
 
 fit/%.o: fit/%.c Makefile $(FIT_H) fit/flat.mk
-	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(FIT_CFLAGS) -c $< -o $@
+	$(CC) $(BASE_CFLAGS) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(FIT_CFLAGS) -c $< -o $@
 
 gui/%.o: gui/%.c Makefile $(GUI_H) gui/flat.mk
-	$(CC) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
+	$(CC) $(BASE_CFLAGS) $(CFLAGS) $(EXE_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(GUI_CFLAGS) -c $< -o $@
 
 # main application
 # ======================
@@ -167,13 +168,13 @@ $(foreach MOD,$(FLATMK),\
 
 define MOD_RULE
 pipe/modules/$1/lib$1.so: pipe/modules/$1/main.c pipe/modules/$1/flat.mk $(MOD_$(1)_DEPS) $(MOD_GLOBAL_DEPS)
-	$(CC) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS) $(MOD_GLOBAL_LDFLAGS)
+	$(CC) $(BASE_CFLAGS) $(CFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS) $(MOD_GLOBAL_LDFLAGS)
 endef
 $(foreach mod,$(MODULES),$(eval $(call MOD_RULE,$(mod))))
 
 define MOD_RULEXX
 pipe/modules/$1/lib$1.so:pipe/modules/$1/main.cc pipe/modules/$1/flat.mk $(MOD_$(1)_DEPS) $(MOD_GLOBAL_DEPS)
-	$(CXX) $(CXXFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS) $(MOD_GLOBAL_LDFLAGS)
+	$(CXX) $(BASE_CXXFLAGS) $(CXXFLAGS) $(MOD_GLOBAL_CFLAGS) $(OPT_CFLAGS) $(VK_CFLAGS) $(MOD_$(1)_CFLAGS) -shared $$< $(MOD_$(1)_C) -o $$@ $(LDFLAGS) $(OPT_LDFLAGS) $(MOD_$(1)_LDFLAGS) $(MOD_GLOBAL_LDFLAGS)
 endef
 $(foreach mod,$(MODULESXX),$(eval $(call MOD_RULEXX,$(mod))))
 
