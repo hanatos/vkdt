@@ -31,7 +31,7 @@ body{
   width:100%;
   padding-bottom:100%;
   background-repeat:no-repeat;
-  background-color:#7f7f7f;
+  background-color:#222;
   background-position:center;
   background-size:contain;
   border:1px black;
@@ -118,8 +118,11 @@ color:white;
   height:90vw;
   max-width: 90vw;
   max-height: 90vh;
+  border-style:solid;
+  border-width:3vw;
+  border-color:#444;
   background-repeat:no-repeat;
-  background-color:#7f7f7f;
+  background-color:#444;
   background-position:center;
   background-size:contain;
 }
