@@ -94,7 +94,7 @@ void modify_roi_out(
   {
     ro->full_wd = (ri->full_wd+1)/2;
     ro->full_ht = (ri->full_ht+1)/2;
-    if(scale >= block) ro->marker = s_roi_mark_soft_fwd; // this might be overwritten
+    ro->marker = s_roi_mark_soft_fwd; // this might be overwritten
   }
   else
   {
@@ -111,6 +111,7 @@ void modify_roi_in(
   dt_roi_t *ri = &module->connector[0].roi;
   ri->wd = ri->full_wd;
   ri->ht = ri->full_ht;
+  ri->marker = s_roi_mark_hard_bck;
 }
 
 dt_graph_run_t

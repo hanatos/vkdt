@@ -105,6 +105,7 @@ void modify_roi_out(
   assert(img_param);
   const uint32_t *b = img_param->crop_aabb;
   module->connector[1].roi = module->connector[0].roi;
+  module->connector[1].roi.marker = s_roi_mark_soft_fwd; // this might be overwritten
   if(img_param->filters)
   {
     module->connector[1].roi.full_wd = b[2] - b[0];
