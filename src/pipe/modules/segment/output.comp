@@ -8,7 +8,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
 {
   int channel;
   int invert;
-  int hard;
+  float hard;
   float shrink;
 } params;
 layout(push_constant, std140) uniform push_t { ivec2 net; int ch; } push;
@@ -40,15 +40,16 @@ void main()
 
   const vec2 u = (ipos + 0.5) / vec2(imageSize(img_out));
   float m = mask(u);
-  if(params.hard != 0)
+  if(params.hard > 0.0)
   { // threshold and erode: the mask varies slowly on the logits grid, two rings of samples are enough
     const vec2 r = params.shrink * vec2(1.0, imageSize(img_out).x / float(imageSize(img_out).y));
-    for(int i=0;i<16 && m > 0.5;i++)
+    float h = m;
+    for(int i=0;i<16 && h > 0.5;i++)
     {
       const float phi = M_PI*(2*i + i/8)/8.0;
-      m = min(m, mask(u + (i < 8 ? 0.5 : 1.0) * r * vec2(cos(phi), sin(phi))));
+      h = min(h, mask(u + (i < 8 ? 0.5 : 1.0) * r * vec2(cos(phi), sin(phi))));
     }
-    m = m > 0.5 ? 1.0 : 0.0;
+    m = mix(m, h > 0.5 ? 1.0 : 0.0, params.hard);
   }
   imageStore(img_out, ipos, vec4(m));
 }

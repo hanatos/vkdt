@@ -5,7 +5,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   uvec4 draw[2048]; // vertex count, then brush vertices as written by the draw widget
   float radius;     // brush radius relative to the image width
   int   zoom;
-  int   hard;       // threshold and shrink the mask
+  float hard;       // blend to the thresholded and shrunk mask
   float shrink;     // erosion radius relative to the image width
 } params;
 

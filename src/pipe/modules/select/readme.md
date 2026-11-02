@@ -31,9 +31,9 @@ you can [download the weights package here](https://codeberg.org/hanatos/vkdt-nn
 * `draw` brush strokes, see the [draw module](../draw/readme.md)
 * `radius` the brush radius as fraction of the image width
 * `zoom` run the network a second time zoomed in on small objects
-* `hard` output a hard mask instead of the soft one: threshold at one half and
-  shrink it, so it sits safely inside the object. a guided filter with a larger
-  radius then grows it back to the edges in the image
+* `hard` blend from the soft mask to a hard one: threshold at one half and
+  shrink it, so it sits safely inside the object. a guided filter then grows it
+  back to the edges in the image
 * `shrink` how far to shrink the hard mask, relative to the image width
 
 ## connectors

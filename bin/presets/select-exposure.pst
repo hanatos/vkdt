@@ -13,7 +13,7 @@ connect:exposure:sel:output:blend:sel:input
 connect:guided:sel:output:blend:sel:mask
 connect:blend:sel:output:filmcurv:01:input
 param:select:sel:click:0
-param:select:sel:hard:1
+param:select:sel:hard:0.5
 param:select:sel:shrink:0.002
 param:guided:sel:radius:0.008
 param:guided:sel:epsilon:0.001

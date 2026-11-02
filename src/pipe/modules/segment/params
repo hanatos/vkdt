@@ -1,4 +1,4 @@
 channel:int:1:0
 invert:int:1:0
-hard:int:1:0
+hard:float:1:0
 shrink:float:1:0.002
