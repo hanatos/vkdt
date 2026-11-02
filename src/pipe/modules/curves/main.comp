@@ -27,6 +27,9 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float ddb0, ddbn;
   vec4 vtx1[3], vtx2[3], vtx3[3], vtx4[3], vtx5[3], vtx6[3], vtx7[3], vtx8[3];
   vec4 abcd1[6], abcd2[6], abcd3[6], abcd4[6], abcd5[6], abcd6[6], abcd7[6], abcd8[6];
+  float radius;
+  float edges;
+  int clamping;
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform sampler2D img_a;
@@ -89,5 +92,8 @@ void main()
     // rgb = ych2rgb(ycho);
     rgb = oklsh_to_rec2020(ycho);
   }
+  if(params.clamping == 1) rgb = max(vec3(0), rgb);
+  if(params.clamping == 2) rgb = min(vec3(1), rgb);
+  if(params.clamping == 3) rgb = clamp(rgb, vec3(0), vec3(1));
   imageStore(img_out, ipos, vec4(rgb, 1));
 }

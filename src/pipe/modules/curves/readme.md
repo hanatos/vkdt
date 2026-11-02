@@ -46,6 +46,7 @@ but works in a linear opponent space (YCbCr, the radial version of it).
 * `edit` edit luminance as linear values or in some gamma corrected space that gives more control over blacks. this only affects the ui and only rgb curves and luminance
 * `radius` size of the guided filter chroma/hue blur to avoid colour noise
 * `edges` edge parameter of the guided filter chroma/hue blur to avoid colour noise
+* `clamp` optionally clamp the curves at zero and/or one
 
 ## connectors
 
