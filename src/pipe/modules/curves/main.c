@@ -1,6 +1,51 @@
 #include "modules/api.h"
 #include "pipe/graph-history.h"
 
+// XXX hack: copied over to module scope:
+// grab the current state of the given parameter/module and insert a keyframe
+// at the current frame of the gui graph. will deduplicate if a keyframe already exists here.
+static inline uint32_t
+dt_gui_keyframe_add(
+    dt_graph_t *g,
+    int modid, int parid)
+{
+  const dt_ui_param_t *param = g->module[modid].so->param[parid];
+  if(!param) return -1u;
+  int count = 1;
+  if(param->name == dt_token("draw"))
+    count = 2*dt_module_param_int(g->module + modid, parid)[0]+1; // vertex count + list of 2d vertices
+  else if(param->widget.cntid == -1)
+    count = param->cnt;
+  else
+    count = CLAMP(dt_module_param_int(g->module + modid, param->widget.cntid)[0], 0, param->cnt);
+  uint32_t ki = -1u;
+  for(uint32_t i=0;ki==-1u&&i<g->module[modid].keyframe_cnt;i++)
+    if(g->module[modid].keyframe[i].param == param->name &&
+       g->module[modid].keyframe[i].frame == g->frame)
+      ki = i;
+  if(ki == -1u)
+  {
+    ki = g->module[modid].keyframe_cnt++;
+    g->module[modid].keyframe = (dt_keyframe_t *)dt_realloc(g->module[modid].keyframe, &g->module[modid].keyframe_size, sizeof(dt_keyframe_t)*(ki+1));
+    g->module[modid].keyframe[ki].beg   = 0;
+    g->module[modid].keyframe[ki].end   = count;
+    g->module[modid].keyframe[ki].frame = g->frame;
+    g->module[modid].keyframe[ki].anim  = 0;
+    g->module[modid].keyframe[ki].param = param->name;
+    g->module[modid].keyframe[ki].data  = g->params_pool + g->params_end;
+    g->params_end += dt_ui_param_size(param->type, count);
+    assert(g->params_end <= g->params_max);
+  }
+  memcpy(g->module[modid].keyframe[ki].data, g->module[modid].param + param->offset, dt_ui_param_size(param->type, count));
+  dt_module_keyframe_post_update(g->module+modid);
+  snprintf(g->gui_msg_buf, sizeof(g->gui_msg_buf),
+      "added keyframe for frame %u %" PRItkn ":%" PRItkn ":%" PRItkn, 
+      g->frame, dt_token_str(g->module[modid].name), dt_token_str(g->module[modid].inst), dt_token_str(param->name));
+  g->gui_msg = g->gui_msg_buf;
+  dt_graph_history_keyframe(g, modid, ki);
+  return ki;
+}
+
 // returns "edit space" from linear value, for more control in blacks for linear rgb
 static inline float
 edit_to_linear(float v)
@@ -307,6 +352,19 @@ input(
   const int edit = dt_module_param_int(mod, pid_edit)[0];
 
   static int active = -1;
+
+  if(p->type == 4)
+  { // key press
+    if(p->key == 'K')
+    {
+      dt_gui_keyframe_add(mod->graph, mod - mod->graph->module, dt_module_get_param(mod->so, dt_token("xr")));
+      dt_gui_keyframe_add(mod->graph, mod - mod->graph->module, dt_module_get_param(mod->so, dt_token("yr")));
+      dt_gui_keyframe_add(mod->graph, mod - mod->graph->module, dt_module_get_param(mod->so, dt_token("xg")));
+      dt_gui_keyframe_add(mod->graph, mod - mod->graph->module, dt_module_get_param(mod->so, dt_token("yg")));
+      dt_gui_keyframe_add(mod->graph, mod - mod->graph->module, dt_module_get_param(mod->so, dt_token("xb")));
+      dt_gui_keyframe_add(mod->graph, mod - mod->graph->module, dt_module_get_param(mod->so, dt_token("yb")));
+    }
+  }
   
   if(mode == 2) // prepare just the same, but for ych
     channel = ychchan;

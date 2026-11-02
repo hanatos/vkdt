@@ -243,6 +243,7 @@ darkroom_keyboard(GLFWwindow *window, int key, int scancode, int action, int mod
     }
     return;
   }
+  dt_gui_darkroom_dspy_keyboard(window, key, action, mods);
 
   int mr = dt_menu_keyboard(&darkroom_menu, hk_darkroom, hk_darkroom_cnt, key, action, mods);
   if(mr == 1) return;

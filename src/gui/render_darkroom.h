@@ -2015,3 +2015,27 @@ dt_gui_darkroom_dspy_mouse_button(GLFWwindow* window, int button, int action, in
     }
   }
 }
+
+static inline void
+dt_gui_darkroom_dspy_keyboard(GLFWwindow* window, int key, int action, int mods)
+{
+  double x, y;
+  dt_view_get_cursor_pos(vkdt.win.window, &x, &y);
+  if(!vkdt.wstate.grabbed && (vkdt.graph_dev.active_module >= 0))
+  { // pass on mouse events on dspy window
+    dt_module_t *mod = vkdt.graph_dev.module + vkdt.graph_dev.active_module;
+    struct nk_rect b = vkdt.wstate.active_dspy_bound;
+    if(NK_INBOX(x,y,b.x,b.y,b.w,b.h))
+    {
+      dt_module_input_event_t p = {
+        .type = 4,
+        .key     = key,
+        .action  = action,
+        .mods    = mods,
+        .grabbed = vkdt.wstate.grabbed,
+      };
+      if(mod->so->input)
+        vkdt.graph_dev.runflags |= mod->so->input(mod, &p);
+    }
+  }
+}
