@@ -171,7 +171,11 @@ pub unsafe extern "C" fn rl_decode_file(
     (*rawimg).illuminant = 666;
   }
 
-  copy_metadata(strn, rawimg).unwrap();
+  match copy_metadata(strn, rawimg)
+  {
+    Ok(_) => {}
+    Err(_) => { return 0 as u64; }
+  }
 
   copy_string(&image.make,  &mut (*rawimg).maker);
   copy_string(&image.model, &mut (*rawimg).model);
