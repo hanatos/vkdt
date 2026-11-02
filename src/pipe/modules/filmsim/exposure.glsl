@@ -15,5 +15,5 @@ vec3 expose_scene_to_film(sampler2D coeff_img, vec3 rgb)
   vec4 coeff = fetch_coeff(coeff_img, params.input_colour == 0 ? matrix_rec2020_to_xyz * rgb : rgb);
   vec3 raw;
   SPECTRAL_COEFF_LIGHT(raw, coeff, prep.film.expose_factor_r, prep.film.expose_factor_g, prep.film.expose_factor_b, n_expose_groups);
-  return (params.ev_film + log2(apply_highlight_boost(raw / prep.film.expose_autoexp_norm) + 1e-10)) * log10_2;
+  return (params.ev_film + log2(apply_highlight_boost(raw) + 1e-10)) * log10_2;
 }

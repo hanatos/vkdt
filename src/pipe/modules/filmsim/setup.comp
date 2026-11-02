@@ -9,6 +9,7 @@ layout(push_constant, std140) uniform push_t
 } push;
 layout(set = 1, binding = 0) uniform sampler2D img_filmsim;
 layout(set = 1, binding = 1, std430) buffer buf_prep_t { filmsim_state_t prep; };
+layout(set = 1, binding = 2) uniform sampler2D img_coeff;
 #include "setup.glsl"
 
 void main()
@@ -63,8 +64,6 @@ void main()
   {
     if(need_film)
     {
-      prep.film.expose_autoexp_norm = shared_expose_autoexp_norm;
-
       for (int l = 0; l < 3; l++)
       {
         prep.film.model_scale_film[l] = shared_model_scale[s_model_film][l];

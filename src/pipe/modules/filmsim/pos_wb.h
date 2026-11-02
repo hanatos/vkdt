@@ -65,7 +65,7 @@ param:pick:01:ref:0.184:0.184:0.184
 param:filmsim:01:process:1
 # fit against the module defaults, couplers included, no paper involved
 param:filmsim:01:couplers:1
-param:filmsim:01:cp amt:1.0
+param:filmsim:01:cp amt:0.5
 param:filmsim:01:lang r:1.0
 param:filmsim:01:lang g:1.0
 param:filmsim:01:lang b:1.0
@@ -86,7 +86,7 @@ starts=("0.1 0.70 0.75 0.45" "0.3 0.60 0.65 0.50" "0.2 0.85 0.90 0.35" "0.5 0.50
 GOOD=0.02
 
 echo "// ev film, filter c, filter m, filter y" > results.txt
-echo "const float pos_wb[$n_films][4] = {" >> results.txt
+echo "static const float pos_wb[$n_films][4] = {" >> results.txt
 : > losses.txt
 for f in $(seq 0 $((n_films-1)))
 do
@@ -121,6 +121,10 @@ do
     fi
     awk "BEGIN{exit !($best_loss <= $GOOD)}" && break
   done
+  if [ -z "$best_loss" ] || [ -z "$best_cfg" ]; then
+    echo "neutral fit failed for $film ${paper:-direct scan}" >&2
+    exit 1
+  fi
   echo "$film $f loss=$best_loss" >> losses.txt
   echo "{ //" $film $f >> results.txt
   echo $(echo "$best_cfg" | grep -E '^param:filmsim:01:ev film' | cut -d: -f5), >> results.txt
@@ -132,7 +136,6 @@ done
 echo "};" >> results.txt
 rm neutral-pos-start.cfg neutral-pos.cfg
 #endif
-
 
 // ev film, filter c, filter m, filter y
 static const float pos_wb[22][4] = {
@@ -153,34 +156,34 @@ static const float pos_wb[22][4] = {
 { 0, 0, 0, 0 }, // kodak_vision3_500t 14 (not scanned as a positive)
 { 0, 0, 0, 0 }, // kodak_verita_200d 15 (not scanned as a positive)
 { // kodak_kodachrome_64 16
--0.536916,
-0.561047,
-0.431235,
-0.495082,
+-0.4779,
+0.554164,
+0.424419,
+0.488965,
 },
 { // kodak_ektachrome_100 17
--0.320157,
-0.860494,
-0.766657,
-0.787321,
+-0.262573,
+0.833303,
+0.73706,
+0.759842,
 },
 { // fujifilm_provia_100f 18
--0.27308,
-0.808432,
-0.710001,
-0.731154,
+-0.220017,
+0.791512,
+0.692441,
+0.713821,
 },
 { // fujifilm_velvia_100 19
--0.322643,
-0.643306,
-0.521866,
-0.568624,
+-0.262317,
+0.68275,
+0.559595,
+0.604764,
 },
 { 0, 0, 0, 0 }, // kodak_doublex 20 (not scanned as a positive)
 { // kodak_trix 21
--0.377199,
-0.786071,
-0.700886,
-0.720724,
+-0.444306,
+0.812408,
+0.728296,
+0.746786,
 },
 };
