@@ -84,12 +84,16 @@ new modules:
 * `hdrmerge` extend dynamic range (phcreery)
 * `overlay` render text and latency data
 * `opendrt` full-featured display transform
-* `o-jxl` jpeg-xl write support
+* `o-jxl` jpeg-xl write support (wfinster)
+* `select` neural network to select shapes by clicks (lennardwalter)
+* `segment` neural network to segment image into sky, subject, background, etc (lennardwalter)
+* `okgmtclp` experimental gamut clipping in oklab (phcreery)
 
 removed modules:
 * `resnet` gmic neural denoiser (weights out of sync with upstream)
 
 major features:
+* vulkan video decoding (runs 6k and higher frame rates)
 * `jddcnn` now for bayer and xtrans, with reconstruction for clean and noisy input
 * drag keys and chord menu (randalix)
 * revamped grade module with new colour wheel widget (randalix)
@@ -108,9 +112,14 @@ graph internals:
 * centralise colour matrices, shared between cpu/gpu
 
 smaller:
+* module ui supports tabs now (see OpenDRT and filmsim)
+* pipewire instead alsa
+* screencast mode: show input keys/mouse buttons as overlay
+* better css for gallery exporter
 * low-lag present mode (phcreery)
 * game controller fixes
-* external resource tracking in the backend (colour luts, multiple input files, etc)
+* external resource tracking in the backend (colour luts, multiple input files, etc), use with o-copy export
+* `mkclut` with more data points for smoother wb interpolation (niklasiivari)
 * `filmcurv` agx colour mode (phcreery)
 * `filmcurv` luminance ratio colour mode (randalix)
 * `inpaint` allow horizontal or vertical inpainting (keep horizons straight)
@@ -118,6 +127,7 @@ smaller:
 * `filmsim` coupler diffusion radius exposed
 * `filmsim` like 2.5x faster (niklasiivari)
 * `filmsim` with preflash (niklasiivari)
+* `filmsim` with matrix-free input directly from camera rgb
 
 rendering:
 * geometry nodes `g-ocean` `g-wobble` `g-csolid`
