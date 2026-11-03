@@ -1,6 +1,7 @@
 #include "modules/api.h"
 #include "pipe/graph-history.h"
 
+#if 0 // will not work with macintosh/wind0ws linkage:
 // XXX hack: copied over to module scope:
 // grab the current state of the given parameter/module and insert a keyframe
 // at the current frame of the gui graph. will deduplicate if a keyframe already exists here.
@@ -45,6 +46,7 @@ dt_gui_keyframe_add(
   dt_graph_history_keyframe(g, modid, ki);
   return ki;
 }
+#endif
 
 // returns "edit space" from linear value, for more control in blacks for linear rgb
 static inline float
@@ -353,6 +355,7 @@ input(
 
   static int active = -1;
 
+#if 0
   if(p->type == 4)
   { // key press
     if(p->key == 'K')
@@ -365,6 +368,7 @@ input(
       dt_gui_keyframe_add(mod->graph, mod - mod->graph->module, dt_module_get_param(mod->so, dt_token("yb")));
     }
   }
+#endif
   
   if(mode == 2) // prepare just the same, but for ych
     channel = ychchan;
