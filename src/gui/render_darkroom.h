@@ -1425,7 +1425,8 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
   }
   else if(param->widget.type == dt_token("click"))
   { // clicks on the image, stored as count followed by x y label, and an optional box
-    nk_layout_row_dynamic(ctx, row_height, 3);
+    const float w3[] = {0.35f*pwd-ctx->style.window.spacing.x, 0.35f*pwd-ctx->style.window.spacing.x, wds[1]};
+    nk_layout_row(ctx, NK_STATIC, row_height, 3, w3);
     float *v = (float*)(vkdt.graph_dev.module[modid].param + param->offset);
     const int bid = dt_module_get_param(vkdt.graph_dev.module[modid].so, dt_token("box"));
     float *b = (float *)dt_module_param_float(vkdt.graph_dev.module+modid, bid);
