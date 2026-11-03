@@ -1,9 +1,16 @@
 # brighten a selection by one stop, using a click selection.
 # see [the documentation of the select module](../../../src/pipe/modules/select/readme.md).
-module:select:sel:1000:180
-module:guided:sel:1175:180
-module:exposure:sel:1000:620
-module:blend:sel:1350:400
+module:select:sel:1096.95:718.333
+module:guided:sel:1319.44:698.889
+module:exposure:sel:1305:512.222
+module:blend:sel:1533.33:422.779
+# these we just move up so they don't get in the way in case they are there:
+module:filmcurv:01:1713.44:423.333
+module:llap:01:1895.11:425
+module:hist:01:2315.78:609
+module:display:hist:2497.78:609
+module:display:main:2324.24:355.188
+module:grade:01:2094.72:423.889
 connect:colour:01:output:select:sel:input
 connect:colour:01:output:guided:sel:input
 connect:select:sel:output:guided:sel:guide

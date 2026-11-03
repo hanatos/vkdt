@@ -1,9 +1,16 @@
 # darken the sky by one stop.
 # see [the documentation of the segment module](../../../src/pipe/modules/segment/readme.md).
-module:segment:sky:1000:180
-module:guided:sky:1175:180
-module:exposure:sky:1000:620
-module:blend:sky:1350:400
+module:segment:sky:1096.95:718.333
+module:guided:sky:1319.44:698.889
+module:exposure:sky:1305:512.222
+module:blend:sky:1533.33:422.779
+# these we just move up so they don't get in the way in case they are there:
+module:filmcurv:01:1713.44:423.333
+module:llap:01:1895.11:425
+module:hist:01:2315.78:609
+module:display:hist:2497.78:609
+module:display:main:2324.24:355.188
+module:grade:01:2094.72:423.889
 connect:colour:01:output:segment:sky:input
 connect:colour:01:output:guided:sky:input
 connect:segment:sky:output:guided:sky:guide

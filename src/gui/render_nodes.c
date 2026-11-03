@@ -156,8 +156,12 @@ void render_nodes()
   render_darkroom_modals(); // comes first so we can add a module popup from the context menu
   if(num_modules < vkdt.graph_dev.num_modules)
   { // module has been added, move and select it. does not work if a module reclaims the slot of a previously deleted one. do we care?
-    vkdt.graph_dev.module[num_modules].gui_x = nodes.nedit.add_pos_x;
-    vkdt.graph_dev.module[num_modules].gui_y = nodes.nedit.add_pos_y;
+    if(vkdt.graph_dev.module[num_modules].gui_x == 0 &&
+       vkdt.graph_dev.module[num_modules].gui_y == 0)
+    { // a preset might have added modules at specific position
+      vkdt.graph_dev.module[num_modules].gui_x = nodes.nedit.add_pos_x;
+      vkdt.graph_dev.module[num_modules].gui_y = nodes.nedit.add_pos_y;
+    }
     dt_node_editor_clear_selection(&nodes.nedit);
     dt_node_editor_select(&nodes.nedit, &vkdt.graph_dev, num_modules);
   }
