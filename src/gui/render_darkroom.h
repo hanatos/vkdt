@@ -1471,6 +1471,7 @@ render_darkroom_widget(int modid, int parid, int is_fav_menu)
       if(b) dt_graph_history_append(&vkdt.graph_dev, modid, bid, throttle);
       if(d) dt_graph_history_append(&vkdt.graph_dev, modid, did, throttle);
     }
+    dt_tooltip(param->tooltip);
     nk_labelf(ctx, NK_TEXT_LEFT, "%d clicks", (int)v[0]);
     num = count;
   }
