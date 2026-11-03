@@ -723,7 +723,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   return VK_SUCCESS;
 }
 
-int
+VkResult
 qvk_cleanup()
 {
   for(int k=0;k<s_queue_cnt;k++)
