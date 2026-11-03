@@ -1,0 +1,77 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: enable
+
+#include "shared.glsl"
+#include "matrices.h"
+#include "params.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(push_constant, std140) uniform push_t { ivec2 net; } push;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(std430, set = 1, binding = 1) readonly buffer crop_t { vec4 c[]; } reg;
+layout(std430, set = 1, binding = 2) writeonly buffer buf_t { float16_t v[]; } buf;
+
+void main()
+{
+  const ivec2 net = push.net;
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, net))) return;
+
+  // box filter the footprint of the crop, aspect ratio is not preserved
+  const vec4 c = reg.c[0];
+  const vec2 csz = c.zw - c.xy;
+  const vec2 isz = vec2(textureSize(img_in, 0));
+  const vec2 fp  = isz * csz / vec2(net);
+  const ivec2 n  = clamp(ivec2(ceil(0.5*fp)), ivec2(1), ivec2(16));
+  vec3 rgb = vec3(0.0);
+  for(int j=0;j<n.y;j++) for(int i=0;i<n.x;i++)
+  {
+    vec2 uv = c.xy + csz * (ipos + (vec2(i, j) + 0.5)/vec2(n)) / vec2(net);
+    rgb += textureLod(img_in, uv, 0).rgb;
+  }
+  rgb /= float(n.x*n.y);
+
+  // display referred srgb in [-1, 1]
+  rgb = clamp(matrix_rec2020_to_rec709 * rgb, vec3(0.0), vec3(65504.0));
+  rgb = rgb / (1.0 + rgb);
+  rgb = mix(rgb * 12.92, pow(rgb, vec3(1.0/2.4))*1.055-0.055, greaterThan(rgb, vec3(0.0031308)));
+  rgb = 2.0*rgb - 1.0;
+
+  // filled box rectangle, sampled at pixel centres
+  float box = 0.0;
+  if(has_box())
+  {
+    const vec4 b = vec4((params.box.xy - c.xy) / csz, (params.box.zw - c.xy) / csz) * vec4(net, net);
+    const vec2 x = ipos + 0.5;
+    if(all(greaterThanEqual(x, b.xy)) && all(lessThan(x, b.zw))) box = 1.0;
+  }
+
+  // brush strokes as rough mask, distances in units of the image width
+  float brush = 0.0;
+  const vec2 as = vec2(1.0, isz.y/isz.x);
+  const vec2 u = (c.xy + csz * (ipos + 0.5) / vec2(net)) * as;
+  const int nv = num_verts();
+  for(int v=0;v<nv;v++)
+  {
+    vec2 p0, p1;
+    vec3 s0, s1;
+    if(!vert(v, p0, s0)) continue;
+    if(v+1 >= nv || !vert(v+1, p1, s1)) { p1 = p0; s1 = s0; }
+    p0 *= as; p1 *= as;
+    const vec2 d = p1 - p0;
+    const float t = clamp(dot(u - p0, d) / max(dot(d, d), 1e-12), 0.0, 1.0);
+    const vec3 s = mix(s0, s1, t);
+    const float r = max(params.radius * s.x, 1e-6);
+    brush = max(brush, s.y * (1.0 - smoothstep(min(s.z, 0.999), 1.0, length(u - p0 - t*d) / r)));
+  }
+
+  const int idx = 8*(net.x*ipos.y + ipos.x);
+  buf.v[idx+0] = float16_t(rgb.r);
+  buf.v[idx+1] = float16_t(rgb.g);
+  buf.v[idx+2] = float16_t(rgb.b);
+  buf.v[idx+3] = float16_t(0.0);
+  buf.v[idx+4] = float16_t(0.0);
+  buf.v[idx+5] = float16_t(box);
+  buf.v[idx+6] = float16_t(brush);
+  buf.v[idx+7] = float16_t(0.0);
+}

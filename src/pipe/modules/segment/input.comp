@@ -1,0 +1,36 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: enable
+
+#include "shared.glsl"
+#include "matrices.h"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(push_constant, std140) uniform push_t { ivec2 net; } push;
+layout(set = 1, binding = 0) uniform sampler2D img_in;
+layout(std430, set = 1, binding = 1) buffer buf_t { float16_t v[]; } buf;
+
+void main()
+{
+  const ivec2 net = push.net;
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, net))) return;
+
+  // box filter the footprint, aspect ratio is not preserved
+  const vec2 fp = vec2(textureSize(img_in, 0)) / vec2(net);
+  const ivec2 n = clamp(ivec2(ceil(0.5*fp)), ivec2(1), ivec2(16));
+  vec3 rgb = vec3(0.0);
+  for(int j=0;j<n.y;j++) for(int i=0;i<n.x;i++)
+    rgb += textureLod(img_in, (ipos + (vec2(i, j) + 0.5)/vec2(n)) / vec2(net), 0).rgb;
+  rgb /= float(n.x*n.y);
+
+  // display referred srgb in [-1, 1]
+  rgb = clamp(matrix_rec2020_to_rec709 * rgb, vec3(0.0), vec3(65504.0));
+  rgb = rgb / (1.0 + rgb);
+  rgb = mix(rgb * 12.92, pow(rgb, vec3(1.0/2.4))*1.055-0.055, greaterThan(rgb, vec3(0.0031308)));
+  rgb = 2.0*rgb - 1.0;
+
+  const int idx = 3*(net.x*ipos.y + ipos.x);
+  buf.v[idx+0] = float16_t(rgb.r);
+  buf.v[idx+1] = float16_t(rgb.g);
+  buf.v[idx+2] = float16_t(rgb.b);
+}

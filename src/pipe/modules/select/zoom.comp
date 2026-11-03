@@ -1,0 +1,49 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: enable
+
+#include "shared.glsl"
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+layout(push_constant, std140) uniform push_t { ivec2 size; int grid; } push;
+layout(std430, set = 1, binding = 0) readonly  buffer buf_t  { float16_t v[]; } buf;
+layout(std430, set = 1, binding = 1) readonly  buffer crop_t { vec4 c[]; } reg;
+layout(std430, set = 1, binding = 2) writeonly buffer zoom_t { vec4 c[]; } zoom;
+
+shared ivec4 bb[DT_LOCAL_SIZE_X*DT_LOCAL_SIZE_Y];
+
+// one work group: bounding box of the mask, expanded to the region of a second run
+void main()
+{
+  const int t = int(gl_LocalInvocationIndex), nt = DT_LOCAL_SIZE_X*DT_LOCAL_SIZE_Y;
+  const int g = push.grid;
+  ivec4 b = ivec4(g, g, -1, -1);
+  for(int i=t;i<g*g;i+=nt) if(buf.v[i] > 0.0hf)
+  {
+    const ivec2 p = ivec2(i % g, i / g);
+    b = ivec4(min(b.xy, p), max(b.zw, p));
+  }
+  bb[t] = b;
+  barrier();
+  for(int s=nt/2;s>0;s>>=1)
+  {
+    if(t < s) bb[t] = ivec4(min(bb[t].xy, bb[t+s].xy), max(bb[t].zw, bb[t+s].zw));
+    barrier();
+  }
+  if(t > 0) return;
+
+  const vec4 c = reg.c[0];
+  const vec2 csz = c.zw - c.xy;
+  b = bb[0];
+  zoom.c[1] = c;
+  if(b.z < 0) { zoom.c[0] = c; zoom.c[2] = vec4(0.0); return; }
+  const vec2 m0 = c.xy + csz * vec2(b.xy) / g, m1 = c.xy + csz * vec2(b.zw + 1) / g;
+  // 1.4x the box plus a margin, at most 2:1 in pixels, inside the first region
+  const vec2 as = vec2(push.size.x / float(push.size.y), 1.0);
+  vec2 wd = (1.4*(m1 - m0) + 0.03*csz) * as;
+  wd = max(wd, 0.5*wd.yx) / as;
+  wd = min(wd, csz);
+  const vec2 z0 = clamp(0.5*(m0 + m1 - wd), c.xy, c.zw - wd);
+  zoom.c[0] = vec4(z0, z0 + wd);
+  // only worth it if it magnifies
+  zoom.c[2] = vec4(wd.x*wd.y < 0.5*csz.x*csz.y ? 1.0 : 0.0);
+}

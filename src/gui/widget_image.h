@@ -211,6 +211,74 @@ dt_image_events(struct nk_context *ctx, dt_image_widget_t *w, int hovered, int m
         vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
       }
     }
+    else if(widget == dt_token("click"))
+    { // left click adds to the selection, right click removes, left drag sets the box
+      float *v = vkdt.wstate.mapped;
+      dt_module_t *mod = vkdt.graph_dev.module + vkdt.wstate.active_widget_modid;
+      float *b = (float *)dt_module_param_float(mod, dt_module_get_param(mod->so, dt_token("box")));
+      if(v)
+      {
+        const float r = 0.004f * w->win_w;
+        for(int i=0;i<(int)v[0];i++)
+        {
+          float p[2];
+          dt_image_to_view(&vkdt.wstate.img_widget, v+1+3*i, p);
+          struct nk_rect c = {p[0]-r, p[1]-r, 2*r, 2*r};
+          if(v[3+3*i] > 0.5f) nk_fill_circle(buf, c, nk_white);
+          else nk_stroke_circle(buf, c, 2.0f, nk_white);
+        }
+        if(b && b[2] > b[0] && b[3] > b[1])
+        {
+          float q[8] = { b[0], b[1], b[2], b[1], b[2], b[3], b[0], b[3] }, p[8];
+          for(int k=0;k<4;k++) dt_image_to_view(&vkdt.wstate.img_widget, q+2*k, p+2*k);
+          nk_stroke_polygon(buf, p, 4, 1.0, nk_white);
+        }
+        float vv[] = {pos.x, pos.y}, n[2] = {0};
+        dt_image_from_view(&vkdt.wstate.img_widget, vv, n);
+        if(hovered && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_LEFT))
+        { // remember where the drag started, clicked_pos moves on release
+          vkdt.wstate.selected = 1;
+          vkdt.wstate.state[0] = pos.x;
+          vkdt.wstate.state[1] = pos.y;
+        }
+        const float *d = vkdt.wstate.state;
+        const int drag = b && vkdt.wstate.selected > 0 &&
+          (fabsf(pos.x - d[0]) > 4.0f || fabsf(pos.y - d[1]) > 4.0f);
+        if(drag) nk_stroke_rect(buf, (struct nk_rect){
+            MIN(pos.x, d[0]), MIN(pos.y, d[1]),
+            fabsf(pos.x - d[0]), fabsf(pos.y - d[1])}, 0, 1.0, nk_white);
+        const int add = vkdt.wstate.selected > 0 && nk_input_is_mouse_released(&ctx->input, NK_BUTTON_LEFT);
+        const int sub = hovered && nk_input_is_mouse_pressed(&ctx->input, NK_BUTTON_RIGHT);
+        const int max = (vkdt.wstate.mapped_size/sizeof(float) - 1)/3;
+        if(add) vkdt.wstate.selected = -1;
+        if(add && drag)
+        {
+          const float oldb[] = { b[0], b[1], b[2], b[3] };
+          float c[2] = {0};
+          dt_image_from_view(&vkdt.wstate.img_widget, d, c);
+          b[0] = CLAMP(MIN(c[0], n[0]), 0.0f, 1.0f);
+          b[1] = CLAMP(MIN(c[1], n[1]), 0.0f, 1.0f);
+          b[2] = CLAMP(MAX(c[0], n[0]), 0.0f, 1.0f);
+          b[3] = CLAMP(MAX(c[1], n[1]), 0.0f, 1.0f);
+          vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
+          if(mod->so->check_params) vkdt.graph_dev.runflags |= mod->so->check_params(
+              mod, dt_module_get_param(mod->so, dt_token("box")), 0, (void *)oldb);
+        }
+        else if((add || sub) && v[0] < max &&
+           n[0] >= 0.0f && n[0] <= 1.0f && n[1] >= 0.0f && n[1] <= 1.0f)
+        {
+          const int i = v[0];
+          const float oldv = v[0];
+          v[1+3*i] = n[0];
+          v[2+3*i] = n[1];
+          v[3+3*i] = add ? 1.0f : 0.0f;
+          v[0] = i+1;
+          vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;
+          if(mod->so->check_params) vkdt.graph_dev.runflags |= mod->so->check_params(
+              mod, vkdt.wstate.active_widget_parid, 0, (void *)&oldv);
+        }
+      }
+    }
     else if(widget == dt_token("draw"))
     { // draw indicators for opacity/hardness/radius for each stroke
       float radius   = vkdt.wstate.state[0];
