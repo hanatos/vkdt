@@ -36,7 +36,7 @@ cat >> index.html << EOF
       </video>
       </div>
     </figure>
-    <a href="#gallery-untarget" class="gallery__close gallery__control">close</a>
+    <a href="#gallery-untarget" class="gallery__close gallery__control">×</a>
 EOF
 else
 cat >> index.html << EOF
@@ -49,19 +49,19 @@ cat >> index.html << EOF
       <img src="${2%.*}-small.jpg" alt="$2">
       <div class="gallery__image" style="background-image: url($2);"></div>
     </figure>
-    <a href="#gallery-untarget" class="gallery__close gallery__control">close</a>
+    <a href="#gallery-untarget" class="gallery__close gallery__control">×</a>
 EOF
 fi
 if [ $3 != "x" ]
 then
 cat >> index.html << EOF
-    <a class="gallery__next gallery__control" href="#gallery-$3">next</a>
+    <a class="gallery__next gallery__control" href="#gallery-$3">🞂</a>
 EOF
 fi
 if [ $1 != "x" ]
 then
 cat >> index.html << EOF
-    <a class="gallery__prev gallery__control" href="#gallery-$1">prev</a>
+    <a class="gallery__prev gallery__control" href="#gallery-$1">🞀</a>
 EOF
 fi
 cat >> index.html << EOF
