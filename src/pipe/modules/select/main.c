@@ -21,19 +21,6 @@ int read_source(dt_module_t *mod, void *mapped, dt_read_source_params_t *p)
   return denox_read_source_nclk(mod, mapped, p);
 }
 
-// empty mask, blending leaves the image unchanged
-static void
-create_nodes_empty(dt_graph_t *graph, dt_module_t *module)
-{
-  const dt_roi_t *roi = &module->connector[0].roi;
-  const int id = dt_node_add(
-      graph, module, "select", "zero", roi->wd, roi->ht, 1, 0, 0, 2,
-      "input",  "read",  "rgba", "*",   dt_no_roi,
-      "output", "write", "y",    "f16", roi);
-  dt_connector_copy(graph, module, 0, id, 0);
-  dt_connector_copy(graph, module, 1, id, 1);
-}
-
 static int
 has_box(const float *box)
 {
@@ -122,7 +109,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     snprintf(graph->gui_msg_buf, sizeof(graph->gui_msg_buf),
         "select: no network for this gpu vendor (0x%04x), mask is empty", qvk.vendorID);
     graph->gui_msg = graph->gui_msg_buf;
-    return create_nodes_empty(graph, module);
+    return dt_connector_bypass(graph, module, 0, 1);
   }
   // read_source can't fail gracefully, so check the weights here
   FILE *f = dt_graph_open_resource(graph, 0, weights, "rb");
@@ -140,7 +127,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
         found ? "select: \"%s\" has unexpected size, mask is empty" :
             "select: could not find \"%s\", mask is empty", weights);
     graph->gui_msg = graph->gui_msg_buf;
-    return create_nodes_empty(graph, module);
+    return dt_connector_bypass(graph, module, 0, 1);
   }
 
   const float *clk = dt_module_param_float(module, 0);
