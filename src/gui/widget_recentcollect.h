@@ -25,7 +25,6 @@ recently_used_collections_parse(
     dt_db_init(&vkdt.db);
     QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dir);
-    dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
   }
 
   if(end)
@@ -50,6 +49,7 @@ recently_used_collections_parse(
     {
       vkdt.db.collection_filter = *ft;
       dt_db_update_collection(&vkdt.db);
+      dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
     }
   }
 }
