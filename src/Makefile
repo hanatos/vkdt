@@ -83,7 +83,6 @@ distclean: clean
 	rm -f core/version.h
 
 # GNU_SOURCE for sched_affinity
-# CFLAGS/CXXFLAGS passed in by the user are appended to these
 BASE_CFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c11
 BASE_CXXFLAGS?=-Wall -pipe -I. -D_GNU_SOURCE -std=c++17
 EXE_CFLAGS?=-fPIC
