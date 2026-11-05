@@ -57,9 +57,11 @@ void write_sink(
   
   const size_t width  = module->connector[0].roi.wd;
   const size_t height = module->connector[0].roi.ht;
-
   const dt_colour_primaries_t primaries =  module->img_param.colour_primaries;
   const dt_colour_trc_t trc = module->img_param.colour_trc;
+
+  const float quality = dt_module_param_float(module, 1)[0];
+  const int effort = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("effort")))[0];
 
   const int bits = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("bits")))[0];
   const int custom_intensity = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("custom i")))[0];
@@ -68,12 +70,13 @@ void write_sink(
   char filename[512];
   snprintf(filename, sizeof(filename), "%s.jxl", basename);
 
-
   int error = 0;
   // Initialising these three here so I can always `goto end` and free them.
   uint16_t *pixels = NULL;
   uint8_t *out_buf = NULL;
   FILE *out_file = NULL;
+
+
 
   // For more than one export in a row it should be more efficient to make one encoder and reuse it?
   // But I think at the moment each image creates and destroys its own encoder.
@@ -101,79 +104,6 @@ void write_sink(
   JxlEncoderInitBasicInfo(&basic_info);
   basic_info.xsize = width;
   basic_info.ysize = height;
-  switch(bits)
-  {
-    case 0: /* f16 */ basic_info.bits_per_sample = 16;
-                      basic_info.exponent_bits_per_sample = 5;
-                      break;
-    case 1: /* u16 */ basic_info.bits_per_sample = 16;
-                      basic_info.exponent_bits_per_sample = 0;
-                      break;
-    case 2: /* u12 */ basic_info.bits_per_sample = 12;
-                      basic_info.exponent_bits_per_sample = 0;
-                      break;
-    case 3: /* u10 */ basic_info.bits_per_sample = 10;
-                      basic_info.exponent_bits_per_sample = 0;
-                      break;
-    case 4: /* u8 */  basic_info.bits_per_sample = 8;
-                      basic_info.exponent_bits_per_sample = 0;
-                      break;
-    default:          snprintf(module->graph->gui_msg_buf,
-                               sizeof(module->graph->gui_msg_buf),
-                               "[o-jxl] Recieved unsupported bits value! Aborting…");
-                      module->graph->gui_msg = module->graph->gui_msg_buf;
-                      {
-                        error = 1;
-                        goto end;
-                      }
-  }
-
-  // Container isn’t necessary but has minimal overhead, and is needed for EXIF data.
-  // exiftool can add it later, but it issues a minor error.
-  if(JxlAssert(JxlEncoderUseContainer(encoder,
-                                      JXL_TRUE),
-               encoder,
-               __LINE__))
-  {
-    error = 1;
-    goto end;
-  }
-
-
-
-  // Automatically freed when we destroy the encoder
-  JxlEncoderFrameSettings *frame_settings = JxlEncoderFrameSettingsCreate(encoder, NULL);
-
-  const float quality = dt_module_param_float(module, 1)[0];
-  // JXL natively uses ‘distance’ a [0:25] value. This aims to estimate a distance
-  // roughly equivalent to what would be obtained with libjpeg-turbo with the same quality parameter.
-  // This function isn’t available in libjxl versions < 0.9.0.
-  // Would just provide the user with a [0:25] distance slider, but quality is the common target for other modules.
-  const float distance = JxlEncoderDistanceFromQuality(quality);
-
-  if(quality == 100)
-  {
-    if(JxlAssert(JxlEncoderSetFrameLossless(frame_settings,
-                                            JXL_TRUE),
-                 encoder,
-                 __LINE__))
-    {
-      error = 1;
-      goto end;
-    }
-    basic_info.uses_original_profile = 1;
-  }
-  else
-  {
-    if(JxlAssert(JxlEncoderSetFrameDistance(frame_settings,
-                                            distance),
-                 encoder,
-                 __LINE__))
-    {
-      error = 1;
-      goto end;
-    }
-  }
 
 
 
@@ -262,15 +192,108 @@ void write_sink(
                                     }
   }
 
+  // ISO 15076-1:2010
+  // Hardcoding as perceptual as I don’t know what they really do, but that’s what the `src/pipe/icc-profiles.h` use.
+  // (They are user selectable in darktable but might not be important enough to warrant that?).
+  colour_encoding.rendering_intent = JXL_RENDERING_INTENT_PERCEPTUAL;
+
+
+
+  switch(bits)
+  {
+    case 0: /* f16 */ basic_info.bits_per_sample = 16;
+                      basic_info.exponent_bits_per_sample = 5;
+                      break;
+    case 1: /* u16 */ basic_info.bits_per_sample = 16;
+                      basic_info.exponent_bits_per_sample = 0;
+                      break;
+    case 2: /* u12 */ basic_info.bits_per_sample = 12;
+                      basic_info.exponent_bits_per_sample = 0;
+                      break;
+    case 3: /* u10 */ basic_info.bits_per_sample = 10;
+                      basic_info.exponent_bits_per_sample = 0;
+                      break;
+    case 4: /* u8 */  basic_info.bits_per_sample = 8;
+                      basic_info.exponent_bits_per_sample = 0;
+                      break;
+    default:          snprintf(module->graph->gui_msg_buf,
+                               sizeof(module->graph->gui_msg_buf),
+                               "[o-jxl] Recieved unsupported bits value! Aborting…");
+                      module->graph->gui_msg = module->graph->gui_msg_buf;
+                      {
+                        error = 1;
+                        goto end;
+                      }
+  }
+
+
+
   if(custom_intensity)
   {
     basic_info.intensity_target = target_intensity;
   }
 
-  // ISO 15076-1:2010
-  // Hardcoding as perceptual as I don’t know what they really do, but that’s what the `src/pipe/icc-profiles.h` use.
-  // (They are user selectable in darktable but might not be important enough to warrant that?).
-  colour_encoding.rendering_intent = JXL_RENDERING_INTENT_PERCEPTUAL;
+
+
+  // Automatically freed when we destroy the encoder
+  JxlEncoderFrameSettings *frame_settings = JxlEncoderFrameSettingsCreate(encoder, NULL);
+
+
+
+  // JXL natively uses ‘distance’ a [0:25] value. This aims to estimate a distance
+  // roughly equivalent to what would be obtained with libjpeg-turbo with the same quality parameter.
+  // This function isn’t available in libjxl versions < 0.9.0.
+  // Would just provide the user with a [0:25] distance slider, but quality is the common target for other modules.
+  const float distance = JxlEncoderDistanceFromQuality(quality);
+
+  if(quality == 100)
+  {
+    if(JxlAssert(JxlEncoderSetFrameLossless(frame_settings,
+                                            JXL_TRUE),
+                 encoder,
+                 __LINE__))
+    {
+      error = 1;
+      goto end;
+    }
+    basic_info.uses_original_profile = 1;
+  }
+  else
+  {
+    if(JxlAssert(JxlEncoderSetFrameDistance(frame_settings,
+                                            distance),
+                 encoder,
+                 __LINE__))
+    {
+      error = 1;
+      goto end;
+    }
+  }
+
+
+
+  if(JxlAssert(JxlEncoderFrameSettingsSetOption(frame_settings,
+                                                JXL_ENC_FRAME_SETTING_EFFORT,
+                                                effort),
+               encoder,
+               __LINE__))
+  {
+    error = 1;
+    goto end;
+  }
+
+
+
+  // Container isn’t necessary but has minimal overhead, and is needed for EXIF data.
+  // exiftool can add it later, but it issues a minor error.
+  if(JxlAssert(JxlEncoderUseContainer(encoder,
+                                      JXL_TRUE),
+               encoder,
+               __LINE__))
+  {
+    error = 1;
+    goto end;
+  }
 
 
 
@@ -286,17 +309,6 @@ void write_sink(
 
   if(JxlAssert(JxlEncoderSetColorEncoding(encoder,
                                           &colour_encoding),
-               encoder,
-               __LINE__))
-  {
-    error = 1;
-    goto end;
-  }
-
-  const int effort = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("effort")))[0];
-  if(JxlAssert(JxlEncoderFrameSettingsSetOption(frame_settings,
-                                                JXL_ENC_FRAME_SETTING_EFFORT,
-                                                effort),
                encoder,
                __LINE__))
   {
@@ -441,4 +453,3 @@ void write_sink(
   }
 #endif
 }
-
