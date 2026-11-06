@@ -173,8 +173,8 @@ jobs:
           cd -
       - name: build and install
         run: |
-          bash bin/mkappimg.sh
-          mv vkdt-*.AppImage $(echo vkdt-*.AppImage | sed "s/vkdt-/vkdt-${{ env.RAW }}-${{ env.GLFW }}-/")
+          bash bin/mkappimg.sh ${{ matrix.host.arch }}
+          mv vkdt-*.AppImage $(echo vkdt-*.AppImage | sed "s/vkdt-/vkdt-${{ matrix.host.arch }}-${{ env.RAW }}-${{ env.GLFW }}-/")
       - name: check if it runs
         run: |
           ./vkdt-*.AppImage --version
@@ -201,7 +201,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           path: vkdt-*.AppImage*
-          name: artifact-appimage-${{ env.RAW }}-${{ env.GLFW }}
+          name: artifact-appimage-${{ matrix.host.arch }}-${{ env.RAW }}-${{ env.GLFW }}
           retention-days: 1
 
   WindowsRawler:
@@ -542,8 +542,10 @@ jobs:
             it builds (using brew) and runs (using the lunarg sdk) both on intel and apple silicon devices.
 
           files: |
-            artifact-appimage-rawler-glfw3.4/*
-            artifact-appimage-rawler-pentablet/*
+            artifact-appimage-x86-64-rawler-glfw3.4/*
+            artifact-appimage-x86-64-rawler-pentablet/*
+            artifact-appimage-armv8-a-rawler-glfw3.4/*
+            artifact-appimage-armv8-a-rawler-pentablet/*
             artifact-windows-rawler/*
             artifact-macos-14/*
             artifact-macos-15-intel/*
