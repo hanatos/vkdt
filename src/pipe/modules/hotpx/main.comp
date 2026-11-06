@@ -1,83 +1,158 @@
 #version 460
 #extension GL_GOOGLE_include_directive    : enable
 #extension GL_EXT_nonuniform_qualifier    : enable
+#extension GL_EXT_control_flow_attributes : enable
 #include "shared.glsl"
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  float t; // threshold to detect a hot pixel
-  int chn; // apply to which channels
+  float t;     // threshold to detect a hot pixel
+  int chn;     // apply to which channels
+  float sigma; // threshold in deviations of the noise or the spread
 } params;
 layout(push_constant, std140) uniform push_t
 {
   ivec4 crop;
   int filters;
+  float black, white;     // in [0,1] of the 16 bit input
+  float noise_a, noise_b; // noise profile, zero if there is none
 } push;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
+// the colours, 0 red, 1 green, 2 blue, two bits each from x = -2 to 9,
+// so that a row of the 5x5 window is a single shift. x-trans:
+//   G R G G B G
+//   B G B R G R
+//   G R G G B G
+//   G B G G R G
+//   R G R B G B
+//   G B G G R G
+int pattern(int y)
+{
+  if(push.filters != 9) return (y & 1) == 0 ? 0x444444 : 0x999999; // R G, G B
+  return y == 1 ? 0x261261 : y == 4 ? 0x849849 : y < 3 ? 0x516516 : 0x594594;
+}
+
+bool profiled() { return push.noise_a > 0.0 || push.noise_b > 0.0; }
+
+float noise(float level)
+{
+  const float range = push.white - push.black;
+  return sqrt(max(0.0, push.noise_a + push.noise_b * max(0.0, (level - push.black) / range))) * range;
+}
+
+// how far above its colour around a photosite has to be to stand out:
+// sigma deviations of the noise at the level, or of the spread
+float threshold(float level, float spread)
+{
+  if(!profiled()) return max(params.t * (push.white - push.black), params.sigma * spread);
+  return params.sigma * max(noise(level), spread);
+}
+
+// normal order statistics (cf. blom 1958), simulated for n = 3..16 samples of unit
+// noise without the brightest two: how far their mean is low (the expected two
+// largest over n - 2), their spread relative to the deviation, and the spread of a
+// further sample around the corrected mean (about sqrt(1 + 1/n))
+const float trim_bias[14]   = float[](0.8458, 0.6631, 0.5527, 0.4770, 0.4224, 0.3792, 0.3456, 0.3175, 0.2937, 0.2742, 0.2574, 0.2424, 0.2296, 0.2178);
+const float trim_spread[14] = float[](0.0,    0.3657, 0.4994, 0.5740, 0.6245, 0.6610, 0.6892, 0.7121, 0.7310, 0.7467, 0.7608, 0.7727, 0.7833, 0.7928);
+const float trim_scale[14]  = float[](1.2479, 1.1556, 1.1161, 1.0934, 1.0778, 1.0665, 1.0593, 1.0523, 1.0479, 1.0432, 1.0406, 1.0361, 1.0343, 1.0328);
+
+// mean and deviation of n >= 3 samples (each colour has that in a 5x5 window), estimated
+// without the brightest two, so that hot photosites next to each other still stand out
+vec2 background(float sum, float sum2, float top1, float top2, float n)
+{
+  const float mean = (sum - (top1 + top2)) / (n - 2.0);
+  const int k = int(n) - 3;
+  const float spread = k > 0 ? sqrt(max(0.0, (sum2 - (top1*top1 + top2*top2)) / (n - 2.0) - mean*mean)) / trim_spread[k] : 0.0;
+  return vec2(mean + trim_bias[k] * (profiled() ? max(noise(mean), spread) : spread), spread);
+}
+
+// a real light reaches the other colours around through the lens with this much of
+// its excess, a hot photosite only with noise (measured on lights and defects at night)
+const float spill = 0.25;
+
 void main()
 {
-  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  const ivec2 ipos = ivec2(gl_GlobalInvocationID);
   if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+  const ivec2 size = textureSize(img_in, 0);
   float v = texelFetch(img_in, ipos, 0).r;
-  ivec2 ip = ipos - push.crop.xy; // this is where the mosic pattern aligns
-  if(push.filters == 9)
-  { // xtrans
-    ivec2 pos3 = (ip/3)*3;
-    float c0 = v;//texelFetch(img_in, push.crop.xy + pos3, 0).r;
-    float c1 = texelFetch(img_in, push.crop.xy + pos3+ivec2(0,1), 0).r;
-    float c2 = texelFetch(img_in, push.crop.xy + pos3+ivec2(0,2), 0).r;
-    float c3 = texelFetch(img_in, push.crop.xy + pos3+ivec2(1,0), 0).r;
-    float c4 = texelFetch(img_in, push.crop.xy + pos3+ivec2(1,1), 0).r;
-    float c5 = texelFetch(img_in, push.crop.xy + pos3+ivec2(1,2), 0).r;
-    float c6 = texelFetch(img_in, push.crop.xy + pos3+ivec2(2,0), 0).r;
-    float c7 = texelFetch(img_in, push.crop.xy + pos3+ivec2(2,1), 0).r;
-    float c8 = texelFetch(img_in, push.crop.xy + pos3+ivec2(2,2), 0).r;
 
-    float ming = min(min(min(c0, c2), c4), min(c6, c8));
-    float maxg = max(max(max(c0, c2), c4), max(c6, c8));
-    vec4 mmrb = vec4(min(c1, c7), max(c1, c7), min(c3, c5), max(c3, c5));
-    ivec2 rbmask = ivec2(1, 4);
+  // the 5x5 window, moved inside the image at the edges: two bits per x in row[y]
+  const ivec2 origin = clamp(ipos - 2, ivec2(0), max(size - 5, ivec2(0)));
+  const ivec2 ph = ((origin - push.crop.xy) % 6 + 6) % 6; // this is where the mosaic pattern aligns
+  int row[5];
+  [[unroll]] for(int k = 0; k < 5; k++)
+    row[k] = (pattern((ph.y + k) % 6) >> (2*(ph.x + 2))) & 0x3ff;
+#define COLOUR(x, y) ((row[y] >> (2*(x))) & 3)
+  const ivec2 o = ipos - origin;
+  const int c = COLOUR(o.x, o.y);
+  if((params.chn & (1 << c)) == 0) { imageStore(img_out, ipos, vec4(v)); return; }
 
-    if(((pos3.x/3 + pos3.y/3) & 1) == 0)
-    {
-      mmrb = mmrb.zwxy; // swap red and blue
-      rbmask = rbmask.yx;
-    }
+  // the own colour, without v: bit 2x of own[y]
+  int own[5];
+  [[unroll]] for(int k = 0; k < 5; k++)
+  {
+    const int x = row[k] ^ (c * 0x155);
+    own[k] = ~(x | (x >> 1)) & 0x155 & (k == o.y ? ~(1 << (2*o.x)) : ~0);
+  }
+#define OWN(x, y) (((own[y] >> (2*(x))) & 1) != 0)
 
-    ivec2 p = ip-pos3;
-    if(all(equal(p,ivec2(0,1))) || all(equal(p,ivec2(2,1))))
+  float w[6][6]; // the gathers fill up to 5
+  if(all(equal(o, ivec2(2))))
+  {
+    [[unroll]] for(int by = 0; by < 3; by++) [[unroll]] for(int bx = 0; bx < 3; bx++)
     {
-      if((params.chn & rbmask.x) != 0)
-        if(mmrb.y - mmrb.x > params.t)
-          v = mmrb.x;//ming;
+      const vec4 g = textureGather(img_in, vec2(ipos + ivec2(2*bx - 1, 2*by - 1)) / vec2(size), 0);
+      w[2*by][2*bx] = g.w; w[2*by][2*bx+1] = g.z; w[2*by+1][2*bx] = g.x; w[2*by+1][2*bx+1] = g.y;
     }
-    else if(all(equal(p,ivec2(1,0))) || all(equal(p,ivec2(1,2))))
-    {
-      if((params.chn & rbmask.y) != 0)
-        if(mmrb.w - mmrb.z > params.t)
-          v = mmrb.z;//ming;
-    }
-    else if((params.chn & 2) != 0)
-      if(maxg - ming > params.t)
-        v = ming;
   }
   else
-  { // bayer
-    int chn = 2;
-    if((ip.x & 1) == 0 && (ip.y & 1) == 0) chn = 1;
-    if((ip.x & 1) == 1 && (ip.y & 1) == 1) chn = 4;
-    if((params.chn & chn) != 0)
-    {
-      float v0 = texture(img_in, (ipos + 0.5 + vec2(-2.0,  0.0))/vec2(textureSize(img_in, 0))).r;
-      float v1 = texture(img_in, (ipos + 0.5 + vec2( 2.0,  0.0))/vec2(textureSize(img_in, 0))).r;
-      float v2 = texture(img_in, (ipos + 0.5 + vec2( 0.0, -2.0))/vec2(textureSize(img_in, 0))).r;
-      float v3 = texture(img_in, (ipos + 0.5 + vec2( 0.0,  2.0))/vec2(textureSize(img_in, 0))).r;
-      // float M = max(max(v0, v1), max(v2, v3));
-      float M = (v0 + v1 + v2 + v3)/4.0;
-      if(v - M > params.t) v = M;
-    }
+  {
+    [[unroll]] for(int y = 0; y < 5; y++) [[unroll]] for(int x = 0; x < 5; x++)
+      w[y][x] = texelFetch(img_in, min(origin + ivec2(x, y), size - 1), 0).r;
   }
-  imageStore(img_out, ipos, vec4(vec3(v), 1));
+
+  // the threshold is at least the noise at black: done early if three of
+  // the own colour are within that of v (less a margin for rounding)
+  const float near = 0.99 * threshold(push.black, 0.0);
+  int close = 0;
+  [[unroll]] for(int y = 0; y < 5; y++) [[unroll]] for(int x = 0; x < 5; x++)
+    if(OWN(x, y) && w[y][x] >= v - near) close++;
+  if(close >= 3) { imageStore(img_out, ipos, vec4(v)); return; }
+
+  // the own colour: the brightest two, the sums and the count, without v
+  float top1 = -1.0, top2 = -1.0, sum = 0.0, sum2 = 0.0, n = 0.0;
+  [[unroll]] for(int y = 0; y < 5; y++) [[unroll]] for(int x = 0; x < 5; x++)
+  {
+    if(!OWN(x, y)) continue;
+    const float u = w[y][x];
+    top2 = max(top2, min(top1, u)); top1 = max(top1, u);
+    sum += u; sum2 += u*u; n += 1.0;
+  }
+  const vec2 bg = background(sum, sum2, top1, top2, n);
+  if(v - bg.x > trim_scale[int(n) - 3] * threshold(bg.x, bg.y))
+  { // keep v if two or more in the window are raised too, one of another colour
+    vec3 ctop1 = vec3(-1.0), ctop2 = vec3(-1.0), csum = vec3(0.0), csum2 = vec3(0.0), cnt = vec3(0.0);
+    [[unroll]] for(int y = 0; y < 5; y++) [[unroll]] for(int x = 0; x < 5; x++)
+    {
+      if(all(equal(ivec2(x, y), o))) continue;
+      // masks instead of indexing by colour, to avoid indirect vector writes
+      const bvec3 m = equal(ivec3(COLOUR(x, y)), ivec3(0, 1, 2));
+      const vec3 um = mix(vec3(-1.0), vec3(w[y][x]), m), u0 = mix(vec3(0.0), vec3(w[y][x]), m);
+      ctop2 = max(ctop2, min(ctop1, um)); ctop1 = max(ctop1, um);
+      csum += u0; csum2 += u0*u0; cnt += vec3(m);
+    }
+    ivec3 up;
+    [[unroll]] for(int i = 0; i < 3; i++)
+    {
+      const vec2 t = background(csum[i], csum2[i], ctop1[i], ctop2[i], cnt[i]);
+      const float thr = max(max(threshold(t.x, 0.0), 1.5*t.y), spill * (v - bg.x));
+      up[i] = int(ctop1[i] - t.x > thr) + int(ctop2[i] - t.x > thr);
+    }
+    const int raised = up.r + up.g + up.b;
+    if(raised < 2 || raised == up[c]) v = bg.x;
+  }
+  imageStore(img_out, ipos, vec4(v));
 }
