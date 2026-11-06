@@ -150,6 +150,7 @@ jobs:
           EOF
       - name: install vulkan sdk
         if: matrix.host.arch == 'x86_64'
+        run: |
           sudo apt-get remove libvulkan-dev
           mkdir -p ${{ env.VULKAN_SDK }}
           cd ${{ env.VULKAN_SDK }}
@@ -160,6 +161,7 @@ jobs:
           cd -
       - name: install vulkan sdk
         if: matrix.host.arch == 'aarch64'
+        run: |
           sudo apt-get remove libvulkan-dev
           mkdir -p ${{ env.VULKAN_SDK }}
           cd ${{ env.VULKAN_SDK }}
