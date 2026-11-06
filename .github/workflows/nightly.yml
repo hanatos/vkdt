@@ -508,7 +508,7 @@ jobs:
 
             it may contain pre-release quality features, use with care :)
 
-            * appimage
+            appimage
             the appimage compiles in a lot of features
             (mlv, mcraw, v4l, pipewire, i-vid, o-vid)
             but not all
@@ -517,14 +517,14 @@ jobs:
             there are a couple of variants for x86-64 and arm64, as well
             as with or without pentablet support and raw loading backend.
 
-            * windows
+            windows
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
             it compiles less features
             (mlv, i-vid, o-vid)
             and leaves out many
             (no v4l, no sound, no quake, no pentablet support).
 
-            * macintosh
+            macintosh
             the macintosh version is extremely experimental (completely untested!)
             it builds (using brew) and runs (using the lunarg sdk) both on intel and apple silicon devices.
 
