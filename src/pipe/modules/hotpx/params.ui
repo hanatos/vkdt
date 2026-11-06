@@ -1,2 +1,3 @@
-thrs:slider:0:1
+thrs:slider:0:0.2
 channels:bitmask:red:green:blue
+sigma:slider:2:20
