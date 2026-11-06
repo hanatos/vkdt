@@ -19,8 +19,8 @@ jobs:
       fail-fast: false
       matrix:
         host:
-         - { img: ubuntu-26.04 }
-         - { img: ubuntu-26.04-arm }
+         - { img: ubuntu-26.04,     arch: x86_64 }
+         - { img: ubuntu-26.04-arm, arch: armv8-a }
         glfw:
           - { package: pentablet }
           - { package: glfw3.4 }
@@ -85,9 +85,9 @@ jobs:
           ref: ${{ env.BRANCH }}
           # We have to fetch the entire history to correctly generate the version for the AppImage filename
           fetch-depth: 0
-      - name: configure generic x86_64 build
+      - name: configure generic build
         run: |
-          echo "OPT_CFLAGS=-Wall -pipe -O3 -march=x86-64 -DNDEBUG" >> bin/config.mk
+          echo "OPT_CFLAGS=-Wall -pipe -O3 -march=${{ matrix.host.arch }} -DNDEBUG" >> bin/config.mk
           echo "export OPT_CFLAGS" >> bin/config.mk
           echo "OPT_LDFLAGS=" >> bin/config.mk
           echo "export OPT_LDFLAGS" >> bin/config.mk
