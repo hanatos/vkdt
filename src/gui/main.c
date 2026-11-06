@@ -246,6 +246,7 @@ int main(int argc, char *argv[])
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, filename);
     dt_view_switch(s_view_lighttable);
     dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
+    if(vkdt.db.image_cnt == 0) dt_view_switch(s_view_files);
   }
   else
   {
