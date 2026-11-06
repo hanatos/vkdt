@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         host:
-         - { img: ubuntu-26.04,     arch: x86_64 }
+         - { img: ubuntu-26.04,     arch: x86-64 }
          - { img: ubuntu-26.04-arm, arch: armv8-a }
         glfw:
           - { package: pentablet }
