@@ -54,7 +54,7 @@ jobs:
             build-essential \
             appstream-util \
             git \
-            glslang-tools \
+            glslc \
             libjpeg-dev \
             libjxl-dev \
             zlib1g-dev \
@@ -93,7 +93,8 @@ jobs:
           echo "export OPT_LDFLAGS" >> bin/config.mk
           echo "VKDT_VULKAN_CFLAGS=-I${{ env.VULKAN_SDK }}/include" >> bin/config.mk
           echo "VKDT_VULKAN_LDFLAGS=-L${{ env.VULKAN_SDK }}/lib/VulkanLoader/lib -lvulkan" >> bin/config.mk
-          echo "GLSLC=${{ env.VULKAN_SDK }}/bin/glslangValidator" >> bin/config.mk
+          echo "GLSLC=glslc" >> bin/config.mk
+          echo "GLSLC_FLAGS=--target-env=vulkan1.4" >> bin/config.mk
           echo "export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS GLSLC" >> bin/config.mk
       - name: configure for local glfw
         run: |
@@ -318,7 +319,7 @@ jobs:
     steps:
       - name: install dependencies
         run: |
-          brew install pkgconf cmake jpeg-turbo jpeg-xl ffmpeg glfw3 vulkan-validationlayers vulkan-headers rust vulkan-tools exiftool
+          brew install pkgconf cmake jpeg-turbo jpeg-xl ffmpeg glfw vulkan-validationlayers vulkan-headers rust vulkan-tools exiftool
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
