@@ -58,7 +58,7 @@ jobs:
             libjpeg-dev \
             libjxl-dev \
             zlib1g-dev \
-            libasound2-dev \
+            libpipewire-0.3-dev \
             libavformat-dev \
             libavcodec-dev \
             libxkbcommon-dev \
