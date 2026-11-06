@@ -508,36 +508,23 @@ jobs:
 
             it may contain pre-release quality features, use with care :)
 
-            appimage
-            ===================================================
+            * appimage
             the appimage compiles in a lot of features
-            (mlv, v4l, asound, i-vid, o-vid, exiv2)
+            (mlv, mcraw, v4l, pipewire, i-vid, o-vid)
             but not all
             (no quake).
-            you also currently need the `exiftool` binary installed on your
-            host system to enable all features (metadata handling).
 
-            appimage
-            ====================
-            regular build with stock glfw
+            there are a couple of variants for x86-64 and arm64, as well
+            as with or without pentablet support and raw loading backend.
 
-
-            appimage with pentablet
-            =======================
-            links against a custom version of glfw, enabling drawing of masks via pentablet/wacom device.
-
-            windows
-            ===================
-            windows builds exist. sf.net disallows downloading stuff from within github runners it seems,
-            so we can't bundle some deps.
+            * windows
             the windows version is pre-alpha and has known issues, see https://github.com/hanatos/vkdt/issues/103 .
             it compiles less features
             (mlv, i-vid, o-vid)
             and leaves out many
             (no v4l, no sound, no quake, no pentablet support).
 
-            macintosh
-            =========
+            * macintosh
             the macintosh version is extremely experimental (completely untested!)
             it builds (using brew) and runs (using the lunarg sdk) both on intel and apple silicon devices.
 
