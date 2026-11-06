@@ -295,7 +295,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        os: [macos-14, macos-15-intel]
+        os: [macos-15, macos-15-intel]
     runs-on: ${{ matrix.os }}
     env:
       SRC_DIR: ${{ github.workspace }}/src
