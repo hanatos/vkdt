@@ -1,11 +1,7 @@
 #!/bin/bash
 arch=$1
-if [ ${arch}=="x86-64" ]; then
-  arch="x86_64"
-fi
-if [ ${arch}=="armv8-a" ]; then
-  arch="aarch64"
-fi
+[ $arch = x86-64 ] && arch=x86_64
+[ $arch =  armv8-a ] && arch=aarch64
 
 # install vkdt to AppDir
 make DESTDIR=AppDir install
