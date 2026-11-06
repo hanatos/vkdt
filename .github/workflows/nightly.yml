@@ -534,5 +534,5 @@ jobs:
             artifact-appimage-armv8-a-rawler-glfw3.4/*
             artifact-appimage-armv8-a-rawler-pentablet/*
             artifact-windows-rawler/*
-            artifact-macos-14/*
+            artifact-macos-15/*
             artifact-macos-15-intel/*
