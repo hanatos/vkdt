@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         host:
-         - { img: ubuntu-latest }
+         - { img: ubuntu-26.04 }
          - { img: ubuntu-26.04-arm }
         glfw:
           - { package: pentablet }
@@ -29,9 +29,9 @@ jobs:
         compiler:
           - {
               compiler: clang,
-              CC: clang-20,
-              CXX: clang++-20,
-              packages: clang-20 libomp-20-dev,
+              CC: clang,
+              CXX: clang++,
+              packages: clang libomp-dev,
             }
     runs-on: ${{ matrix.host.img }}
     env:
@@ -45,10 +45,6 @@ jobs:
     steps:
       - name: update apt and install clang
         run: |
-          # Remove azure mirror because it is unreliable and sometimes unpredictably leads to failed CI
-          sudo sed -i 's/azure\.//' /etc/apt/sources.list
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-          sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main"
           sudo apt-get update
           sudo apt-get -y install \
             ${{ matrix.compiler.packages }}
