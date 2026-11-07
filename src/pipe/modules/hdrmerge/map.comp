@@ -53,11 +53,11 @@ void main()
         (id & 1) != 0 ? 1.0 : 0.0,
         (id & 2) != 0 ? 1.0 : 0.0,
         (id & 4) != 0 ? 1.0 : 0.0);
-    float log_X_ideal = log(1.0 + max(0.0, 0.5 / t(i)))/params.plot_scale;
+    float log_X_ideal = log(1.0 + max(0.0, 0.5 / t(i)))*params.plot_scale;
     // if log_X_ideal is equal to ipos.x, then plot line
     if (abs(float(ipos.x)/float(imageSize(img_out).x) - log_X_ideal) < 1.5/float(imageSize(img_out).x)) {
       // plot point for this exposure
-      rgb = mix(rgb, id_rgb, 0.5);
+      rgb = mix(rgb, id_rgb, 0.1);
     }
   }
 

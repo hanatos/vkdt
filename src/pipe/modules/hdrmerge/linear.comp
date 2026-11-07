@@ -59,6 +59,10 @@ float t(int i)
   else return 1.0;
 }
 
+float random(vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+}
+
 void main()
 {
   ivec2 ipos = ivec2(gl_GlobalInvocationID);
@@ -90,14 +94,14 @@ void main()
     // fallback if all samples looked invalid
     for (int i = 0; i < n; i++) {
       float X = Z(i, ipos);
-      float E = X / t(i); // irradiance estimate from this exposure
+      float E = X / t(i);
       num += E;
       den += 1.0;
     }
     E = num / den;
   }
     
-  float E_ref = E;
+  float E_1stpass = E;
 
   // pass 2 to reduce bias
   // similar alg as wjakob/hdrmerge
@@ -105,13 +109,13 @@ void main()
   num = 0.0;
   den = 0.0;
   for (int i = 0; i < n; i++) {
-    float predicted_Z = E_ref * t(i); // predicted pixel value for this exposure based on reference radiance
-    if(predicted_Z >= 0.0 && predicted_Z <= 1.0)
+    float Z_predicted = E_1stpass * t(i); // predicted pixel value for this exposure based on reference radiance
+    if(Z_predicted >= 0.0 && Z_predicted <= 1.0)
     {
-      float w = triangular_weight(predicted_Z);
+      float w = triangular_weight(Z_predicted);
       float X = Z(i, ipos);
-      float E = X / t(i); // irradiance estimate from this exposure
-      // num += w * (E_ref * t(i));
+      float E = X / t(i);
+      // num += w * (E_1stpass * t(i));
       num += w * E;
       den += w;
     }
@@ -119,7 +123,7 @@ void main()
   if (den > 1e-6)
     E = num / den;
   else
-    E = E_ref; // fallback to reference radiance if all samples looked invalid in pass 2
+    E = E_1stpass; // fallback to original radiance if all samples looked invalid in pass 2
   
   float rgb;
   if (params.output_mode == 0) {      // exposure
@@ -147,12 +151,16 @@ void main()
     rgb = E;
   }
 
-  // dspy: graph of log exposure (X) vs output value
+  // dspy: log-log graph of exposure (X) vs output value for each input exposure
   for (int i = 0; i < n; i++) {
     float X = Z(i, ipos);
+    float w = triangular_weight(X);
+    float rnd = random(ipos); 
+    if (rnd > w) continue;
+
     float E = X / t(i); // irradiance estimate from this exposure
-    float x_value = log(1.0 + max(0.0, E  ))/params.plot_scale;
-    float y_value = log(1.0 + max(0.0, rgb))/params.plot_scale;
+    float x_value = log(1.0 + max(0.0, E  )) * params.plot_scale;
+    float y_value = log(1.0 + max(0.0, rgb)) * params.plot_scale;
 
     int x = clamp(int(x_value       * imageSize(img_dspy).x + 0.5), 0, imageSize(img_dspy).x-1);
     int y = clamp(int((1.0-y_value) * imageSize(img_dspy).y + 0.5), 0, imageSize(img_dspy).y-1);
