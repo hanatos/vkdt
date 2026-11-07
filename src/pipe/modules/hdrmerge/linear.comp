@@ -17,6 +17,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float  t4;            // exposure time for input4
   float  t5;            // exposure time for input5
   float  t6;            // exposure time for input6
+  int    is_rgb;        // 0: mosaic with one channel, 1: three colour channels
 } params;
 layout(set = 1, binding = 0) uniform sampler2D img_in1;         // input
 layout(set = 1, binding = 1) uniform sampler2D img_in2;         // input2
@@ -37,14 +38,14 @@ float triangular_weight(float z)
   return 1.0 - abs(2.0*z - 1.0);
 }
 
-float Z(int i, ivec2 ipos) 
+float Z(int i, ivec2 ipos, int ch) 
 {
-  if(i == 0) return texelFetch(img_in1, ipos, 0).r;
-  else if(i == 1) return texelFetch(img_in2, ipos, 0).r;
-  else if(i == 2) return texelFetch(img_in3, ipos, 0).r;
-  else if(i == 3) return texelFetch(img_in4, ipos, 0).r;
-  else if(i == 4) return texelFetch(img_in5, ipos, 0).r;
-  else if(i == 5) return texelFetch(img_in6, ipos, 0).r;
+  if(i == 0) return texelFetch(img_in1, ipos, 0)[ch];
+  else if(i == 1) return texelFetch(img_in2, ipos, 0)[ch];
+  else if(i == 2) return texelFetch(img_in3, ipos, 0)[ch];
+  else if(i == 3) return texelFetch(img_in4, ipos, 0)[ch];
+  else if(i == 4) return texelFetch(img_in5, ipos, 0)[ch];
+  else if(i == 5) return texelFetch(img_in6, ipos, 0)[ch];
   else return 0.0;
 }
 
@@ -63,11 +64,10 @@ float random(vec2 st) {
     return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
 }
 
-void main()
+// Merge the exposures of one colour channel of one pixel.
+// A mosaic has only the channel 0.
+float merge_channel(ivec2 ipos, int ch)
 {
-  ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
-
   int n = clamp(params.num_inputs, 1, 6);
   
   // Z = pixel digital value
@@ -80,9 +80,9 @@ void main()
   float den = 0.0;
 
   for (int i = 0; i < n; i++) {
-    float X = Z(i, ipos);
+    float X = Z(i, ipos, ch);
     float E = X / t(i); // irradiance estimate from this exposure
-    float w = triangular_weight(Z(i, ipos));
+    float w = triangular_weight(Z(i, ipos, ch));
     num += w * E;
     den += w;
   }
@@ -93,7 +93,7 @@ void main()
   } else {
     // fallback if all samples looked invalid
     for (int i = 0; i < n; i++) {
-      float X = Z(i, ipos);
+      float X = Z(i, ipos, ch);
       float E = X / t(i);
       num += E;
       den += 1.0;
@@ -113,7 +113,7 @@ void main()
     if(Z_predicted >= 0.0 && Z_predicted <= 1.0)
     {
       float w = triangular_weight(Z_predicted);
-      float X = Z(i, ipos);
+      float X = Z(i, ipos, ch);
       float E = X / t(i);
       // num += w * (E_1stpass * t(i));
       num += w * E;
@@ -151,9 +151,27 @@ void main()
     rgb = E;
   }
 
+  return rgb;
+}
+
+void main()
+{
+  ivec2 ipos = ivec2(gl_GlobalInvocationID);
+  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
+
+  int n = clamp(params.num_inputs, 1, 6);
+  vec3 rgb3;
+  if(params.is_rgb != 0)
+    rgb3 = vec3(merge_channel(ipos, 0), merge_channel(ipos, 1), merge_channel(ipos, 2));
+  else
+    rgb3 = vec3(merge_channel(ipos, 0));
+
   // dspy: log-log graph of exposure (X) vs output value for each input exposure
+  // The plot uses the green channel of an image with colour channels.
+  const int pch = params.is_rgb != 0 ? 1 : 0;
+  const float rgb = rgb3[pch];
   for (int i = 0; i < n; i++) {
-    float X = Z(i, ipos);
+    float X = Z(i, ipos, pch);
     float w = triangular_weight(X);
     float rnd = random(ipos); 
     if (rnd > w) continue;
@@ -175,6 +193,6 @@ void main()
     if(inc != 0u) imageAtomicAdd(img_dspy, ivec2(x, y), inc);
   }
 
-  imageStore(img_out, ipos, vec4(vec3(rgb), 1.0));
+  imageStore(img_out, ipos, vec4(rgb3, 1.0));
 }
 

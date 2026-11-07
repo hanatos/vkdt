@@ -46,12 +46,13 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   f[7] = have_input4 ? img4_param->exposure : 0.0f;
   f[8] = have_input5 ? img5_param->exposure : 0.0f;
   f[9] = have_input6 ? img6_param->exposure : 0.0f;
+  i[10] = img1_param->filters == 0u; // demosaiced images have three colour channels
 
 }
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = 10*sizeof(float);
+  mod->committed_param_size = 11*sizeof(float);
   return 0;
 }
 
