@@ -159,41 +159,41 @@ void write_sink(
 
   switch(trc)
   {
-    case s_colour_trc_linear:       colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_LINEAR;
-                                    break;
-    case s_colour_trc_709:          colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_709;
-                                    break;
-    case s_colour_trc_srgb:         colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
-                                    break;
-    case s_colour_trc_PQ:           colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_PQ;
-                                    break;
-    case s_colour_trc_DCI:          colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_DCI;
-                                    break;
-    case s_colour_trc_HLG:          colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_HLG;
-                                    break;
-    case s_colour_trc_gamma:        colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_GAMMA;
-                                    // Then set whatever gamma value. But using ~2.2 because s_colour_trc_gamma is currently only for AdobeRGB(?)
-                                    // Derived from §4.3.1.2 of [Adobe® RGB (1998) Color Image Encoding]
-                                    // (https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf).
-                                    // colour_encoding.gamma = 256.0 / 563.0;
-                                    // Actually elsewhere in the codebase this approximation is used, so for consistency:
-                                    colour_encoding.gamma = 1.0 / 2.2;
-                                    break;
-                                    // Not sure if this is what I should do?
-    case s_colour_trc_unknown:      colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_UNKNOWN;
-                                    break;
-    default:                        snprintf(module->graph->gui_msg_buf,
-                                             sizeof(module->graph->gui_msg_buf),
-                                             "[o-jxl] Recieved trc currently not supported for export! Aborting…");
-                                    module->graph->gui_msg = module->graph->gui_msg_buf;
-                                    {
-                                      error = 1;
-                                      goto end;
-                                    }
+    case s_colour_trc_linear:   colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_LINEAR;
+                                break;
+    case s_colour_trc_709:      colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_709;
+                                break;
+    case s_colour_trc_srgb:     colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
+                                break;
+    case s_colour_trc_PQ:       colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_PQ;
+                                break;
+    case s_colour_trc_DCI:      colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_DCI;
+                                break;
+    case s_colour_trc_HLG:      colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_HLG;
+                                break;
+    case s_colour_trc_gamma:    colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_GAMMA;
+                                // Then set whatever gamma value. But using ~2.2 because s_colour_trc_gamma is currently only for AdobeRGB(?)
+                                // Derived from §4.3.1.2 of [Adobe® RGB (1998) Color Image Encoding]
+                                // (https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf).
+                                // colour_encoding.gamma = 256.0 / 563.0;
+                                // Actually elsewhere in the codebase this approximation is used, so for consistency:
+                                colour_encoding.gamma = 1.0 / 2.2;
+                                break;
+                                // Not sure if this is what I should do?
+    case s_colour_trc_unknown:  colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_UNKNOWN;
+                                break;
+    default:                    snprintf(module->graph->gui_msg_buf,
+                                         sizeof(module->graph->gui_msg_buf),
+                                         "[o-jxl] Recieved trc currently not supported for export! Aborting…");
+                                module->graph->gui_msg = module->graph->gui_msg_buf;
+                                {
+                                  error = 1;
+                                  goto end;
+                                }
   }
 
   // ISO 15076-1:2010
-  // Hardcoding as perceptual as I don’t know what they really do, but that’s what the `src/pipe/icc-profiles.h` use.
+  // Hardcoding as perceptual as that’s what the `src/pipe/icc-profiles.h` use.
   // (They are user selectable in darktable but might not be important enough to warrant that?).
   colour_encoding.rendering_intent = JXL_RENDERING_INTENT_PERCEPTUAL;
 
@@ -285,7 +285,7 @@ void write_sink(
 
 
   // Container isn’t necessary but has minimal overhead, and is needed for EXIF data.
-  // exiftool can add it later, but it issues a minor error.
+  // exiftool can add it later, but when doing so it issues a minor error.
   if(JxlAssert(JxlEncoderUseContainer(encoder,
                                       JXL_TRUE),
                encoder,
