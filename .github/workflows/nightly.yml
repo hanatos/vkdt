@@ -4,7 +4,9 @@ name: nightly packages
 
 on:
   push:
-    branches: ["master"]
+    branches:
+      - master
+      - citest
   pull_request:
     branches: ["master"]
 
