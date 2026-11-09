@@ -489,7 +489,7 @@ jobs:
           retention-days: 1
 
   upload_to_release:
-    if: ${{ github.event_name != 'pull_request' }}
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
