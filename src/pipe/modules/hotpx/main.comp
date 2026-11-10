@@ -5,7 +5,7 @@
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  float t;     // threshold to detect a hot pixel
+  float t;     // threshold to detect a hot pixel without a noise profile, relative to the range
   int chn;     // apply to which channels
   float sigma; // threshold in deviations of the noise or the spread
 } params;
@@ -18,31 +18,6 @@ layout(push_constant, std140) uniform push_t
 } push;
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
-
-// the red and blue photosites of the 5x5 window, a bit at 5y + x, by where the
-// mosaic pattern aligns with its top left corner. the rest is green. x-trans:
-//   G R G G B G
-//   B G B R G R
-//   G R G G B G
-//   G B G G R G
-//   R G R B G B
-//   G B G G R G
-// which swaps red and blue when moved by three in x or y
-ivec2 window_mask(ivec2 ph)
-{
-  if(push.filters != 9) // R G, G B
-  {
-    const ivec2 m = ((ph.x ^ ph.y) & 1) == 0 ? ivec2(0x1505415, 0x0050140) : ivec2(0x0a0280a, 0x00a82a0);
-    return (ph.y & 1) == 0 ? m : m.yx;
-  }
-  const bvec2 far = greaterThanEqual(ph, ivec2(3));
-  const ivec2 p = ph - 3*ivec2(far);
-  const ivec2 m =
-    p.y == 0 ? (p.x == 0 ? ivec2(0x0580902, 0x08140b0) : p.x == 1 ? ivec2(0x0240681, 0x140a048) : ivec2(0x1120140, 0x0a01224)) :
-    p.y == 1 ? (p.x == 0 ? ivec2(0x102c048, 0x0240a05) : p.x == 1 ? ivec2(0x0812034, 0x01a0502) : ivec2(0x048900a, 0x0050091)) :
-               (p.x == 0 ? ivec2(0x0281602, 0x1012050) : p.x == 1 ? ivec2(0x0140901, 0x080d028) : ivec2(0x0024480, 0x0402804));
-  return far.x != far.y ? m.yx : m;
-}
 
 bool profiled() { return push.noise_a > 0.0 || push.noise_b > 0.0; }
 
@@ -60,16 +35,16 @@ float threshold(float level, float spread)
   return params.sigma * max(noise(level), spread);
 }
 
-// normal order statistics (cf. blom 1958), simulated for n = 3..16 samples of unit
+// normal order statistics (cf. blom 1958), simulated for n = 3..50 samples of unit
 // noise without the brightest two and fit in n to about 1%: how far their mean is low
 // (the expected two largest over n - 2), their spread relative to the deviation, and
 // the spread of a further sample around the corrected mean (about sqrt(1 + 1/n))
-float trim_bias(float n)   { return 2.7375 / (n + 0.4674) + 0.0541; }
-float trim_spread(float n) { return 0.9034 - 1.7465 / (n - 0.735); }
-float trim_scale(float n)  { return 1.0 + 0.4554 / (n - 1.1484); }
+float trim_bias(float n)   { return (0.7865 * log(n) + 1.1702) / (n + 0.6072); }
+float trim_spread(float n) { return 0.9629 - 3.0889 / (n - 1.6959) + 11.8819 / (n*n); }
+float trim_scale(float n)  { return 1.0 + 0.4623 / (n - 1.1167); }
 
-// mean and deviation of n >= 3 samples (each colour has that in a 5x5 window), estimated
-// without the brightest two, so that hot photosites next to each other still stand out
+// mean and deviation of n >= 3 samples, estimated without the brightest two,
+// so that hot photosites next to each other still stand out
 vec2 background(float sum, float sum2, float top1, float top2, float n)
 {
   const float mean = (sum - (top1 + top2)) / (n - 2.0);
@@ -81,84 +56,156 @@ vec2 background(float sum, float sum2, float top1, float top2, float n)
 // its excess, a hot photosite only with noise (measured on lights and defects at night)
 const float spill = 0.25;
 
-// the own colour's entry of a vector, without indexing it
-int pick(bvec3 col, ivec3 v) { return col.x ? v.x : col.z ? v.z : v.y; }
-
-// the workgroup and 4 before and 2 after, as far as the window moves at the edges
-#define TILE_X (DT_LOCAL_SIZE_X + 6)
-#define TILE_Y (DT_LOCAL_SIZE_Y + 6)
+// the workgroup's blocks of the mosaic and one block around, -1e30 outside the image
+#define TILE_X (3*(DT_LOCAL_SIZE_X + 2))
+#define TILE_Y (3*(DT_LOCAL_SIZE_Y + 2))
+#if (DT_LOCAL_SIZE_X % 2) || (DT_LOCAL_SIZE_Y % 2)
+#error "the tile is filled in 2x2 gathers"
+#endif
 shared float tile[TILE_Y][TILE_X];
+
+// the colour of a photosite in a block, 0 red, 1 green, 2 blue, with red and blue swapped
+// in every other x-trans block. a block aligned with the pattern is, x-trans and bayer:
+//   G R G   R G
+//   B G B   G B
+//   G R G
+int colour(int B, int x, int y, bool swap)
+{
+  const int c = B == 3 ? (x == 1 && y != 1 ? 0 : y == 1 && x != 1 ? 2 : 1)
+                       : (x == 0 && y == 0 ? 0 : x == 1 && y == 1 ? 2 : 1);
+  return swap && c != 1 ? 2 - c : c;
+}
+
+// red and blue in the 5x5 photosites around photosite o of a block as above, a bit at 5y + x
+ivec2 window_mask(int B, ivec2 o)
+{
+  if(B == 2) return o.y == 0 ? (o.x == 0 ? ivec2(0x1505415, 0x0050140) : ivec2(0x0a0280a, 0x00a82a0))
+                             : (o.x == 0 ? ivec2(0x00a82a0, 0x0a0280a) : ivec2(0x0050140, 0x1505415));
+  return o.y == 0 ? (o.x == 0 ? ivec2(0x0812034, 0x01a0502) : o.x == 1 ? ivec2(0x048900a, 0x0050091) : ivec2(0x0240a05, 0x102c048)) :
+         o.y == 1 ? (o.x == 0 ? ivec2(0x0140901, 0x080d028) : o.x == 1 ? ivec2(0x0024480, 0x0402804) : ivec2(0x1012050, 0x0281602)) :
+                    (o.x == 0 ? ivec2(0x140a048, 0x0240681) : o.x == 1 ? ivec2(0x0a01224, 0x1120140) : ivec2(0x0580902, 0x08140b0));
+}
+
+// where the blocks start, aligned with the mosaic pattern, the first one may hang over the edge
+ivec2 tile_origin(int B)
+{
+  return -((B - push.crop % B) % B) + B * (ivec2(gl_WorkGroupID.xy) * ivec2(DT_LOCAL_SIZE_X, DT_LOCAL_SIZE_Y) - 1);
+}
+
+void load(const int B)
+{
+  const ivec2 torg = tile_origin(B), size = textureSize(img_in, 0);
+  const ivec2 ts = B * ivec2(DT_LOCAL_SIZE_X + 2, DT_LOCAL_SIZE_Y + 2);
+  [[unroll]] for(int i = int(gl_LocalInvocationIndex); i < ts.x*ts.y/4; i += DT_LOCAL_SIZE_X*DT_LOCAL_SIZE_Y)
+  {
+    const ivec2 q = 2*ivec2(i % (ts.x/2), i / (ts.x/2)), p = torg + q;
+    const vec4 g = textureGather(img_in, vec2(p + 1) / vec2(size), 0);
+    const bvec2 ix = lessThan(uvec2(p.x, p.x + 1), uvec2(size.x)), iy = lessThan(uvec2(p.y, p.y + 1), uvec2(size.y));
+    tile[q.y][q.x]     = ix.x && iy.x ? g.w : -1e30; tile[q.y][q.x+1]   = ix.y && iy.x ? g.z : -1e30;
+    tile[q.y+1][q.x]   = ix.x && iy.y ? g.x : -1e30; tile[q.y+1][q.x+1] = ix.y && iy.y ? g.y : -1e30;
+  }
+}
+
+// a sample u of a colour: count, sums, the brightest three
+void add(float u, inout float n, inout float sum, inout float sum2, inout float t1, inout float t2, inout float t3)
+{
+  n += u >= 0.0 ? 1.0 : 0.0; sum += max(u, 0.0); sum2 += max(u, 0.0) * max(u, 0.0);
+  t3 = max(t3, min(t2, u)); t2 = max(t2, min(t1, u)); t1 = max(t1, u);
+}
+
+void process(const int B)
+{
+  const ivec2 lb = B * (ivec2(gl_LocalInvocationID.xy) + 1); // this block in the tile
+  const ivec2 bo = tile_origin(B) + lb;                       // and in the image
+  const ivec2 bi = (bo - push.crop) / B;                      // and in the mosaic, red and blue swap in every other x-trans block
+  const int chn = B == 3 && ((bi.x ^ bi.y) & 1) != 0 ? (params.chn & 2) | ((params.chn & 1) << 2) | ((params.chn & 4) >> 2) : params.chn;
+  int cand = 0;                                               // the outliers, a bit at B*y + x
+
+  // one colour at a time over the 3x3 blocks around: count, sums, the darkest and the brightest four
+  [[unroll]] for(int c = 0; c < 3; c++)
+  {
+    float n = 0.0, sum = 0.0, sum2 = 0.0, lo = 1e30, t1 = -1.0, t2 = -1.0, t3 = -1.0, t4 = -1.0;
+    [[unroll]] for(int by = -1; by <= 1; by++) [[unroll]] for(int bx = -1; bx <= 1; bx++)
+    [[unroll]] for(int y = 0; y < B; y++) [[unroll]] for(int x = 0; x < B; x++)
+    {
+      if(colour(B, x, y, B == 3 && ((bx + by) & 1) != 0) != c) continue;
+      const float u = tile[lb.y + B*by + y][lb.x + B*bx + x];
+      lo = min(lo, abs(u));
+      t4 = max(t4, min(t3, u));
+      add(u, n, sum, sum2, t1, t2, t3);
+    }
+    [[unroll]] for(int y = 0; y < B; y++) [[unroll]] for(int x = 0; x < B; x++)
+    {
+      if(colour(B, x, y, false) != c) continue;
+      const float v = tile[lb.y + y][lb.x + x];
+      if(v < 0.0) continue; // outside the image
+      bool hot = false;
+      if((chn & (1 << c)) != 0)
+      { // the own colour without v: the brightest three of the four
+        const float nv = n - 1.0, a = v >= t1 ? t2 : t1, b = v >= t2 ? t3 : t2, d = v >= t3 ? t4 : t3;
+        // three of the own colour within the noise of v are something real and keep it. the
+        // threshold is at least the noise at the darkest (less a margin for rounding). at the
+        // corners of the image a colour can have too few around to judge
+        if(nv >= 3.0 && d < v - 0.99 * threshold(lo, 0.0))
+        {
+          const vec2 bg = background(sum - v, sum2 - v*v, a, b, nv);
+          hot = v - bg.x > trim_scale(nv) * threshold(bg.x, bg.y);
+        }
+      }
+      if(hot) cand |= 1 << (B*y + x);
+      else imageStore(img_out, bo + ivec2(x, y), vec4(v));
+    }
+  }
+  if(cand == 0) return;
+
+  // keep an outlier if two or more around are raised too, one of another colour. all
+  // colours at once: count, sums and the brightest three
+  vec3 n = vec3(0.0), sum = vec3(0.0), sum2 = vec3(0.0), t1 = vec3(-1.0), t2 = vec3(-1.0), t3 = vec3(-1.0);
+  [[unroll]] for(int by = -1; by <= 1; by++) [[unroll]] for(int bx = -1; bx <= 1; bx++)
+  [[unroll]] for(int y = 0; y < B; y++) [[unroll]] for(int x = 0; x < B; x++)
+  {
+    const int c = colour(B, x, y, B == 3 && ((bx + by) & 1) != 0);
+    add(tile[lb.y + B*by + y][lb.x + B*bx + x], n[c], sum[c], sum2[c], t1[c], t2[c], t3[c]);
+  }
+  [[dont_unroll]] while(cand != 0)
+  {
+    const int j = findLSB(cand);
+    cand &= cand - 1;
+    const ivec2 o = ivec2(j % B, j / B);
+    const float v = tile[lb.y + o.y][lb.x + o.x];
+    const vec3 m = vec3(equal(ivec3(colour(B, o.x, o.y, false)), ivec3(0, 1, 2)));
+    // the own colour without v, the others as they are
+    const vec3 nv = n - m, sv = sum - v*m, s2v = sum2 - v*v*m;
+    const vec3 a = mix(t1, t2, m * step(t1, vec3(v))), b = mix(t2, t3, m * step(t2, vec3(v)));
+    const vec2 bg = background(dot(sv, m), dot(s2v, m), dot(a, m), dot(b, m), dot(nv, m));
+    // how far each colour has to be raised, and how many of the 5x5 photosites around are
+    vec3 lim;
+    [[unroll]] for(int i = 0; i < 3; i++)
+    {
+      const vec2 t = background(sv[i], s2v[i], a[i], b[i], nv[i]);
+      lim[i] = nv[i] < 3.0 ? 1e30 : t.x + max(max(threshold(t.x, 0.0), 1.5*t.y), spill * (v - bg.x));
+    }
+    const ivec2 rb = window_mask(B, o);
+    ivec3 up = ivec3(0);
+    [[unroll]] for(int dy = -2; dy <= 2; dy++) [[unroll]] for(int dx = -2; dx <= 2; dx++)
+    {
+      if(dx == 0 && dy == 0) continue;
+      const int bit = 1 << (5*(dy + 2) + dx + 2);
+      const bool r = (rb.x & bit) != 0, b = (rb.y & bit) != 0;
+      const ivec3 c = ivec3(r, !r && !b, b);
+      up += c * int(tile[lb.y + o.y + dy][lb.x + o.x + dx] > dot(lim, vec3(c)));
+    }
+    up = min(up, ivec3(2));
+    const int raised = up.x + up.y + up.z, own = int(dot(vec3(up), m));
+    imageStore(img_out, bo + o, vec4(raised < 2 || raised == own ? bg.x : v));
+  }
+}
 
 void main()
 {
-  const ivec2 ipos = ivec2(gl_GlobalInvocationID);
-  const ivec2 size = textureSize(img_in, 0);
-  const ivec2 base = ivec2(gl_WorkGroupID.xy) * ivec2(DT_LOCAL_SIZE_X, DT_LOCAL_SIZE_Y) - 4;
-  const int i = int(gl_LocalInvocationIndex); // one gather each, fits for workgroups of 6x6 and up
-  if(i < TILE_X*TILE_Y/4)
-  {
-    const ivec2 q = 2*ivec2(i % (TILE_X/2), i / (TILE_X/2));
-    const vec4 g = textureGather(img_in, vec2(base + q + 1) / vec2(size), 0);
-    tile[q.y][q.x] = g.w; tile[q.y][q.x+1] = g.z; tile[q.y+1][q.x] = g.x; tile[q.y+1][q.x+1] = g.y;
-  }
+  if(push.filters == 9) load(3);
+  else                  load(2);
   barrier();
-  if(any(greaterThanEqual(ipos, imageSize(img_out)))) return;
-  float v = tile[ipos.y - base.y][ipos.x - base.x];
-
-  // the 5x5 window, moved inside the image at the edges: a bit per photosite at 5y + x
-  const ivec2 origin = clamp(ipos - 2, ivec2(0), max(size - 5, ivec2(0)));
-  const ivec2 ph = ((origin - push.crop.xy) % 6 + 6) % 6; // this is where the mosaic pattern aligns
-  ivec3 mask;
-  mask.xz = window_mask(ph);
-  mask.y = ~(mask.x | mask.z) & 0x1ffffff;
-  const ivec2 o = ipos - origin;
-  const int self = 1 << (5*o.y + o.x);
-  const bvec3 col = notEqual(mask & self, ivec3(0));
-  if((params.chn & pick(col, ivec3(1, 2, 4))) == 0) { imageStore(img_out, ipos, vec4(v)); return; }
-  mask &= ~self;
-  const int own = pick(col, mask);
-#define AT(m, x, y) (((m) & (1 << (5*(y) + (x)))) != 0)
-
-  const ivec2 t = origin - base;
-  float w[5][5];
-  [[unroll]] for(int y = 0; y < 5; y++) [[unroll]] for(int x = 0; x < 5; x++)
-    w[y][x] = tile[t.y + y][t.x + x];
-
-  // the own colour: the darkest, the brightest three, the sums and the count, without v
-  float lo = v, top1 = -1.0, top2 = -1.0, top3 = -1.0, sum = 0.0, sum2 = 0.0, n = 0.0;
-  [[unroll]] for(int y = 0; y < 5; y++) [[unroll]] for(int x = 0; x < 5; x++)
-  {
-    if(!AT(own, x, y)) continue;
-    const float u = w[y][x];
-    lo = min(lo, u);
-    top3 = max(top3, min(top2, u)); top2 = max(top2, min(top1, u)); top1 = max(top1, u);
-    sum += u; sum2 += u*u; n += 1.0;
-  }
-  // the background is no darker than that, so the threshold is at least the noise
-  // there: done early if three are within that of v (less a margin for rounding)
-  if(top3 >= v - 0.99 * threshold(lo, 0.0)) { imageStore(img_out, ipos, vec4(v)); return; }
-
-  const vec2 bg = background(sum, sum2, top1, top2, n);
-  if(v - bg.x > trim_scale(n) * threshold(bg.x, bg.y))
-  { // keep v if two or more in the window are raised too, one of another colour
-    const vec3 cnt = vec3(bitCount(mask));
-    vec3 ctop1 = vec3(-1.0), ctop2 = vec3(-1.0), csum = vec3(0.0), csum2 = vec3(0.0);
-    [[unroll]] for(int y = 0; y < 5; y++) [[unroll]] for(int x = 0; x < 5; x++)
-    {
-      const bvec3 m = bvec3(AT(mask.x, x, y), AT(mask.y, x, y), AT(mask.z, x, y));
-      const vec3 um = mix(vec3(-1.0), vec3(w[y][x]), m), u0 = mix(vec3(0.0), vec3(w[y][x]), m);
-      ctop2 = max(ctop2, min(ctop1, um)); ctop1 = max(ctop1, um);
-      csum += u0; csum2 += u0*u0;
-    }
-    ivec3 up;
-    [[unroll]] for(int i = 0; i < 3; i++)
-    {
-      const vec2 t = background(csum[i], csum2[i], ctop1[i], ctop2[i], cnt[i]);
-      const float thr = max(max(threshold(t.x, 0.0), 1.5*t.y), spill * (v - bg.x));
-      up[i] = int(ctop1[i] - t.x > thr) + int(ctop2[i] - t.x > thr);
-    }
-    const int raised = up.r + up.g + up.b;
-    if(raised < 2 || raised == pick(col, up)) v = bg.x;
-  }
-  imageStore(img_out, ipos, vec4(v));
+  if(push.filters == 9) process(3);
+  else                  process(2);
 }

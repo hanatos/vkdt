@@ -1,3 +1,3 @@
 thrs:float:1:0.05
 channels:int:1:7
-sigma:float:1:4.5
+sigma:float:1:4
