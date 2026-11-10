@@ -456,7 +456,7 @@ compare_module_name(const void *a, const void *b)
   return strncmp(dt_token_str(ma->name), dt_token_str(mb->name), 8);
 }
 
-int dt_pipe_global_init()
+int dt_pipe_global_init(int read_only_mode)
 {
   memset(&dt_pipe, 0, sizeof(dt_pipe));
 #ifdef __ANDROID__
@@ -466,12 +466,32 @@ int dt_pipe_global_init()
   // setup search directory
   fs_basedir(dt_pipe.basedir, sizeof(dt_pipe.basedir));
 #ifndef __ANDROID__
-  fs_homedir(dt_pipe.homedir, sizeof(dt_pipe.homedir));
+  if(read_only_mode)
+  {
+    const char *pf = "/tmp";
+    snprintf(dt_pipe.homedir,  5, "%s", pf);
+    snprintf(dt_pipe.cachedir, 5, "%s", pf);
+    fs_homedir (dt_pipe.homedir +4, sizeof(dt_pipe.homedir) -4);
+    fs_cachedir(dt_pipe.cachedir+4, sizeof(dt_pipe.cachedir)-4);
+  }
+  else
+  {
+    fs_homedir(dt_pipe.homedir, sizeof(dt_pipe.homedir));
+    fs_cachedir(dt_pipe.cachedir, sizeof(dt_pipe.cachedir));
+  }
 #else
+  snprintf(dt_pipe.cachedir, sizeof(dt_pipe.cachedir), "%s/cache", dt_pipe.app->activity->internalDataPath);
   snprintf(dt_pipe.homedir, sizeof(dt_pipe.homedir), "%s", dt_pipe.app->activity->internalDataPath);
 #endif
-  dt_log(s_log_pipe, "base directory %s", dt_pipe.basedir);
-  dt_log(s_log_pipe, "home directory %s", dt_pipe.homedir);
+  int err = fs_mkdir_p(dt_pipe.cachedir, 0755);
+  if(err && errno != EEXIST)
+  {
+    dt_log(s_log_err|s_log_pipe, "could not create cache directory %s!", dt_pipe.cachedir);
+    return 1;
+  }
+  dt_log(s_log_pipe, "base  directory %s", dt_pipe.basedir);
+  dt_log(s_log_pipe, "home  directory %s", dt_pipe.homedir);
+  dt_log(s_log_pipe, "cache directory %s", dt_pipe.cachedir);
   void *fd = dt_res_opendir("modules", 1);
   if (!fd)
   {

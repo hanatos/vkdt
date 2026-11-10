@@ -152,7 +152,8 @@ dt_gui_print_usage()
          "       -d <log layer>   switch on log layer\n"
          "       -D <log layer>   mute log layer\n"
          "  log layers:\n"
-         "  none qvk pipe gui db cli snd perf mem err all\n");
+         "  none qvk pipe gui db cli snd perf mem err all\n"
+         "       --read-only-mode work on /tmp copy only\n");
 }
 
 // since in glfw, joysticks can only be polled and have no event interface
@@ -162,6 +163,7 @@ dt_gui_print_usage()
 // is present.
 int main(int argc, char *argv[])
 {
+  int read_only = 0;
   if(argc > 1)
   {
     if(!strcmp(argv[1], "--version"))
@@ -176,13 +178,17 @@ int main(int argc, char *argv[])
       dt_gui_print_usage();
       exit(0);
     }
-    dt_tool_dispatch(argc, argv);
+    else if(!strcmp(argv[1], "--read-only-mode"))
+    {
+      read_only = 1;
+    }
+    dt_tool_dispatch(argc, argv); // never returns if tool is active
   }
   // init global things, log and pipeline:
   dt_log_init(s_log_err|s_log_gui);
   int lastarg = dt_log_init_arg(argc, argv);
   dt_log(s_log_gui, "vkdt "VKDT_VERSION" (c) 2020--2026 johannes hanika");
-  dt_pipe_global_init();
+  dt_pipe_global_init(read_only);
   threads_global_init();
   dt_set_signal_handlers();
   setlocale(LC_COLLATE, "");
@@ -227,6 +233,7 @@ int main(int argc, char *argv[])
   // a bc1 is usually like 50k in size for the 400x400 window. that's 20 images, give it a bit more:
   dt_thumbnails_init(&vkdt.thumbnails, 400, 400, tncs*21, tncs*(1ul<<20));
   dt_db_init(&vkdt.db);
+  vkdt.db.read_only_mode = read_only;
   char *filename = 0;
   {
     char defpath[1024];

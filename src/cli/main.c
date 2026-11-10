@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
   dt_log_init_arg(argc, argv);
   // this prints the version for -d all but remains silent in the default operation
   dt_log(s_log_gui, "vkdt "VKDT_VERSION" (c) 2020--2026 johannes hanika");
-  dt_pipe_global_init();
+  dt_pipe_global_init(0);
   threads_global_init();
 
   int dump_nodes = 0;

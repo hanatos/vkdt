@@ -49,18 +49,6 @@ dt_thumbnails_init(
 {
   memset(tn, 0, sizeof(*tn));
 
-#ifdef __ANDROID__
-  snprintf(tn->cachedir, sizeof(tn->cachedir), "%s/cache", dt_pipe.app->activity->internalDataPath);
-#else
-  fs_cachedir(tn->cachedir, sizeof(tn->cachedir));
-#endif
-  int err = fs_mkdir_p(tn->cachedir, 0755);
-  if(err && errno != EEXIST)
-  {
-    dt_log(s_log_err|s_log_db, "could not create thumbnail cache directory %s!", tn->cachedir);
-    return VK_INCOMPLETE;
-  }
-
   tn->thumb_wd = wd,
   tn->thumb_ht = ht,
   tn->thumb_max = cnt;
@@ -213,7 +201,7 @@ dt_thumbnails_invalidate(
 {
   uint64_t hash = hash64(filename);
   char bc1filename[1040];
-  snprintf(bc1filename, sizeof(bc1filename), "%s/%"PRIx64".bc1", tn->cachedir, hash);
+  snprintf(bc1filename, sizeof(bc1filename), "%s/%"PRIx64".bc1", dt_pipe.cachedir, hash);
   unlink(bc1filename);
 }
 
@@ -238,7 +226,7 @@ dt_thumbnails_cache_one(
   char deffilename[PATH_MAX+100];
   char bc1filename[PATH_MAX+100];
   uint64_t hash = hash64(filename);
-  if(snprintf(bc1filename, sizeof(bc1filename), "%s/%"PRIx64".bc1", tn->cachedir, hash) >= sizeof(bc1filename)) return VK_INCOMPLETE;
+  if(snprintf(bc1filename, sizeof(bc1filename), "%s/%"PRIx64".bc1", dt_pipe.cachedir, hash) >= sizeof(bc1filename)) return VK_INCOMPLETE;
   if(snprintf(cfgfilename, sizeof(cfgfilename), "%s", filename) >= sizeof(cfgfilename)) return VK_INCOMPLETE;
   if(snprintf(deffilename, sizeof(deffilename), "default.%"PRItkn, dt_token_str(input_module)) >= sizeof(deffilename)) return VK_INCOMPLETE;
   struct stat statbuf = {0};
@@ -500,7 +488,7 @@ dt_thumbnails_load_one(
   { // only hash images that aren't straight from our resource directory:
     // XXX run through realpath once for windows and / vs \\ confusion?
     uint64_t hash = hash64(filename);
-    if(snprintf(imgfilename, sizeof(imgfilename), "%s/%"PRIx64".bc1", tn->cachedir, hash) >= sizeof(imgfilename)) return VK_INCOMPLETE;
+    if(snprintf(imgfilename, sizeof(imgfilename), "%s/%"PRIx64".bc1", dt_pipe.cachedir, hash) >= sizeof(imgfilename)) return VK_INCOMPLETE;
   }
   else if(snprintf(imgfilename, sizeof(imgfilename), "%s/%s", dt_pipe.basedir, filename) >= sizeof(imgfilename)) return VK_INCOMPLETE;
   struct stat statbuf = {0};

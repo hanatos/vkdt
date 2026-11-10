@@ -55,8 +55,6 @@ typedef struct dt_thumbnails_t
   // threads_mutex_t       lru_lock; // currently not needed, only using lru cache in gui thread
   dt_thumbnail_t       *lru;   // least recently used thumbnail, delete this first
   dt_thumbnail_t       *mru;   // most  recently used thumbnail, append here
-
-  char                  cachedir[1024];
 }
 dt_thumbnails_t;
 
