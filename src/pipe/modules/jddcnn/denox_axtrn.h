@@ -1,5 +1,5 @@
-#ifndef jddcnn_axtrc_DENOX_MODULE_H
-#define jddcnn_axtrc_DENOX_MODULE_H
+#ifndef jddcnn_axtrn_DENOX_MODULE_H
+#define jddcnn_axtrn_DENOX_MODULE_H
 #include "modules/api.h"
 #include <stddef.h>
 #include <stdint.h>
