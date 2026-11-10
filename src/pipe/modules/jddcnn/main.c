@@ -11,12 +11,10 @@
 #include "denox_gxtrn.h"
 #include "denox_ixtrn.h"
 #include "denox_nxtrn.h"
-
-// amd yet unknown:
-// #include "denox_abyrc.h"
-// #include "denox_axtrc.h"
-// #include "denox_abyrn.h"
-// #include "denox_axtrn.h"
+#include "denox_abyrc.h"
+#include "denox_axtrc.h"
+#include "denox_abyrn.h"
+#include "denox_axtrn.h"
 
 typedef enum arch_t
 {
