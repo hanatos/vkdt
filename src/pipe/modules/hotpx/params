@@ -1,3 +1,4 @@
-thrs:float:1:0.05
+noise:float:1:0.012
 channels:int:1:7
 sigma:float:1:4
+raised:float:1:4

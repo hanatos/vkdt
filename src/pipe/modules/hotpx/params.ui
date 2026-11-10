@@ -1,3 +1,4 @@
-thrs:slider:0:0.2
+noise:slider:0.001:0.05
 channels:bitmask:red:green:blue
 sigma:slider:2:20
+raised:slider:2:20

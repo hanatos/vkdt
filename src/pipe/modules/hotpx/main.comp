@@ -5,9 +5,10 @@
 layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
 layout(std140, set = 0, binding = 1) uniform params_t
 {
-  float t;     // threshold to detect a hot pixel without a noise profile, relative to the range
-  int chn;     // apply to which channels
-  float sigma; // threshold in deviations of the noise or the spread
+  float noise;  // the noise without a profile, relative to the range
+  int chn;      // apply to which channels
+  float sigma;  // threshold in deviations of the noise or the spread
+  float raised; // how many deviations of the noise make a photosite around count as raised
 } params;
 layout(push_constant, std140) uniform push_t
 {
@@ -19,11 +20,11 @@ layout(push_constant, std140) uniform push_t
 layout(set = 1, binding = 0) uniform sampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
 
-bool profiled() { return push.noise_a > 0.0 || push.noise_b > 0.0; }
-
+// the deviation of the noise at the level: from the profile, or as set without one
 float noise(float level)
 {
   const float range = push.white - push.black;
+  if(push.noise_a <= 0.0 && push.noise_b <= 0.0) return params.noise * range;
   return sqrt(max(0.0, push.noise_a + push.noise_b * max(0.0, (level - push.black) / range))) * range;
 }
 
@@ -31,7 +32,6 @@ float noise(float level)
 // sigma deviations of the noise at the level, or of the spread
 float threshold(float level, float spread)
 {
-  if(!profiled()) return max(params.t * (push.white - push.black), params.sigma * spread);
   return params.sigma * max(noise(level), spread);
 }
 
@@ -49,7 +49,7 @@ vec2 background(float sum, float sum2, float top1, float top2, float n)
 {
   const float mean = (sum - (top1 + top2)) / (n - 2.0);
   const float spread = n > 3.0 ? sqrt(max(0.0, (sum2 - (top1*top1 + top2*top2)) / (n - 2.0) - mean*mean)) / trim_spread(n) : 0.0;
-  return vec2(mean + trim_bias(n) * (profiled() ? max(noise(mean), spread) : spread), spread);
+  return vec2(mean + trim_bias(n) * max(noise(mean), spread), spread);
 }
 
 // a real light reaches the other colours around through the lens with this much of
@@ -183,7 +183,7 @@ void process(const int B)
     [[unroll]] for(int i = 0; i < 3; i++)
     {
       const vec2 t = background(sv[i], s2v[i], a[i], b[i], nv[i]);
-      lim[i] = nv[i] < 3.0 ? 1e30 : t.x + max(max(threshold(t.x, 0.0), 1.5*t.y), spill * (v - bg.x));
+      lim[i] = nv[i] < 3.0 ? 1e30 : t.x + max(max(params.raised * noise(t.x), 1.5*t.y), spill * (v - bg.x));
     }
     const ivec2 rb = window_mask(B, o);
     ivec3 up = ivec3(0);
