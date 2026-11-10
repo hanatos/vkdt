@@ -93,7 +93,7 @@ void joystick_callback(int js, int event)
     {
       const char *name = glfwGetJoystickName(js);
       dt_log(s_log_gui, "found gamepad %s", name);
-      const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 1);
+      const int disable = dt_rc_get_int(&vkdt.rc, "gui/disable_joystick", 0);
       if(disable)
       {
         vkdt.wstate.have_joystick = 0;

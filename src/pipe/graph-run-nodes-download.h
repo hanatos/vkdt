@@ -19,6 +19,9 @@ dt_graph_run_nodes_download(
            (run & s_graph_run_download_sink)))
         {
           uint8_t *mapped = 0;
+          // happens for instance when generating thumbnails and noise
+          // profiling output is disconnected:
+          if(!node->connector[0].mem_staging) continue;
           QVKR(vkMapMemory(qvk.device, node->connector[0].mem_staging->memory->vkmem, 0, VK_WHOLE_SIZE, 0, (void**)&mapped));
           dt_write_sink_params_t p = { .node = node, .c = 0, .a = 0 };
           node->module->so->write_sink(node->module,

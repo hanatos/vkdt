@@ -126,8 +126,9 @@ typedef struct dt_pipe_global_t
   // i.e. if you build from git it would be the bin/ directory
   // in the repository. it is used to find all sorts of resources
   // relative to it, i.e. data/ and modules/.
-  char basedir[PATH_MAX];
-  char homedir[PATH_MAX]; // this is normally ${HOME}/.config/vkdt
+  char basedir [PATH_MAX];
+  char homedir [PATH_MAX]; // this is normally ${HOME}/.config/vkdt
+  char cachedir[PATH_MAX]; // this is normally ${HOME}/.cache/vkdt
   dt_module_so_t *module;
   uint32_t num_modules;
 }
@@ -138,7 +139,7 @@ VKDT_API extern dt_pipe_global_t dt_pipe;
 #endif
 
 // returns non-zero on failure:
-int dt_pipe_global_init();
+int dt_pipe_global_init(int read_only_mode);
 
 // global cleanup:
 void dt_pipe_global_cleanup();

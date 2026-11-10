@@ -508,7 +508,7 @@ VkResult dt_graph_display_write_thumbnail()
   char filename[PATH_MAX];
   dt_db_image_path(&vkdt.db, imgid, filename, sizeof(filename));
   uint64_t hash = hash64(filename); // same as thumbnails.c would write:
-  if(snprintf(filename, sizeof(filename), "%s/%"PRIx64".bc1", vkdt.thumbnail_gen.cachedir, hash) >= sizeof(filename))
+  if(snprintf(filename, sizeof(filename), "%s/%"PRIx64".bc1", dt_pipe.cachedir, hash) >= sizeof(filename))
     return VK_INCOMPLETE;
   o_bc1.param = (uint8_t *)filename;
   o_bc1.so->write_sink(&o_bc1, staging.map, 0);

@@ -216,22 +216,77 @@ discard:;
   }
 }
 
+static inline void
+dt_db_get_writable_directory(
+    dt_db_t    *db,
+    const char *dirname,
+    char       *writable_dir,
+    size_t      writable_max)
+{
+  const char *writable_prefix = "/tmp";
+  if(!dirname)
+  {
+    if(!db->read_only_mode) fs_picturesdir(writable_dir, writable_max);
+    else snprintf(writable_dir, writable_max, "%s", writable_prefix);
+    return;
+  }
+  if(!db->read_only_mode)
+  { // if not in read only mode, use the directory as is
+    snprintf(writable_dir, writable_max, "%s", dirname);
+    return;
+  }
+  // prepend writable prefix (/tmp), only if dirname doesn't already contain it
+  if(!strncmp(dirname, writable_prefix, strlen(writable_prefix)))
+    snprintf(writable_dir, writable_max, "%s", dirname);
+  else
+    snprintf(writable_dir, writable_max, "%s%s", writable_prefix, dirname);
+  dt_log(s_log_db, "symlinking into directory `%s'", writable_dir);
+  int err = fs_mkdir_p(writable_dir, 0755);
+  if(err && errno != EEXIST)
+  { // assume if it exists it's also a good directory
+    dt_log(s_log_err|s_log_db, "could not create directory `%s'!", writable_dir);
+    return;
+  }
+  DIR *dp = opendir(dirname);
+  if(!dp)
+  {
+    dt_log(s_log_err|s_log_db, "could not open directory `%s'!", dirname);
+    return;
+  }
+  struct dirent *ep;
+  while((ep = readdir(dp)))
+  { // (non-recursively) link all files except what we'll be writing: vkdt.db *.cfg
+    if(!fs_isreg(dirname, ep) && !fs_islnk(dirname, ep)) continue;
+    if(!dt_db_accept_filename(ep->d_name)) continue;
+    char src[PATH_MAX], dst[PATH_MAX];
+    snprintf(src, sizeof(src), "%s/%s", dirname, ep->d_name);
+    snprintf(dst, sizeof(dst), "%s/%s", writable_dir, ep->d_name);
+
+    const char *f = ep->d_name;
+    const char *f2 = f + strlen(f);
+    while(f2 > f && *f2 != '.') f2--;
+    if(!strcasecmp(f2, ".cfg")) fs_copy(dst, src); // copy cfg (.db are not acceptable input)
+    else fs_symlink(src, dst); // symlink all other files
+  }
+}
+
 void dt_db_load_directory(
     dt_db_t         *db,
     dt_thumbnails_t *thumbnails,
     const char      *dirname)
 {
-  DIR *dp = dirname ? opendir(dirname) : 0;
+  dt_db_get_writable_directory(db, dirname, db->dirname, sizeof(db->dirname));
+  DIR *dp = opendir(db->dirname);
   if(!dp)
   {
-    dt_log(s_log_err|s_log_db, "could not open directory '%s'!", dirname);
+    dt_log(s_log_err|s_log_db, "could not open directory '%s'!", db->dirname);
     return;
   }
   struct dirent *ep;
   db->image_max = 0;
   while((ep = readdir(dp)))
   {
-    if(!fs_isreg(dirname, ep) && !fs_islnk(dirname, ep)) continue;
+    if(!fs_isreg(db->dirname, ep) && !fs_islnk(db->dirname, ep)) continue;
     if(!dt_db_accept_filename(ep->d_name)) continue;
     db->image_max++;
   }
@@ -248,7 +303,6 @@ void dt_db_load_directory(
   // you would not believe how lengthy people name their files:
   dt_stringpool_init(&db->sp_filename, db->collection_max, 50);
 
-  snprintf(db->dirname, sizeof(db->dirname), "%s", dirname);
   char *c = db->dirname + strlen(db->dirname) - 1;
   if(*c == '/') *c = 0; // remove trailing '/'
 
@@ -259,7 +313,7 @@ void dt_db_load_directory(
   clock_t beg = clock();
   while((ep = readdir(dp)))
   {
-    if(!fs_isreg(dirname, ep) && !fs_islnk(dirname, ep)) continue;
+    if(!fs_isreg(db->dirname, ep) && !fs_islnk(db->dirname, ep)) continue;
     if(!dt_db_accept_filename(ep->d_name)) continue;
 
     const uint32_t imgid = db->image_cnt++;
@@ -298,7 +352,7 @@ void dt_db_load_directory(
   dt_log(s_log_perf|s_log_db, "time to load images %2.3fs", (end-beg)/(double)CLOCKS_PER_SEC);
 
   char dbname[256];
-  snprintf(dbname, sizeof(dbname), "%s/vkdt.db", dirname);
+  snprintf(dbname, sizeof(dbname), "%s/vkdt.db", db->dirname);
   dt_db_read(db, dbname);
 
   dt_db_update_collection(db);
@@ -309,6 +363,7 @@ int dt_db_load_image(
     dt_thumbnails_t *thumbnails,
     const char      *filename)
 {
+  if(db->read_only_mode) return 1; // TODO check prefix
   if(!dt_db_accept_filename(filename)) return 1;
   db->image_max = 1;
   int len = strnlen(filename, 2048);

@@ -103,6 +103,10 @@ typedef struct dt_db_t
   int64_t timeoffset[10];
   int     timeoffset_cnt;
   dt_stringpool_t timeoffset_model;
+
+  // read only mode: never write cfg to the actual file system,
+  // instead symlink all files to /tmp before even getting started
+  int     read_only_mode;
 }
 dt_db_t;
 
