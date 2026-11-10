@@ -141,16 +141,16 @@ int read_source(dt_module_t *mod, void *mapped, dt_read_source_params_t *p)
     case s_arch_gbyn: return denox_read_source_gbyrn(mod, mapped, p);
     case s_arch_ibyc: return denox_read_source_ibyrc(mod, mapped, p);
     case s_arch_ibyn: return denox_read_source_ibyrn(mod, mapped, p);
-    // case s_arch_abyc: return denox_read_source_abyrc(mod, mapped, p);
-    // case s_arch_abyn: return denox_read_source_abyrn(mod, mapped, p);
+    case s_arch_abyc: return denox_read_source_abyrc(mod, mapped, p);
+    case s_arch_abyn: return denox_read_source_abyrn(mod, mapped, p);
     case s_arch_nbyc: return denox_read_source_nbyrc(mod, mapped, p);
     case s_arch_nbyn: return denox_read_source_nbyrn(mod, mapped, p);
     case s_arch_gxtc: return denox_read_source_gxtrc(mod, mapped, p);
     case s_arch_gxtn: return denox_read_source_gxtrn(mod, mapped, p);
     case s_arch_ixtc: return denox_read_source_ixtrc(mod, mapped, p);
     case s_arch_ixtn: return denox_read_source_ixtrn(mod, mapped, p);
-    // case s_arch_axtc: return denox_read_source_axtrc(mod, mapped, p);
-    // case s_arch_axtn: return denox_read_source_axtrn(mod, mapped, p);
+    case s_arch_axtc: return denox_read_source_axtrc(mod, mapped, p);
+    case s_arch_axtn: return denox_read_source_axtrn(mod, mapped, p);
     case s_arch_nxtc: return denox_read_source_nxtrc(mod, mapped, p);
     case s_arch_nxtn: return denox_read_source_nxtrn(mod, mapped, p);
     default: return 1;
@@ -219,10 +219,10 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     case s_arch_ibyn:
       denox_create_nodes_ibyrc(graph, module, (input_roi.ht+1)/2, (input_roi.wd+1)/2, input, "output", output, "input");
       break;
-    // case s_arch_abyc:
-    // case s_arch_abyn:
-    //   denox_create_nodes_abyrc(graph, module, (input_roi.ht+1)/2, (input_roi.wd+1)/2, input, "output", output, "input");
-    //   break;
+    case s_arch_abyc:
+    case s_arch_abyn:
+      denox_create_nodes_abyrc(graph, module, (input_roi.ht+1)/2, (input_roi.wd+1)/2, input, "output", output, "input");
+      break;
     case s_arch_nbyc:
     case s_arch_nbyn:
       denox_create_nodes_nbyrc(graph, module, (input_roi.ht+1)/2, (input_roi.wd+1)/2, input, "output", output, "input");
@@ -235,10 +235,10 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     case s_arch_ixtn:
       denox_create_nodes_ixtrc(graph, module, (input_roi.ht+1)/2, (input_roi.wd+1)/2, input, "output", output, "input");
       break;
-    // case s_arch_axtc:
-    // case s_arch_axtn:
-    //   denox_create_nodes_axtrc(graph, module, (input_roi.ht+1)/2, (input_roi.wd+1)/2, input, "output", output, "input");
-    //   break;
+    case s_arch_axtc:
+    case s_arch_axtn:
+      denox_create_nodes_axtrc(graph, module, (input_roi.ht+1)/2, (input_roi.wd+1)/2, input, "output", output, "input");
+      break;
     case s_arch_nxtc:
     case s_arch_nxtn:
       denox_create_nodes_nxtrc(graph, module, (input_roi.ht+1)/2, (input_roi.wd+1)/2, input, "output", output, "input");
