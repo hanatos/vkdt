@@ -149,7 +149,7 @@ void write_sink(
                                     break; */
     default:                        snprintf(module->graph->gui_msg_buf,
                                              sizeof(module->graph->gui_msg_buf),
-                                             "[o-jxl] Recieved primaries currently not supported for export! Aborting…");
+                                             "[o-jxl] Recieved primaries currently not supported for export! Aborting...");
                                     module->graph->gui_msg = module->graph->gui_msg_buf;
                                     {
                                       error = 1;
@@ -184,7 +184,7 @@ void write_sink(
                                 break;
     default:                    snprintf(module->graph->gui_msg_buf,
                                          sizeof(module->graph->gui_msg_buf),
-                                         "[o-jxl] Recieved trc currently not supported for export! Aborting…");
+                                         "[o-jxl] Recieved trc currently not supported for export! Aborting...");
                                 module->graph->gui_msg = module->graph->gui_msg_buf;
                                 {
                                   error = 1;
@@ -218,7 +218,7 @@ void write_sink(
                       break;
     default:          snprintf(module->graph->gui_msg_buf,
                                sizeof(module->graph->gui_msg_buf),
-                               "[o-jxl] Recieved unsupported bits value! Aborting…");
+                               "[o-jxl] Recieved unsupported bits value! Aborting...");
                       module->graph->gui_msg = module->graph->gui_msg_buf;
                       {
                         error = 1;
