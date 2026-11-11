@@ -62,6 +62,27 @@ bin/data/%.lut: src/%.lut.xz
 	touch $@
 
 INST_MODULES:=$(notdir $(patsubst %/,%,$(dir $(wildcard src/pipe/modules/*/))))
+ifeq ($(VKDT_USE_RAWINPUT), 0) # use no raw loading module
+  INST_MODULES:=$(filter-out i-raw,$(INST_MODULES))
+endif
+ifneq ($(VKDT_USE_JXL), 1)
+  INST_MODULES:=$(filter-out o-jxl,$(INST_MODULES))
+endif
+ifneq ($(VKDT_USE_V4L2), 1)
+  INST_MODULES:=$(filter-out i-v4l2,$(INST_MODULES))
+endif
+ifneq ($(VKDT_USE_MLV), 1)
+  INST_MODULES:=$(filter-out i-mlv,$(INST_MODULES))
+endif
+ifneq ($(VKDT_USE_FFMPEG), 1)
+  INST_MODULES:=$(filter-out i-vid o-vid,$(INST_MODULES))
+endif
+ifneq ($(VKDT_USE_QUAKE), 1)
+  INST_MODULES:=$(filter-out quake,$(INST_MODULES))
+endif
+ifneq ($(VKDT_USE_MCRAW), 1)
+  INST_MODULES:=$(filter-out i-mcraw,$(INST_MODULES))
+endif
 install-mod: bin Makefile lut
 	mkdir -p $(VKDTDIR)/modules
 	@mkdir -p $(foreach mod,$(INST_MODULES),$(VKDTDIR)/modules/$(mod))
