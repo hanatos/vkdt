@@ -26,7 +26,7 @@ cat > AppDir/AppRun << 'EOF'
 #!/bin/bash
 HERE=$(dirname $(realpath ${0}))
 export LD_LIBRARY_PATH=${HERE}/usr/lib:${LD_LIBRARY_PATH}
-${HERE}/usr/bin/vkdt $@
+${HERE}/usr/bin/vkdt --read-only-mode $@
 EOF
 chmod +x AppDir/AppRun
 
