@@ -57,19 +57,26 @@ void write_sink(
   
   const size_t width  = module->connector[0].roi.wd;
   const size_t height = module->connector[0].roi.ht;
-
   const dt_colour_primaries_t primaries =  module->img_param.colour_primaries;
   const dt_colour_trc_t trc = module->img_param.colour_trc;
 
+  const float quality = dt_module_param_float(module, 1)[0];
+  const int effort = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("effort")))[0];
+
+  const int bits = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("bits")))[0];
+  const int custom_intensity = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("custom i")))[0];
+  const float target_intensity = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("target i")))[0];
+
   char filename[512];
   snprintf(filename, sizeof(filename), "%s.jxl", basename);
-
 
   int error = 0;
   // Initialising these three here so I can always `goto end` and free them.
   uint16_t *pixels = NULL;
   uint8_t *out_buf = NULL;
   FILE *out_file = NULL;
+
+
 
   // For more than one export in a row it should be more efficient to make one encoder and reuse it?
   // But I think at the moment each image creates and destroys its own encoder.
@@ -97,19 +104,133 @@ void write_sink(
   JxlEncoderInitBasicInfo(&basic_info);
   basic_info.xsize = width;
   basic_info.ysize = height;
-  basic_info.bits_per_sample = 16;
-  basic_info.exponent_bits_per_sample = 5;
 
 
-  // Container isn’t necessary but has minimal overhead, and is needed for EXIF data.
-  // exiftool can add it later, but it issues a minor error.
-  if(JxlAssert(JxlEncoderUseContainer(encoder,
-                                   JXL_TRUE),
-               encoder,
-               __LINE__))
+
+  // Only currently support the options shown in the export GUI, except ‘custom’ as I don’t know where the custom values come from,
+  // and XYZ, because of what seems to be a libjxl bug.
+  JxlColorEncoding colour_encoding;
+  colour_encoding.color_space = JXL_COLOR_SPACE_RGB;
+  
+  switch(primaries)
   {
-    error = 1;
-    goto end;
+    case s_colour_primaries_srgb:   colour_encoding.primaries = JXL_PRIMARIES_SRGB;
+                                    colour_encoding.white_point = JXL_WHITE_POINT_D65;
+                                    break;
+    case s_colour_primaries_P3:     colour_encoding.primaries = JXL_PRIMARIES_P3;
+                                    colour_encoding.white_point = JXL_WHITE_POINT_D65;
+                                    break;
+    case s_colour_primaries_2020:   colour_encoding.primaries = JXL_PRIMARIES_2100;
+                                    colour_encoding.white_point = JXL_WHITE_POINT_D65;
+                                    break;
+                                    // Derived from §4.3.1.1 of [Adobe® RGB (1998) Color Image Encoding]
+                                    // (https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf).
+    case s_colour_primaries_adobe:  colour_encoding.primaries = JXL_PRIMARIES_CUSTOM;
+                                    colour_encoding.primaries_red_xy[0] = 0.64;
+                                    colour_encoding.primaries_red_xy[1] = 0.33;
+                                    colour_encoding.primaries_green_xy[0] = 0.21;
+                                    colour_encoding.primaries_green_xy[1] = 0.71;
+                                    colour_encoding.primaries_blue_xy[0] = 0.15;
+                                    colour_encoding.primaries_blue_xy[1] = 0.06;
+                                    colour_encoding.white_point = JXL_WHITE_POINT_D65;
+                                    break;
+                                    // Values from §8.1 of ITU-T H.273 (V4) (07/2024). Because I wasn’t sure!
+                                    // But not working because [0.0 not an allowed primary?](https://github.com/libjxl/libjxl/blob/e4b66d30278df6050137a4529e5efde5ef691f32/lib/jxl/cms/color_encoding_cms.h#L402_)
+                                    // Escpecially weird becuase libjxl (does exactly this)[https://github.com/libjxl/libjxl/blob/e4b66d30278df6050137a4529e5efde5ef691f32/lib/extras/dec/apng.cc#L171].
+                                    // Disabled for now.
+    /* case s_colour_primaries_XYZ:    colour_encoding.primaries = JXL_PRIMARIES_CUSTOM;
+                                    colour_encoding.primaries_red_xy[0] = 1;
+                                    colour_encoding.primaries_red_xy[1] = 0;
+                                    colour_encoding.primaries_green_xy[0] = 0;
+                                    colour_encoding.primaries_green_xy[1] = 1;
+                                    colour_encoding.primaries_blue_xy[0] = 0;
+                                    colour_encoding.primaries_blue_xy[1] = 0;
+                                    colour_encoding.white_point = JXL_WHITE_POINT_E;
+                                    break; */
+    default:                        snprintf(module->graph->gui_msg_buf,
+                                             sizeof(module->graph->gui_msg_buf),
+                                             "[o-jxl] Recieved primaries currently not supported for export! Aborting...");
+                                    module->graph->gui_msg = module->graph->gui_msg_buf;
+                                    {
+                                      error = 1;
+                                      goto end;
+                                    }
+  }
+
+  switch(trc)
+  {
+    case s_colour_trc_linear:   colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_LINEAR;
+                                break;
+    case s_colour_trc_709:      colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_709;
+                                break;
+    case s_colour_trc_srgb:     colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_SRGB;
+                                break;
+    case s_colour_trc_PQ:       colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_PQ;
+                                break;
+    case s_colour_trc_DCI:      colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_DCI;
+                                break;
+    case s_colour_trc_HLG:      colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_HLG;
+                                break;
+    case s_colour_trc_gamma:    colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_GAMMA;
+                                // Then set whatever gamma value. But using ~2.2 because s_colour_trc_gamma is currently only for AdobeRGB(?)
+                                // Derived from §4.3.1.2 of [Adobe® RGB (1998) Color Image Encoding]
+                                // (https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf).
+                                // colour_encoding.gamma = 256.0 / 563.0;
+                                // Actually elsewhere in the codebase this approximation is used, so for consistency:
+                                colour_encoding.gamma = 1.0 / 2.2;
+                                break;
+                                // Not sure if this is what I should do?
+    case s_colour_trc_unknown:  colour_encoding.transfer_function = JXL_TRANSFER_FUNCTION_UNKNOWN;
+                                break;
+    default:                    snprintf(module->graph->gui_msg_buf,
+                                         sizeof(module->graph->gui_msg_buf),
+                                         "[o-jxl] Recieved trc currently not supported for export! Aborting...");
+                                module->graph->gui_msg = module->graph->gui_msg_buf;
+                                {
+                                  error = 1;
+                                  goto end;
+                                }
+  }
+
+  // ISO 15076-1:2010
+  // Hardcoding as perceptual as that’s what the `src/pipe/icc-profiles.h` use.
+  // (They are user selectable in darktable but might not be important enough to warrant that?).
+  colour_encoding.rendering_intent = JXL_RENDERING_INTENT_PERCEPTUAL;
+
+
+
+  switch(bits)
+  {
+    case 0: /* f16 */ basic_info.bits_per_sample = 16;
+                      basic_info.exponent_bits_per_sample = 5;
+                      break;
+    case 1: /* u16 */ basic_info.bits_per_sample = 16;
+                      basic_info.exponent_bits_per_sample = 0;
+                      break;
+    case 2: /* u12 */ basic_info.bits_per_sample = 12;
+                      basic_info.exponent_bits_per_sample = 0;
+                      break;
+    case 3: /* u10 */ basic_info.bits_per_sample = 10;
+                      basic_info.exponent_bits_per_sample = 0;
+                      break;
+    case 4: /* u8 */  basic_info.bits_per_sample = 8;
+                      basic_info.exponent_bits_per_sample = 0;
+                      break;
+    default:          snprintf(module->graph->gui_msg_buf,
+                               sizeof(module->graph->gui_msg_buf),
+                               "[o-jxl] Recieved unsupported bits value! Aborting...");
+                      module->graph->gui_msg = module->graph->gui_msg_buf;
+                      {
+                        error = 1;
+                        goto end;
+                      }
+  }
+
+
+
+  if(custom_intensity)
+  {
+    basic_info.intensity_target = target_intensity;
   }
 
 
@@ -117,7 +238,8 @@ void write_sink(
   // Automatically freed when we destroy the encoder
   JxlEncoderFrameSettings *frame_settings = JxlEncoderFrameSettingsCreate(encoder, NULL);
 
-  const float quality = dt_module_param_float(module, 1)[0];
+
+
   // JXL natively uses ‘distance’ a [0:25] value. This aims to estimate a distance
   // roughly equivalent to what would be obtained with libjpeg-turbo with the same quality parameter.
   // This function isn’t available in libjxl versions < 0.9.0.
@@ -148,17 +270,8 @@ void write_sink(
     }
   }
 
-  // Codestream level should be chosen automatically given the settings
-  if(JxlAssert(JxlEncoderSetBasicInfo(encoder,
-                                      &basic_info),
-               encoder,
-               __LINE__))
-  {
-    error = 1;
-    goto end;
-  }
 
-  const int effort = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("effort")))[0];
+
   if(JxlAssert(JxlEncoderFrameSettingsSetOption(frame_settings,
                                                 JXL_ENC_FRAME_SETTING_EFFORT,
                                                 effort),
@@ -171,101 +284,29 @@ void write_sink(
 
 
 
-  // Only currently support the options shown in the export GUI, except ‘custom’ as I don’t know where the custom values come from,
-  // and XYZ, because of what seems to be a libjxl bug.
-  JxlColorEncoding colour_encoding;
-
-  colour_encoding.color_space = JXL_COLOR_SPACE_RGB;
-  
-  JxlPrimaries nativePrimaries = 0;
-  switch(primaries)
+  // Container isn’t necessary but has minimal overhead, and is needed for EXIF data.
+  // exiftool can add it later, but when doing so it issues a minor error.
+  if(JxlAssert(JxlEncoderUseContainer(encoder,
+                                      JXL_TRUE),
+               encoder,
+               __LINE__))
   {
-    case s_colour_primaries_srgb:   nativePrimaries = JXL_PRIMARIES_SRGB;
-                                    colour_encoding.white_point = JXL_WHITE_POINT_D65;
-                                    break;
-    case s_colour_primaries_P3:     nativePrimaries = JXL_PRIMARIES_P3;
-                                    colour_encoding.white_point = JXL_WHITE_POINT_D65;
-                                    break;
-    case s_colour_primaries_2020:   nativePrimaries = JXL_PRIMARIES_2100;
-                                    colour_encoding.white_point = JXL_WHITE_POINT_D65;
-                                    break;
-                                    // Derived from §4.3.1.1 of [Adobe® RGB (1998) Color Image Encoding]
-                                    // (https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf).
-    case s_colour_primaries_adobe:  nativePrimaries = JXL_PRIMARIES_CUSTOM;
-                                    colour_encoding.primaries_red_xy[0] = 0.64;
-                                    colour_encoding.primaries_red_xy[1] = 0.33;
-                                    colour_encoding.primaries_green_xy[0] = 0.21;
-                                    colour_encoding.primaries_green_xy[1] = 0.71;
-                                    colour_encoding.primaries_blue_xy[0] = 0.15;
-                                      colour_encoding.primaries_blue_xy[1] = 0.06;
-                                    colour_encoding.white_point = JXL_WHITE_POINT_D65;
-                                    break;
-                                    // Values from §8.1 of ITU-T H.273 (V4) (07/2024). Because I wasn’t sure!
-                                    // But not working because [0.0 not an allowed primary?](https://github.com/libjxl/libjxl/blob/e4b66d30278df6050137a4529e5efde5ef691f32/lib/jxl/cms/color_encoding_cms.h#L402_)
-                                    // Escpecially weird becuase libjxl (does exactly this)[https://github.com/libjxl/libjxl/blob/e4b66d30278df6050137a4529e5efde5ef691f32/lib/extras/dec/apng.cc#L171].
-                                    // Disabled for now.
-    /* case s_colour_primaries_XYZ:    nativePrimaries = JXL_PRIMARIES_CUSTOM;
-                                    colour_encoding.primaries_red_xy[0] = 1;
-                                    colour_encoding.primaries_red_xy[1] = 0;
-                                    colour_encoding.primaries_green_xy[0] = 0;
-                                    colour_encoding.primaries_green_xy[1] = 1;
-                                    colour_encoding.primaries_blue_xy[0] = 0;
-                                    colour_encoding.primaries_blue_xy[1] = 0;
-                                    colour_encoding.white_point = JXL_WHITE_POINT_E;
-                                    break; */
-    default:                        snprintf(module->graph->gui_msg_buf,
-                                             sizeof(module->graph->gui_msg_buf),
-                                             "[o-jxl] Recieved primaries currently not supported for export! Aborting…");
-                                    module->graph->gui_msg = module->graph->gui_msg_buf;
-                                    {
-                                      error = 1;
-                                      goto end;
-                                    }
+    error = 1;
+    goto end;
   }
-  colour_encoding.primaries = nativePrimaries;
 
-  JxlTransferFunction nativeTRC = 0;
-  switch(trc)
+
+
+  // Codestream level should be chosen automatically given the settings
+  if(JxlAssert(JxlEncoderSetBasicInfo(encoder,
+                                      &basic_info),
+               encoder,
+               __LINE__))
   {
-    case s_colour_trc_linear:       nativeTRC = JXL_TRANSFER_FUNCTION_LINEAR;
-                                    break;
-    case s_colour_trc_709:          nativeTRC = JXL_TRANSFER_FUNCTION_709;
-                                    break;
-    case s_colour_trc_srgb:         nativeTRC = JXL_TRANSFER_FUNCTION_SRGB;
-                                    break;
-    case s_colour_trc_PQ:           nativeTRC = JXL_TRANSFER_FUNCTION_PQ;
-                                    break;
-    case s_colour_trc_DCI:          nativeTRC = JXL_TRANSFER_FUNCTION_DCI;
-                                    break;
-    case s_colour_trc_HLG:          nativeTRC = JXL_TRANSFER_FUNCTION_HLG;
-                                    break;
-    case s_colour_trc_gamma:        nativeTRC = JXL_TRANSFER_FUNCTION_GAMMA;
-                                    // Then set whatever gamma value. But using ~2.2 because s_colour_trc_gamma is currently only for AdobeRGB(?)
-                                    // Derived from §4.3.1.2 of [Adobe® RGB (1998) Color Image Encoding]
-                                    // (https://www.adobe.com/digitalimag/pdfs/AdobeRGB1998.pdf).
-                                    // colour_encoding.gamma = 256.0 / 563.0;
-                                    // Actually elsewhere in the codebase this approximation is used, so for consistency:
-                                    colour_encoding.gamma = 1.0 / 2.2;
-                                    break;
-                                    // Not sure if this is what I should do?
-    case s_colour_trc_unknown:      nativeTRC = JXL_TRANSFER_FUNCTION_UNKNOWN;
-                                    break;
-    default:                        snprintf(module->graph->gui_msg_buf,
-                                             sizeof(module->graph->gui_msg_buf),
-                                             "[o-jxl] Recieved trc currently not supported for export! Aborting…");
-                                    module->graph->gui_msg = module->graph->gui_msg_buf;
-                                    {
-                                      error = 1;
-                                      goto end;
-                                    }
+    error = 1;
+    goto end;
   }
-  colour_encoding.transfer_function = nativeTRC;
 
-  // Hardcoding as relative for now.
-  // ISO 15076-1:2010, but don’t currently know what they really do and I can’t find any reference to them within vkdt.
-  // (They are user selectable in darktable but might not be important enough to warrant that?).
-  colour_encoding.rendering_intent = JXL_RENDERING_INTENT_RELATIVE;
-  
   if(JxlAssert(JxlEncoderSetColorEncoding(encoder,
                                           &colour_encoding),
                encoder,
@@ -274,6 +315,7 @@ void write_sink(
     error = 1;
     goto end;
   }
+
 
 
   // Pretty much straight from darktable. Don’t really understand what’s going on.
@@ -411,4 +453,3 @@ void write_sink(
   }
 #endif
 }
-
