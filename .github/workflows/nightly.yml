@@ -498,11 +498,11 @@ jobs:
       - name: set nightly tag
         if: ${{ github.ref == 'refs/heads/master' }}
         run: |
-          echo "TAG_NAME=nightly" >> "$GITUB_ENV"
+          echo "TAG_NAME=nightly" >> "$GITHUB_ENV"
       - name: set nightly-citest tag
         if: ${{ github.ref == 'refs/heads/citest' }}
         run: |
-          echo "TAG_NAME=nightly-citest" >> "$GITUB_ENV"
+          echo "TAG_NAME=nightly-citest" >> "$GITHUB_ENV"
       - name: download artifacts
         uses: actions/download-artifact@v4
       - name: update nightly release
