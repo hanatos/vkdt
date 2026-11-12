@@ -86,6 +86,5 @@ enlarge:combo:1x resolution:2x resolution:4x resolution
 ---
 tab:tabs:6
 scan ill:slider:2000:10000
-pad:hidden
 tab:tabs:7
 input:combo:bt2020:camera rgb
