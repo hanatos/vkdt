@@ -18,6 +18,7 @@ layout(std140, set = 0, binding = 1) uniform params_t
   float  t5;            // exposure time for input5
   float  t6;            // exposure time for input6
   int    is_rgb;        // 0: mosaic with one channel, 1: three colour channels
+  int    has_dspy;      // 0: skip plot if no dspy connected
 } params;
 layout(set = 1, binding = 0) uniform usampler2D img_in;
 layout(set = 1, binding = 1) uniform writeonly image2D img_out;
