@@ -207,7 +207,7 @@ jobs:
           retention-days: 1
 
   WindowsRawler:
-    if: github.repository == 'hanatos/vkdt'
+    if: github.repository == 'hanatos/vkdt' && github.ref == 'refs/heads/master'
     name: nightly vkdt windows with rawler backend
     runs-on: windows-latest
     strategy:
@@ -307,7 +307,7 @@ jobs:
           retention-days: 1
 
   macintosh:
-    if: github.repository == 'hanatos/vkdt'
+    if: github.repository == 'hanatos/vkdt' && github.ref == 'refs/heads/master'
     name: nightly vkdt macintosh
     strategy:
       fail-fast: true
@@ -512,7 +512,7 @@ jobs:
         with:
           tag_name: ${{ env.TAG_NAME }}
           prerelease: true
-          name: "vkdt nightly build $$"
+          name: "vkdt ${{ env.TAG_NAME }} build $$"
           body: |
             this is an automated nightly build of vkdt.
 
