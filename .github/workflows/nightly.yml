@@ -25,7 +25,7 @@ jobs:
          - { img: ubuntu-26.04-arm, arch: armv8-a }
         glfw:
           - { package: pentablet }
-          - { package: glfw3.4 }
+          - { package: glfw3.5.1 }
         raw:
           - { backend: rawler }
         compiler:
@@ -539,9 +539,9 @@ jobs:
             it builds (using brew) and runs (using the lunarg sdk) both on intel and apple silicon devices.
 
           files: |
-            artifact-appimage-x86-64-rawler-glfw3.4/*
+            artifact-appimage-x86-64-rawler-glfw3.5.1/*
             artifact-appimage-x86-64-rawler-pentablet/*
-            artifact-appimage-armv8-a-rawler-glfw3.4/*
+            artifact-appimage-armv8-a-rawler-glfw3.5.1/*
             artifact-appimage-armv8-a-rawler-pentablet/*
             artifact-windows-rawler/*
             artifact-macos-15/*
