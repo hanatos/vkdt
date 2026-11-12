@@ -40,7 +40,7 @@ jobs:
       CC: ${{ matrix.compiler.CC }}
       CXX: ${{ matrix.compiler.CXX }}
       VKDT_CLI: ${{ github.workspace }}/AppDir/usr/bin/vkdt-cli
-      BRANCH: master
+      BRANCH: ${{ github.ref_name }}
       GLFW: ${{ matrix.glfw.package }}
       RAW: ${{ matrix.raw.backend }}
       VULKAN_SDK: ${{ github.workspace }}/vulkan-sdk
