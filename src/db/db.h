@@ -112,6 +112,7 @@ dt_db_t;
 
 void dt_db_init   (dt_db_t *db);
 void dt_db_cleanup(dt_db_t *db);
+void dt_db_reinit (dt_db_t *db); // cleanup/init but keep read only
 
 typedef struct dt_thumbnails_t dt_thumbnails_t;
 void dt_db_load_directory(

@@ -54,6 +54,15 @@ dt_db_cleanup(dt_db_t *db)
   memset(db, 0, sizeof(*db));
 }
 
+void
+dt_db_reinit(dt_db_t *db)
+{
+  const int read_only = db->read_only_mode;
+  dt_db_cleanup(db);
+  dt_db_init(db);
+  db->read_only_mode = read_only;
+}
+
 static int
 compare_id(const void *a, const void *b, void *arg)
 {

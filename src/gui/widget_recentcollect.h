@@ -21,8 +21,7 @@ recently_used_collections_parse(
   {
     vkdt.wstate.copied_imgid = -1u; // invalidate
     dt_thumbnails_cache_abort(&vkdt.thumbnail_gen); // this is essential since threads depend on db
-    dt_db_cleanup(&vkdt.db);
-    dt_db_init(&vkdt.db);
+    dt_db_reinit(&vkdt.db);
     QVKL(&qvk.queue[qvk.qid[s_queue_graphics]].mutex, vkQueueWaitIdle(qvk.queue[qvk.qid[s_queue_graphics]].queue));
     dt_db_load_directory(&vkdt.db, &vkdt.thumbnails, dir);
   }
