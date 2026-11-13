@@ -4,7 +4,6 @@ arch=$1
 [ $arch =  armv8-a ] && arch=aarch64
 
 # install vkdt to AppDir
-make -j20 debug
 make DESTDIR=AppDir install
 
 # create fake desktop entry + icon because apparently it's needed
