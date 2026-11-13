@@ -21,9 +21,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <vulkan/vulkan.h>
 
-uint32_t qvk_memory_get_uniform();
-uint32_t qvk_memory_get_staging();
-uint32_t qvk_memory_get_device();
+uint32_t qvk_memory_get_uniform(uint32_t memory_type_bits);
+uint32_t qvk_memory_get_staging(uint32_t memory_type_bits);
+uint32_t qvk_memory_get_device(uint32_t memory_type_bits);
 
 #define BARRIER_COMPUTE_BUFFER(buf) \
   do { \

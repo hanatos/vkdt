@@ -1367,7 +1367,7 @@ dt_graph_run_nodes_allocate(
     VkMemoryAllocateInfo mem_alloc_info_uniform = {
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
       .allocationSize  = mem_req.size,
-      .memoryTypeIndex = qvk_memory_get_uniform(),
+      .memoryTypeIndex = qvk_memory_get_uniform(mem_req.memoryTypeBits),
     };
     QVKR(dt_check_device_allocation(mem_req.size, 2));
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info_uniform, 0, &graph->vkmem_uniform));

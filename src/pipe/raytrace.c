@@ -101,7 +101,7 @@ dt_raytrace_graph_cleanup(
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,\
       .pNext           = &allocation_flags,\
       .allocationSize  = graph->rt.TYPE##_end,\
-      .memoryTypeIndex = qvk_memory_get_##MEMV()\
+      .memoryTypeIndex = qvk_memory_get_##MEMV(0xff)\
     };\
     QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &graph->rt.vkmem_##TYPE));\
     graph->rt.TYPE##_max = graph->rt.TYPE##_end;\

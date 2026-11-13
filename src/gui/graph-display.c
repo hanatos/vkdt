@@ -148,7 +148,7 @@ dt_graph_display_image_init(
   VkMemoryAllocateInfo mem_alloc_info = {
     .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
     .allocationSize  = mem_req.size,
-    .memoryTypeIndex = qvk_memory_get_device(),
+    .memoryTypeIndex = qvk_memory_get_device(mem_req.memoryTypeBits),
   };
   QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &d->mem));
   QVKR(vkBindImageMemory(qvk.device, d->con.image, d->mem, 0));

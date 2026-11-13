@@ -54,7 +54,7 @@ VkResult dt_buffer_alloc_debug(
     .pNext           = &allocation_flags,
     .allocationSize  = mem_req.size,
     .memoryTypeIndex = flags & s_buffer_flag_host_visible ?
-      qvk_memory_get_staging() : qvk_memory_get_device(),
+      qvk_memory_get_staging(mem_req.memoryTypeBits) : qvk_memory_get_device(mem_req.memoryTypeBits),
   };
   QVKR(vkAllocateMemory(qvk.device, &mem_alloc_info, 0, &b->mem));
   vkBindBufferMemory(qvk.device, b->buf, b->mem, 0);

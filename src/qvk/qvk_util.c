@@ -22,10 +22,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <assert.h>
 
 uint32_t
-qvk_memory_get_staging()
+qvk_memory_get_staging(uint32_t memory_type_bits)
 {
   for(uint32_t i = 0; i < qvk.mem_properties.memoryTypeCount; i++)
   {
+    if((memory_type_bits & (1<<i)) == 0) continue;
     VkMemoryPropertyFlagBits f = qvk.mem_properties.memoryTypes[i].propertyFlags;
     int test =
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -36,10 +37,11 @@ qvk_memory_get_staging()
 	return 0;
 }
 uint32_t
-qvk_memory_get_uniform()
+qvk_memory_get_uniform(uint32_t memory_type_bits)
 {
 	for(uint32_t i = 0; i < qvk.mem_properties.memoryTypeCount; i++)
   {
+    if((memory_type_bits & (1<<i)) == 0) continue;
     VkMemoryPropertyFlagBits f = qvk.mem_properties.memoryTypes[i].propertyFlags;
     int test =
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -50,10 +52,11 @@ qvk_memory_get_uniform()
 	return 0;
 }
 uint32_t
-qvk_memory_get_device()
+qvk_memory_get_device(uint32_t memory_type_bits)
 {
 	for(uint32_t i = 0; i < qvk.mem_properties.memoryTypeCount; i++)
   {
+    if((memory_type_bits & (1<<i)) == 0) continue;
     VkMemoryPropertyFlagBits f = qvk.mem_properties.memoryTypes[i].propertyFlags;
     int test  = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     int testn =
