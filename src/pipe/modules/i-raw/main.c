@@ -92,7 +92,7 @@ load_raw(
   else mod->img_param.meta = 0;
   return 0;
 error:
-  // dt_log(s_log_err, "[i-raw] failed to load raw file %s!\n", fname);
+  dt_log(s_log_err, "[i-raw] failed to load raw file %s!\n", fname);
   // fprintf(stderr, "[i-raw] failed to load raw file %s!\n", fname);
   mod_data->filename[0] = 0;
   mod_data->frame = -1;
@@ -144,7 +144,9 @@ void modify_roi_out(
   const int   id    = dt_module_param_int(mod, 3)[0];
   const char *fname = dt_module_param_string(mod, 0);
   char        filename[2*PATH_MAX+10];
+  dt_log(s_log_pipe, "[i-raw] resolving file name %s %d", fname, id);
   if(dt_graph_get_resource_filename(mod, fname, id, filename, sizeof(filename))) return;
+  dt_log(s_log_pipe, "[i-raw] resolved file name %s", filename);
 
   if(strstr(fname, "%"))
   { // reading a sequence of raws as a timelapse animation
@@ -156,6 +158,7 @@ void modify_roi_out(
   // we know we only have one connector called "output" (see our "connectors" file)
   mod->connector[0].roi.full_wd = mod_data->img.width;
   mod->connector[0].roi.full_ht = mod_data->img.height;
+  dt_log(s_log_pipe, "[i-raw] all good size %d x %d", mod->connector[0].roi.full_wd, mod->connector[0].roi.full_ht);
 
   mod->img_param.colour_primaries = s_colour_primaries_custom;
   mod->img_param.colour_trc       = s_colour_trc_linear;
