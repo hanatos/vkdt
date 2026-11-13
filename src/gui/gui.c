@@ -291,7 +291,7 @@ int dt_gui_init()
   const char *gpu_name = dt_rc_get(&vkdt.rc, "qvk/device_name", "null");
   if(!strcmp(gpu_name, "null")) gpu_name = 0;
   int gpu_id = dt_rc_get_int(&vkdt.rc, "qvk/device_id", -1);
-  int allow_hdr = dt_rc_get_int(&vkdt.rc, "gui/allowhdr", 0);
+  int allow_hdr = dt_rc_get_int(&vkdt.rc, "gui/allowhdr", 1);
   if(qvk_init(gpu_name, gpu_id, 1, enable_hdr_wsi, allow_hdr))
   {
     dt_log(s_log_err|s_log_gui, "init vulkan failed");
