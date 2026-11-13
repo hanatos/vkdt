@@ -139,6 +139,7 @@ void modify_roi_out(
     dt_graph_t  *graph,
     dt_module_t *mod)
 {
+  dt_log(s_log_pipe, "[i-raw] modify_roi_out called");
   // load image if not happened yet
   const int   id    = dt_module_param_int(mod, 3)[0];
   const char *fname = dt_module_param_string(mod, 0);
