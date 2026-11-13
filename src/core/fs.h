@@ -428,12 +428,6 @@ fs_realpath(const char *path, char *resolved_path)
     }
     ret = resolved_path;
   }
-#if 1
-  char res2[PATH_MAX];
-  char *ret2 = realpath(path, res2);
-  fprintf(stderr, "XXX realpath1 `%s' `%s' `%s'\n", ret, path, resolved_path);
-  fprintf(stderr, "XXX realpath2 `%s' `%s' `%s'\n", ret2, path, res2);
-#endif
   if(ret) return ret;
   return 0;
 #endif
