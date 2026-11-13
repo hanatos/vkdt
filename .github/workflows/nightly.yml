@@ -27,7 +27,7 @@ jobs:
           - { package: pentablet }
           - { package: glfw3.5.1 }
         raw:
-          - { backend: rawspeed }
+          - { backend: rawler }
         compiler:
           - {
               compiler: clang,
