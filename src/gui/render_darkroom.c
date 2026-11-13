@@ -1293,7 +1293,6 @@ darkroom_enter()
   if(stat(graph_cfg, &statbuf))
   {
     fs_realpath(graph_cfg, realimg); // depend on GNU extension in case of ENOENT (to cut out /../ and so on)
-    dt_log(s_log_pipe, "enter dr resolved path %s %s", graph_cfg, realimg);
     int len = strlen(realimg);
     assert(len > 4);
     realimg[len-4] = 0; // cut away ".cfg"
@@ -1329,7 +1328,6 @@ darkroom_enter()
     dt_graph_set_searchpath(&vkdt.graph_dev, realimg);
     char *basen = fs_basename(realimg); // cut away path so we can relocate more easily
     int modid = dt_module_get(&vkdt.graph_dev, input_module, dt_token("main"));
-    dt_log(s_log_pipe, "setting image file name %s -> %s -> %s", graph_cfg, realimg, basen);
     if(modid < 0 ||
        dt_module_set_param_string(vkdt.graph_dev.module + modid, dt_token("filename"),
          basen))
