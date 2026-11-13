@@ -94,7 +94,6 @@ dt_module_so_load(
   mod->name = dt_token(dirname);
   char filename[PATH_MAX], line[8192];
   snprintf(filename, sizeof(filename), "%s/modules/%s/lib%s.so", dt_pipe.basedir, dirname, dirname);
-  dt_log(s_log_pipe, "opening module %s", filename);
   mod->dlhandle = 0;
   if(fs_isreg_file(filename))
   {
@@ -105,33 +104,19 @@ dt_module_so_load(
   if(mod->dlhandle)
   {
     mod->create_nodes   = dlsym(mod->dlhandle, "create_nodes");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->modify_roi_out = dlsym(mod->dlhandle, "modify_roi_out");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->modify_roi_in  = dlsym(mod->dlhandle, "modify_roi_in");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->init           = dlsym(mod->dlhandle, "init");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->cleanup        = dlsym(mod->dlhandle, "cleanup");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->bs_init        = dlsym(mod->dlhandle, "bs_init");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->write_sink     = dlsym(mod->dlhandle, "write_sink");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->read_source    = dlsym(mod->dlhandle, "read_source");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->animate        = dlsym(mod->dlhandle, "animate");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->commit_params  = dlsym(mod->dlhandle, "commit_params");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->ui_callback    = dlsym(mod->dlhandle, "ui_callback");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->check_params   = dlsym(mod->dlhandle, "check_params");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->audio          = dlsym(mod->dlhandle, "audio");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
     mod->input          = dlsym(mod->dlhandle, "input");
-    dt_log(s_log_pipe, "dlsym %s", dlerror());
   }
 
   // init callback handles on dso side for windows:
