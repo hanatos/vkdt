@@ -6,7 +6,7 @@ use std::cmp;
 use std::convert::TryInto;
 use rawler::Result;
 use rawler::imgop::xyz::Illuminant;
-use rawler::imgop::xyz::FlatColorMatrix;
+use rawler::imgop::matrix::FlatMatrix;
 use rawler::decoders::RawDecodeParams;
 use rawler::decoders::FormatHint;
 use rawler::decoders::WellKnownIFD;
@@ -93,7 +93,7 @@ unsafe fn copy_metadata(path : &str, rawimg : *mut c_rawimage) -> Result<()>
   Ok(())
 }
 
-unsafe fn copy_matrix(rawimg : *mut c_rawimage, m : &FlatColorMatrix)
+unsafe fn copy_matrix(rawimg : *mut c_rawimage, m : &FlatMatrix)
 {
   for j in 0..3 { for i in 0..3 { (*rawimg).xyz_to_cam[i][j] = m[3*i+j]; } }
 }
@@ -139,8 +139,8 @@ pub unsafe extern "C" fn rl_decode_file(
   (*rawimg).height = image.height as u64;
   (*rawimg).cpp    = image.cpp    as u64;
   for k in 0..4 { (*rawimg).wb_coeffs[k] = image.wb_coeffs[cmp::min(image.wb_coeffs.len()-1,k)]; }
-  (*rawimg).whitelevels  = image.whitelevel.as_bayer_array();
-  (*rawimg).blacklevels  = image.blacklevel.as_bayer_array();
+  for k in 0..4 { (*rawimg).whitelevels[k] = image.whitelevel.as_vec()[cmp::min(image.whitelevel.as_vec().len()-1,k)]; }
+  for k in 0..4 { (*rawimg).blacklevels[k] = image.blacklevel.levels[cmp::min(image.blacklevel.levels.len()-1,k)].as_f32(); }
   // (*rawimg).orientation = image.orientation.to_u16() as u32;
 
   // really A D50 D55 D60 D65 D75 D93 (but rawler doesn't support all these)
@@ -156,7 +156,7 @@ pub unsafe extern "C" fn rl_decode_file(
   let mut found_ill: bool = false;
   for it in idcs.iter().zip(ills.iter()) {
     let (idx, ill) = it;
-    match image.color_matrix.get(&ill) {
+    match image.camera.color_matrix.get(&ill) {
       Some(m) => {
         copy_matrix(rawimg, m);
         (*rawimg).illuminant = *idx;
@@ -166,8 +166,8 @@ pub unsafe extern "C" fn rl_decode_file(
       _ => { }
     }
   }
-  if !found_ill { // fallback probably does nothing, xyz_to_cam is deprecated
-    for j in 0..3 { for i in 0..4 { (*rawimg).xyz_to_cam[i][j] = image.xyz_to_cam[i][j]; } }
+  if !found_ill { // fallback
+    for j in 0..3 { for i in 0..4 { (*rawimg).xyz_to_cam[i][j] = 1 as f32; } }
     (*rawimg).illuminant = 666;
   }
 
