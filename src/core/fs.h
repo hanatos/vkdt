@@ -410,9 +410,9 @@ fs_realpath(const char *path, char *resolved_path)
   if(resolved_path)
   { // caller wants resolved_path set even if the file doesn't exist. output empty string
     // unless the parent does exist
-    resolved_path[0] = 0;
     if(errno == ENOENT)
     { // the file doesn't exist but maybe the parent does
+      resolved_path[0] = 0;
       char parent[PATH_MAX];
       snprintf(parent, PATH_MAX, "%s", path);
       if(!fs_dirname(parent))
@@ -426,7 +426,14 @@ fs_realpath(const char *path, char *resolved_path)
     {
       snprintf(resolved_path, PATH_MAX, "%s", path);
     }
+    ret = resolved_path;
   }
+#if 1
+  char res2[PATH_MAX];
+  char *ret2 = realpath(path, res2);
+  fprintf(stderr, "XXX realpath1 `%s' `%s' `%s'\n", ret, path, resolved_path);
+  fprintf(stderr, "XXX realpath2 `%s' `%s' `%s'\n", ret2, path, res2);
+#endif
   if(ret) return ret;
   return 0;
 #endif
