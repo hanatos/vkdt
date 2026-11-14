@@ -223,7 +223,7 @@ int dt_gui_init_nk()
 void dt_gui_render_frame_nk()
 {
   nk_buffer_clear(&vkdt.global_buf);
-  nk_push_scissor(&vkdt.global_cmd, (struct nk_rect){0, 0, 100000, 100000});
+  nk_push_scissor(&vkdt.global_cmd, nk_null_rect);
   double now = glfwGetTime();
 
   static double time_tab;

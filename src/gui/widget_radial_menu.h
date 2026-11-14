@@ -63,6 +63,7 @@ dt_radial_menu(
     const char *text[])
 {
   struct nk_command_buffer *cmd = &vkdt.global_cmd;
+  nk_push_scissor(cmd, nk_null_rect);
   float phi =  -M_PI, delta_phi = (2.0f*M_PI)/N,
         r0 = 0.4*radius, r1 = radius;
   float dx = mx-cx, dy = my-cy;
@@ -137,6 +138,7 @@ dt_radial_widget(
   }
   // but ensure we block input if the radial widget is active
   struct nk_command_buffer *cmd = &vkdt.global_cmd;
+  nk_push_scissor(cmd, nk_null_rect);
   if(param->type == dt_token("float"))
   {
     ret = 0; // keep open
