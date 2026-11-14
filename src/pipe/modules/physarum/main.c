@@ -85,8 +85,8 @@ commit_params(
     }
     p->time = graph->frame;
     p->colorModeType = p_col;
-    float *f = (float *)p->params+0;
-    float *g = (float *)p->params+1;
+    float *f = (float *)(p->params+0);
+    float *g = (float *)(p->params+1);
     const float t = 0.95;
     for(int i=0;i<sizeof(struct PointSettings)/sizeof(float);i++)
     {
