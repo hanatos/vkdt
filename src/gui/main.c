@@ -299,7 +299,7 @@ int main(int argc, char *argv[])
       if(end_rf - beg_rf < frame_limiter / 1000.0)
       {
         float delta_s = frame_limiter / 1000.0 - (end_rf - beg_rf);
-        usleep(delta_s * 1000);
+        usleep(delta_s * 1e6);
         continue;
       }
       // dt_log(s_log_perf, "fps %03.2f", 1.0/(end_rf - beg_rf));
