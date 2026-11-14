@@ -1389,7 +1389,7 @@ darkroom_enter()
   dt_gamepadhelp_set(dt_gamepadhelp_R1, "show/hide right panel");
   dt_gamepadhelp_set(dt_gamepadhelp_R2, "zoom in");
   dt_gamepadhelp_set(dt_gamepadhelp_L3, "reset zoom");
-  // dt_gamepadhelp_set(dt_gamepadhelp_R3, "reset focussed control");
+  dt_gamepadhelp_set(dt_gamepadhelp_R3, "colour assessment");
   dt_keyhelp_clear();
   for(int i = 0; i < hk_darkroom_cnt; i++)
   {
@@ -1511,6 +1511,11 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
   }
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_LEFT_THUMB)) // left stick pressed
   {
+    dt_image_reset_zoom(&vkdt.wstate.img_widget);
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_RIGHT_THUMB)) // right stick pressed
+  {
+    vkdt.wstate.color_assessment ^= 1;
     dt_image_reset_zoom(&vkdt.wstate.img_widget);
   }
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER))
