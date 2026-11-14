@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
 
   // main loop
   double beg_rf = dt_time();
-  const int frame_limiter = dt_rc_get_int(&vkdt.rc, "gui/frame_limiter", 6); // default: cap ui at 160fps
+  const float frame_limiter = dt_rc_get_float(&vkdt.rc, "gui/frame_limiter_ms", 8.333f); // default: cap ui at 120fps
   vkdt.wstate.busy = 3;
   vkdt.graph_dev.frame = vkdt.state.anim_frame = 0;
   GLFWgamepadstate gamepad_last = {0};
@@ -294,14 +294,15 @@ int main(int argc, char *argv[])
     else vkdt.wstate.busy = 3;
 
     double end_rf = dt_time();
-    if(frame_limiter)
+    if(frame_limiter > 0.0f)
     { // artificially limit frames rate to frame_limiter milliseconds/frame as minimum.
-      if(frame_limiter && end_rf - beg_rf < frame_limiter / 1000.0)
+      if(end_rf - beg_rf < frame_limiter / 1000.0)
       {
-        usleep(frame_limiter * 1000);
+        float delta_s = frame_limiter / 1000.0 - (end_rf - beg_rf);
+        usleep(delta_s * 1000);
         continue;
       }
-      // dt_log(s_log_perf, "fps %.2g", 1.0/(end_rf - beg_rf));
+      // dt_log(s_log_perf, "fps %03.2f", 1.0/(end_rf - beg_rf));
     }
     vkdt.wstate.delta_time = end_rf - beg_rf;
     beg_rf = end_rf;
