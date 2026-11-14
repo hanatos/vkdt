@@ -223,6 +223,7 @@ int dt_gui_init_nk()
 void dt_gui_render_frame_nk()
 {
   nk_buffer_clear(&vkdt.global_buf);
+  nk_push_scissor(&vkdt.global_cmd, (struct nk_rect){0, 0, 100000, 100000});
   double now = glfwGetTime();
 
   static double time_tab;
@@ -235,11 +236,11 @@ void dt_gui_render_frame_nk()
   if(nk_begin(&vkdt.ctx, "dreggn",
         nk_rect(0, 0, 1, 1),
         NK_WINDOW_NO_SCROLLBAR))
-  { // hack to fill background with something that still goes through our colour management shader
+  { // fill background with something that still goes through our colour management shader
     struct nk_command_buffer *cmd = nk_window_get_canvas(&vkdt.ctx);
     if(cmd)
     {
-      cmd->use_clipping = NK_CLIPPING_OFF;
+      nk_push_scissor(cmd, nk_null_rect);
       nk_fill_rect(cmd, (struct nk_rect){0, 0, vkdt.win.width, vkdt.win.height}, 0.0f, vkdt.style.colour[NK_COLOR_DT_BACKGROUND]);
     }
   }

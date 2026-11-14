@@ -18,6 +18,7 @@ dt_resize_panel(int dragging)
   if(dragging)
     pwd = vkdt.win.width - vkdt.ctx.input.mouse.pos.x;
   struct nk_color col = hover ? vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER] : vkdt.style.colour[NK_COLOR_BUTTON];
+  nk_push_scissor(cmd, nk_null_rect);
   nk_fill_circle(cmd, box, col);
   float f = CLAMP(pwd / vkdt.win.width, 0.01, 1.0);
   if(dragging)
