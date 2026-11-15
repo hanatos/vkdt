@@ -1,4 +1,4 @@
-// the imgui render functions for the lighttable view
+// the render functions for the lighttable view
 #include "core/version.h"
 #include "gui/view.h"
 #include "gui/gui.h"
