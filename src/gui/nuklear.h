@@ -1931,7 +1931,6 @@ NK_API void nk_window_set_size(struct nk_context*, const char *name, struct nk_v
 /// __name__    | Identifier of the window to set focus on
 */
 NK_API void nk_window_set_focus(struct nk_context*, const char *name);
-NK_API void nk_window_unset_focus(struct nk_context*, const char *name);
 /*/// #### nk_window_set_scroll
 /// Sets the scroll offset for the current window
 /// !!! WARNING
@@ -13997,23 +13996,6 @@ nk_window_set_focus(struct nk_context *ctx, const char *name)
         nk_insert_window(ctx, win, NK_INSERT_BACK);
     }
     ctx->active = win;
-}
-NK_API void
-nk_window_unset_focus(struct nk_context *ctx, const char *name)
-{
-    int title_len;
-    nk_hash title_hash;
-    struct nk_window *win;
-    NK_ASSERT(ctx);
-    if (!ctx) return;
-
-    title_len = (int)nk_strlen(name);
-    title_hash = nk_murmur_hash(name, (int)title_len, NK_WINDOW_TITLE);
-    win = nk_find_window(ctx, title_hash, name);
-    if (win && ctx->end != win) {
-        nk_remove_window(ctx, win);
-        nk_insert_window(ctx, win, NK_INSERT_FRONT);
-    }
 }
 NK_API void
 nk_rule_horizontal(struct nk_context *ctx, struct nk_color color, nk_bool rounding)
