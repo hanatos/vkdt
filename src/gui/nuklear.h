@@ -5893,7 +5893,7 @@ template<typename T> struct nk_alignof{struct Big {T x; char c;}; enum {
     (type*)((void*)((char*)(1 ? (ptr): &((type*)0)->member) - NK_OFFSETOF(type, member)))
 
 
-NK_GLOBAL const struct nk_rect nk_null_rect = {-8192.0f, -8192.0f, 16384, 16384};
+NK_GLOBAL const struct nk_rect nk_null_rect = {.0f, .0f, 4095.0f, 4095.0f};
 
 #endif /* NK_NUKLEAR_H_ */
 
