@@ -245,7 +245,6 @@ void dt_gui_render_frame_nk()
     }
   }
   nk_end(&vkdt.ctx);
-  nk_window_unset_focus(&vkdt.ctx, "dreggn");
 
   switch(vkdt.view_mode)
   {
