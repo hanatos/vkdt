@@ -458,6 +458,10 @@ void render_darkroom()
   nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
   if(nk_begin(&vkdt.ctx, "darkroom center", bounds, NK_WINDOW_NO_SCROLLBAR | (disabled ? NK_WINDOW_NO_INPUT : 0)))
   { // draw center view image:
+    struct nk_command_buffer *cmd = nk_window_get_canvas(&vkdt.ctx);
+    nk_push_scissor(cmd, nk_null_rect);
+    nk_fill_rect(cmd, (struct nk_rect){0, 0, vkdt.win.width, vkdt.win.height}, 0.0f, vkdt.style.colour[NK_COLOR_DT_BACKGROUND]);
+
     dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));
     if(out_main)
     {
