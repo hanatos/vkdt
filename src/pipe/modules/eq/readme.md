@@ -24,5 +24,5 @@ triangle at the bottom to compare):
 
 ## connectors
 
-* `input`
-* `output`
+* `input` image to selectively blur, works best in scene referred
+* `output` texture enhanced output image
