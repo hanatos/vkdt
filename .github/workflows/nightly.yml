@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         host:
-         - { img: ubuntu-24.04,     arch: x86-64 }
+         - { img: ubuntu-26.04,     arch: x86-64 }
          - { img: ubuntu-26.04-arm, arch: armv8-a }
         glfw:
           - { package: pentablet }
@@ -56,6 +56,7 @@ jobs:
             build-essential \
             appstream-util \
             git \
+            glslc \
             libjpeg-dev \
             libjxl-dev \
             zlib1g-dev \
@@ -92,8 +93,10 @@ jobs:
           echo "export OPT_CFLAGS" >> bin/config.mk
           echo "OPT_LDFLAGS=" >> bin/config.mk
           echo "export OPT_LDFLAGS" >> bin/config.mk
-          echo "VKDT_VULKAN_CFLAGS=-I${{ env.VULKAN_SDK }}/include" >> bin/config.mk
-          echo "VKDT_VULKAN_LDFLAGS=-L${{ env.VULKAN_SDK }}/lib/VulkanLoader/lib -lvulkan" >> bin/config.mk
+          # echo "VKDT_VULKAN_CFLAGS=-I${{ env.VULKAN_SDK }}/include" >> bin/config.mk
+          # echo "VkDT_VULKAN_LDFLAGS=-L${{ env.VULKAN_SDK }}/lib/VulkanLoader/lib -lvulkan" >> bin/config.mk
+          echo "VKDT_VULKAN_LDFLAGS=-lvulkan" >> bin/config.mk
+          echo "GLSLC=${{ env.VULKAN_SDK }}/bin/glslc" >> bin/config.mk
           echo "GLSLC=${{ env.VULKAN_SDK }}/bin/glslc" >> bin/config.mk
           echo "GLSLC_FLAGS=--target-env=vulkan1.4" >> bin/config.mk
           echo "export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS GLSLC" >> bin/config.mk
@@ -148,7 +151,7 @@ jobs:
           export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
           EOF
       - name: install vulkan sdk
-        if: matrix.host.arch == 'x86-64'
+        if: false && matrix.host.arch == 'x86-64'
         run: |
           sudo apt-get remove libvulkan-dev
           mkdir -p ${{ env.VULKAN_SDK }}
@@ -159,7 +162,7 @@ jobs:
           grep VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME ${{ env.VULKAN_SDK }}/include/vulkan/vulkan_core.h
           cd -
       - name: install vulkan sdk
-        if: matrix.host.arch == 'aarch64'
+        if: false && matrix.host.arch == 'aarch64'
         run: |
           sudo apt-get remove libvulkan-dev
           mkdir -p ${{ env.VULKAN_SDK }}
