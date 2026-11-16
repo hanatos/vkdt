@@ -380,7 +380,11 @@ void render_lighttable_center()
         vkdt.db.image[vkdt.db.collection[i]].filename : 0);
 
     if(g_image_cursor == i)
-      nk_stroke_rect(nk_window_get_canvas(&vkdt.ctx), row, 0, 0.004*vkdt.state.center_ht, vkdt.style.colour[NK_COLOR_DT_ACCENT]);
+    {
+      int t = 0.004*vkdt.state.center_ht + 0.5;
+      struct nk_rect border = { row.x + t/2, row.y + t/2, row.w-t, row.h-t };
+      nk_stroke_rect(nk_window_get_canvas(&vkdt.ctx), border, t, t, vkdt.style.colour[NK_COLOR_DT_ACCENT]);
+    }
 
     if(!vkdt.wstate.popup && ret)
     {
