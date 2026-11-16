@@ -94,10 +94,10 @@ jobs:
           echo "OPT_LDFLAGS=" >> bin/config.mk
           echo "export OPT_LDFLAGS" >> bin/config.mk
           # echo "VKDT_VULKAN_CFLAGS=-I${{ env.VULKAN_SDK }}/include" >> bin/config.mk
-          # echo "VkDT_VULKAN_LDFLAGS=-L${{ env.VULKAN_SDK }}/lib/VulkanLoader/lib -lvulkan" >> bin/config.mk
+          # echo "VKDT_VULKAN_LDFLAGS=-L${{ env.VULKAN_SDK }}/lib/VulkanLoader/lib -lvulkan" >> bin/config.mk
+          # echo "GLSLC=${{ env.VULKAN_SDK }}/bin/glslc" >> bin/config.mk
           echo "VKDT_VULKAN_LDFLAGS=-lvulkan" >> bin/config.mk
-          echo "GLSLC=${{ env.VULKAN_SDK }}/bin/glslc" >> bin/config.mk
-          echo "GLSLC=${{ env.VULKAN_SDK }}/bin/glslc" >> bin/config.mk
+          echo "GLSLC=glslc" >> bin/config.mk
           echo "GLSLC_FLAGS=--target-env=vulkan1.4" >> bin/config.mk
           echo "export VKDT_VULKAN_CFLAGS VKDT_VULKAN_LDFLAGS GLSLC" >> bin/config.mk
       - name: configure for local glfw
