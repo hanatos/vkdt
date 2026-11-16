@@ -149,7 +149,7 @@ jobs:
           export VKDT_EXIV2_CFLAGS VKDT_EXIV2_LDFLAGS
           EOF
       - name: install vulkan sdk
-        if: matrix.host.arch == 'x86_64'
+        if: matrix.host.arch == 'x86-64'
         run: |
           sudo apt-get remove libvulkan-dev
           mkdir -p ${{ env.VULKAN_SDK }}
