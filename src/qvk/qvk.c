@@ -545,6 +545,13 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
   /* create device and queue */
   QVKR(vkCreateDevice(qvk.physical_device, &dev_create_info, NULL, &qvk.device));
 
+  // adreno: // vendorid: 0x5143 - qualcomm
+  // TODO if compute family == graphics family, at least grab another queue index
+  // TODO assign priorities: via float or device-wide via VK_KHR_global_priority?
+  // mesa turnip patch to lpac is still pending, so no rush.
+  // * graphics (ui stuff) higher than the rest
+  // * async compute slightly lower (on adreno this is graphics + compute, all the same family)
+  // * thumbnail workers: even lower
   for(int k=0;k<s_queue_cnt;k++)
   {
     if(k == s_queue_compute && qvk.queue_family_compute != qvk.queue_family_graphics)
@@ -552,10 +559,10 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       qvk.queue[k].idx = 0;
       qvk.queue[k].num = queue_compute_cnt;
       qvk.qid[k] = 1; // map queue name k to actual qvk.queue[.] index
-      vkGetDeviceQueue(qvk.device, qvk.queue_family_compute, 0, &qvk.queue[k].queue);
+      vkGetDeviceQueue(qvk.device, qvk.queue_family_compute, qvk.queue[k].idx, &qvk.queue[k].queue);
       threads_mutex_init(&qvk.queue[k].mutex, 0);
       qvk.queue[k].family = qvk.queue_family_compute;
-      dt_log(s_log_qvk, "queue %d is idx %d family %d (async compute)", k, qvk.qid[k], qvk.queue_family_compute);
+      dt_log(s_log_qvk, "queue %d is slot %d idx %d/%*d family %d (async compute)", k, qvk.qid[k], qvk.queue[k].idx, 2, qvk.queue[k].num, qvk.queue_family_compute);
     }
     else if(k == s_queue_vid_dec &&
         qvk.video_supported &&
@@ -576,7 +583,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
           &qvk.queue[k].queue);
       threads_mutex_init(&qvk.queue[k].mutex, 0);
       qvk.queue[k].family = qvk.queue_family_vid_dec;
-      dt_log(s_log_qvk, "queue %d is idx %d family %d (video decode)", k, qvk.qid[k], qvk.queue_family_vid_dec);
+      dt_log(s_log_qvk, "queue %d is slot %d idx %d/%*d family %d (video decode)", k, qvk.qid[k], qvk.queue[k].idx, 2, qvk.queue[k].num, qvk.queue_family_vid_dec);
     }
     else
     {
@@ -585,7 +592,7 @@ qvk_init(const char *preferred_device_name, int preferred_device_id, int window,
       qvk.qid[k] = qvk.queue[k].idx;
       if(k == qvk.queue[k].idx)
       { // new unique index, need to construct all the things
-        dt_log(s_log_qvk, "queue %d is idx %d family %d", k, qvk.qid[k], qvk.queue_family_graphics);
+        dt_log(s_log_qvk, "queue %d is slot %d idx %d/%*d family %d", k, qvk.qid[k], qvk.queue[k].idx, 2, qvk.queue[k].num, qvk.queue_family_graphics);
         vkGetDeviceQueue(qvk.device, qvk.queue_family_graphics, qvk.queue[k].idx, &qvk.queue[k].queue);
         threads_mutex_init(&qvk.queue[k].mutex, 0);
         qvk.queue[k].family = qvk.queue_family_graphics;
