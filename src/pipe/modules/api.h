@@ -576,6 +576,7 @@ dt_api_blur_sep_var(float radius)
 {
   if(radius <= 0.0f) return 0.0f;
   const int sp = (int)radius;
+  // gaussian exp(-i^2/(2 sigma^2)) with the shader's sigma = radius/3 gives exp(-4.5 i^2/radius^2)
   const float a = 4.5f/(radius*radius);
   float w = 1.0f, m = 0.0f;
   for(int i=1;i<=sp+1;i++)
@@ -591,7 +592,8 @@ dt_api_blur_sep_var(float radius)
 static inline float
 dt_api_blur_sep_radius(float var)
 {
-  float lo = 0.0f, hi = 3.5f*sqrtf(var) + 3.0f;
+  // the radius is at most 3.04 sigma (3 sigma cut) + 0.69 (integer taps), so hi is always above it
+  float lo = 0.0f, hi = 3.05f*sqrtf(var) + 1.0f;
   for(int k=0;k<30;k++)
   {
     const float mid = 0.5f*(lo+hi);
