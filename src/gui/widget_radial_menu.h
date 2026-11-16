@@ -188,6 +188,8 @@ changed:
     vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf | flags;
     vkdt.graph_dev.active_module = modid;
     dt_graph_history_append(&vkdt.graph_dev, modid, parid, throttle);
+    dt_gui_set_lod(vkdt.wstate.lod_interact);
   }
+  else dt_gui_set_lod(vkdt.wstate.lod_fine);
   return ret;
 }
