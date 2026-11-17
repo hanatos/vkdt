@@ -483,6 +483,7 @@ files_enter()
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle,   "escape to lighttable");
   dt_gamepadhelp_set(dt_gamepadhelp_button_triangle, "open folder in lighttable");
   dt_gamepadhelp_set(dt_gamepadhelp_button_cross,    "descend into folder");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_square,   "one folder up");
   dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L,  "scroll view");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_up,        "move up");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_down,      "move down");
@@ -499,9 +500,11 @@ files_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr
   const float ay = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
 #define PRESSED(A) (curr->buttons[A] && !last->buttons[A])
   if     (PRESSED(GLFW_GAMEPAD_BUTTON_A))
-      folder_down();
+    folder_down();
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_B))
     dt_view_switch(s_view_lighttable);
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_X))
+    folder_up();
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_Y))
     folder_activate();
   else if(ay < -0.5 || PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_UP))
