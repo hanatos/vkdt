@@ -1545,8 +1545,8 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
     if(zi > -1.0f) scale *= powf(2.0, -2*sensitivity*SMOOTH(zi+1.0f)); 
     if(zo > -1.0f) scale *= powf(2.0,  2*sensitivity*SMOOTH(zo+1.0f)); 
     // scale *= powf(2.0, -0.1*SMOOTH(axes[4])); 
-    vkdt.wstate.img_widget.look_at_x += SMOOTH(ax) * sensitivity / scale;
-    vkdt.wstate.img_widget.look_at_y += SMOOTH(ay) * wd/ht * sensitivity / scale;
+    vkdt.wstate.img_widget.look_at_x += SMOOTH(ax) * 2 * sensitivity / scale;
+    vkdt.wstate.img_widget.look_at_y += SMOOTH(ay) * wd/ht * 2 * sensitivity / scale;
     vkdt.wstate.img_widget.scale = scale;
 #undef SMOOTH
   }
