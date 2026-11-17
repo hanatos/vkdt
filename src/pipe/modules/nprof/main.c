@@ -106,10 +106,9 @@ void write_sink(
       {
         // fit: sigma^2 = y = a + b*x
         // to the data (x,y) by looking at pairs of (x,y) from the input. x is
-        // the first moment of the observed raw data. this means that the noise
-        // model is to be applied to uint16_t range x that have the black level
-        // subtracted, but have not been rescaled to white. make
-        // sure a and b are positive, reject sample otherwise
+        // the first moment of the observed raw data, black subtracted and scaled
+        // to white as in the dng spec. make sure a and b are positive, reject
+        // sample otherwise
         double c  = p32[i + 0*wd];
         if(c < fk*64) continue;
         double m1 = p32[i + 1*wd];
@@ -175,8 +174,8 @@ void write_sink(
   }
   if(valid_cnt <= 0)
   { // catch / 0 or overflows
-    a = 100.0f; // just put in some random default.
-    b = 1.0f;
+    a = 1e-6f; // just put in some random default.
+    b = 5e-4f;
   }
 
   char filename[512];

@@ -7090,18 +7090,22 @@ nk_string_float_limit(char *string, int prec)
     int dot = 0;
     char *c = string;
     while (*c) {
+        if (*c == 'e' || *c == 'E') break;
         if (*c == '.') {
             dot = 1;
             c++;
             continue;
         }
         if (dot == (prec+1)) {
-            *c = 0;
-            break;
+            char *e = c;
+            while (*e && *e != 'e' && *e != 'E') e++;
+            while ((*c++ = *e++));
+            return (int)(c - string) - 1;
         }
         if (dot > 0) dot++;
         c++;
     }
+    while (*c) c++;
     return (int)(c - string);
 }
 NK_INTERN void
