@@ -56,7 +56,7 @@ brlp_b:float:1:-0.25
 hc_en:int:1:0
 hc_r:float:1:1.0
 hc_r_r:float:1:0.3
-hsrgb_en:int:1:0
+hsrgb_en:int:1:1
 hs_r:float:1:0.6
 hs_r_r:float:1:0.6
 hs_g:float:1:0.35
