@@ -4,8 +4,9 @@ void modify_roi_out(
     dt_graph_t *graph,
     dt_module_t *module)
 {
-  module->connector[7].roi.full_wd = 1000;
-  module->connector[7].roi.full_ht =  600;
+  const int have_dspy = dt_connected(module->connector+7);
+  module->connector[7].roi.full_wd = have_dspy ? 1000 : 1;
+  module->connector[7].roi.full_ht = have_dspy ?  600 : 1;
   module->connector[6].roi = module->connector[0].roi; // output
 }
 
@@ -33,11 +34,23 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   const int    p_output   = dt_module_param_int  (module, dt_module_get_param(module->so, dt_token("output")))[0];
   const float  p_ev_push  = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("ev_push")))[0];
 
+  float t[6] = {
+    img1_param->exposure,
+    have_input2 ? img2_param->exposure : 0.0f,
+    have_input3 ? img3_param->exposure : 0.0f,
+    have_input4 ? img4_param->exposure : 0.0f,
+    have_input5 ? img5_param->exposure : 0.0f,
+    have_input6 ? img6_param->exposure : 0.0f 
+  };
+  float t_mean = 0.0f;
+  for(int k=0;k<num_inputs;k++) t_mean += t[k];
+  t_mean /= num_inputs;
+
   float    *f =    (float *)module->committed_param;
   uint32_t *i = (uint32_t *)module->committed_param;
   
   f[0] = p_pltscale;
-  i[1] = p_output;
+  f[1] = p_output == 1 ? 1.0f : t_mean * exp2f(-p_ev_push);
   f[2] = p_ev_push;
   i[3] = num_inputs;
   f[4] = img1_param->exposure;
@@ -46,12 +59,14 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
   f[7] = have_input4 ? img4_param->exposure : 0.0f;
   f[8] = have_input5 ? img5_param->exposure : 0.0f;
   f[9] = have_input6 ? img6_param->exposure : 0.0f;
+  i[10] = img1_param->filters == 0u; // demosaiced images have three colour channels
+  i[11] = dt_connected(module->connector+7); // has_dspy
 
 }
 
 int init(dt_module_t *mod)
 {
-  mod->committed_param_size = 10*sizeof(float);
+  mod->committed_param_size = 12*sizeof(float);
   return 0;
 }
 
@@ -104,6 +119,8 @@ void create_nodes(
       return dt_connector_bypass(graph, module, 0, 6);
     }
   }
+  const int have_dspy = dt_connected(module->connector+7);
+  const dt_roi_t roi_cnt = have_dspy ? module->connector[7].roi : (dt_roi_t){.wd = 1, .ht = 1};
 
   const int id_main = dt_node_add(graph, module, "hdrmerge", "linear",
       roi.wd, roi.ht, 1, 0, 0, 8,
@@ -114,19 +131,21 @@ void create_nodes(
       "input5", "read",  "rgba", "f16",  dt_no_roi,
       "input6", "read",  "rgba", "f16",  dt_no_roi,
       "output", "write", "rgba", "f16",  &roi_out,
-      "output", "write", "r",    "ui32", &module->connector[7].roi);
+      "map",    "write", "r",    "ui32", &roi_cnt);
     graph->node[id_main].connector[7].flags = s_conn_clear;
-
-    const int id_map = dt_node_add(graph, module, "hdrmerge", "map", 
-    module->connector[7].roi.wd, module->connector[7].roi.ht, 1, 0, 0, 2,
-    "input",  "read",  "r",    "ui32", dt_no_roi,
-    "output", "write", "rgba", "f16",  &module->connector[7].roi);
 
   dt_connector_copy(graph, module,     0, id_main, 0); // input
   dt_connector_copy(graph, module,     1, id_main, 1); // input2
   dt_connector_copy(graph, module,     6, id_main, 6); // output
-  dt_node_connect  (graph, id_main,    7, id_map,  0); // dspy
-  dt_connector_copy(graph, module,     7, id_map,  1); // output
+  if(have_dspy)
+  {
+    const int id_map = dt_node_add(graph, module, "hdrmerge", "map",
+        module->connector[7].roi.wd, module->connector[7].roi.ht, 1, 0, 0, 2,
+        "input",  "read",  "r",    "ui32", dt_no_roi,
+        "output", "write", "rgba", "f16",  &module->connector[7].roi);
+    dt_node_connect  (graph, id_main,  7, id_map,  0); // dspy counters
+    dt_connector_copy(graph, module,   7, id_map,  1); // output
+  }
 
   if(have_input3 && have_input4 && have_input5 && have_input6) {
     dt_connector_copy(graph, module,     2, id_main, 2);
