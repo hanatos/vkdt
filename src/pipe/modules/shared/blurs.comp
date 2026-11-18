@@ -23,9 +23,9 @@ main()
   int idx = int(gl_GlobalInvocationID.z);
   if(any(greaterThanEqual(ipos, imageSize(img_out[idx])))) return;
 
-  const float off = exp(-1.0/(2.0*push.sigma*push.sigma));
+  // bilinear taps at +-off give the 1d kernel (off/2, 1-off, off/2) of variance off.
+  const float off = min(push.sigma*push.sigma, 0.5);
   const vec2 sz = vec2(textureSize(img_in[idx], 0));
-  // 4 tap filter spanning 3x3 support.
   vec4 rgb;
   rgb  = texture(img_in[idx], (ipos + vec2(0.5 - off, 0.5 - off))/sz) / 4.0;
   rgb += texture(img_in[idx], (ipos + vec2(0.5 - off, 0.5 + off))/sz) / 4.0;

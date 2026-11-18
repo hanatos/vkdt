@@ -256,7 +256,7 @@ dt_api_blur_check_params(
 }
 
 // approximate gaussian blur by small sigma.
-// this has a 3x3 kernel support and works up until sigma=0.85.
+// this has a 3x3 kernel support and works up until sigma^2=0.5, the 1 2 1 binomial.
 // use blur or blur_sub instead for larger blur radii.
 static inline int
 dt_api_blur_3x3(
@@ -367,6 +367,52 @@ dt_api_blur_5x5(
   return id_blur;
 }
 
+// catmull-rom upsample of a decimating blur pyramid level to roi.
+// returns the node id, the output connector is #1.
+static inline int
+dt_api_blur_up(
+    dt_graph_t     *graph,
+    dt_module_t    *module,
+    int             nodeid_input,
+    int             connid_input,
+    const dt_roi_t *roi,
+    float           scale)        // input pixels per output pixel
+{
+  const dt_connector_t *conn_input = graph->node[nodeid_input].connector + connid_input;
+  const uint32_t dp = conn_input->array_length > 0 ? conn_input->array_length : 1;
+  assert(graph->num_nodes < graph->max_nodes);
+  const int id_up = graph->num_nodes++;
+  graph->node[id_up] = (dt_node_t) {
+    .name   = dt_token("shared"),
+    .kernel = dt_token("blurup"),
+    .module = module,
+    .connector = {{
+      .name   = dt_token("input"),
+      .type   = dt_token("read"),
+      .chan   = conn_input->chan,
+      .format = conn_input->format,
+      .flags  = s_conn_smooth,
+      .connected = s_cid_unset,
+      .roi    = conn_input->roi,
+      .array_length = conn_input->array_length,
+    },{
+      .name   = dt_token("output"),
+      .type   = dt_token("write"),
+      .chan   = conn_input->chan,
+      .format = conn_input->format,
+      .roi    = *roi,
+      .array_length = conn_input->array_length,
+    }},
+    .num_connectors = 2,
+    .wd     = roi->wd,
+    .ht     = roi->ht,
+    .dp     = dp,
+    .push_constant = { *(const uint32_t *)&scale },
+    .push_constant_size = sizeof(float),
+  };
+  CONN(dt_node_connect(graph, nodeid_input, connid_input, id_up, 0));
+  return id_up;
+}
 
 // blur by radius, but using a cascade of sub-sampled dispatches.
 // faster than the non-sub version, but approximate.
@@ -408,12 +454,10 @@ dt_api_blur_sub(
   dt_roi_t roi = conn_input->roi;
   int nid_input = nodeid_input;
   int cid_input = connid_input;
-  // int id_up = -1; // for multi upsampling
   if(id_blur_in)  *id_blur_in  = -1;
   if(id_blur_out) *id_blur_out = -1;
   for(uint32_t i=0;i<levels;i++)
   {
-    // int owd = roi.wd, oht = roi.ht; // for multi upsampling
     for(uint32_t j=0;j<mul[i];j++)
     {
       assert(graph->num_nodes < graph->max_nodes);
@@ -442,61 +486,10 @@ dt_api_blur_sub(
       nid_input = id_blur;
       cid_input = 1;
     }
-#if 0 // multiple in-between upsampling steps
-    if(upsample)
-    {
-      assert(graph->num_nodes < graph->max_nodes);
-      const int id_upsample = graph->num_nodes++;
-      graph->node[id_upsample] = (dt_node_t) {
-        .name   = dt_token("shared"),
-          .kernel = dt_token("resample"),
-          .module = module,
-          .wd     = owd,
-          .ht     = oht,
-          .dp     = dp,
-          .num_connectors = 2,
-          .connector = { ci, co },
-      };
-      graph->node[id_upsample].connector[1].roi.wd = owd;
-      graph->node[id_upsample].connector[1].roi.ht = oht;
-      if(i == levels-1)
-      {
-        graph->node[id_upsample].connector[0].roi = graph->node[nid_input].connector[cid_input].roi;
-        CONN(dt_node_connect(graph, nid_input, cid_input, id_upsample, 0));
-      }
-      if(i)
-      {
-        graph->node[id_up].connector[0].roi = graph->node[id_upsample].connector[1].roi;
-        CONN(dt_node_connect(graph, id_upsample, 1, id_up, 0));
-      }
-      if(i == 0 && id_blur_out) *id_blur_out = id_upsample;
-      id_up = id_upsample;
-    }
-#endif
   }
-  if(!upsample)
-    if(id_blur_out) *id_blur_out = nid_input;
-#if 1 // single upsampling step at the end
   if(upsample)
-  { // single upsampling kernel is enough, we're using quadric reconstruction
-    assert(graph->num_nodes < graph->max_nodes);
-    const int id_upsample = graph->num_nodes++;
-    graph->node[id_upsample] = (dt_node_t) {
-      .name   = dt_token("shared"),
-        .kernel = dt_token("resample"),
-        .module = module,
-        .connector = { ci, co },
-        .num_connectors = 2,
-        .wd     = conn_input->roi.wd,
-        .ht     = conn_input->roi.ht,
-        .dp     = dp,
-    };
-    graph->node[id_upsample].connector[0].roi = graph->node[nid_input].connector[cid_input].roi;
-    CONN(dt_node_connect(graph, nid_input, cid_input, id_upsample, 0));
-    if(id_blur_out) *id_blur_out = id_upsample;
-    nid_input = id_upsample;
-  }
-#endif
+    nid_input = dt_api_blur_up(graph, module, nid_input, cid_input, &conn_input->roi, 1.0f/(1<<levels));
+  if(id_blur_out) *id_blur_out = nid_input;
   return nid_input;
 }
 
@@ -511,7 +504,7 @@ dt_api_blur_sep(
     int          connid_input,
     int         *id_blur_in,
     int         *id_blur_out,
-    float        radius)        // blur radius in pixels, = 3 sigma (will be rounded down to int)
+    float        radius)        // blur radius in pixels, = 3 sigma
 {
   // detect pixel format on input and blur the whole thing in separable kernels
   const dt_connector_t *conn_input = nodeid_input >= 0 ?
@@ -577,6 +570,39 @@ dt_api_blur_sep(
   return id_blurv;
 }
 
+// variance of the blurh/blurv kernel for the given radius
+static inline float
+dt_api_blur_sep_var(float radius)
+{
+  if(radius <= 0.0f) return 0.0f;
+  const int sp = (int)radius;
+  // gaussian exp(-i^2/(2 sigma^2)) with the shader's sigma = radius/3 gives exp(-4.5 i^2/radius^2)
+  const float a = 4.5f/(radius*radius);
+  float w = 1.0f, m = 0.0f;
+  for(int i=1;i<=sp+1;i++)
+  {
+    const float e = expf(-a*i*i) * (i > sp ? radius - sp : 1.0f);
+    w += 2.0f*e;
+    m += 2.0f*e*i*i;
+  }
+  return m/w;
+}
+
+// blurh/blurv radius that gives the requested variance
+static inline float
+dt_api_blur_sep_radius(float var)
+{
+  // the radius is at most 3.04 sigma (3 sigma cut) + 0.69 (integer taps), so hi is always above it
+  float lo = 0.0f, hi = 3.05f*sqrtf(var) + 1.0f;
+  for(int k=0;k<30;k++)
+  {
+    const float mid = 0.5f*(lo+hi);
+    if(dt_api_blur_sep_var(mid) < var) lo = mid;
+    else hi = mid;
+  }
+  return hi;
+}
+
 // generic blur, selecting some mix of separable/small/subsampled blur
 // to best reach the given radius goal
 static inline int
@@ -587,76 +613,41 @@ dt_api_blur(
     int          connid_input,
     int         *id_blur_in,
     int         *id_blur_out,
-    float        radius)        // 2 sigma of the requsted blur, in pixels
+    float        radius)        // 2 sigma of the requested blur, in pixels
 {
-  if(radius < 2)
+  // the 3x3 matches the sampled gaussian of blurh/blurv up to sigma 0.5
+  if(radius < 1)
     return dt_api_blur_3x3(graph, module, nodeid_input, connid_input,
         id_blur_in, id_blur_out, 0.5f*radius);
-  if(radius == 2)
-    return dt_api_blur_5x5(graph, module, nodeid_input, connid_input, id_blur_in, id_blur_out);
-  // XXX DEBUG XXX frustratingly that is much faster even for relatively large blurs it seems
-  // TODO: probably go straight here for smaller radii
-    // return dt_api_blur_sep(graph, module, nodeid_input, connid_input,
-     //    id_blur_in, id_blur_out, radius);
-  // let's separate the blur in several passes.
-  // we'll do as many steps of subsampled blur as we can, because
-  // these are fast.
-  // subsampling does 5x5 blurs, i.e. radius=2 on powers of two
-  // i.e. 5x5, 9x9, 17x17, .. (radii 2 4 8 ..)
-  radius = CLAMP(radius, 1, graph->node[nodeid_input].connector[connid_input].roi.wd/2);
-  float sig2_req = radius*radius*0.25; // requested sigma^2
-  float sig2 = 0.0f;
-  int it = 0; // sub blur iterations needed
-  uint32_t mul[10] = {0};
-  for(;it<10;it++)
+  const dt_connector_t *conn_input = nodeid_input >= 0 ?
+    graph->node[nodeid_input].connector + connid_input :
+    module->connector + connid_input;
+  const dt_roi_t roi = conn_input->roi;
+  radius = MIN(radius, roi.wd/2);
+  const float var = 0.25f*radius*radius;
+  // each decimating 5x5 at stride s adds 1.25 s^2 (binomial plus the 2x2 box of the half-pixel
+  // offset), the catmull-rom upsample none. the rest is a gaussian of at least one coarse pixel.
+  int levels = 0;
+  float var_dec = 0.0f;
+  while(levels < 10 && (MIN(roi.wd, roi.ht) >> (levels+1)) >= 8)
   {
-    float sig = 1<<it; // sigma of this iteration
-    // the combined sigma of two consecutively executed blurs does not quite sum up:
-    // fprintf(stderr, "it %d sig2 %g sig*sig %g vs. req %g\n", it, sig2, sig*sig, sig2_req);
-    if(sig2 + sig*sig > sig2_req)
-      break;
-    sig2 += sig*sig;  // combined sigma^2
-    mul[it] = 1;
+    const float s = 1 << levels;
+    if(var - var_dec - 1.25f*s*s < 4.0f*s*s) break;
+    var_dec += 1.25f*s*s;
+    levels++;
   }
-  // also avoid highres resampling
-  for(int j=it;j>=1;j--) // XXX this is only faster if the highest res level is avoided here
-  {
-    float sig = 1<<j;
-    for(int k=0;k<10;k++)
-    {
-      if(sig2 + sig*sig < sig2_req)
-      { // record iteration j as multiple
-        sig2 += sig*sig;
-        mul[j]++;
-      }
-      else break;
-    }
-  }
-  // remaining sigma
-  float sig_rem = sqrtf(MAX(0, sig2_req - sig2));
-  // fprintf(stderr, "radius: %g levels: %d remaining sigma %g\n", radius, it, sig_rem);
-  // fprintf(stderr, "multiplicity: %d %d %d %d %d %d %d %d\n",
-  //     mul[0], mul[1], mul[2], mul[3],
-  //     mul[4], mul[5], mul[6], mul[7]);
-
-  if(it && (sig_rem == 0 || it >= 2))
-  { // for large blurs you'll not notice a little underblur anyways, leave the small kernel.
-    return dt_api_blur_sub(graph, module, nodeid_input, connid_input,
-        id_blur_in, id_blur_out, it, mul, 1);
-  }
-  else if(it)
-  { // use both to get more precise correspondence
-    int id_blur_small_in = -1, id_blur_small_out = -1;
-    dt_api_blur_sep(graph, module, nodeid_input, connid_input,
-        &id_blur_small_in, &id_blur_small_out, 3.0f*sig_rem);
-    return dt_api_blur_sub(graph, module, id_blur_small_out, 1,
-        id_blur_in, id_blur_out, it, mul, 1);
-  }
-  else
-  {
-    return dt_api_blur_3x3(graph, module, nodeid_input, connid_input,
-        id_blur_in, id_blur_out, 0.5f*radius);
-  }
+  const float sc = 1 << levels;
+  const float rad_sep = dt_api_blur_sep_radius((var - var_dec)/(sc*sc));
+  if(!levels)
+    return dt_api_blur_sep(graph, module, nodeid_input, connid_input,
+        id_blur_in, id_blur_out, rad_sep);
+  uint32_t mul[10] = {1,1,1,1,1,1,1,1,1,1};
+  const int id_sub = dt_api_blur_sub(graph, module, nodeid_input, connid_input,
+      id_blur_in, 0, levels, mul, 0);
+  const int id_sep = dt_api_blur_sep(graph, module, id_sub, 1, 0, 0, rad_sep);
+  const int id_up = dt_api_blur_up(graph, module, id_sep, 1, &roi, 1.0f/sc);
+  if(id_blur_out) *id_blur_out = id_up;
+  return id_up;
 }
 
 // full guided filter:

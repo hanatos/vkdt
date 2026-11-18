@@ -14,15 +14,16 @@ main()
   int idx = int(gl_GlobalInvocationID.z);
   if(any(greaterThanEqual(opos, imageSize(img_out[idx])))) return;
 
-#if 0 // use texture unit/interpolation:
-  vec4 rgb = sample_flower(img_in[idx], (opos+0.5)/imageSize(img_out[idx]));
-#else // plain a-trous access
+  // 5x5 binomial as three bilinear taps per axis: (1 4 6 4 1)/16, or on decimating axes
+  // (1 5 10 10 5 1)/32 centred on the corner of the 2x2 block of output pixel opos.
+  const vec2 sz = vec2(textureSize(img_in[idx], 0));
+  const bvec2 dec = greaterThan(sz, vec2(imageSize(img_out[idx])));
+  const vec2 c  = (opos + 0.5) * mix(vec2(1.0), vec2(2.0), dec);
+  const vec2 o  = mix(vec2(1.2), vec2(5.0/3.0), dec);
+  const vec2 we = mix(vec2(5.0/16.0), vec2(6.0/32.0), dec);
+  const vec2 w[3] = {we, 1.0 - 2.0*we, we};
   vec4 rgb = vec4(0.0);
-  const float w[5] = {1./16., 4./16., 6./16., 4./16., 1./16.};
-  for(int j=-2;j<=2;j++) for(int i=-2;i<=2;i++)
-    // rgb += w[j+2]*w[i+2]*texture(img_in[idx], (opos+0.5+vec2(j,i))/imageSize(img_out[idx]));
-    rgb += w[j+2]*w[i+2]*texture(img_in[idx],
-        (opos+0.5)/vec2(imageSize(img_out[idx])) + vec2(i,j)/vec2(textureSize(img_in[idx], 0)));
-#endif
+  for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++)
+    rgb += w[i+1].x*w[j+1].y*texture(img_in[idx], (c + vec2(i, j)*o)/sz);
   imageStore(img_out[idx], opos, rgb);
 }

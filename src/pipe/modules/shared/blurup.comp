@@ -1,0 +1,25 @@
+#version 460
+#extension GL_GOOGLE_include_directive    : enable
+#extension GL_EXT_nonuniform_qualifier    : enable
+#include "shared.glsl"
+
+layout(local_size_x = DT_LOCAL_SIZE_X, local_size_y = DT_LOCAL_SIZE_Y, local_size_z = 1) in;
+
+layout(push_constant, std140) uniform push_t
+{
+  float scale; // input pixels per output pixel
+} push;
+
+layout(set = 1, binding = 0) uniform sampler2D img_in[];
+layout(set = 1, binding = 1) uniform writeonly image2D img_out[];
+
+// catmull-rom upsampling from a pyramid level that may extend past the output
+void
+main()
+{
+  ivec2 opos = ivec2(gl_GlobalInvocationID);
+  int idx = int(gl_GlobalInvocationID.z);
+  if(any(greaterThanEqual(opos, imageSize(img_out[idx])))) return;
+  const vec2 uv = (opos + 0.5) * push.scale / vec2(textureSize(img_in[idx], 0));
+  imageStore(img_out[idx], opos, sample_catmull_rom(img_in[idx], uv));
+}

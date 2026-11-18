@@ -16,8 +16,10 @@ main()
   vec4 color = textureLod(img_in[idx], uv, 0.0);
   float wgt = 1.0;
   int sp = int(floor(push.radius));
+  // the tap at sp+1 fades in with the fractional radius so the variance is continuous
+  const float fr = push.radius - sp;
 
-  if(sp > 0)
+  if(push.radius > 0.0)
   {
     // Efficiently compute Gaussian weights incrementally:
     // w_i = w_{i-1} * v_i
@@ -61,7 +63,12 @@ main()
       uv_p += step;
       uv_m -= step;
       color += w * (textureLod(img_in[idx], uv_p, 0.0) + textureLod(img_in[idx], uv_m, 0.0));
+      w *= v;
     }
+
+    w *= fr;
+    wgt += 2.0 * w;
+    color += w * (textureLod(img_in[idx], uv_p + step, 0.0) + textureLod(img_in[idx], uv_m - step, 0.0));
   }
 
   color *= 1.0/wgt;
