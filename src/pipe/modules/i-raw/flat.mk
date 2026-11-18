@@ -44,8 +44,19 @@ endif # end rawspeed
 
 # use rawloader
 ifeq ($(VKDT_USE_RAWINPUT),2)
+# this takes ages to determine for incremental builds/when changing
+# branches. thus, hardcode to whatever the 'eval' line here would output:
+# RUST_LDFLAGS=$(eval RUST_LDFLAGS := $$(shell cd pipe/modules/i-raw/rawloader-c; cargo rustc -- --print native-static-libs 2>&1 | grep native-static-libs | cut -d: -f3))$(RUST_LDFLAGS)
+ifeq ($(OS),Windows_NT)
+RUST_LDFLAGS=-lkernel32 -lntdll -luserenv -lws2_32 -ldbghelp -lsynchronization
+else
+ifeq ($(shell uname),Darwin)
+RUST_LDFLAGS=-liconv -framework CoreFoundation -lSystem -lc -lm
+else
+RUST_LDFLAGS=-ldl -lgcc_s -lutil -lrt -lpthread -lm -ldl -lc
+endif
+endif
 MOD_LDFLAGS=pipe/modules/i-raw/rawloader-c/target/release/librawloader.a -lm
-RUST_LDFLAGS=$(eval RUST_LDFLAGS := $$(shell cd pipe/modules/i-raw/rawloader-c; cargo rustc -- --print native-static-libs 2>&1 | grep native-static-libs | cut -d: -f3))$(RUST_LDFLAGS)
 MOD_LDFLAGS+=$(RUST_LDFLAGS)
 MOD_CFLAGS=-Ipipe/modules/i-raw/rawloader-c
 pipe/modules/i-raw/libi-raw.so: pipe/modules/i-raw/rawloader-c/target/release/librawloader.a
