@@ -594,11 +594,13 @@ dt_dragkey_gamepad(dt_dragkeys_t *dk, GLFWgamepadstate *last, GLFWgamepadstate *
   { // accept
     dx = dy = 0.0f;
     dt_dragkeys_exit(dk, 1);
+    return 1;
   }
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_B))
   { // reset
     dx = dy = 0.0f;
     dt_dragkeys_exit(dk, 0);
+    return 1;
   }
 #undef PRESSED
   const float sensitivity = vkdt.wstate.delta_time * dt_rc_get_float(&vkdt.rc, "gui/joystick_sensitivity", 1.0f);
