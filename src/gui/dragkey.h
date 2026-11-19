@@ -468,27 +468,10 @@ dt_dragkey_keyboard(dt_dragkeys_t *dk, int key, int action, int mods)
   return 0;
 }
 
-// called from darkroom_mouse_position. returns 1 if armed (consuming mouse events).
 static inline int
-dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x, double y)
+dt_dragkey_consume_delta(dt_dragkeys_t *dk, float dx, float dy)
 {
-  if(!dk->latched) return 0;
-  // if a click is pending, we only check for timeout and do not move.
-  // mouse_move is the reliable flush path for single clicks because GLFW_CURSOR_DISABLED
-  // delivers move events for any mouse micro-movement.
-  if(dk->click_down_time > 0.0)
-  {
-    if(glfwGetTime() - dk->click_down_time >= DT_DRAGKEY_DBLCLICK_WIN)
-    {
-      dk->click_down_time = 0.0;
-      dt_dragkeys_exit(dk, 1);
-    }
-    return 1;
-  }
   dt_dragkey_t *d = &dk->menu_dk;
-  float dx = (float)(x - dk->start_x);
-  float dy = (float)(y - dk->start_y);
-  if(dk->shift) { dx *= NK_PROPERTY_FINE_SCALE; dy *= NK_PROPERTY_FINE_SCALE; }
   char msg[128];
   int off = 0;
   off += snprintf(msg + off, sizeof(msg) - off, "%s:", d->name);
@@ -562,8 +545,7 @@ dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x, double y)
     }
   }
   else
-  {
-    // standard component-wise delta application for other widgets
+  { // standard component-wise delta application for other widgets
     for(int j = 0; j < d->comp_cnt; j++)
     {
       dt_dragkey_comp_t *c = d->comp + j;
@@ -589,6 +571,53 @@ dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x, double y)
   vkdt.graph_dev.runflags |= runflags;
   dt_gui_notification("%s", msg);
   return 1;
+}
+
+static inline int // return 1 if consumed the event
+dt_dragkey_gamepad(dt_dragkeys_t *dk, GLFWgamepadstate *last, GLFWgamepadstate *curr)
+{
+  if(!dk->latched) return 0;
+#define PRESSED(A) curr->buttons[A] && !last->buttons[A]
+  if(PRESSED(GLFW_GAMEPAD_BUTTON_A))
+  { // accept
+    dt_dragkeys_exit(dk, 1);
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_B))
+  { // reset
+    dt_dragkeys_exit(dk, 0);
+  }
+#undef PRESSED
+  const float sensitivity = vkdt.wstate.delta_time * dt_rc_get_float(&vkdt.rc, "gui/joystick_sensitivity", 1.0f);
+#define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
+  float ax = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_X];
+  float ay = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+  float dx = sensitivity*SMOOTH(ax);
+  float dy = sensitivity*SMOOTH(ay);
+#undef SMOOTH
+  return dt_dragkey_consume_delta(dk, dx, dy);
+}
+
+// called from darkroom_mouse_position. returns 1 if armed (consuming mouse events).
+static inline int
+dt_dragkey_mouse_move(dt_dragkeys_t *dk, double x, double y)
+{
+  if(!dk->latched) return 0;
+  // if a click is pending, we only check for timeout and do not move.
+  // mouse_move is the reliable flush path for single clicks because GLFW_CURSOR_DISABLED
+  // delivers move events for any mouse micro-movement.
+  if(dk->click_down_time > 0.0)
+  {
+    if(glfwGetTime() - dk->click_down_time >= DT_DRAGKEY_DBLCLICK_WIN)
+    {
+      dk->click_down_time = 0.0;
+      dt_dragkeys_exit(dk, 1);
+    }
+    return 1;
+  }
+  float dx = (float)(x - dk->start_x);
+  float dy = (float)(y - dk->start_y);
+  if(dk->shift) { dx *= NK_PROPERTY_FINE_SCALE; dy *= NK_PROPERTY_FINE_SCALE; }
+  return dt_dragkey_consume_delta(dk, dx, dy);
 }
 
 // called from darkroom_mouse_button. returns 1 if event was consumed.

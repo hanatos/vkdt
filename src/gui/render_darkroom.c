@@ -1107,6 +1107,8 @@ void
 darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
   if((dragkeys.latched || !dt_gui_input_blocked()) && dt_dragkey_mouse_button(&dragkeys, button, action, mods)) return;
+  if(!dragkeys.latched && !dt_gui_input_blocked() && button == 1 && action == GLFW_PRESS)
+    dt_radial_menu_dr_open(&vkdt.wstate.radial_menu_dr, 1);
   dt_gui_darkroom_dspy_mouse_button(window, button, action, mods);
   double x, y;
   dt_view_get_cursor_pos(vkdt.win.window, &x, &y);
@@ -1476,6 +1478,7 @@ void
 darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *curr)
 {
   if(dt_menu_gamepad(&darkroom_menu, hk_darkroom, hk_darkroom_cnt, last, curr)) return;
+  if((dragkeys.latched || !dt_gui_input_blocked()) && dt_dragkey_gamepad(&dragkeys, last, curr)) return;
 #define PRESSED(A) curr->buttons[A] && !last->buttons[A]
   if(PRESSED(GLFW_GAMEPAD_BUTTON_A))
   {
@@ -1525,6 +1528,10 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER))
   {
     dt_gui_toggle_fullscreen_view();
+  }
+  else if(PRESSED(GLFW_GAMEPAD_BUTTON_LEFT_BUMPER))
+  {
+    dt_radial_menu_dr_open(&vkdt.wstate.radial_menu_dr, 0);
   }
 
   dt_node_t *out_main = dt_graph_get_display(&vkdt.graph_dev, dt_token("main"));

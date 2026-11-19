@@ -2,56 +2,50 @@
 #include "widget_radial_menu.h"
 
 static inline void
+dt_radial_menu_dr_open(
+    dt_radial_menu_dr_t *m,
+    int mouse) // or else assume gamepad interaction
+{
+  if(m->state != s_radial_menu_dr_closed) return;
+  m->mouse = mouse ? 1 : 0;
+  m->mcnt = 0;
+  for(int i=0;i<vkdt.fav_cnt&&m->mcnt<20;i++)
+  { // when first activated, collect our list from custom favs
+    int modid = vkdt.fav_modid[i];
+    int parid = vkdt.fav_parid[i];
+    if(modid == -1)
+    {
+      int pst = parid;
+      if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
+      snprintf(m->mtxt[m->mcnt], 50, "preset %s", vkdt.fav_preset_name[pst]);
+      m->mmodid [m->mcnt] = -1;
+      m->mparid [m->mcnt] = pst;
+      m->mtxtptr[m->mcnt] = m->mtxt[m->mcnt];
+      m->mcnt++;
+      continue;
+    }
+    const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
+    if(param->widget.type == dt_token("slider"))
+    { // currently the only supported kind of widget
+      snprintf(m->mtxt[m->mcnt], 50, "%"PRItkn" %"PRItkn,
+          dt_token_str(vkdt.graph_dev.module[modid].name),
+          dt_token_str(param->name));
+      m->mmodid [m->mcnt] = modid;
+      m->mparid [m->mcnt] = parid;
+      m->mtxtptr[m->mcnt] = m->mtxt[m->mcnt];
+      m->mcnt++;
+    }
+  }
+  m->state = s_radial_menu_dr_main;
+}
+
+static inline void
 dt_radial_menu_dr(
     dt_radial_menu_dr_t *m,
     struct nk_rect bounds) // bounds inside which to click/where to display if opened with gamepad
 {
   GLFWgamepadstate gamepad = {0};
   if(vkdt.wstate.have_joystick) glfwGetGamepadState(vkdt.wstate.joystick_id, &gamepad);
-  int mouse_activated = !dt_gui_input_blocked() &&
-    !vkdt.wstate.dragkey_latched &&
-    nk_input_is_mouse_hovering_rect(&vkdt.ctx.input, bounds) &&
-    vkdt.wstate.active_widget_modid < 0 &&
-    vkdt.ctx.input.mouse.buttons[NK_BUTTON_RIGHT].down;
-  int gamepad_activated = gamepad.buttons[GLFW_GAMEPAD_BUTTON_LEFT_BUMPER];
-
-  if((gamepad_activated || mouse_activated) &&
-     (m->state == s_radial_menu_dr_closed))
-  { // when first activated, collect our list from custom favs
-    if(mouse_activated) m->mouse = 1;
-    else m->mouse = 0;
-
-    m->mcnt = 0;
-    for(int i=0;i<vkdt.fav_cnt&&m->mcnt<20;i++)
-    {
-      int modid = vkdt.fav_modid[i];
-      int parid = vkdt.fav_parid[i];
-      if(modid == -1)
-      {
-        int pst = parid;
-        if(pst >= sizeof(vkdt.fav_preset_name) / sizeof(vkdt.fav_preset_name[0])) continue;
-        snprintf(m->mtxt[m->mcnt], 50, "preset %s", vkdt.fav_preset_name[pst]);
-        m->mmodid [m->mcnt] = -1;
-        m->mparid [m->mcnt] = pst;
-        m->mtxtptr[m->mcnt] = m->mtxt[m->mcnt];
-        m->mcnt++;
-        continue;
-      }
-      const dt_ui_param_t *param = vkdt.graph_dev.module[modid].so->param[parid];
-      if(param->widget.type == dt_token("slider"))
-      { // currently the only supported kind of widget
-        snprintf(m->mtxt[m->mcnt], 50, "%"PRItkn" %"PRItkn,
-            dt_token_str(vkdt.graph_dev.module[modid].name),
-            dt_token_str(param->name));
-        m->mmodid [m->mcnt] = modid;
-        m->mparid [m->mcnt] = parid;
-        m->mtxtptr[m->mcnt] = m->mtxt[m->mcnt];
-        m->mcnt++;
-      }
-    }
-    m->state = s_radial_menu_dr_main;
-  }
-
   if(m->state == s_radial_menu_dr_main)
   {
     struct nk_vec2 pos = vkdt.ctx.input.mouse.pos;
