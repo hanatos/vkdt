@@ -1383,6 +1383,7 @@ darkroom_enter()
 
   dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "back to lighttable");
   dt_gamepadhelp_set(dt_gamepadhelp_ps, "toggle this help");
+  dt_gamepadhelp_set(dt_gamepadhelp_start, "open menu");
   dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L, "pan around");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_up, "anim: play");
   dt_gamepadhelp_set(dt_gamepadhelp_arrow_down, "anim: rewind");
