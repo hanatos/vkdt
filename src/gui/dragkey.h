@@ -69,17 +69,17 @@ dt_dragkey_t;
 typedef struct dt_dragkeys_t
 {
   dt_dragkey_t dk[DT_DRAGKEY_MAX];
-  dt_dragkey_t menu_dk;    // active dragkey, copied here on each activation
+  dt_dragkey_t menu_dk;     // active dragkey, copied here on each activation
   int    cnt;
   int    latched;           // 1 = armed: mouse-move adjusts, release confirms, esc cancels
   double start_x;           // mouse x at arm time
   double start_y;           // mouse y at arm time (for axis=1 components)
   double click_down_time;   // time of first left-press while latched; 0 = no pending click
   int    shift;             // 1 = shift held, fine adjustment active
-  int    key_xdec[2];      // x-axis step-decrease: [0]=primary (LEFT),  [1]=alt (H)
-  int    key_xinc[2];      // x-axis step-increase: [0]=primary (RIGHT), [1]=alt (L)
-  int    key_ydec[2];      // y-axis step-decrease: [0]=primary (DOWN),  [1]=alt (J)
-  int    key_yinc[2];      // y-axis step-increase: [0]=primary (UP),    [1]=alt (K)
+  int    key_xdec[2];       // x-axis step-decrease: [0]=primary (LEFT),  [1]=alt (H)
+  int    key_xinc[2];       // x-axis step-increase: [0]=primary (RIGHT), [1]=alt (L)
+  int    key_ydec[2];       // y-axis step-decrease: [0]=primary (DOWN),  [1]=alt (J)
+  int    key_yinc[2];       // y-axis step-increase: [0]=primary (UP),    [1]=alt (K)
   dt_graph_run_t pending_runflags; // follow-up run scheduled after double-click reset (double-buffer lag compensation)
 }
 dt_dragkeys_t;

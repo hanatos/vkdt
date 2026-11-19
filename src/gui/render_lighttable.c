@@ -1638,7 +1638,7 @@ void lighttable_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepads
   float ay = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
   int sign = ay > 0 ? 1 : -1;
 #define SMOOTH(X) MAX(0.0f, fabsf(X) - 0.05f)
-  float df = 80*sensitivity * SMOOTH(ay); // 100 rows per second if fully extended
+  float df = 80*sensitivity * SMOOTH(ay); // 80 rows per second if fully extended
   if(df > xrand()) // also move for super fast frame rates
   {
     int delta = sign * (int)(df+1.0);

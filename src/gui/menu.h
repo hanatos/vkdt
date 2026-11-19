@@ -18,6 +18,7 @@
 // !keyaccel_name key = leaf referencing a keyaccel file
 
 #include "core/log.h"
+#include "core/xrand.h"
 #include "gui/gui.h"
 #include "gui/render.h"
 #include "gui/hotkey.h"
@@ -1179,6 +1180,20 @@ dt_menu_gamepad(dt_menu_t *m, hk_t *hk, int hk_cnt,
   { if(m->cursor > 0) m->cursor--; return 1; }
   if(GP_PRESSED(GLFW_GAMEPAD_BUTTON_DPAD_DOWN))
   { if(m->cursor < child_cnt - 1) m->cursor++; return 1; }
+  { // fast scroll with left stick
+  const float sensitivity = vkdt.wstate.delta_time * dt_rc_get_float(&vkdt.rc, "gui/joystick_sensitivity", 1.0f);
+  float ay = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+  int sign = ay > 0 ? 1 : -1;
+#define SMOOTH(X) MAX(0.0f, fabsf(X) - 0.05f)
+  float df = 40*sensitivity * SMOOTH(ay);
+  if(df > xrand()) // also move for super fast frame rates
+  {
+    int delta = sign * (int)(df+1.0);
+    m->cursor = CLAMP(m->cursor + delta, 0, child_cnt - 1);
+    return 1;
+  }
+#undef SMOOTH
+  }
 
   if(GP_PRESSED(GLFW_GAMEPAD_BUTTON_B) || GP_PRESSED(m->gamepad_button))
   {
