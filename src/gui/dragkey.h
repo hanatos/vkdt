@@ -576,14 +576,21 @@ dt_dragkey_consume_delta(dt_dragkeys_t *dk, float dx, float dy)
 static inline int // return 1 if consumed the event
 dt_dragkey_gamepad(dt_dragkeys_t *dk, GLFWgamepadstate *last, GLFWgamepadstate *curr)
 {
-  if(!dk->latched) return 0;
+  static float dx = 0.0f, dy = 0.0f;
+  if(!dk->latched)
+  {
+    dx = dy = 0.0f;
+    return 0;
+  }
 #define PRESSED(A) curr->buttons[A] && !last->buttons[A]
   if(PRESSED(GLFW_GAMEPAD_BUTTON_A))
   { // accept
+    dx = dy = 0.0f;
     dt_dragkeys_exit(dk, 1);
   }
   else if(PRESSED(GLFW_GAMEPAD_BUTTON_B))
   { // reset
+    dx = dy = 0.0f;
     dt_dragkeys_exit(dk, 0);
   }
 #undef PRESSED
@@ -591,8 +598,9 @@ dt_dragkey_gamepad(dt_dragkeys_t *dk, GLFWgamepadstate *last, GLFWgamepadstate *
 #define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
   float ax = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_X];
   float ay = curr->axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
-  float dx = sensitivity*SMOOTH(ax);
-  float dy = sensitivity*SMOOTH(ay);
+  if(curr->buttons[GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER]) { ax *= NK_PROPERTY_FINE_SCALE; ay *= NK_PROPERTY_FINE_SCALE; }
+  dx += 10000.0f*sensitivity*SMOOTH(ax);
+  dy += 10000.0f*sensitivity*SMOOTH(ay);
 #undef SMOOTH
   return dt_dragkey_consume_delta(dk, dx, dy);
 }
