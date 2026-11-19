@@ -279,6 +279,7 @@ dt_dragkeys_exit(dt_dragkeys_t *dk, int commit)
   dk->click_down_time  = 0.0;
   dk->pending_runflags = 0;
   vkdt.wstate.dragkey_latched = 0;
+  dt_gamepadhelp_pop();
 }
 
 static inline void
@@ -345,6 +346,12 @@ dt_dragkey_activate_dk(dt_dragkeys_t *dk, dt_dragkey_t *d)
   dk->click_down_time  = 0.0;
   glfwSetInputMode(vkdt.win.window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   vkdt.wstate.dragkey_latched = 1;
+  dt_gamepadhelp_push();
+  dt_gamepadhelp_clear();
+  dt_gamepadhelp_set(dt_gamepadhelp_analog_stick_L, "modify value");
+  dt_gamepadhelp_set(dt_gamepadhelp_R1, "hold to fine tune");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_circle, "reset");
+  dt_gamepadhelp_set(dt_gamepadhelp_button_cross, "accept");
   return 0;
 }
 
