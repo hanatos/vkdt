@@ -97,8 +97,8 @@ int read_source(
 {
   const int pi = dt_module_get_param(mod->so, dt_token("draw"));
   const uint32_t *p_draw = dt_module_param_uint32(mod, pi);
-  const int num_verts = p_draw[0];
-  memcpy(mapped, p_draw+1, sizeof(uint32_t)*2*num_verts);
+  const int num_verts = MIN(p_draw[0], mod->so->param[pi]->cnt/2-2);
+  memcpy(mapped, p_draw+1, sizeof(uint32_t)*2*(num_verts+1));
   mod->flags = 0; // yay, we uploaded.
   return 0;
 }

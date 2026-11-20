@@ -60,10 +60,12 @@ void main()
   t0 *= params.radius * r0;
   t1 *= params.radius * r1;
   // account for viewport from -1 to 1, radius is relative to width (i.e. 0 to 1).
-  t0 *= 2.0*vec2(1.0, push.aspect);
-  t1 *= 2.0*vec2(1.0, push.aspect);
   vec2 e0 = vec2(t0.y, -t0.x);
   vec2 e1 = vec2(t1.y, -t1.x);
+  t0 *= 2.0*vec2(1.0, push.aspect);
+  t1 *= 2.0*vec2(1.0, push.aspect);
+  e0 *= 2.0*vec2(1.0, push.aspect);
+  e1 *= 2.0*vec2(1.0, push.aspect);
 
   if(i == 0 || i == 3)
   {

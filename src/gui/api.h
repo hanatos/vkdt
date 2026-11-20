@@ -664,10 +664,11 @@ dt_gui_dr_draw_position(
       const dt_draw_vert_t vo = vx[dat[0]-1];
       if(vo.x != 0 && vo.y != 0 && fabsf(vo.x - xi) < 0.005 && fabsf(vo.y - yi) < 0.005) return;
     }
-    if(2*dat[0]+2 < vkdt.wstate.mapped_size/sizeof(uint32_t))
+    if(2*dat[0]+3 < vkdt.wstate.mapped_size/sizeof(uint32_t))
     { // add vertex
       int v = dat[0]++;
       vx[v] = dt_draw_vertex(xi, yi, pressure * radius, opacity, hardness);
+      vx[v+1] = dt_draw_endmarker();
     }
     // trigger draw list upload and recomputation:
     vkdt.graph_dev.runflags = s_graph_run_record_cmd_buf;

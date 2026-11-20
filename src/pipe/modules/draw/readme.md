@@ -1,16 +1,11 @@
 # draw: raster masks as brush strokes
 
 this module rasterises a drawn mask (single opacity channel). to be useful, it
-has to be combined with blending. quick access is possible by adding the `draw`
-block template to the graph (see `data/blocks/draw.cfg` and the *insert block..*
-button in the pipeline configuration tab in darkroom mode).
-
-for the impatient, there are also two examples in the repository:
-`examples/draw.cfg` and `examples/draw-guided.cfg`. be sure to copy a
-`test.cr2` file into the `examples/` directory before testing.
-
-this block also contains a guided filter blur for edge-adaptive smoothing of
-the resulting mask.
+has to be combined with blending. quick access is possible by using presets
+(`ctrl-p` is the default hotkey to open the preset menu). there are specialised
+presets for dodging and burning with and without guided filter refinement
+(`dodge.pst`, `dodge-guided.pst`, `burn.pst`, `burn-guided.pst`) as well as
+presets to adjust white balance (`draw-tint.pst`).
 
 the module allows to draw line segments by clicking and holding the left mouse
 button while drawing a stroke. releasing the button will finalise the stroke.
