@@ -6,6 +6,7 @@ dt_radial_menu_dr_open(
     dt_radial_menu_dr_t *m,
     int mouse) // or else assume gamepad interaction
 {
+  if(vkdt.wstate.active_widget_modid >= 0) return;
   if(m->state != s_radial_menu_dr_closed) return;
   m->mouse = mouse ? 1 : 0;
   m->mcnt = 0;
