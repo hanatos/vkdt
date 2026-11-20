@@ -100,6 +100,7 @@ major features:
 * denox codegen cnn modules, much faster per-arch spirv
 * auto-growing thumbnail cache
 * support for a variety of input colour spaces (pana-v, aces, ..)
+* arm64 appimage, runs on adreno/android through droid deck
 
 graph internals:
 * large memory support (work around some 32-bit limits of bindings in spirv)
@@ -113,11 +114,11 @@ graph internals:
 
 smaller:
 * module ui supports tabs now (see OpenDRT and filmsim)
-* pipewire instead alsa
+* pipewire instead of alsa
 * screencast mode: show input keys/mouse buttons as overlay
 * better css for gallery exporter
 * low-lag present mode (phcreery)
-* game controller fixes
+* game controller input streamlined
 * external resource tracking in the backend (colour luts, multiple input files, etc), use with o-copy export
 * `mkclut` with more data points for smoother wb interpolation (niklasiivari)
 * `filmcurv` agx colour mode (phcreery)
