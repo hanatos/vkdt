@@ -250,19 +250,21 @@ void dt_gui_render_frame_nk()
     default:;
   }
 
-  // draw notification message
   threads_mutex_lock(&vkdt.wstate.notification_mutex);
   if(vkdt.wstate.notification_msg[0] &&
      now - vkdt.wstate.notification_time < 4.0)
-  {
-    if(nk_begin(&vkdt.ctx, "notification message",
-          nk_rect(0, vkdt.state.center_y+vkdt.state.center_ht, 2*vkdt.state.center_x+vkdt.state.center_wd, 2*vkdt.state.center_y+vkdt.state.center_ht),
-          NK_WINDOW_NO_SCROLLBAR))
-    {
-      nk_layout_row_dynamic(&vkdt.ctx, vkdt.state.center_y*0.55, 1);
-      nk_label(&vkdt.ctx, vkdt.wstate.notification_msg, NK_TEXT_LEFT);
-    }
-    nk_end(&vkdt.ctx);
+  { // draw notification message
+    struct nk_command_buffer *buf = &vkdt.global_cmd;
+    struct nk_color fg = vkdt.style.colour[NK_COLOR_TEXT];
+    struct nk_color bg = vkdt.style.colour[NK_COLOR_DT_BACKGROUND];
+    static struct nk_user_font font; // keep  memory around for cmd buf
+    font = *nk_glfw3_font(0);
+    font.height = vkdt.state.center_ht * 0.02;
+    struct nk_rect rect = {
+      .x = vkdt.state.center_x,  .y =   vkdt.state.center_y + vkdt.state.center_ht,
+      .w = vkdt.state.center_wd, .h = 2*vkdt.state.center_y,
+    };
+    nk_draw_text(buf, rect, vkdt.wstate.notification_msg, strlen(vkdt.wstate.notification_msg), &font, bg, fg);
   }
   threads_mutex_unlock(&vkdt.wstate.notification_mutex);
 
