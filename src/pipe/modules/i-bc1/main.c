@@ -35,8 +35,8 @@ void modify_roi_out(
     return;
   }
   const uint32_t wd = 4*(header[2]/4), ht = 4*(header[3]/4);
-  mod->connector[0].roi.full_wd = wd;
-  mod->connector[0].roi.full_ht = ht;
+  mod->connector[0].roi.full_wd = MAX(4,wd);
+  mod->connector[0].roi.full_ht = MAX(4,ht);
   mod->img_param.colour_primaries = s_colour_primaries_2020;
   mod->img_param.colour_trc       = s_colour_trc_srgb;
   gzclose(f);
