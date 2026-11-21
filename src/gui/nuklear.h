@@ -1191,6 +1191,7 @@ struct nk_convert_config {
     const struct nk_draw_vertex_layout_element *vertex_layout; /* describes the vertex output format and packing */
     nk_size vertex_size; /* sizeof one vertex for vertex packing */
     nk_size vertex_alignment; /* vertex alignment: Can be obtained by NK_ALIGNOF */
+    struct nk_color clear_colour; /* draw screen filling rect through fragment shader */
 };
 /*/// #### nk__begin
 /// Returns a draw command list iterator to iterate all draw
@@ -10844,6 +10845,7 @@ nk_convert(struct nk_context *ctx, struct nk_buffer *cmds,
 
     nk_draw_list_setup(&ctx->draw_list, config, cmds, vertices, elements,
         config->line_AA, config->shape_AA);
+    nk_draw_list_fill_rect(&ctx->draw_list, nk_rect(0, 0, 8192, 8192), config->clear_colour, 0.0f);
     nk_foreach(cmd, ctx)
     {
 #ifdef NK_INCLUDE_COMMAND_USERDATA

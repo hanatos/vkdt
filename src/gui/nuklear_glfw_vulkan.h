@@ -1261,6 +1261,7 @@ void nk_glfw3_create_cmd(
     .global_alpha = 1.0f,
     .shape_AA = AA,
     .line_AA = AA,
+    .clear_colour = vkdt.style.colour[NK_COLOR_DT_BACKGROUND],
   };
 
   /* setup buffers to load vertices and elements */
