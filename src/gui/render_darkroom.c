@@ -1102,12 +1102,16 @@ void render_darkroom_cleanup()
 void
 darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
-  if((dragkeys.latched || !dt_gui_input_blocked()) && dt_dragkey_mouse_button(&dragkeys, button, action, mods)) return;
-  if(!dragkeys.latched && !dt_gui_input_blocked() && button == 1 && action == GLFW_PRESS)
-    dt_radial_menu_dr_open(&vkdt.wstate.radial_menu_dr, 1);
-  dt_gui_darkroom_dspy_mouse_button(window, button, action, mods);
   double x, y;
   dt_view_get_cursor_pos(vkdt.win.window, &x, &y);
+  int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
+  int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
+  if((dragkeys.latched || !dt_gui_input_blocked()) && dt_dragkey_mouse_button(&dragkeys, button, action, mods)) return;
+  if(!dragkeys.latched && !dt_gui_input_blocked() && button == 1 && action == GLFW_PRESS &&
+      x >= win_x && x < win_x + win_w &&
+      y >= win_y && y < win_y + win_h)
+    dt_radial_menu_dr_open(&vkdt.wstate.radial_menu_dr, 1);
+  dt_gui_darkroom_dspy_mouse_button(window, button, action, mods);
   if(vkdt.wstate.grabbed)
   {
     dt_module_input_event_t p = {
