@@ -22,13 +22,14 @@ the following is a list of changes over the [previous release 1.0.0](../release-
 | ![res](resource.png) | **resource tracking for projects**<br/>automatic input file tracking for projects with multiple dependencies, such as multi-image, colour luts, cnn weights, spektrafilm tables, etc. `o-copy` allows you to export them all together for archival purposes |
 | ![okgmt](okgmt.png) | **experimental gamut mapping in oklab**<br/>bring back out-of-locus colours with negative energy, in cases where you can't avoid it during input device transform |
 | <video width=100% autoplay muted loop nocontrols><source src="inpaint.webm"></video> | **anisotropic inpainting**<br/>horizontal and vertical inpaint modes, great to make things straddling the horizon disappear|
+| <video width=100% autoplay muted loop nocontrols><source src="lowlag.webm"></video> | **smoother ui interaction**<br/>via low-lag presentation mode (phcreery) and asynchronous compute for lower-end devices (niklasiivari)|
+| ![colour assessment](colass.jpg) | **colour assessment view**<br/>also press `tab` to hide side panels for full screen photo inspection. mapped to l3 on the gamepad (niklasiivari) |
+
 
 ## TODO
 
 
-low-lag (phcreery) async compute (niklasiivari)
-
 jddcnn bayer xtrans intel amd?
 
-removed resnet
+hotpx revamp based on noise stats (niklasiivari)
 
