@@ -15,7 +15,7 @@ the following is a list of changes over the [previous release 1.0.0](../release-
 | ![gallery](gallery.png) | **new gallery export css**<br/> minimal noscript/pure-css exporter with new style and better full image view, particularly on mobile screens |
 | ![filmsim](filmsim.jpg) | **spektrafilm improvements**<br/>including spectral white balancing and spectral upsampling directly from camera rgb, enabling all in-gamut and matrix-free workflows for difficult illumination. speed improvements and additional features such as preflash (by niklasiivari) |
 | ![overlay](overlay.png) | **overlay text**<br/>[new module `overlay`](../../src/pipe/modules/overlay/readme.md) to render text + optional latency measurements on top of the image. useful to annotate [a/b comparisons](../../src/pipe/modules/ab/readme.md) |
-| ![graph](graph.jpg) | **graph internals overhaul**<br/>support large memory (buffer address references), `modify` type connectors, new extent negotiation, no more geometry shaders (metal compat), sharper/less noise resampling, pipewire replaced alsa for audio |
+| ![graph](graph.png) | **graph internals overhaul**<br/>support large memory (buffer address references), `modify` type connectors, new extent negotiation, no more geometry shaders (metal compat), sharper/less noise resampling, pipewire replaced alsa for audio |
 | <video width=100% autoplay muted loop nocontrols><source src="screencast.webm"></video> | **screencast mode**<br/> showing all key shortcuts typed echoed on screen, enable in your `config.rc` |
 | ![colour](colour.png) | **input colour space support**<br/>for many common cinematic colour spaces (such as aces or pana-v), explicit choice in the `i-vid` module |
 | ![clut](clut.jpg) | **better spectral input device transform**<br/>now with multi-step `mkclut` for more accurate white balance interpolation across wider range of correlated colour temperatures (niklasiivari) |
@@ -32,4 +32,3 @@ the following is a list of changes over the [previous release 1.0.0](../release-
 jddcnn bayer xtrans intel amd?
 
 hotpx revamp based on noise stats (niklasiivari)
-
