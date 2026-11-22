@@ -37,11 +37,12 @@ void main()
       wgt += u;
     }
   }
-  else if(params.mode == 1) for(int ii=-2;ii<=2;ii++)
+  else if(params.mode == 1) for(int ii=-5;ii<=5;ii++)
   {
-    vec4 rgbm = texture(img_in, (2*opos+ivec2(ii,0)+0.5)/textureSize(img_in, 0));
-    if(push.scale == 0) rgbm.w = texture(img_mask, (2*opos+ivec2(ii,0)+0.5)/textureSize(img_mask, 0)).r;
-    float u = w[ii+2];
+    vec2 tc = (2*opos+ivec2(2*ii,0)+0.5)/textureSize(img_in, 0);
+    vec4 rgbm = texture(img_in, tc);
+    if(push.scale == 0) rgbm.w = texture(img_mask, tc).r;
+    float u = 1.0 - abs(ii)/6.0;
     if(rgbm.w < 0.5)
     {
       col += rgbm.rgb * u;
@@ -50,9 +51,10 @@ void main()
   }
   else if(params.mode == 2) for(int ii=-2;ii<=2;ii++)
   {
-    vec4 rgbm = texture(img_in, (2*opos+ivec2(0,ii)+0.5)/textureSize(img_in, 0));
-    if(push.scale == 0) rgbm.w = texture(img_mask, (2*opos+ivec2(0,ii)+0.5)/textureSize(img_mask, 0)).r;
-    float u = w[ii+2];
+    vec2 tc = (2*opos+ivec2(0,2*ii)+0.5)/textureSize(img_in, 0);
+    vec4 rgbm = texture(img_in, tc);
+    if(push.scale == 0) rgbm.w = texture(img_mask, tc).r;
+    float u = 1.0 - abs(ii)/6.0;
     if(rgbm.w < 0.5)
     {
       col += rgbm.rgb * u;

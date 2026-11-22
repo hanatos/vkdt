@@ -20,15 +20,13 @@ the following is a list of changes over the [previous release 1.0.0](../release-
 | ![colour](colour.png) | **input colour space support**<br/>for many common cinematic colour spaces (such as aces or pana-v), explicit choice in the `i-vid` module |
 | ![clut](clut.jpg) | **better spectral input device transform**<br/>now with multi-step `mkclut` for more accurate white balance interpolation across wider range of correlated colour temperatures (niklasiivari) |
 | ![res](resource.png) | **resource tracking for projects**<br/>automatic input file tracking for projects with multiple dependencies, such as multi-image, colour luts, cnn weights, spektrafilm tables, etc. `o-copy` allows you to export them all together for archival purposes |
+| ![okgmt](okgmt.png) | **experimental gamut mapping in oklab**<br/>bring back out-of-locus colours with negative energy, in cases where you can't avoid it during input device transform |
+| <video width=100% autoplay muted loop nocontrols><source src="inpaint.webm"></video> | **horizontal inpainting**<br/>horizontal and vertical inpaint modes, great to make things straddling the horizon disappear|
 
 ## TODO
 
-okmgtclp
-
 
 low-lag (phcreery) async compute (niklasiivari)
-
-inpaint and straight horizon
 
 jddcnn bayer xtrans intel amd?
 
