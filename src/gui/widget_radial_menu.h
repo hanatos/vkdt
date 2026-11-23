@@ -13,9 +13,23 @@ dt_radial_menu_text(
   {
     font = *nk_glfw3_font(0);
     font.height *= 1.5;
+    float tw = 0.0f;
+    { // get max line length:
+      const char *t = text;
+      while(*t)
+      { // split at every white space
+        int len = 0;
+        for(;t[len]!=0&&t[len]!=' ';len++) {}
+        if(len) tw = MAX(tw, font.width(font.userdata, font.height, t, len));
+        if(t[len] == 0) break;
+        t += len+1;
+      }
+    }
+    float off = .6*box.w;
+    box.w = tw;
+    if(left) box.x -= off + box.w;
+    box.w += 2*font.height;
     box.h *= 1.5;
-    if(left) box.x -= 3*box.w;
-    box.w *= 4;
     nk_fill_rect(cmd, (struct nk_rect){box.x,box.y-box.h/2,box.w,box.h}, box.h/2,
         vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
   }
