@@ -48,9 +48,10 @@ recently_used_collections_parse(
     {
       vkdt.db.collection_filter = *ft;
       dt_db_update_collection(&vkdt.db);
-      dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
     }
   }
+  if(update_collection)
+    dt_thumbnails_cache_collection(&vkdt.thumbnail_gen, &vkdt.db, &glfwPostEmptyEvent);
 }
 
 static inline void
