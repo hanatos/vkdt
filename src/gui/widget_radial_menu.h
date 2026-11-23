@@ -20,7 +20,7 @@ dt_radial_menu_text(
         vkdt.style.colour[NK_COLOR_DT_ACCENT_HOVER]);
   }
   const char *t = text;
-  while(1)
+  while(*t)
   { // split at every white space
     int len = 0;
     for(;t[len]!=0&&t[len]!=' ';len++) {}
@@ -44,7 +44,7 @@ dt_radial_menu_text(
       }
       box.y += box.h-1;
     }
-    if(*t==0) break;
+    if(t[len] == 0) break;
     t += len+1;
   }
 }
