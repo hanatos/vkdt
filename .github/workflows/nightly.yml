@@ -306,7 +306,8 @@ jobs:
           retention-days: 1
 
   macintosh:
-    if: github.repository == 'hanatos/vkdt' && github.ref == 'refs/heads/master'
+    if: false
+    # if: github.repository == 'hanatos/vkdt' && github.ref == 'refs/heads/master'
     name: nightly vkdt macintosh
     strategy:
       fail-fast: true
@@ -492,7 +493,8 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    needs: [AppImage, WindowsRawler, macintosh]
+    # needs: [AppImage, WindowsRawler, macintosh]
+    needs: [AppImage, WindowsRawler ]
     steps:
       - name: set nightly tag
         if: ${{ github.ref == 'refs/heads/master' }}
@@ -534,7 +536,7 @@ jobs:
             (no v4l, no sound, no quake, no pentablet support).
 
             macintosh
-            the macintosh version is extremely experimental (completely untested!)
+            is currently disabled because github runners don't come online
             it builds (using brew) and runs (using the lunarg sdk) both on intel and apple silicon devices.
 
           files: |
