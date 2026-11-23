@@ -1274,7 +1274,7 @@ int
 darkroom_enter()
 {
   vkdt.wstate.lod_fine     = dt_rc_get_int(&vkdt.rc, "gui/lod", 1); // set finest lod by default
-  vkdt.wstate.lod_interact = dt_rc_get_int(&vkdt.rc, "gui/lod_interact", 1);
+  vkdt.wstate.lod_interact = dt_rc_get_int(&vkdt.rc, "gui/lod_interact", qvk.vendorID == s_qvk_vendorid_qualcomm ? 2 : 1); // hacky fix for more fun on adreno phones
   vkdt.state.anim_frame = 0;
   dt_gui_dr_anim_stop();
   dt_image_reset_zoom(&vkdt.wstate.img_widget);

@@ -95,6 +95,17 @@ typedef struct qvk_queue_t
 }
 qvk_queue_t;
 
+typedef enum qvk_vendorid_t
+{
+  s_qvk_vendorid_nvidia   = 0x10de,
+  s_qvk_vendorid_intel    = 0x8086,
+  s_qvk_vendorid_amd      = 0x1002,
+  s_qvk_vendorid_imgtec   = 0x1010,
+  s_qvk_vendorid_arm      = 0x13b5,
+  s_qvk_vendorid_qualcomm = 0x5143,
+}
+qvk_vendorid_t;
+
 typedef struct qvk_t
 {
   VkInstance                  instance;
