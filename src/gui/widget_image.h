@@ -490,7 +490,7 @@ dt_image(
   if(center_display)
   {
     struct nk_rect center = {vkdt.state.center_x, vkdt.state.center_y,
-      vkdt.state.center_wd, vkdt.state.center_ht - vkdt.wstate.dopesheet_view};
+      vkdt.state.center_wd, vkdt.state.center_ht};
     hover = nk_input_is_mouse_hovering_rect(&ctx->input, center);
   }
   nk_draw_image(buf, disp, &nkimg, (struct nk_color){0xff,0xff,0xff,0xff});

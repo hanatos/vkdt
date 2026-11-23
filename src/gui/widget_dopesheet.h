@@ -241,9 +241,4 @@ dt_dopesheet(
       frame_to_screen(graph->frame, graph, bounds), bounds.y+bounds.h };
     nk_stroke_polyline(buf, x, 2, .1*row_height, nk_rgb(0,0,0));
   }
-
-  // this is unfortunately not reliable since we skip drawing and everything
-  // in case a line cannot be seen on screen.
-  // vkdt.wstate.dopesheet_view = MIN(0.5*vkdt.state.center_ht, size);
-  vkdt.wstate.dopesheet_view = 0.2*vkdt.state.center_ht; // fixed size
 }

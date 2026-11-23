@@ -387,20 +387,22 @@ dt_gui_dr_leave_fullscreen_view()
 static inline void
 dt_gui_dr_show_dopesheet()
 {
-  vkdt.wstate.dopesheet_view = 1.0;
+  vkdt.wstate.dopesheet_view = 1;
+  dt_gui_style_to_state();
 }
 
 static inline void
 dt_gui_dr_hide_dopesheet()
 {
-  vkdt.wstate.dopesheet_view = 0.0;
+  vkdt.wstate.dopesheet_view = 0;
+  dt_gui_style_to_state();
 }
 
 static inline void
 dt_gui_dr_toggle_dopesheet()
 {
-  if(vkdt.wstate.dopesheet_view > 0) vkdt.wstate.dopesheet_view = 0.0;
-  else vkdt.wstate.dopesheet_view = 1.0;
+  if(vkdt.wstate.dopesheet_view) dt_gui_dr_hide_dopesheet();
+  else dt_gui_dr_show_dopesheet();
 }
 
 static inline void

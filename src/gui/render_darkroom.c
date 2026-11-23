@@ -424,7 +424,7 @@ void render_darkroom()
   // double clock_beg = dt_time();
 
   int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
-  int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
+  int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
   struct nk_rect bounds = {win_x, win_y, win_w, win_h};
   if(!dt_gui_input_blocked() && !vkdt.wstate.dragkey_latched && nk_input_is_mouse_click_in_rect(&vkdt.ctx.input, NK_BUTTON_DOUBLE, bounds))
   {
@@ -488,8 +488,8 @@ void render_darkroom()
   static char filter_inst[10] = {0};
   if(vkdt.wstate.dopesheet_view > 0.0f)
   { // draw dopesheet
-    int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y + vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
-    int win_w = vkdt.state.center_wd, win_h = vkdt.wstate.dopesheet_view;
+    int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y + vkdt.state.border + vkdt.state.center_ht;
+    int win_w = vkdt.state.center_wd, win_h = vkdt.win.height - win_y;
     struct nk_rect bounds = { .x = win_x, .y = win_y, .w = win_w, .h = win_h };
     const int disabled = vkdt.wstate.popup;
     nk_style_push_style_item(&vkdt.ctx, &vkdt.ctx.style.window.fixed_background, nk_style_item_color(vkdt.style.colour[NK_COLOR_DT_BACKGROUND]));
@@ -503,7 +503,7 @@ void render_darkroom()
 
   if(!vkdt.wstate.fullscreen_view && vkdt.wstate.history_view)
   { // left panel: history view
-    struct nk_rect bounds = { .x = 0, .y = 0, .w = vkdt.state.panel_wd, .h = vkdt.state.panel_ht };
+    struct nk_rect bounds = { .x = 0, .y = 0, .w = vkdt.state.center_x - vkdt.state.border, .h = vkdt.state.panel_ht };
     const int disabled = vkdt.wstate.popup;
     if(nk_begin(&vkdt.ctx, "history panel", bounds, disabled ? NK_WINDOW_NO_INPUT : 0))
     {
@@ -1105,7 +1105,7 @@ darkroom_mouse_button(GLFWwindow* window, int button, int action, int mods)
   double x, y;
   dt_view_get_cursor_pos(vkdt.win.window, &x, &y);
   int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
-  int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
+  int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
   if((dragkeys.latched || !dt_gui_input_blocked()) && dt_dragkey_mouse_button(&dragkeys, button, action, mods)) return;
   if(!dragkeys.latched && !dt_gui_input_blocked() && button == 1 && action == GLFW_PRESS &&
       x >= win_x && x < win_x + win_w &&
@@ -1365,7 +1365,7 @@ darkroom_enter()
         if(mid >= 0)
         {
           dt_module_connect(&vkdt.graph_dev, vkdt.graph_dev.active_module, cid, mid, 0); // reconnect
-          const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
+          const float pwd = vkdt.state.panel_wd;
           vkdt.graph_dev.module[mid].connector[0].max_wd = pwd;
           vkdt.graph_dev.module[mid].connector[0].max_ht = pwd;
           vkdt.graph_dev.runflags = s_graph_run_all;
@@ -1542,7 +1542,7 @@ darkroom_gamepad(GLFWwindow *window, GLFWgamepadstate *last, GLFWgamepadstate *c
 #define SMOOTH(X) copysignf(MAX(0.0f, fabsf(X) - 0.05f), X)
     float wd  = (float)out_main->connector[0].roi.wd;
     float ht  = (float)out_main->connector[0].roi.ht;
-    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
+    int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
     float imwd = win_w, imht = win_h;
     float scale = MIN(imwd/wd, imht/ht);
     if(vkdt.wstate.img_widget.scale > 0.0f) scale = vkdt.wstate.img_widget.scale;

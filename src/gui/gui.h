@@ -41,7 +41,6 @@ typedef struct dt_gui_style_t
 #define NK_COLOR_DT_ACCENT_HOVER       (NK_COLOR_COUNT+4)
 #define NK_COLOR_DT_ACCENT_ACTIVE      (NK_COLOR_COUNT+5)
 #define NK_COLOR_DT_BACKGROUND         (NK_COLOR_COUNT+6)
-  float panel_width_frac;   // width of the side panel as fraction of the total window width
   float border_frac;        // width of border between image and panel
   float fontsize;           // font height in pixels
   float color_assessment_margin;   // color assessment margin
@@ -59,6 +58,7 @@ typedef struct dt_gui_state_t
   int   center_wd, center_ht;
   int   panel_wd;
   int   panel_ht;
+  int   border;
 
   // animation state
   int   anim_playing;        // playing yes/no
@@ -112,7 +112,7 @@ typedef struct dt_gui_wstate_t
 
   int fullscreen_view;          // darkroom mode without panels
   int history_view;             // darkroom mode with left panel shown (history view)
-  float dopesheet_view;         // darkroom mode dopesheet, stores adaptive size (0 means collapsed)
+  int dopesheet_view;           // darkroom mode dopesheet, 0 means collapsed
   int color_assessment;         // color assessment mode active
 
   int have_joystick;            // found and enabled a joystick (disable via gui/disable_joystick in config)

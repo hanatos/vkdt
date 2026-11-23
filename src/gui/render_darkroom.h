@@ -95,7 +95,7 @@ dt_darkroom_activate_module(int modid)
          graph->module[mid].connector[0].connected.c != cid)
       {
         dt_module_connect(graph, modid, cid, mid, 0);
-        const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
+        const float pwd = vkdt.state.panel_wd;
         graph->module[mid].connector[0].max_wd = pwd;
         graph->module[mid].connector[0].max_ht = pwd;
       }
@@ -1730,7 +1730,7 @@ static inline void render_darkroom_widgets(
           }
           if(mid >= 0)
           { // scale output to match panel
-            const float pwd = vkdt.style.panel_width_frac * vkdt.win.width;
+            const float pwd = vkdt.state.panel_wd;
             graph->module[mid].connector[0].max_wd = pwd;
             graph->module[mid].connector[0].max_ht = pwd;
             vkdt.graph_dev.runflags = s_graph_run_all;

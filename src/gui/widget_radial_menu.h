@@ -141,7 +141,7 @@ dt_radial_widget(
   float *val = (float*)(vkdt.graph_dev.module[modid].param + param->offset) + num;
   float oldval = val[0];
   int win_x = vkdt.state.center_x,  win_y = vkdt.state.center_y;
-  int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht - vkdt.wstate.dopesheet_view;
+  int win_w = vkdt.state.center_wd, win_h = vkdt.state.center_ht;
   struct nk_rect bounds = {win_x, win_y, win_w, win_h};
   dt_graph_run_t flags = s_graph_run_none;
   int ret = 1; // assume we're done

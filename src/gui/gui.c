@@ -21,10 +21,13 @@
 void
 dt_gui_style_to_state()
 {
-  vkdt.style.panel_width_frac = dt_rc_get_float(&vkdt.rc, "gui/panelwd", 0.2f);
-  vkdt.style.border_frac = 0.05f;
-  const float pwd_r = vkdt.wstate.fullscreen_view ? 0 : vkdt.style.panel_width_frac * vkdt.win.width;
-  const float pwd_l = (vkdt.wstate.fullscreen_view || vkdt.view_mode != s_view_darkroom || !vkdt.wstate.history_view) ? 0 : vkdt.style.panel_width_frac * vkdt.win.width;
+  float panel_r_frac = dt_rc_get_float(&vkdt.rc, "gui/panelr", 0.2f);
+  float panel_l_frac = dt_rc_get_float(&vkdt.rc, "gui/panell", 0.2f);
+  float panel_b_frac = dt_rc_get_float(&vkdt.rc, "gui/panelb", 0.2f);
+  vkdt.style.border_frac = dt_rc_get_float(&vkdt.rc, "gui/border", 0.05f);
+  const float pwd_r = vkdt.wstate.fullscreen_view ? 0 : panel_r_frac * vkdt.win.width;
+  const float pwd_l = (vkdt.wstate.fullscreen_view || vkdt.view_mode != s_view_darkroom || !vkdt.wstate.history_view) ? 0 : panel_l_frac * vkdt.win.width;
+  const float pwd_b = (vkdt.wstate.fullscreen_view || vkdt.view_mode != s_view_darkroom || !vkdt.wstate.dopesheet_view) ? 0 : panel_b_frac * vkdt.win.height;
   const float dpi_scale = dt_rc_get_float(&vkdt.rc, "gui/dpiscale", 1.0f);
   vkdt.style.fontsize = MAX(5, floorf(20 * vkdt.win.content_scale[1] * dpi_scale));
   float border = MAX(vkdt.style.fontsize * 2 * 1.25, 4); // enough for large 2x font + border
@@ -35,9 +38,10 @@ dt_gui_style_to_state()
   vkdt.state = (dt_gui_state_t) {
     .center_x   = pwd_l + border,
     .center_y   = border,
+    .border     = border,
     .panel_wd   = pwd_r,
     .center_wd  = vkdt.win.width  - 2.0f*border - pwd_l - pwd_r,
-    .center_ht  = vkdt.win.height - 2.0f*border,
+    .center_ht  = vkdt.win.height - 2.0f*border - pwd_b,
     .panel_ht   = vkdt.win.height,
     .anim_frame = vkdt.state.anim_frame,
   };
