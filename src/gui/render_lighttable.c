@@ -1561,6 +1561,13 @@ int lighttable_leave()
 
 int lighttable_enter()
 {
+  if(!vkdt.db.dirname[0])
+  { // we would have opened vkdt with a single image as explicit file name argument
+    char fullfn[1024];
+    dt_db_image_path(&vkdt.db, 0, fullfn, sizeof(fullfn));
+    fs_dirname(fullfn);
+    dt_gui_switch_collection(fullfn); // open the full dir now
+  }
   uint32_t colid = dt_db_current_colid(&vkdt.db);
   g_scroll_colid = colid;
   g_scroll_offset = abs(g_scroll_offset);
