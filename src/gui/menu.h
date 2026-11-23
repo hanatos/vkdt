@@ -1017,7 +1017,7 @@ dt_menu_ensure_children(dt_menu_t *m)
 // returns 1 = consumed, -(hotkey_index+2) = caller should dispatch hotkey
 static inline int
 dt_menu_select(dt_menu_t *m, dt_menu_entry_t *children, int child_cnt,
-    int idx, hk_t *hk, int hk_cnt)
+    int idx, hk_t *hk, int hk_cnt, int stay_open)
 {
   if(idx < 0 || idx >= child_cnt) return 1;
   dt_menu_entry_t *e = &children[idx];
@@ -1056,12 +1056,12 @@ dt_menu_select(dt_menu_t *m, dt_menu_entry_t *children, int child_cnt,
     // auto-select if submenu has exactly one child
     int ccnt = dt_menu_ensure_children(m);
     if(ccnt == 1)
-      return dt_menu_select(m, m->children, ccnt, 0, hk, hk_cnt);
+      return dt_menu_select(m, m->children, ccnt, 0, hk, hk_cnt, stay_open);
     return 1;
   }
   else
   {
-    dt_menu_set_depth(m, 0);
+    if(!stay_open) dt_menu_set_depth(m, 0);
     if(e->hotkey_index >= 0 && e->hotkey_index < hk_cnt)
       return -(e->hotkey_index + 2);
     else if(e->action_buf[0])
@@ -1124,7 +1124,7 @@ dt_menu_keyboard(
   if(key == GLFW_KEY_ENTER || key == GLFW_KEY_RIGHT)
   {
     if(m->cursor >= 0 && m->cursor < child_cnt)
-      return dt_menu_select(m, m->children, child_cnt, m->cursor, hk, hk_cnt);
+      return dt_menu_select(m, m->children, child_cnt, m->cursor, hk, hk_cnt, 0);
     return 1;
   }
   if(key == GLFW_KEY_LEFT)
@@ -1146,7 +1146,7 @@ dt_menu_keyboard(
     {
       if(m->children[i].key != key) continue;
       m->cursor = i;
-      return dt_menu_select(m, m->children, child_cnt, i, hk, hk_cnt);
+      return dt_menu_select(m, m->children, child_cnt, i, hk, hk_cnt, 0);
     }
     dt_menu_set_depth(m, 0);
   }
@@ -1203,7 +1203,7 @@ dt_menu_gamepad(dt_menu_t *m, hk_t *hk, int hk_cnt,
   }
 
   if(GP_PRESSED(GLFW_GAMEPAD_BUTTON_A) && child_cnt > 0)
-    return dt_menu_select(m, m->children, child_cnt, m->cursor, hk, hk_cnt);
+    return dt_menu_select(m, m->children, child_cnt, m->cursor, hk, hk_cnt, 1);
 
 #undef GP_PRESSED
   return 1; // consume all other buttons while menu is open
@@ -1402,5 +1402,5 @@ dt_menu_process_clicks(dt_menu_t *m, hk_t *hk, int hk_cnt)
   int idx = m->clicked;
   m->clicked = -1;
   m->cursor = idx;
-  return dt_menu_select(m, m->children, child_cnt, idx, hk, hk_cnt);
+  return dt_menu_select(m, m->children, child_cnt, idx, hk, hk_cnt, 0);
 }
