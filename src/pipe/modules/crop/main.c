@@ -389,10 +389,9 @@ void commit_params(dt_graph_t *graph, dt_module_t *module)
 
   // and now write back actual parameters in case we were in auto-rotate mode
   if(p_rot[0] == 1337.0f)
-  {
-    dt_module_set_param_float_n(module, dt_token("crop"), crop, 4);
     dt_module_set_param_float(module, dt_token("rotate"), rot);
-  }
+  if(p_crop[0] == 1.0f && p_crop[1] == 3.0f && p_crop[2] == 3.0f && p_crop[3] == 7.0f)
+    dt_module_set_param_float_n(module, dt_token("crop"), crop, 4);
 }
 
 int init(dt_module_t *mod)
