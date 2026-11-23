@@ -59,6 +59,7 @@ dt_view_switch(dt_gui_view_t view)
     vkdt.view_mode = old_view;
     return err;
   }
+  dt_gui_style_to_state(); // lt may not have dopesheet for instance
   return 0;
 }
 
