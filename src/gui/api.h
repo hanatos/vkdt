@@ -327,20 +327,7 @@ static inline void
 dt_gui_toggle_fullscreen_view()
 {
   vkdt.wstate.fullscreen_view ^= 1;
-  if(vkdt.wstate.fullscreen_view)
-  {
-    vkdt.state.center_x = 0;
-    vkdt.state.center_y = 0;
-    vkdt.state.center_wd = vkdt.win.width;
-    vkdt.state.center_ht = vkdt.win.height;
-  }
-  else
-  {
-    vkdt.state.center_x = vkdt.style.border_frac * vkdt.win.height;
-    vkdt.state.center_y = vkdt.style.border_frac * vkdt.win.height;
-    vkdt.state.center_wd = vkdt.win.width  - 2.0f*vkdt.style.border_frac * vkdt.win.height - vkdt.state.panel_wd;
-    vkdt.state.center_ht = vkdt.win.height * (1.0f-2.0f*vkdt.style.border_frac); 
-  }
+  dt_gui_style_to_state();
 }
 
 static inline void
@@ -359,20 +346,7 @@ static inline void
 dt_gui_dr_toggle_history()
 {
   vkdt.wstate.history_view ^= 1;
-  if(vkdt.wstate.history_view)
-  {
-    vkdt.state.center_x = vkdt.style.border_frac * vkdt.win.height + vkdt.state.panel_wd;
-    vkdt.state.center_y = vkdt.style.border_frac * vkdt.win.height;
-    vkdt.state.center_wd = vkdt.win.width  - 2.0f*vkdt.style.border_frac * vkdt.win.height - 2*vkdt.state.panel_wd;
-    vkdt.state.center_ht = vkdt.win.height * (1.0f-2.0f*vkdt.style.border_frac); 
-  }
-  else
-  {
-    vkdt.state.center_x = vkdt.style.border_frac * vkdt.win.height;
-    vkdt.state.center_y = vkdt.style.border_frac * vkdt.win.height;
-    vkdt.state.center_wd = vkdt.win.width  - 2.0f*vkdt.style.border_frac * vkdt.win.height - vkdt.state.panel_wd;
-    vkdt.state.center_ht = vkdt.win.height * (1.0f-2.0f*vkdt.style.border_frac); 
-  }
+  dt_gui_style_to_state();
 }
 
 static inline void
