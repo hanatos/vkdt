@@ -249,7 +249,7 @@ void setup_expose_film(int film)
   {
     env_sens = fetch_sensitivity(film, tid) * envelope(lambda);
     spd.x = eval_illuminant_spd(d65_cct, lambda, tid, m_d65);
-    float scene = (params.scene_ill != 0.0) ? eval_illuminant_spd(params.scene_ill, lambda, tid, m_scene) : spd.x;
+    float scene = (params.scene_ill != 0.0 && params.scene_ill != d65_cct) ? eval_illuminant_spd(params.scene_ill, lambda, tid, m_scene) : spd.x;
     if (params.scene_tint != 0.0)
     {
       vec4 c_purple = vec4( 0.007, -7.236, 1818.0, 1);
