@@ -19,6 +19,7 @@
 
 #include "core/log.h"
 #include "core/xrand.h"
+#include "core/sort.h"
 #include "gui/gui.h"
 #include "gui/render.h"
 #include "gui/hotkey.h"
@@ -530,11 +531,23 @@ dt_menu_prov_presets(dt_menu_entry_t *buf, int max, void *data)
   return dt_menu_prov_scandir(buf, max, "presets", ".pst");
 }
 
+static inline int
+compare_menu_entry_label(const void *a, const void *b, void *userdata)
+{
+  const dt_menu_entry_t *ma = a;
+  const dt_menu_entry_t *mb = b;
+  return strncmp(ma->action_buf, mb->action_buf, sizeof(ma->action_buf));
+}
+
 static int
 dt_menu_prov_keyaccel(dt_menu_entry_t *buf, int max, void *data)
 {
   (void)data;
-  return dt_menu_prov_scandir(buf, max, "keyaccel", 0);
+  int cnt = dt_menu_prov_scandir(buf, max, "keyaccel", 0);
+  sort(buf, cnt, sizeof(buf[0]), &compare_menu_entry_label, 0);
+  for(int i=0;i<cnt;i++)
+    buf[i].label = buf[i].action_buf; // fix pointers
+  return cnt;
 }
 
 
