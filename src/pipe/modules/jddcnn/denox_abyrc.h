@@ -34,8 +34,8 @@ static void denox_create_nodes_abyrc(dt_graph_t* graph, dt_module_t* module,
       uint64_t H, uint64_t W,
       int input_id, const char* input_connector,
       int output_id, const char* output_connector) {
-  const int64_t r2 = W + 7;
-  const int64_t r3 = r2 / 8;
+  const int64_t r2 = W + 127;
+  const int64_t r3 = r2 / 128;
   const int64_t r4 = ((W % 16) + 16) % 16;
   const int64_t r5 = r4 * -1;
   const int64_t r6 = r5 + 16;
@@ -80,71 +80,62 @@ static void denox_create_nodes_abyrc(dt_graph_t* graph, dt_module_t* module,
   const int64_t r47 = r46 * 128;
   const int64_t r49 = r30 * r18;
   const int64_t r50 = r49 * 64;
-  const int64_t r53 = r27 + 2;
-  const int64_t r54 = r53 / 3;
+  const int64_t r53 = r27 + 1;
+  const int64_t r54 = r53 / 2;
   const int64_t r57 = r39 + 15;
   const int64_t r58 = r57 / 16;
-  const int64_t r61 = r43 * 512;
   const int64_t r63 = r24 + 2;
   const int64_t r64 = r63 / 3;
   const int64_t r65 = r24 + 5;
   const int64_t r66 = r65 / 6;
   const int64_t r67 = r24 + 3;
   const int64_t r68 = r67 / 4;
-  const int64_t r71 = r24 + 1;
-  const int64_t r72 = r71 / 2;
-  const int64_t r73 = r36 + 15;
-  const int64_t r74 = r73 / 16;
-  const int64_t r79 = r21 + 14;
-  const int64_t r80 = r79 / 15;
-  const int64_t r81 = r21 + 2;
-  const int64_t r82 = r81 / 3;
-  const int64_t r83 = r21 + 5;
-  const int64_t r84 = r83 / 6;
-  const int64_t r85 = r21 + 3;
-  const int64_t r86 = r85 / 4;
-  const int64_t r89 = r21 + 1;
-  const int64_t r90 = r89 / 2;
-  const int64_t r91 = r33 + 15;
-  const int64_t r92 = r91 / 16;
-  const int64_t r93 = r8 * r15;
-  const int64_t r94 = r93 * 32;
-  const int64_t r99 = r18 + 11;
-  const int64_t r100 = r99 / 12;
-  const int64_t r101 = r18 + 5;
-  const int64_t r102 = r101 / 6;
-  const int64_t r103 = r18 + 1;
-  const int64_t r104 = r103 / 2;
-  const int64_t r107 = r18 + 3;
-  const int64_t r108 = r107 / 4;
-  const int64_t r109 = r30 + 15;
-  const int64_t r110 = r109 / 16;
-  const int64_t r113 = r93 * 8;
-  const int64_t r118 = r15 + 11;
-  const int64_t r119 = r118 / 12;
-  const int64_t r120 = r15 + 15;
-  const int64_t r121 = r120 / 16;
-  const int64_t r122 = r15 + 7;
-  const int64_t r123 = r122 / 8;
-  const int64_t r126 = r8 + 15;
-  const int64_t r127 = r126 / 16;
-  const int64_t r128 = H * W;
-  const int64_t r129 = r128 * 8;
-  const int64_t r130 = r93 * 24;
-  const int64_t r131 = r128 * 24;
+  const int64_t r71 = r36 + 15;
+  const int64_t r72 = r71 / 16;
+  const int64_t r77 = r21 + 2;
+  const int64_t r78 = r77 / 3;
+  const int64_t r79 = r21 + 3;
+  const int64_t r80 = r79 / 4;
+  const int64_t r83 = r21 + 1;
+  const int64_t r84 = r83 / 2;
+  const int64_t r85 = r33 + 15;
+  const int64_t r86 = r85 / 16;
+  const int64_t r87 = r8 * r15;
+  const int64_t r88 = r87 * 32;
+  const int64_t r93 = r18 + 7;
+  const int64_t r94 = r93 / 8;
+  const int64_t r97 = r18 + 3;
+  const int64_t r98 = r97 / 4;
+  const int64_t r99 = r30 + 15;
+  const int64_t r100 = r99 / 16;
+  const int64_t r103 = r87 * 8;
+  const int64_t r108 = r15 + 11;
+  const int64_t r109 = r108 / 12;
+  const int64_t r110 = r15 + 15;
+  const int64_t r111 = r110 / 16;
+  const int64_t r112 = r15 + 7;
+  const int64_t r113 = r112 / 8;
+  const int64_t r114 = r15 + 5;
+  const int64_t r115 = r114 / 6;
+  const int64_t r118 = r8 + 15;
+  const int64_t r119 = r118 / 16;
+  const int64_t r120 = H * W;
+  const int64_t r121 = r120 * 8;
+  const int64_t r122 = r87 * 24;
+  const int64_t r123 = r120 * 24;
   dt_roi_t roi0 = {.wd = 4308416, .ht = 1};
-  dt_roi_t roi1 = {.wd = (uint32_t)(r129 / 2), .ht = 1};
-  dt_roi_t roi2 = {.wd = (uint32_t)(r113), .ht = 1};
-  dt_roi_t roi3 = {.wd = (uint32_t)(r94), .ht = 1};
+  dt_roi_t roi1 = {.wd = (uint32_t)(r121 / 2), .ht = 1};
+  dt_roi_t roi2 = {.wd = (uint32_t)(r103), .ht = 1};
+  dt_roi_t roi3 = {.wd = (uint32_t)(r88), .ht = 1};
   dt_roi_t roi4 = {.wd = (uint32_t)(r50), .ht = 1};
   dt_roi_t roi5 = {.wd = (uint32_t)(r50), .ht = 1};
   dt_roi_t roi6 = {.wd = (uint32_t)(r47), .ht = 1};
   dt_roi_t roi7 = {.wd = (uint32_t)(r47), .ht = 1};
-  dt_roi_t roi8 = {.wd = (uint32_t)(r61), .ht = 1};
+  dt_roi_t roi8 = {.wd = (uint32_t)(r44), .ht = 1};
   dt_roi_t roi9 = {.wd = (uint32_t)(r44), .ht = 1};
   dt_roi_t roi10 = {.wd = (uint32_t)(r41), .ht = 1};
   dt_roi_t roi11 = {.wd = (uint32_t)(r41), .ht = 1};
-  dt_roi_t roi12 = {.wd = 1, .ht = 1};
+  dt_roi_t roi12 = {.wd = (uint32_t)(r44), .ht = 1};
   dt_roi_t roi13 = {.wd = (uint32_t)(r44), .ht = 1};
   dt_roi_t roi14 = {.wd = (uint32_t)(r44), .ht = 1};
   dt_roi_t roi15 = {.wd = (uint32_t)(r47), .ht = 1};
@@ -153,213 +144,213 @@ static void denox_create_nodes_abyrc(dt_graph_t* graph, dt_module_t* module,
   dt_roi_t roi18 = {.wd = (uint32_t)(r50), .ht = 1};
   dt_roi_t roi19 = {.wd = (uint32_t)(r50), .ht = 1};
   dt_roi_t roi20 = {.wd = (uint32_t)(r50), .ht = 1};
-  dt_roi_t roi21 = {.wd = (uint32_t)(r94), .ht = 1};
-  dt_roi_t roi22 = {.wd = (uint32_t)(r94), .ht = 1};
-  dt_roi_t roi23 = {.wd = (uint32_t)(r130), .ht = 1};
-  dt_roi_t roi24 = {.wd = (uint32_t)(r131 / 2), .ht = 1};
+  dt_roi_t roi21 = {.wd = (uint32_t)(r88), .ht = 1};
+  dt_roi_t roi22 = {.wd = (uint32_t)(r88), .ht = 1};
+  dt_roi_t roi23 = {.wd = (uint32_t)(r122), .ht = 1};
+  dt_roi_t roi24 = {.wd = (uint32_t)(r123 / 2), .ht = 1};
   int weights_id = dt_node_add(graph, module, "jddcnn", "weights",
       1, 1, 1, 0, NULL, 1, 
       "w", "source", "ssbo", "u8", &roi0);
   // memory_pad (memory_pad.comp)
   const uint32_t memory_pad_pc[6] = {(uint32_t)(r8), (uint32_t)(r15), 0, (uint32_t)(r7), 0, (uint32_t)(r14)};
-  const int memory_pad_id = dt_node_add(graph, module, "jddcnn", "abyrc6",
+  const int memory_pad_id = dt_node_add(graph, module, "jddcnn", "abyrc12",
       1 * DT_LOCAL_SIZE_X, r10 * DT_LOCAL_SIZE_Y, r15,
       24, (const int*)memory_pad_pc, 2, //
       "a", "read", "ssbo", "f16", &roi1, // HWC[4] : f16
       "b", "write", "ssbo", "u8", &roi2); // HWC[4] : f16
   // direct_conv_cm (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_pc[2] = {(uint32_t)(r8), (uint32_t)(r15)};
-  const int direct_conv_cm_id = dt_node_add(graph, module, "jddcnn", "abyrc7",
-      1 * DT_LOCAL_SIZE_X, r127 * DT_LOCAL_SIZE_Y, r121,
-      8, (const int*)direct_conv_cm_pc, 4, //
+  const uint32_t direct_conv_cm_pc[4] = {(uint32_t)(r8), (uint32_t)(r15), (uint32_t)(r8), (uint32_t)(r15)};
+  const int direct_conv_cm_id = dt_node_add(graph, module, "jddcnn", "abyrc9",
+      1 * DT_LOCAL_SIZE_X, r119 * DT_LOCAL_SIZE_Y, r111,
+      16, (const int*)direct_conv_cm_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
       "c", "read", "ssbo", "u8", &roi2, // HWC[4] : f16
-      "d", "write", "ssbo", "u8", &roi3); // HWC[16] : f16
+      "d", "write", "ssbo", "u8", &roi3); // CHWC8[16] : f16
   // direct_conv_cm_1 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_1_pc[2] = {(uint32_t)(r8), (uint32_t)(r15)};
+  const uint32_t direct_conv_cm_1_pc[4] = {(uint32_t)(r8), (uint32_t)(r15), (uint32_t)(r8), (uint32_t)(r15)};
   const int direct_conv_cm_1_id = dt_node_add(graph, module, "jddcnn", "abyrc10",
-      1 * DT_LOCAL_SIZE_X, r127 * DT_LOCAL_SIZE_Y, r123,
-      8, (const int*)direct_conv_cm_1_pc, 4, //
+      1 * DT_LOCAL_SIZE_X, r119 * DT_LOCAL_SIZE_Y, r115,
+      16, (const int*)direct_conv_cm_1_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
-      "c", "read", "ssbo", "u8", &roi3, // HWC[16] : f16
+      "c", "read", "ssbo", "u8", &roi3, // CHWC8[16] : f16
       "d", "write", "ssbo", "u8", &roi4); // HWC[32] : f16
   // direct_conv_cm_2 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_2_pc[2] = {(uint32_t)(r30), (uint32_t)(r18)};
-  const int direct_conv_cm_2_id = dt_node_add(graph, module, "jddcnn", "abyrc9",
-      1 * DT_LOCAL_SIZE_X, r110 * DT_LOCAL_SIZE_Y, r108,
-      8, (const int*)direct_conv_cm_2_pc, 4, //
+  const uint32_t direct_conv_cm_2_pc[4] = {(uint32_t)(r30), (uint32_t)(r18), (uint32_t)(r30), (uint32_t)(r18)};
+  const int direct_conv_cm_2_id = dt_node_add(graph, module, "jddcnn", "abyrc20",
+      1 * DT_LOCAL_SIZE_X, r100 * DT_LOCAL_SIZE_Y, r98,
+      16, (const int*)direct_conv_cm_2_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
       "c", "read", "ssbo", "u8", &roi4, // HWC[32] : f16
       "d", "write", "ssbo", "u8", &roi5); // HWC[32] : f16
   // direct_conv_cm_3 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_3_pc[2] = {(uint32_t)(r30), (uint32_t)(r18)};
-  const int direct_conv_cm_3_id = dt_node_add(graph, module, "jddcnn", "abyrc11",
-      1 * DT_LOCAL_SIZE_X, r110 * DT_LOCAL_SIZE_Y, r108,
-      8, (const int*)direct_conv_cm_3_pc, 4, //
+  const uint32_t direct_conv_cm_3_pc[4] = {(uint32_t)(r30), (uint32_t)(r18), (uint32_t)(r30), (uint32_t)(r18)};
+  const int direct_conv_cm_3_id = dt_node_add(graph, module, "jddcnn", "abyrc14",
+      1 * DT_LOCAL_SIZE_X, r100 * DT_LOCAL_SIZE_Y, r94,
+      16, (const int*)direct_conv_cm_3_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
       "c", "read", "ssbo", "u8", &roi5, // HWC[32] : f16
-      "d", "write", "ssbo", "u8", &roi6); // CHWC8[64] : f16
+      "d", "write", "ssbo", "u8", &roi6); // HWC[64] : f16
   // direct_conv_cm_4 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_4_pc[2] = {(uint32_t)(r33), (uint32_t)(r21)};
-  const int direct_conv_cm_4_id = dt_node_add(graph, module, "jddcnn", "abyrc12",
-      1 * DT_LOCAL_SIZE_X, r92 * DT_LOCAL_SIZE_Y, r90,
-      8, (const int*)direct_conv_cm_4_pc, 4, //
+  const uint32_t direct_conv_cm_4_pc[4] = {(uint32_t)(r33), (uint32_t)(r21), (uint32_t)(r33), (uint32_t)(r21)};
+  const int direct_conv_cm_4_id = dt_node_add(graph, module, "jddcnn", "abyrc15",
+      1 * DT_LOCAL_SIZE_X, r86 * DT_LOCAL_SIZE_Y, r80,
+      16, (const int*)direct_conv_cm_4_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
-      "c", "read", "ssbo", "u8", &roi6, // CHWC8[64] : f16
-      "d", "write", "ssbo", "u8", &roi7); // HWC[64] : f16
+      "c", "read", "ssbo", "u8", &roi6, // HWC[64] : f16
+      "d", "write", "ssbo", "u8", &roi7); // CHWC8[64] : f16
   // direct_conv_cm_5 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_5_pc[2] = {(uint32_t)(r33), (uint32_t)(r21)};
-  const int direct_conv_cm_5_id = dt_node_add(graph, module, "jddcnn", "abyrc16",
-      1 * DT_LOCAL_SIZE_X, r92 * DT_LOCAL_SIZE_Y, r86,
-      8, (const int*)direct_conv_cm_5_pc, 4, //
+  const uint32_t direct_conv_cm_5_pc[4] = {(uint32_t)(r33), (uint32_t)(r21), (uint32_t)(r33), (uint32_t)(r21)};
+  const int direct_conv_cm_5_id = dt_node_add(graph, module, "jddcnn", "abyrc17",
+      1 * DT_LOCAL_SIZE_X, r86 * DT_LOCAL_SIZE_Y, r80,
+      16, (const int*)direct_conv_cm_5_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
-      "c", "read", "ssbo", "u8", &roi7, // HWC[64] : f16
-      "d", "write", "ssbo", "u8", &roi8); // CHWC8[128] : f16
+      "c", "read", "ssbo", "u8", &roi7, // CHWC8[64] : f16
+      "d", "write", "ssbo", "u8", &roi8); // HWC[128] : f16
   // direct_conv_cm_6 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_6_pc[2] = {(uint32_t)(r36), (uint32_t)(r24)};
-  const int direct_conv_cm_6_id = dt_node_add(graph, module, "jddcnn", "abyrc20",
-      1 * DT_LOCAL_SIZE_X, r74 * DT_LOCAL_SIZE_Y, r72,
-      8, (const int*)direct_conv_cm_6_pc, 4, //
+  const uint32_t direct_conv_cm_6_pc[4] = {(uint32_t)(r36), (uint32_t)(r24), (uint32_t)(r36), (uint32_t)(r24)};
+  const int direct_conv_cm_6_id = dt_node_add(graph, module, "jddcnn", "abyrc13",
+      1 * DT_LOCAL_SIZE_X, r72 * DT_LOCAL_SIZE_Y, r66,
+      16, (const int*)direct_conv_cm_6_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
-      "c", "read", "ssbo", "u8", &roi8, // CHWC8[128] : f16
+      "c", "read", "ssbo", "u8", &roi8, // HWC[128] : f16
       "d", "write", "ssbo", "u8", &roi9); // HWC[128] : f16
   // direct_conv_cm_7 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_7_pc[2] = {(uint32_t)(r36), (uint32_t)(r24)};
-  const int direct_conv_cm_7_id = dt_node_add(graph, module, "jddcnn", "abyrc22",
-      1 * DT_LOCAL_SIZE_X, r74 * DT_LOCAL_SIZE_Y, r68,
-      8, (const int*)direct_conv_cm_7_pc, 4, //
+  const uint32_t direct_conv_cm_7_pc[4] = {(uint32_t)(r36), (uint32_t)(r24), (uint32_t)(r36), (uint32_t)(r24)};
+  const int direct_conv_cm_7_id = dt_node_add(graph, module, "jddcnn", "abyrc18",
+      1 * DT_LOCAL_SIZE_X, r72 * DT_LOCAL_SIZE_Y, r66,
+      16, (const int*)direct_conv_cm_7_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
       "c", "read", "ssbo", "u8", &roi9, // HWC[128] : f16
       "d", "write", "ssbo", "u8", &roi10); // CHWC8[256] : f16
   // direct_conv_cm_8 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_8_pc[2] = {(uint32_t)(r39), (uint32_t)(r27)};
+  const uint32_t direct_conv_cm_8_pc[4] = {(uint32_t)(r39), (uint32_t)(r27), (uint32_t)(r39), (uint32_t)(r27)};
   const int direct_conv_cm_8_id = dt_node_add(graph, module, "jddcnn", "abyrc19",
       1 * DT_LOCAL_SIZE_X, r58 * DT_LOCAL_SIZE_Y, r54,
-      8, (const int*)direct_conv_cm_8_pc, 4, //
+      16, (const int*)direct_conv_cm_8_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
       "c", "read", "ssbo", "u8", &roi10, // CHWC8[256] : f16
-      "d", "write", "ssbo", "u8", &roi11); // CHWC8[256] : f16
+      "d", "write", "ssbo", "u8", &roi11); // HWC[256] : f16
   // direct_conv_cm_9 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_9_pc[2] = {(uint32_t)(r36), (uint32_t)(r24)};
-  const int direct_conv_cm_9_id = dt_node_add(graph, module, "jddcnn", "abyrc8",
-      1 * DT_LOCAL_SIZE_X, r74 * DT_LOCAL_SIZE_Y, r66,
-      8, (const int*)direct_conv_cm_9_pc, 5, //
+  const uint32_t direct_conv_cm_9_pc[4] = {(uint32_t)(r36), (uint32_t)(r24), (uint32_t)(r36), (uint32_t)(r24)};
+  const int direct_conv_cm_9_id = dt_node_add(graph, module, "jddcnn", "abyrc21",
+      1 * DT_LOCAL_SIZE_X, r72 * DT_LOCAL_SIZE_Y, r68,
+      16, (const int*)direct_conv_cm_9_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
-      "c", "read", "ssbo", "u8", &roi11, // CHWC8[256] : f16
-      "d", "read", "ssbo", "u8", &roi8, // CHWC8[128] : f16
-      "dummy", "write", "ssbo", "u8", &roi12);//
-  // direct_conv_cm_10 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_10_pc[2] = {(uint32_t)(r36), (uint32_t)(r24)};
-  const int direct_conv_cm_10_id = dt_node_add(graph, module, "jddcnn", "abyrc21",
-      1 * DT_LOCAL_SIZE_X, r74 * DT_LOCAL_SIZE_Y, r64,
-      8, (const int*)direct_conv_cm_10_pc, 5, //
-      "a", "read", "ssbo", "u8", &roi0,// unknown
-      "b", "read", "ssbo", "u8", &roi0,// unknown
-      "c", "read", "ssbo", "u8", &roi8, // CHWC8[256] : f16
-      "d", "write", "ssbo", "u8", &roi13, // HWC[128] : f16
-      "z0", "read", "ssbo", "u8", &roi12);//
-  // direct_conv_cm_11 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_11_pc[2] = {(uint32_t)(r36), (uint32_t)(r24)};
-  const int direct_conv_cm_11_id = dt_node_add(graph, module, "jddcnn", "abyrc18",
-      1 * DT_LOCAL_SIZE_X, r74 * DT_LOCAL_SIZE_Y, r68,
-      8, (const int*)direct_conv_cm_11_pc, 4, //
-      "a", "read", "ssbo", "u8", &roi0,// unknown
-      "b", "read", "ssbo", "u8", &roi0,// unknown
-      "c", "read", "ssbo", "u8", &roi13, // HWC[128] : f16
-      "d", "write", "ssbo", "u8", &roi14); // CHWC8[128] : f16
-  // direct_conv_cm_12 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_12_pc[2] = {(uint32_t)(r33), (uint32_t)(r21)};
-  const int direct_conv_cm_12_id = dt_node_add(graph, module, "jddcnn", "abyrc15",
-      1 * DT_LOCAL_SIZE_X, r92 * DT_LOCAL_SIZE_Y, r82,
-      8, (const int*)direct_conv_cm_12_pc, 4, //
-      "a", "read", "ssbo", "u8", &roi0,// unknown
-      "b", "read", "ssbo", "u8", &roi0,// unknown
-      "c", "read", "ssbo", "u8", &roi14, // CHWC8[128] : f16
-      "d", "write", "ssbo", "u8", &roi15); // HWC[64] : f16
+      "c", "read", "ssbo", "u8", &roi11, // HWC[256] : f16
+      "d", "write", "ssbo", "u8", &roi12); // HWC[128] : f16
   // concat_conv_cm (concat_conv_cm.comp)
-  const uint32_t concat_conv_cm_pc[2] = {(uint32_t)(r33), (uint32_t)(r21)};
-  const int concat_conv_cm_id = dt_node_add(graph, module, "jddcnn", "abyrc14",
-      1 * DT_LOCAL_SIZE_X, r92 * DT_LOCAL_SIZE_Y, r84,
+  const uint32_t concat_conv_cm_pc[2] = {(uint32_t)(r36), (uint32_t)(r24)};
+  const int concat_conv_cm_id = dt_node_add(graph, module, "jddcnn", "abyrc16",
+      1 * DT_LOCAL_SIZE_X, r72 * DT_LOCAL_SIZE_Y, r64,
       8, (const int*)concat_conv_cm_pc, 6, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
       "c", "read", "ssbo", "u8", &roi0,// unknown
-      "d", "read", "ssbo", "u8", &roi15, // HWC[64] : f16
-      "e", "read", "ssbo", "u8", &roi6, // CHWC8[64] : f16
-      "f", "write", "ssbo", "u8", &roi16); // CHWC8[64] : f16
-  // direct_conv_cm_13 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_13_pc[2] = {(uint32_t)(r33), (uint32_t)(r21)};
-  const int direct_conv_cm_13_id = dt_node_add(graph, module, "jddcnn", "abyrc17",
-      1 * DT_LOCAL_SIZE_X, r92 * DT_LOCAL_SIZE_Y, r80,
-      8, (const int*)direct_conv_cm_13_pc, 4, //
+      "d", "read", "ssbo", "u8", &roi12, // HWC[128] : f16
+      "e", "read", "ssbo", "u8", &roi8, // HWC[128] : f16
+      "f", "write", "ssbo", "u8", &roi13); // HWC[128] : f16
+  // direct_conv_cm_10 (direct_conv_cm.comp)
+  const uint32_t direct_conv_cm_10_pc[4] = {(uint32_t)(r36), (uint32_t)(r24), (uint32_t)(r36), (uint32_t)(r24)};
+  const int direct_conv_cm_10_id = dt_node_add(graph, module, "jddcnn", "abyrc7",
+      1 * DT_LOCAL_SIZE_X, r72 * DT_LOCAL_SIZE_Y, r68,
+      16, (const int*)direct_conv_cm_10_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
-      "c", "read", "ssbo", "u8", &roi16, // CHWC8[64] : f16
-      "d", "write", "ssbo", "u8", &roi17); // HWC[64] : f16
-  // direct_conv_cm_14 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_14_pc[2] = {(uint32_t)(r30), (uint32_t)(r18)};
-  const int direct_conv_cm_14_id = dt_node_add(graph, module, "jddcnn", "abyrc4",
-      1 * DT_LOCAL_SIZE_X, r110 * DT_LOCAL_SIZE_Y, r102,
-      8, (const int*)direct_conv_cm_14_pc, 4, //
+      "c", "read", "ssbo", "u8", &roi13, // HWC[128] : f16
+      "d", "write", "ssbo", "u8", &roi14); // CHWC8[128] : f16
+  // direct_conv_cm_11 (direct_conv_cm.comp)
+  const uint32_t direct_conv_cm_11_pc[4] = {(uint32_t)(r33), (uint32_t)(r21), (uint32_t)(r33), (uint32_t)(r21)};
+  const int direct_conv_cm_11_id = dt_node_add(graph, module, "jddcnn", "abyrc5",
+      1 * DT_LOCAL_SIZE_X, r86 * DT_LOCAL_SIZE_Y, r84,
+      16, (const int*)direct_conv_cm_11_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
-      "c", "read", "ssbo", "u8", &roi17, // HWC[64] : f16
-      "d", "write", "ssbo", "u8", &roi18); // CHWC8[32] : f16
+      "c", "read", "ssbo", "u8", &roi14, // CHWC8[128] : f16
+      "d", "write", "ssbo", "u8", &roi15); // HWC[64] : f16
   // concat_conv_cm_1 (concat_conv_cm.comp)
-  const uint32_t concat_conv_cm_1_pc[2] = {(uint32_t)(r30), (uint32_t)(r18)};
-  const int concat_conv_cm_1_id = dt_node_add(graph, module, "jddcnn", "abyrc3",
-      1 * DT_LOCAL_SIZE_X, r110 * DT_LOCAL_SIZE_Y, r100,
+  const uint32_t concat_conv_cm_1_pc[2] = {(uint32_t)(r33), (uint32_t)(r21)};
+  const int concat_conv_cm_1_id = dt_node_add(graph, module, "jddcnn", "abyrc4",
+      1 * DT_LOCAL_SIZE_X, r86 * DT_LOCAL_SIZE_Y, r78,
       8, (const int*)concat_conv_cm_1_pc, 6, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
       "c", "read", "ssbo", "u8", &roi0,// unknown
-      "d", "read", "ssbo", "u8", &roi18, // CHWC8[32] : f16
+      "d", "read", "ssbo", "u8", &roi15, // HWC[64] : f16
+      "e", "read", "ssbo", "u8", &roi6, // HWC[64] : f16
+      "f", "write", "ssbo", "u8", &roi16); // CHWC8[64] : f16
+  // direct_conv_cm_12 (direct_conv_cm.comp)
+  const uint32_t direct_conv_cm_12_pc[4] = {(uint32_t)(r33), (uint32_t)(r21), (uint32_t)(r33), (uint32_t)(r21)};
+  const int direct_conv_cm_12_id = dt_node_add(graph, module, "jddcnn", "abyrc3",
+      1 * DT_LOCAL_SIZE_X, r86 * DT_LOCAL_SIZE_Y, r80,
+      16, (const int*)direct_conv_cm_12_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi16, // CHWC8[64] : f16
+      "d", "write", "ssbo", "u8", &roi17); // HWC[64] : f16
+  // direct_conv_cm_13 (direct_conv_cm.comp)
+  const uint32_t direct_conv_cm_13_pc[4] = {(uint32_t)(r30), (uint32_t)(r18), (uint32_t)(r30), (uint32_t)(r18)};
+  const int direct_conv_cm_13_id = dt_node_add(graph, module, "jddcnn", "abyrc11",
+      1 * DT_LOCAL_SIZE_X, r100 * DT_LOCAL_SIZE_Y, r94,
+      16, (const int*)direct_conv_cm_13_pc, 4, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi17, // HWC[64] : f16
+      "d", "write", "ssbo", "u8", &roi18); // HWC[32] : f16
+  // concat_conv_cm_2 (concat_conv_cm.comp)
+  const uint32_t concat_conv_cm_2_pc[2] = {(uint32_t)(r30), (uint32_t)(r18)};
+  const int concat_conv_cm_2_id = dt_node_add(graph, module, "jddcnn", "abyrc6",
+      1 * DT_LOCAL_SIZE_X, r100 * DT_LOCAL_SIZE_Y, r94,
+      8, (const int*)concat_conv_cm_2_pc, 6, //
+      "a", "read", "ssbo", "u8", &roi0,// unknown
+      "b", "read", "ssbo", "u8", &roi0,// unknown
+      "c", "read", "ssbo", "u8", &roi0,// unknown
+      "d", "read", "ssbo", "u8", &roi18, // HWC[32] : f16
       "e", "read", "ssbo", "u8", &roi4, // HWC[32] : f16
       "f", "write", "ssbo", "u8", &roi19); // HWC[32] : f16
-  // direct_conv_cm_15 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_15_pc[2] = {(uint32_t)(r30), (uint32_t)(r18)};
-  const int direct_conv_cm_15_id = dt_node_add(graph, module, "jddcnn", "abyrc2",
-      1 * DT_LOCAL_SIZE_X, r110 * DT_LOCAL_SIZE_Y, r104,
-      8, (const int*)direct_conv_cm_15_pc, 4, //
+  // direct_conv_cm_14 (direct_conv_cm.comp)
+  const uint32_t direct_conv_cm_14_pc[4] = {(uint32_t)(r30), (uint32_t)(r18), (uint32_t)(r30), (uint32_t)(r18)};
+  const int direct_conv_cm_14_id = dt_node_add(graph, module, "jddcnn", "abyrc20",
+      1 * DT_LOCAL_SIZE_X, r100 * DT_LOCAL_SIZE_Y, r98,
+      16, (const int*)direct_conv_cm_14_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
       "c", "read", "ssbo", "u8", &roi19, // HWC[32] : f16
-      "d", "write", "ssbo", "u8", &roi20); // CHWC8[32] : f16
-  // direct_conv_cm_16 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_16_pc[2] = {(uint32_t)(r8), (uint32_t)(r15)};
-  const int direct_conv_cm_16_id = dt_node_add(graph, module, "jddcnn", "abyrc1",
-      1 * DT_LOCAL_SIZE_X, r127 * DT_LOCAL_SIZE_Y, r123,
-      8, (const int*)direct_conv_cm_16_pc, 4, //
+      "d", "write", "ssbo", "u8", &roi20); // HWC[32] : f16
+  // direct_conv_cm_15 (direct_conv_cm.comp)
+  const uint32_t direct_conv_cm_15_pc[4] = {(uint32_t)(r8), (uint32_t)(r15), (uint32_t)(r8), (uint32_t)(r15)};
+  const int direct_conv_cm_15_id = dt_node_add(graph, module, "jddcnn", "abyrc2",
+      1 * DT_LOCAL_SIZE_X, r119 * DT_LOCAL_SIZE_Y, r109,
+      16, (const int*)direct_conv_cm_15_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
-      "c", "read", "ssbo", "u8", &roi20, // CHWC8[32] : f16
+      "c", "read", "ssbo", "u8", &roi20, // HWC[32] : f16
       "d", "write", "ssbo", "u8", &roi21); // CHWC8[16] : f16
-  // concat_conv_cm_2 (concat_conv_cm.comp)
-  const uint32_t concat_conv_cm_2_pc[2] = {(uint32_t)(r8), (uint32_t)(r15)};
-  const int concat_conv_cm_2_id = dt_node_add(graph, module, "jddcnn", "abyrc5",
-      1 * DT_LOCAL_SIZE_X, r127 * DT_LOCAL_SIZE_Y, r119,
-      8, (const int*)concat_conv_cm_2_pc, 6, //
+  // concat_conv_cm_3 (concat_conv_cm.comp)
+  const uint32_t concat_conv_cm_3_pc[2] = {(uint32_t)(r8), (uint32_t)(r15)};
+  const int concat_conv_cm_3_id = dt_node_add(graph, module, "jddcnn", "abyrc1",
+      1 * DT_LOCAL_SIZE_X, r119 * DT_LOCAL_SIZE_Y, r113,
+      8, (const int*)concat_conv_cm_3_pc, 6, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
       "c", "read", "ssbo", "u8", &roi0,// unknown
       "d", "read", "ssbo", "u8", &roi21, // CHWC8[16] : f16
       "e", "read", "ssbo", "u8", &roi2, // HWC[4] : f16
       "f", "write", "ssbo", "u8", &roi22); // HWC[16] : f16
-  // direct_conv_cm_17 (direct_conv_cm.comp)
-  const uint32_t direct_conv_cm_17_pc[2] = {(uint32_t)(r8), (uint32_t)(r15)};
-  const int direct_conv_cm_17_id = dt_node_add(graph, module, "jddcnn", "abyrc13",
-      1 * DT_LOCAL_SIZE_X, r127 * DT_LOCAL_SIZE_Y, r119,
-      8, (const int*)direct_conv_cm_17_pc, 4, //
+  // direct_conv_cm_16 (direct_conv_cm.comp)
+  const uint32_t direct_conv_cm_16_pc[4] = {(uint32_t)(r8), (uint32_t)(r15), (uint32_t)(r8), (uint32_t)(r15)};
+  const int direct_conv_cm_16_id = dt_node_add(graph, module, "jddcnn", "abyrc8",
+      1 * DT_LOCAL_SIZE_X, r119 * DT_LOCAL_SIZE_Y, r111,
+      16, (const int*)direct_conv_cm_16_pc, 4, //
       "a", "read", "ssbo", "u8", &roi0,// unknown
       "b", "read", "ssbo", "u8", &roi0,// unknown
       "c", "read", "ssbo", "u8", &roi22, // HWC[16] : f16
@@ -367,7 +358,7 @@ static void denox_create_nodes_abyrc(dt_graph_t* graph, dt_module_t* module,
   // memory_slice (memory_slice.comp)
   const uint32_t memory_slice_pc[6] = {0, 0, (uint32_t)(r8), (uint32_t)(r15), (uint32_t)(W), (uint32_t)(H)};
   const int memory_slice_id = dt_node_add(graph, module, "jddcnn", "abyrc0",
-      1 * DT_LOCAL_SIZE_X, r3 * DT_LOCAL_SIZE_Y, H,
+      4 * DT_LOCAL_SIZE_X, r3 * DT_LOCAL_SIZE_Y, H,
       24, (const int*)memory_slice_pc, 2, //
       "a", "write", "ssbo", "f16", &roi24, // HWC[12] : f16
       "b", "read", "ssbo", "u8", &roi23); // HWC[12] : f16
@@ -406,48 +397,48 @@ static void denox_create_nodes_abyrc(dt_graph_t* graph, dt_module_t* module,
   dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_9_id, "a");
   dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_9_id, "b");
   dt_node_connect_named(graph, direct_conv_cm_8_id, "d", direct_conv_cm_9_id, "c");
-  dt_node_connect_named(graph, direct_conv_cm_5_id, "d", direct_conv_cm_9_id, "d");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_10_id, "a");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_10_id, "b");
-  dt_node_connect_named(graph, direct_conv_cm_5_id, "d", direct_conv_cm_10_id, "c");
-  dt_node_connect_named(graph, direct_conv_cm_9_id, "dummy", direct_conv_cm_10_id, "z0");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_11_id, "a");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_11_id, "b");
-  dt_node_connect_named(graph, direct_conv_cm_10_id, "d", direct_conv_cm_11_id, "c");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_12_id, "a");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_12_id, "b");
-  dt_node_connect_named(graph, direct_conv_cm_11_id, "d", direct_conv_cm_12_id, "c");
   dt_node_connect_named(graph, weights_id, "w", concat_conv_cm_id, "a");
   dt_node_connect_named(graph, weights_id, "w", concat_conv_cm_id, "b");
   dt_node_connect_named(graph, weights_id, "w", concat_conv_cm_id, "c");
-  dt_node_connect_named(graph, direct_conv_cm_12_id, "d", concat_conv_cm_id, "d");
-  dt_node_connect_named(graph, direct_conv_cm_3_id, "d", concat_conv_cm_id, "e");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_13_id, "a");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_13_id, "b");
-  dt_node_connect_named(graph, concat_conv_cm_id, "f", direct_conv_cm_13_id, "c");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_14_id, "a");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_14_id, "b");
-  dt_node_connect_named(graph, direct_conv_cm_13_id, "d", direct_conv_cm_14_id, "c");
+  dt_node_connect_named(graph, direct_conv_cm_9_id, "d", concat_conv_cm_id, "d");
+  dt_node_connect_named(graph, direct_conv_cm_5_id, "d", concat_conv_cm_id, "e");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_10_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_10_id, "b");
+  dt_node_connect_named(graph, concat_conv_cm_id, "f", direct_conv_cm_10_id, "c");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_11_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_11_id, "b");
+  dt_node_connect_named(graph, direct_conv_cm_10_id, "d", direct_conv_cm_11_id, "c");
   dt_node_connect_named(graph, weights_id, "w", concat_conv_cm_1_id, "a");
   dt_node_connect_named(graph, weights_id, "w", concat_conv_cm_1_id, "b");
   dt_node_connect_named(graph, weights_id, "w", concat_conv_cm_1_id, "c");
-  dt_node_connect_named(graph, direct_conv_cm_14_id, "d", concat_conv_cm_1_id, "d");
-  dt_node_connect_named(graph, direct_conv_cm_1_id, "d", concat_conv_cm_1_id, "e");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_15_id, "a");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_15_id, "b");
-  dt_node_connect_named(graph, concat_conv_cm_1_id, "f", direct_conv_cm_15_id, "c");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_16_id, "a");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_16_id, "b");
-  dt_node_connect_named(graph, direct_conv_cm_15_id, "d", direct_conv_cm_16_id, "c");
+  dt_node_connect_named(graph, direct_conv_cm_11_id, "d", concat_conv_cm_1_id, "d");
+  dt_node_connect_named(graph, direct_conv_cm_3_id, "d", concat_conv_cm_1_id, "e");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_12_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_12_id, "b");
+  dt_node_connect_named(graph, concat_conv_cm_1_id, "f", direct_conv_cm_12_id, "c");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_13_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_13_id, "b");
+  dt_node_connect_named(graph, direct_conv_cm_12_id, "d", direct_conv_cm_13_id, "c");
   dt_node_connect_named(graph, weights_id, "w", concat_conv_cm_2_id, "a");
   dt_node_connect_named(graph, weights_id, "w", concat_conv_cm_2_id, "b");
   dt_node_connect_named(graph, weights_id, "w", concat_conv_cm_2_id, "c");
-  dt_node_connect_named(graph, direct_conv_cm_16_id, "d", concat_conv_cm_2_id, "d");
-  dt_node_connect_named(graph, memory_pad_id, "b", concat_conv_cm_2_id, "e");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_17_id, "a");
-  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_17_id, "b");
-  dt_node_connect_named(graph, concat_conv_cm_2_id, "f", direct_conv_cm_17_id, "c");
-  dt_node_connect_named(graph, direct_conv_cm_17_id, "d", memory_slice_id, "b");
+  dt_node_connect_named(graph, direct_conv_cm_13_id, "d", concat_conv_cm_2_id, "d");
+  dt_node_connect_named(graph, direct_conv_cm_1_id, "d", concat_conv_cm_2_id, "e");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_14_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_14_id, "b");
+  dt_node_connect_named(graph, concat_conv_cm_2_id, "f", direct_conv_cm_14_id, "c");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_15_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_15_id, "b");
+  dt_node_connect_named(graph, direct_conv_cm_14_id, "d", direct_conv_cm_15_id, "c");
+  dt_node_connect_named(graph, weights_id, "w", concat_conv_cm_3_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", concat_conv_cm_3_id, "b");
+  dt_node_connect_named(graph, weights_id, "w", concat_conv_cm_3_id, "c");
+  dt_node_connect_named(graph, direct_conv_cm_15_id, "d", concat_conv_cm_3_id, "d");
+  dt_node_connect_named(graph, memory_pad_id, "b", concat_conv_cm_3_id, "e");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_16_id, "a");
+  dt_node_connect_named(graph, weights_id, "w", direct_conv_cm_16_id, "b");
+  dt_node_connect_named(graph, concat_conv_cm_3_id, "f", direct_conv_cm_16_id, "c");
+  dt_node_connect_named(graph, direct_conv_cm_16_id, "d", memory_slice_id, "b");
   if (output_connector == NULL) {
     dt_connector_copy(graph, module, output_id, memory_slice_id, 0);
   } else {
@@ -464,41 +455,40 @@ static void denox_create_nodes_abyrc(dt_graph_t* graph, dt_module_t* module,
   graph->node[direct_conv_cm_4_id].connector[1].ssbo_offset = 139680;
   graph->node[direct_conv_cm_5_id].connector[0].ssbo_offset = 139808;
   graph->node[direct_conv_cm_5_id].connector[1].ssbo_offset = 287264;
-  graph->node[direct_conv_cm_5_id].connector[3].ssbo_offset = r44;
   graph->node[direct_conv_cm_6_id].connector[0].ssbo_offset = 287520;
   graph->node[direct_conv_cm_6_id].connector[1].ssbo_offset = 582432;
-  graph->node[direct_conv_cm_6_id].connector[2].ssbo_offset = r44;
   graph->node[direct_conv_cm_7_id].connector[0].ssbo_offset = 582688;
   graph->node[direct_conv_cm_7_id].connector[1].ssbo_offset = 1172512;
   graph->node[direct_conv_cm_8_id].connector[0].ssbo_offset = 1173024;
   graph->node[direct_conv_cm_8_id].connector[1].ssbo_offset = 2352672;
   graph->node[direct_conv_cm_9_id].connector[0].ssbo_offset = 2353184;
   graph->node[direct_conv_cm_9_id].connector[1].ssbo_offset = 2943008;
-  graph->node[direct_conv_cm_10_id].connector[0].ssbo_offset = 2943264;
-  graph->node[direct_conv_cm_10_id].connector[1].ssbo_offset = 3533088;
-  graph->node[direct_conv_cm_11_id].connector[0].ssbo_offset = 3533344;
-  graph->node[direct_conv_cm_11_id].connector[1].ssbo_offset = 3828256;
-  graph->node[direct_conv_cm_12_id].connector[0].ssbo_offset = 3828512;
-  graph->node[direct_conv_cm_12_id].connector[1].ssbo_offset = 3975968;
-  graph->node[concat_conv_cm_id].connector[0].ssbo_offset = 3976096;
-  graph->node[concat_conv_cm_id].connector[1].ssbo_offset = 4049824;
-  graph->node[concat_conv_cm_id].connector[2].ssbo_offset = 4123552;
-  graph->node[direct_conv_cm_13_id].connector[0].ssbo_offset = 4123680;
-  graph->node[direct_conv_cm_13_id].connector[1].ssbo_offset = 4197408;
-  graph->node[direct_conv_cm_14_id].connector[0].ssbo_offset = 4197536;
-  graph->node[direct_conv_cm_14_id].connector[1].ssbo_offset = 4234400;
-  graph->node[concat_conv_cm_1_id].connector[0].ssbo_offset = 4234464;
-  graph->node[concat_conv_cm_1_id].connector[1].ssbo_offset = 4252896;
-  graph->node[concat_conv_cm_1_id].connector[2].ssbo_offset = 4271328;
-  graph->node[direct_conv_cm_15_id].connector[0].ssbo_offset = 4271392;
-  graph->node[direct_conv_cm_15_id].connector[1].ssbo_offset = 4289824;
-  graph->node[direct_conv_cm_16_id].connector[0].ssbo_offset = 4289888;
-  graph->node[direct_conv_cm_16_id].connector[1].ssbo_offset = 4299104;
-  graph->node[concat_conv_cm_2_id].connector[0].ssbo_offset = 4299136;
-  graph->node[concat_conv_cm_2_id].connector[1].ssbo_offset = 4303744;
-  graph->node[concat_conv_cm_2_id].connector[2].ssbo_offset = 4304896;
-  graph->node[direct_conv_cm_17_id].connector[0].ssbo_offset = 4304928;
-  graph->node[direct_conv_cm_17_id].connector[1].ssbo_offset = 4308384;
+  graph->node[concat_conv_cm_id].connector[0].ssbo_offset = 2943264;
+  graph->node[concat_conv_cm_id].connector[1].ssbo_offset = 3238176;
+  graph->node[concat_conv_cm_id].connector[2].ssbo_offset = 3533088;
+  graph->node[direct_conv_cm_10_id].connector[0].ssbo_offset = 3533344;
+  graph->node[direct_conv_cm_10_id].connector[1].ssbo_offset = 3828256;
+  graph->node[direct_conv_cm_11_id].connector[0].ssbo_offset = 3828512;
+  graph->node[direct_conv_cm_11_id].connector[1].ssbo_offset = 3975968;
+  graph->node[concat_conv_cm_1_id].connector[0].ssbo_offset = 3976096;
+  graph->node[concat_conv_cm_1_id].connector[1].ssbo_offset = 4049824;
+  graph->node[concat_conv_cm_1_id].connector[2].ssbo_offset = 4123552;
+  graph->node[direct_conv_cm_12_id].connector[0].ssbo_offset = 4123680;
+  graph->node[direct_conv_cm_12_id].connector[1].ssbo_offset = 4197408;
+  graph->node[direct_conv_cm_13_id].connector[0].ssbo_offset = 4197536;
+  graph->node[direct_conv_cm_13_id].connector[1].ssbo_offset = 4234400;
+  graph->node[concat_conv_cm_2_id].connector[0].ssbo_offset = 4234464;
+  graph->node[concat_conv_cm_2_id].connector[1].ssbo_offset = 4252896;
+  graph->node[concat_conv_cm_2_id].connector[2].ssbo_offset = 4271328;
+  graph->node[direct_conv_cm_14_id].connector[0].ssbo_offset = 4271392;
+  graph->node[direct_conv_cm_14_id].connector[1].ssbo_offset = 4289824;
+  graph->node[direct_conv_cm_15_id].connector[0].ssbo_offset = 4289888;
+  graph->node[direct_conv_cm_15_id].connector[1].ssbo_offset = 4299104;
+  graph->node[concat_conv_cm_3_id].connector[0].ssbo_offset = 4299136;
+  graph->node[concat_conv_cm_3_id].connector[1].ssbo_offset = 4303744;
+  graph->node[concat_conv_cm_3_id].connector[2].ssbo_offset = 4304896;
+  graph->node[direct_conv_cm_16_id].connector[0].ssbo_offset = 4304928;
+  graph->node[direct_conv_cm_16_id].connector[1].ssbo_offset = 4308384;
 }
 
 #endif
