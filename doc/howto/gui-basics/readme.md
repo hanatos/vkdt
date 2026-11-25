@@ -18,7 +18,7 @@ graph editor is `ctrl-n`. more precisely:
 * darkroom → graph editor: the default hotkey is `ctrl-n`
 * darkroom ← graph editor: press escape (or caps lock)
 * lighttable ← darkroom: press escape (or caps lock)
-* graph editor ← lighttable: press escape (or caps lock)
+* file manager ← lighttable: press escape (or caps lock)
 
 in general, you can export your work but don't have to save it.
 
