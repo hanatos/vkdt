@@ -1,3 +1,4 @@
+arch:int:1:0
 channel:int:1:0
 invert:int:1:0
 hard:float:1:0

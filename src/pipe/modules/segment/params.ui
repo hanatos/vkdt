@@ -1,3 +1,4 @@
+arch:combo:auto:generic:nvidia
 channel:combo:people:sky:vegetation:water:mountain:ground:building:subject:artificial ground:clothing
 invert:combo:off:on
 hard:slider:0:1
