@@ -1204,19 +1204,19 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       QVKR(dt_graph_create_shader_module(graph, node->name, node->kernel, "comp", &shader_module));
 
       // TODO: cache pipelines on module->so ?
-      // vk 1.3:
-      // VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT sub = {
-      //   .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO,
-      //   .requiredSubgroupSize = 32,
-      // };
+      VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT sub = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO,
+        .requiredSubgroupSize = node->required_subgroup_size,
+      };
       // and also remember to set computeFullSubgroups for intel!
       VkPipelineShaderStageCreateInfo stage_info = {
         .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
         .stage               = VK_SHADER_STAGE_COMPUTE_BIT,
+        .flags               = VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT,
         .pSpecializationInfo = 0,
         .pName               = "main", // arbitrary entry point symbols are supported by glslangValidator, but need extra compilation, too. i think it's easier to structure code via includes then.
         .module              = shader_module,
-        // .pNext               = &sub, // vk 1.3
+        .pNext               = node->required_subgroup_size ? &sub : 0,
       };
 
       // finally create the pipeline

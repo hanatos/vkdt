@@ -51,6 +51,7 @@ typedef struct dt_node_t
   size_t   push_constant_size;
 
   uint32_t vtx_cnt; // for graphics nodes with vertex and fragment shaders: number of vertices
+  uint32_t required_subgroup_size; // if != 0 the dispatch requires this dynamic subgroup size (amd)
 }
 dt_node_t;
 
