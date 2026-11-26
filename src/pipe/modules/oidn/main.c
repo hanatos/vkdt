@@ -29,12 +29,12 @@ get_model(dt_module_t *mod)
   int pid_model = dt_module_get_param(mod->so, dt_token("model"));
   int par_arch  = dt_module_param_int(mod, pid_arch)[0];
   int par_model = dt_module_param_int(mod, pid_model)[0];
-  if(par_arch < 0 || par_arch > 3) par_arch = 1; // no amd yet
+  if(par_arch < 0 || par_arch > 4) par_arch = 1;
   if(par_arch == 0)
   {
     if     (qvk.vendorID == 0x10de) par_arch = 2; // nvidia
     else if(qvk.vendorID == 0x8086) par_arch = 3; // intel
-    // else if(qvk.vendorID == 0x1002) par_arch = 4; // amd, don't have kernels
+    else if(qvk.vendorID == 0x1002) par_arch = 4; // amd
     else par_arch = 1; // uhm, sorry.
     // 0x1010 - imgtec
     // 0x13b5 - arm

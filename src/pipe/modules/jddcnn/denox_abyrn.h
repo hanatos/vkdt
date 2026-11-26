@@ -7,7 +7,7 @@
 #include <string.h>
 
 static int denox_read_source_abyrn(dt_module_t* mod, void* mapped, dt_read_source_params_t* p) {
-  if (p->node->kernel == dt_token("weights")) {
+  if (!p || p->node->kernel == dt_token("weights")) {
     FILE* f = dt_graph_open_resource(mod->graph, 0, "data/jddcnn-abyrn.dat", "rb");
     if (!f) {
       snprintf(mod->graph->gui_msg_buf, sizeof(mod->graph->gui_msg_buf),
@@ -24,7 +24,7 @@ static int denox_read_source_abyrn(dt_module_t* mod, void* mapped, dt_read_sourc
       return 1;
     }
     fseek(f, 0, SEEK_SET);
-    fread(mapped, size, 1, f);
+    if(mapped) fread(mapped, size, 1, f);
     fclose(f);
   }
   return 0;
