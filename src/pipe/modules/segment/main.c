@@ -51,6 +51,8 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
   const dt_roi_t input_roi = module->connector[0].roi;
   const dt_roi_t input_ssbo_roi = { .wd = NET_WD * NET_HT * 3, .ht = 1 };
+  if(read_source(module, 0, 0)) // check weights file
+    return dt_connector_bypass(graph, module, 0, 1);
 
   // resample to the network resolution, write a contiguous hwc ssbo
   const int pc_in[] = { NET_WD, NET_HT }, pc_out[] = { NET_OUT, NET_OUT, NET_CH };
@@ -65,7 +67,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       "input",  "read",  "ssbo", "f16", dt_no_roi,
       "output", "write", "y",    "f16", &input_roi);
 
-  arch_t arch = get_model(module);
+  const arch_t arch = get_model(module);
   switch(arch)
   {
     case s_arch_generic:
