@@ -1,2 +1,0 @@
-#pragma once
-#define DENOX_NCLK_WEIGHTS_SIZE 25382048

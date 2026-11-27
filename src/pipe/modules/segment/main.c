@@ -1,10 +1,7 @@
 #include "modules/api.h"
 #include "denox_nseg.h"
-// TODO generate these:
-static int denox_read_source_gseg(dt_module_t* mod, void* mapped, dt_read_source_params_t* p) { return 1; }
-static void denox_create_nodes_gseg(dt_graph_t* graph, dt_module_t* module,
-      int input_id, const char* input_connector,
-      int output_id, const char* output_connector) { }
+#include "denox_gseg.h"
+#include "denox_aseg.h"
 
 #define NET_WD 384
 #define NET_HT 384
@@ -33,18 +30,19 @@ get_model(dt_module_t *mod)
   {
     if     (qvk.vendorID == s_qvk_vendorid_nvidia) par_arch = s_arch_nvidia; // nvidia
     else if(qvk.vendorID == s_qvk_vendorid_amd)    par_arch = s_arch_amd;    // amd
-    else par_arch = 1; // uhm, sorry.
+    else par_arch = s_arch_generic; // uhm, sorry.
   }
-  if(!qvk.coopmat_supported) par_arch = 1;
+  if(!qvk.coopmat_supported) par_arch = s_arch_generic;
   return par_arch;
 }
 
 int read_source(dt_module_t *mod, void *mapped, dt_read_source_params_t *p)
 {
-  arch_t arch = get_model(mod);
+  const arch_t arch = get_model(mod);
   switch(arch)
   {
     case s_arch_generic: return denox_read_source_gseg(mod, mapped, p);
+    case s_arch_amd:     return denox_read_source_aseg(mod, mapped, p);
     case s_arch_nvidia : return denox_read_source_nseg(mod, mapped, p);
     default: return 1;
   }
@@ -70,11 +68,16 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       "input",  "read",  "ssbo", "f16", dt_no_roi,
       "output", "write", "y",    "f16", &input_roi);
 
+  const int beg = graph->num_nodes;
   const arch_t arch = get_model(module);
   switch(arch)
   {
     case s_arch_generic:
       denox_create_nodes_gseg(graph, module, input, "output", output, "input");
+      for(int i=beg;i<graph->num_nodes;i++) graph->node[i].required_subgroup_size = 32;
+      break;
+    case s_arch_amd:
+      denox_create_nodes_aseg(graph, module, input, "output", output, "input");
       break;
     case s_arch_nvidia:
       denox_create_nodes_nseg(graph, module, input, "output", output, "input");

@@ -1,3 +1,5 @@
+arch:combo:auto:generic:nvidia:intel:amd
+pad:hidden
 click:click
 radius:slider:0.002:0.1
 draw:draw

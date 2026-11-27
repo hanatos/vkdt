@@ -1,5 +1,6 @@
 layout(std140, set = 0, binding = 1) uniform params_t
 {
+  uvec4 arch_and_pad;
   vec4  click[16];  // count, then x y label per click
   vec4  box;        // x0 y0 x1 y1, empty if x1 <= x0
   uvec4 draw[2048]; // vertex count, then brush vertices as written by the draw widget

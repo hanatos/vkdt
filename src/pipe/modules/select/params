@@ -1,3 +1,5 @@
+arch:int:1:0
+pad:int:3:0
 click:float:64:0
 box:float:4:-1:-1:-1:-1
 draw:int:8192:0

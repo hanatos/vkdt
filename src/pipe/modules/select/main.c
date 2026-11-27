@@ -1,13 +1,12 @@
 #include "modules/api.h"
 #include "denox_nclk.h"
-#include "denox_nclk_size.h"
+#include "denox_aclk.h"
+#include "denox_gclk.h"
 
 #define NET_WD 512
 #define NET_HT 512
 #define NET_OUT 256 // logits grid
 #define NET_RUNS 5  // at most this many runs: the first click (or the box), then the last clicks
-
-static const char *weights = "data/select-nclk.dat";
 
 // strokes are params, don't reload the weights
 void animate(dt_graph_t *graph, dt_module_t *mod)
@@ -15,10 +14,44 @@ void animate(dt_graph_t *graph, dt_module_t *mod)
   mod->flags &= ~s_module_request_read_source;
 }
 
+typedef enum arch_t
+{
+  s_arch_auto    = 0,
+  s_arch_generic = 1,
+  s_arch_nvidia  = 2,
+  s_arch_intel   = 3,
+  s_arch_amd     = 4,
+  s_arch_cnt     = 5,
+} arch_t;
+
+static inline arch_t
+get_model(dt_module_t *mod)
+{
+  int pid_arch  = dt_module_get_param(mod->so, dt_token("arch"));
+  int par_arch  = dt_module_param_int(mod, pid_arch)[0];
+  if(par_arch < s_arch_auto || par_arch >= s_arch_cnt) par_arch = s_arch_generic;
+  if(par_arch == s_arch_intel) par_arch = s_arch_generic; // currently unsupported, need a B580 denox compile!
+  if(par_arch == s_arch_auto)
+  {
+    if     (qvk.vendorID == s_qvk_vendorid_nvidia) par_arch = s_arch_nvidia; // nvidia
+    else if(qvk.vendorID == s_qvk_vendorid_amd)    par_arch = s_arch_amd;    // amd
+    else par_arch = s_arch_generic; // uhm, sorry.
+  }
+  if(!qvk.coopmat_supported) par_arch = s_arch_generic;
+  return par_arch;
+}
+
 int read_source(dt_module_t *mod, void *mapped, dt_read_source_params_t *p)
 {
   mod->flags = 0; // the draw widget requests this for every vertex
-  return denox_read_source_nclk(mod, mapped, p);
+  const arch_t arch = get_model(mod);
+  switch(arch)
+  {
+    case s_arch_generic: return denox_read_source_gclk(mod, mapped, p);
+    case s_arch_amd:     return denox_read_source_aclk(mod, mapped, p);
+    case s_arch_nvidia : return denox_read_source_nclk(mod, mapped, p);
+    default: return 1;
+  }
 }
 
 static int
@@ -37,12 +70,16 @@ num_runs(int clicks, const float *box)
 dt_graph_run_t
 check_params(dt_module_t *module, uint32_t parid, uint32_t num, void *oldval)
 {
-  const float *clk = dt_module_param_float(module, 0), *box = dt_module_param_float(module, 1);
+  const int par_clk = dt_module_get_param(module->so, dt_token("click"));
+  const int par_box = dt_module_get_param(module->so, dt_token("box"));
+  const int par_zom = dt_module_get_param(module->so, dt_token("zoom"));
+  const float *clk = dt_module_param_float(module, par_clk);
+  const float *box = dt_module_param_float(module, par_box);
   const int runs = num_runs(clk[0], box);
   const dt_graph_run_t nodes = s_graph_run_create_nodes | s_graph_run_alloc | s_graph_run_record_cmd_buf;
-  if(parid == 0 && num_runs(((float *)oldval)[0], box) != runs) return nodes;
-  if(parid == 1 && num_runs(clk[0], (float *)oldval) != runs) return nodes;
-  if(parid == 4) return nodes; // zoom
+  if(parid == par_clk && num_runs(((float *)oldval)[0], box) != runs) return nodes;
+  if(parid == par_box && num_runs(clk[0], (float *)oldval) != runs) return nodes;
+  if(parid == par_zom) return nodes; // zoom
   return s_graph_run_record_cmd_buf;
 }
 
@@ -85,13 +122,28 @@ create_nodes_prompt(dt_graph_t *graph, dt_module_t *module, int input, int crop,
 static int
 create_nodes_net(dt_graph_t *graph, dt_module_t *module, int prompt, int dst, const char *c, int *weights)
 {
-  const int w = graph->num_nodes;
-  denox_create_nodes_nclk(graph, module, prompt, "output", dst, c);
-  if(*weights < 0) *weights = w;
-  else for(int n=w+1;n<graph->num_nodes;n++) for(int k=0;k<graph->node[n].num_connectors;k++)
+  const int beg = graph->num_nodes;
+  const arch_t arch = get_model(module);
+  switch(arch)
+  {
+    default:
+    case s_arch_generic:
+      denox_create_nodes_gclk(graph, module, prompt, "output", dst, c);
+      for(int i=beg;i<graph->num_nodes;i++) graph->node[i].required_subgroup_size = 32;
+      break;
+    case s_arch_amd:
+      denox_create_nodes_aclk(graph, module, prompt, "output", dst, c);
+      break;
+    case s_arch_nvidia:
+      denox_create_nodes_nclk(graph, module, prompt, "output", dst, c);
+      break;
+  }
+
+  if(*weights < 0) *weights = beg;
+  else for(int n=beg+1;n<graph->num_nodes;n++) for(int k=0;k<graph->node[n].num_connectors;k++)
   {
     dt_connector_t *cn = graph->node[n].connector + k;
-    if(!dt_connector_input(cn) || cn->connected.i != w) continue;
+    if(!dt_connector_input(cn) || cn->connected.i != beg) continue;
     const uint64_t offset = cn->ssbo_offset;
     dt_node_connect(graph, *weights, 0, n, k);
     cn->ssbo_offset = offset;
@@ -104,37 +156,14 @@ create_nodes_net(dt_graph_t *graph, dt_module_t *module, int prompt, int dst, co
 
 void create_nodes(dt_graph_t *graph, dt_module_t *module)
 {
-  if(qvk.vendorID != 0x10de) // nvidia
-  {
-    snprintf(graph->gui_msg_buf, sizeof(graph->gui_msg_buf),
-        "select: no network for this gpu vendor (0x%04x), mask is empty", qvk.vendorID);
-    graph->gui_msg = graph->gui_msg_buf;
+  if(read_source(module, 0, 0)) // check weights file
     return dt_connector_bypass(graph, module, 0, 1);
-  }
-  // read_source can't fail gracefully, so check the weights here
-  FILE *f = dt_graph_open_resource(graph, 0, weights, "rb");
-  const int found = f != 0;
-  size_t size = 0;
-  if(found)
-  {
-    fseek(f, 0, SEEK_END);
-    size = ftell(f);
-    fclose(f);
-  }
-  if(size != DENOX_NCLK_WEIGHTS_SIZE)
-  {
-    snprintf(graph->gui_msg_buf, sizeof(graph->gui_msg_buf),
-        found ? "select: \"%s\" has unexpected size, mask is empty" :
-            "select: could not find \"%s\", mask is empty", weights);
-    graph->gui_msg = graph->gui_msg_buf;
-    return dt_connector_bypass(graph, module, 0, 1);
-  }
 
-  const float *clk = dt_module_param_float(module, 0);
+  const float *clk = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("click")));
   const int clicks = CLAMP((int)clk[0], 0, 21);
-  const float *box = dt_module_param_float(module, 1);
+  const float *box = dt_module_param_float(module, dt_module_get_param(module->so, dt_token("box")));
   const int runs = num_runs(clicks, box);
-  const int zoom = dt_module_param_int(module, 4)[0];
+  const int zoom = dt_module_param_int(module, dt_module_get_param(module->so, dt_token("zoom")))[0];
   const dt_roi_t roi = module->connector[0].roi, crop_roi = { .wd = 12, .ht = 1 };
 
   // region the network sees, then the chain of runs, each one fed the mask of the one before
