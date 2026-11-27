@@ -36,6 +36,21 @@ get_model(dt_module_t *mod)
   return par_arch;
 }
 
+dt_graph_run_t
+check_params(
+    dt_module_t *mod,
+    uint32_t     parid,
+    uint32_t     num,
+    void        *oldval)
+{
+  const int pid = dt_module_get_param(mod->so, dt_token("arch"));
+  const int val = dt_module_param_int(mod, pid)[0];
+  if(parid == pid) // arch changed
+    if(*(int*)oldval != val) 
+      return s_graph_run_all;
+  return 0;
+}
+
 int read_source(dt_module_t *mod, void *mapped, dt_read_source_params_t *p)
 {
   const arch_t arch = get_model(mod);

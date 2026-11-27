@@ -1212,6 +1212,7 @@ alloc_outputs(dt_graph_t *graph, dt_node_t *node)
       VkPipelineShaderStageCreateInfo stage_info = {
         .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
         .stage               = VK_SHADER_STAGE_COMPUTE_BIT,
+        // .flags               = node->required_subgroup_size ? VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT : 0,
         // .flags               = VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT,
         .pSpecializationInfo = 0,
         .pName               = "main", // arbitrary entry point symbols are supported by glslangValidator, but need extra compilation, too. i think it's easier to structure code via includes then.

@@ -73,13 +73,16 @@ check_params(dt_module_t *module, uint32_t parid, uint32_t num, void *oldval)
   const int par_clk = dt_module_get_param(module->so, dt_token("click"));
   const int par_box = dt_module_get_param(module->so, dt_token("box"));
   const int par_zom = dt_module_get_param(module->so, dt_token("zoom"));
+  const int par_arc = dt_module_get_param(module->so, dt_token("arch"));
   const float *clk = dt_module_param_float(module, par_clk);
   const float *box = dt_module_param_float(module, par_box);
+  const int    arc = dt_module_param_int(module, par_arc)[0];
   const int runs = num_runs(clk[0], box);
   const dt_graph_run_t nodes = s_graph_run_create_nodes | s_graph_run_alloc | s_graph_run_record_cmd_buf;
   if(parid == par_clk && num_runs(((float *)oldval)[0], box) != runs) return nodes;
   if(parid == par_box && num_runs(clk[0], (float *)oldval) != runs) return nodes;
   if(parid == par_zom) return nodes; // zoom
+  if(parid == par_arc && *(int*)oldval != arc) return s_graph_run_all;
   return s_graph_run_record_cmd_buf;
 }
 

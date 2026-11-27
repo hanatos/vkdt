@@ -769,11 +769,11 @@ static void denox_create_nodes_nseg(dt_graph_t* graph, dt_module_t* module,
   graph->node[direct_conv_cm_10_id].connector[1].ssbo_offset = 1037504;
   graph->node[direct_conv_cm_11_id].connector[0].ssbo_offset = 1037760;
   graph->node[direct_conv_cm_11_id].connector[1].ssbo_offset = 1332672;
-  graph->node[basic_add_3_id].connector[2].ssbo_offset = 589824;
-  graph->node[basic_pool_2_id].connector[0].ssbo_offset = 589824;
+  graph->node[basic_add_3_id].connector[2].ssbo_offset = 0;
+  graph->node[basic_pool_2_id].connector[0].ssbo_offset = 0;
   graph->node[direct_conv_cm_12_id].connector[0].ssbo_offset = 1332928;
   graph->node[direct_conv_cm_12_id].connector[1].ssbo_offset = 1922752;
-  graph->node[direct_conv_cm_12_id].connector[2].ssbo_offset = 589824;
+  graph->node[direct_conv_cm_12_id].connector[2].ssbo_offset = 0;
   graph->node[direct_conv_cm_13_id].connector[0].ssbo_offset = 1923264;
   graph->node[direct_conv_cm_13_id].connector[1].ssbo_offset = 1988800;
   graph->node[direct_conv_cm_14_id].connector[0].ssbo_offset = 1989312;
