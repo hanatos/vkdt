@@ -106,11 +106,13 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       "input",  "read",  "ssbo", "f16", dt_no_roi,
       "output", "write", "rgba", "f16", &input_roi);
 
-  arch_t arch = get_model(module);
+  const int beg = graph->num_nodes;
+  const arch_t arch = get_model(module);
   switch(arch)
   {
     case s_arch_gldr :
       denox_create_nodes_gldr (graph, module, input_roi.ht, input_roi.wd, input,  "output", output, "input");
+      for(int i=beg;i<graph->num_nodes;i++) graph->node[i].required_subgroup_size = 32;
       break;
     case s_arch_ildr :
       denox_create_nodes_ildr (graph, module, input_roi.ht, input_roi.wd, input,  "output", output, "input");
@@ -123,6 +125,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       break;
     case s_arch_gldrs:
       denox_create_nodes_gldrs(graph, module, input_roi.ht, input_roi.wd, input,  "output", output, "input");
+      for(int i=beg;i<graph->num_nodes;i++) graph->node[i].required_subgroup_size = 32;
       break;
     case s_arch_ildrs:
       denox_create_nodes_ildrs(graph, module, input_roi.ht, input_roi.wd, input,  "output", output, "input");

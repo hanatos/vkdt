@@ -209,12 +209,14 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
       "input",  "read",  "ssbo", "f16", dt_no_roi,
       "output", "write", "rgba", "f16", &input_roi);
 
-  arch_t arch = get_model(module);
+  const int beg = graph->num_nodes;
+  const arch_t arch = get_model(module);
   switch(arch)
   {
     case s_arch_gbyc:
     case s_arch_gbyn:
       denox_create_nodes_gbyrc(graph, module, (input_roi.ht+1)/2, (input_roi.wd+1)/2, input, "output", output, "input");
+      for(int i=beg;i<graph->num_nodes;i++) graph->node[i].required_subgroup_size = 32;
       break;
     case s_arch_ibyc:
     case s_arch_ibyn:
@@ -231,6 +233,7 @@ void create_nodes(dt_graph_t *graph, dt_module_t *module)
     case s_arch_gxtc:
     case s_arch_gxtn:
       denox_create_nodes_gxtrc(graph, module, (input_roi.ht+1)/2, (input_roi.wd+1)/2, input, "output", output, "input");
+      for(int i=beg;i<graph->num_nodes;i++) graph->node[i].required_subgroup_size = 32;
       break;
     case s_arch_ixtc:
     case s_arch_ixtn:

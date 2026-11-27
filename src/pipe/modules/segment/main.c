@@ -19,6 +19,7 @@ typedef enum arch_t
   s_arch_nvidia  = 2,
   s_arch_intel   = 3,
   s_arch_amd     = 4,
+  s_arch_cnt     = 5,
 } arch_t;
 
 static inline arch_t
@@ -26,10 +27,12 @@ get_model(dt_module_t *mod)
 {
   int pid_arch  = dt_module_get_param(mod->so, dt_token("arch"));
   int par_arch  = dt_module_param_int(mod, pid_arch)[0];
-  if(par_arch < s_arch_auto || par_arch > s_arch_nvidia) par_arch = s_arch_generic;
+  if(par_arch < s_arch_auto || par_arch >= s_arch_cnt) par_arch = s_arch_generic;
+  if(par_arch == s_arch_intel) par_arch = s_arch_generic; // currently unsupported, need a B580 denox compile!
   if(par_arch == s_arch_auto)
   {
     if     (qvk.vendorID == s_qvk_vendorid_nvidia) par_arch = s_arch_nvidia; // nvidia
+    else if(qvk.vendorID == s_qvk_vendorid_amd)    par_arch = s_arch_amd;    // amd
     else par_arch = 1; // uhm, sorry.
   }
   if(!qvk.coopmat_supported) par_arch = 1;
