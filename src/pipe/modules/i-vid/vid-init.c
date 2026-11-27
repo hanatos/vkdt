@@ -232,6 +232,7 @@ void decode_video_cleanup(decode_video_t *v)
 {
   if(!v) return;
   if(!qvk.video_supported) return;
+  if(!v->hw_config) return;
   decode_video_stop(v); // needs mutex?
   // TODO make sure to wait on all semaphores before cleanup?
   vkDestroyImageView             (qvk.device, v->view, 0);

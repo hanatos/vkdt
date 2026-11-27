@@ -436,7 +436,7 @@ decode_video_stop(decode_video_t *v)
   // if(v->decode_tid < 0) return; // XXX race condition?
   // threads_wait(v->decode_tid);
   // v->decode_tid = -1; // should have been done in decode_task_done already, but hey.
-  avcodec_flush_buffers(v->video.av_ctx);
+  if(v->hw_config) avcodec_flush_buffers(v->video.av_ctx);
   v->arb.rdi = v->arb.wri = v->arb.rpos = 0;
 }
 
